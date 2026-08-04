@@ -37,7 +37,7 @@ langsmith==0.10.15
 loguru==0.7.3
 lxml==6.1.1
 ml-dtypes==0.5.4
-numpy==2.5.1
+numpy>=1.26,<3
 ollama==0.6.2
 openai==2.53.0
 opentelemetry-api==1.44.0
@@ -85,7 +85,7 @@ typing-inspection==0.4.2
 urllib3==2.7.0
 uuid-utils==0.17.0
 uvicorn==0.52.1
-uvloop==0.22.1
+uvloop>=0.21,<1
 watchfiles==1.2.0
 websockets==15.0.1
 wrapt==2.3.0
