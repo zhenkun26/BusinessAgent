@@ -11,6 +11,7 @@ import asyncio
 from loguru import logger
 
 from app.config import get_settings
+from app.core.approval_timeout import scan_expired_approvals
 from app.core.database import init_db, close_db
 
 
@@ -21,12 +22,15 @@ async def main():
 
     await init_db()
 
-    # TODO W2: 文档入库任务消费
-    # TODO: Saga 补偿重试任务
-
     # 保持运行
     try:
         while True:
+            # 审批超时扫描(幂等,每 60 秒)
+            try:
+                await scan_expired_approvals()
+            except Exception as e:  # noqa: BLE001 worker 单任务失败不退出主循环
+                logger.error(f"审批超时扫描失败: {e}")
+
             await asyncio.sleep(60)
             logger.debug("Worker 心跳")
     except asyncio.CancelledError:

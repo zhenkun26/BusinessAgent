@@ -7,10 +7,12 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
+from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 
 from app.core.database import get_db
+from app.core.approval_notify import notify_approval_result
 from app.observability.audit import get_audit_logger
 from app.security.rbac import User, get_current_user, AgentRole, security_scheme
 from app.security.jwt_manager import get_jwt_manager
@@ -181,6 +183,18 @@ async def decide_approval(
                 "new_status": "rejected",
             },
         )
+        # 通知发起人:审批已拒绝
+        try:
+            await notify_approval_result(
+                db=db,
+                approval_id=approval_id,
+                requester_id=row.requester_id,
+                session_id=row.session_id,
+                result_type="rejected",
+                detail=f"审批已拒绝({req.comment or '无意见'}),操作未执行",
+            )
+        except Exception as e:  # noqa: BLE001 通知失败不影响审批结果返回
+            logger.warning(f"审批拒绝通知失败 {approval_id}: {e}")
         return ApprovalResponse(
             approval_id=approval_id, status="rejected",
             message="审批已拒绝, 流程终止",
@@ -202,7 +216,18 @@ async def decide_approval(
         )
         await db.commit()
 
-        # TODO: 通知发起人重新登录
+        # 通知发起人:需重新登录授权后恢复执行
+        try:
+            await notify_approval_result(
+                db=db,
+                approval_id=approval_id,
+                requester_id=row.requester_id,
+                session_id=row.session_id,
+                result_type="approved_pending_reauth",
+                detail="审批已通过,但需要您重新登录后恢复执行",
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"重新授权通知失败 {approval_id}: {e}")
         return ApprovalResponse(
             approval_id=approval_id,
             status="approved_pending_reauth",
@@ -226,6 +251,17 @@ async def decide_approval(
             },
         )
         await db.commit()
+        try:
+            await notify_approval_result(
+                db=db,
+                approval_id=approval_id,
+                requester_id=row.requester_id,
+                session_id=row.session_id,
+                result_type="approved_pending_reauth",
+                detail="审批已通过,但 token 刷新失败,需要您重新登录后恢复执行",
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"重新授权通知失败 {approval_id}: {e}")
         return ApprovalResponse(
             approval_id=approval_id,
             status="approved_pending_reauth",
@@ -275,6 +311,19 @@ async def decide_approval(
             "executed_as_role": requester_role,       # 发起人角色(工具层按此终审)
         },
     )
+
+    # 通知发起人:审批已执行
+    try:
+        await notify_approval_result(
+            db=db,
+            approval_id=approval_id,
+            requester_id=row.requester_id,
+            session_id=row.session_id,
+            result_type="executed",
+            detail=exec_summary[:500],
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"审批执行通知失败 {approval_id}: {e}")
 
     if exec_success:
         message = f"审批已通过, 工具已执行: {exec_summary}"
@@ -347,6 +396,19 @@ async def resume_pending_execution(
             "executed_as_role": requester_role,
         },
     )
+
+    # 通知发起人:恢复执行完成
+    try:
+        await notify_approval_result(
+            db=db,
+            approval_id=approval_id,
+            requester_id=row.requester_id,
+            session_id=row.session_id,
+            result_type="executed",
+            detail=exec_summary[:500],
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"恢复执行通知失败 {approval_id}: {e}")
 
     if exec_success:
         message = f"执行已恢复: {exec_summary}"

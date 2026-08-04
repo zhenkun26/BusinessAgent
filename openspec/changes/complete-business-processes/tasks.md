@@ -10,10 +10,10 @@
 
 ## 2. 审批生命周期闭环
 
-- [ ] 2.1 worker 新增周期扫描任务：每 60 秒将 `status='pending' AND expires_at < NOW()` 的审批单幂等更新为 `timeout`
-- [ ] 2.2 超时流转写入审计事件（操作者=system），并触发发起人通知
-- [ ] 2.3 实现审批结果通知：`executed`/`rejected`/`timeout` 时向发起人发送内部邮件或站内消息（复用内部邮件工具）
-- [ ] 2.4 校验审批状态机：已处理的审批单不可重复超时，`approved_pending_reauth` 不参与超时扫描
+- [x] 2.1 worker 新增周期扫描任务：每 60 秒将 `status='pending' AND expires_at < NOW()` 的审批单幂等更新为 `timeout`
+- [x] 2.2 超时流转写入审计事件（操作者=system），并触发发起人通知
+- [x] 2.3 实现审批结果通知：`executed`/`rejected`/`timeout` 时向发起人发送内部邮件或站内消息（复用内部邮件工具）
+- [x] 2.4 校验审批状态机：已处理的审批单不可重复超时，`approved_pending_reauth` 不参与超时扫描
 - [ ] 2.5 补充审批超时与通知的单元测试，并更新运维维护手册
 
 ## 3. Agent 重规划闭环
