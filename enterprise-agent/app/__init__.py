@@ -9,4 +9,4 @@
 # 同步位置:app/__init__.py → pyproject.toml → CHANGELOG.md
 #           → 核心文档版本头 → Git tag(格式 vX.Y.Z)
 # ============================================
-__version__ = "1.0.0"
+__version__ = "1.1.0"

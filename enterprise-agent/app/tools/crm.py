@@ -23,7 +23,9 @@ from typing import Any, Optional
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from app.config import get_settings
 from app.tools.base import BaseTool, ToolCategory, ToolResult
+from app.tools.http_adapter import call_external_api
 
 
 # ============ Schemas ============
@@ -263,6 +265,18 @@ class QueryCustomerTool(BaseTool):
     description = "查询客户基本信息、联系人、等级、累计销售额"
     input_schema = QueryCustomerSchema
 
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实 CRM 适配:GET /api/v1/customers/{id}"""
+        settings = get_settings()
+        url = f"{settings.crm_api_base}/customers/{params['customer_id']}"
+        ok, data, error = await call_external_api(
+            "GET", url, api_token=settings.crm_api_token
+        )
+        if not ok:
+            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+        customer = data.get("customer", data) if isinstance(data, dict) else data
+        return ToolResult(success=True, tool_name=self.name, output={"customer": customer})
+
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         customer_id = params["customer_id"]
         fields = params.get("fields")
@@ -298,6 +312,22 @@ class QueryOrderTool(BaseTool):
     description = "查询订单详情,含金额、状态、明细"
     input_schema = QueryOrderSchema
 
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实 CRM 适配:GET /api/v1/orders/{id}?include_items=1/0"""
+        settings = get_settings()
+        include_items = "1" if params.get("include_items") else "0"
+        url = (
+            f"{settings.crm_api_base}/orders/{params['order_id']}"
+            f"?include_items={include_items}"
+        )
+        ok, data, error = await call_external_api(
+            "GET", url, api_token=settings.crm_api_token
+        )
+        if not ok:
+            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+        order = data.get("order", data) if isinstance(data, dict) else data
+        return ToolResult(success=True, tool_name=self.name, output={"order": order})
+
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         order_id = params["order_id"]
         include_items = params.get("include_items", False)
@@ -328,6 +358,29 @@ class CreateCrmTaskTool(BaseTool):
     category = ToolCategory.ACTION
     description = "在 CRM 系统创建客户跟进任务(有副作用,Saga 可回滚)"
     input_schema = CreateCrmTaskSchema
+
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实 CRM 适配:POST /api/v1/crm_tasks"""
+        settings = get_settings()
+        if not params.get("assignee"):
+            params["assignee"] = context.get("user_id", "system")
+        ok, data, error = await call_external_api(
+            "POST",
+            f"{settings.crm_api_base}/crm_tasks",
+            api_token=settings.crm_api_token,
+            json_body=params,
+        )
+        if not ok:
+            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+        task = data.get("task", data) if isinstance(data, dict) else data
+        task_id = task.get("task_id") if isinstance(task, dict) else None
+        return ToolResult(
+            success=True,
+            tool_name=self.name,
+            output={"task": task},
+            side_effects={"created_task_id": task_id},
+            compensation_data={"task_id": task_id, "action": "delete"},
+        )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         # assignee 缺省(含 LLM 显式给 null)时回填发起人

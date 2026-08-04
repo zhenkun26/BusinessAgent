@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255),
     role VARCHAR(32) NOT NULL,  -- salesperson / customer_service / finance / manager / admin
     department VARCHAR(64),
-    password_hash VARCHAR(255),
+    password_hash VARCHAR(255) NOT NULL,  -- bcrypt 哈希(生产必需)
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_unique ON users(username);
 
 -- 会话记录
 CREATE TABLE IF NOT EXISTS sessions (

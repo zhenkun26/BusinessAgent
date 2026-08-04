@@ -67,6 +67,10 @@ class FakeSession:
     async def commit(self) -> None:
         self.commits += 1
 
+    async def rollback(self) -> None:
+        """兼容异常路径的 rollback 调用(记录次数)"""
+        self.rollbacks = getattr(self, "rollbacks", 0) + 1
+
 
 @pytest.fixture
 def fake_session_factory():

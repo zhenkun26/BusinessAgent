@@ -81,6 +81,9 @@ class BaseTool(ABC):
     risk_level: str = "low"
     # 是否需要审批(如外部邮件等高风险操作,True 时执行前先建审批单)
     requires_approval: bool = False
+    # 提供方开关:mock(默认,进程内数据)/ http(真实业务系统适配器)
+    # 全局开关见 config.tool_provider;单个工具可用 provider_override 覆盖
+    provider_override: Optional[str] = None
 
     @abstractmethod
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
@@ -109,6 +112,35 @@ class BaseTool(ABC):
             tool_name=self.name,
             output={"message": f"工具 {self.name} 无补偿逻辑(默认成功)"},
         )
+
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实业务系统适配(provider=http 时执行)
+
+        子类覆盖此方法,用 app.tools.http_adapter.call_external_api 调用
+        外部 API 并归一化为 ToolResult。未实现时返回明确错误而非静默 Mock。
+
+        Args:
+            params: 已通过 input_schema 校验的入参
+            context: 调用上下文
+
+        Returns:
+            ToolResult
+        """
+        return ToolResult(
+            success=False,
+            tool_name=self.name,
+            output={},
+            error=f"工具 {self.name} 未实现真实 API 适配(_call_external),"
+                  f"请检查 provider 配置或使用 mock 提供方",
+        )
+
+    def _effective_provider(self) -> str:
+        """生效提供方:单工具覆盖优先,否则读全局配置"""
+        if self.provider_override:
+            return self.provider_override
+        from app.config import get_settings
+
+        return get_settings().tool_provider
 
     # ============ 公共入口(业务层调用)============
 
@@ -205,13 +237,17 @@ class BaseTool(ABC):
                     latency_ms=int((time.time() - start) * 1000),
                 )
 
-            # 4. 执行
+            # 4. 执行(mock 走 _execute;http 走 _call_external 适配器)
             try:
                 logger.info(
                     f"工具调用: tool={tool_name}, role={role_str}, "
-                    f"params_keys={list(validated_params.keys())}"
+                    f"params_keys={list(validated_params.keys())}, "
+                    f"provider={self._effective_provider()}"
                 )
-                result = await self._execute(validated_params, context)
+                if self._effective_provider() == "http":
+                    result = await self._call_external(validated_params, context)
+                else:
+                    result = await self._execute(validated_params, context)
                 result.latency_ms = int((time.time() - start) * 1000)
 
                 record_span_attributes({

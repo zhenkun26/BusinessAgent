@@ -23,7 +23,9 @@ from typing import Any, Optional
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
 
+from app.config import get_settings
 from app.tools.base import BaseTool, ToolCategory, ToolResult
+from app.tools.http_adapter import call_external_api
 
 
 # ============ Schemas ============
@@ -153,6 +155,27 @@ class CreateTicketTool(BaseTool):
     description = "创建客户服务工单(售后/投诉/咨询等)"
     input_schema = CreateTicketSchema
 
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实工单系统适配:POST /api/v1/tickets"""
+        settings = get_settings()
+        ok, data, error = await call_external_api(
+            "POST",
+            f"{settings.ticket_api_base}/tickets",
+            api_token=settings.ticket_api_token,
+            json_body=params,
+        )
+        if not ok:
+            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+        ticket = data.get("ticket", data) if isinstance(data, dict) else data
+        ticket_id = ticket.get("ticket_id") if isinstance(ticket, dict) else None
+        return ToolResult(
+            success=True,
+            tool_name=self.name,
+            output={"ticket": ticket},
+            side_effects={"created_ticket_id": ticket_id},
+            compensation_data={"ticket_id": ticket_id, "action": "close"},
+        )
+
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         # 校验 priority
         allowed = {"low", "normal", "high", "urgent"}
@@ -214,6 +237,36 @@ class UpdateTicketTool(BaseTool):
     category = ToolCategory.ACTION
     description = "更新工单状态/优先级/指派(需先有工单)"
     input_schema = UpdateTicketSchema
+
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实工单系统适配:PATCH /api/v1/tickets/{id}"""
+        settings = get_settings()
+        ticket_id = params["ticket_id"]
+        update_payload = {
+            key: params[key]
+            for key in ("status", "priority", "assignee", "comment")
+            if params.get(key) is not None
+        }
+        ok, data, error = await call_external_api(
+            "PATCH",
+            f"{settings.ticket_api_base}/tickets/{ticket_id}",
+            api_token=settings.ticket_api_token,
+            json_body=update_payload,
+        )
+        if not ok:
+            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+        ticket = data.get("ticket", data) if isinstance(data, dict) else data
+        return ToolResult(
+            success=True,
+            tool_name=self.name,
+            output={"ticket": ticket, "updated_fields": list(update_payload.keys())},
+            side_effects={"updated_ticket_id": ticket_id},
+            compensation_data={
+                "ticket_id": ticket_id,
+                "action": "restore",
+                "old_values": {},
+            },
+        )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         ticket_id = params["ticket_id"]

@@ -104,6 +104,15 @@ class Settings(BaseSettings):
     crm_api_base: str = "https://crm.internal/api/v1"
     mail_api_base: str = "https://mail.internal/api/v1"
     ticket_api_base: str = "https://ticket.internal/api/v1"
+    # 外部业务系统凭证(仅环境变量注入;空值时 http 适配器返回 401 语义错误)
+    crm_api_token: str = ""
+    mail_api_token: str = ""
+    ticket_api_token: str = ""
+    # 工具提供方: mock(默认,进程内数据)/ http(真实业务系统适配)
+    tool_provider: str = "mock"
+    # 外部 HTTP 调用超时与重试(mock 提供方不生效)
+    external_timeout_seconds: float = 10.0
+    external_max_retries: int = 2
 
     # ---- 限流 ----
     rate_limit_per_minute: int = 60

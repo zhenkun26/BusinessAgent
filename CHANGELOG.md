@@ -8,6 +8,28 @@
 > 单一事实源:`enterprise-agent/app/__init__.py` 的 `__version__`;
 > 升级时同步 `pyproject.toml`、本文件、核心文档版本头,并打 Git tag `vX.Y.Z`。
 
+## v1.1.0 · 业务闭环补全（2026-08-04）
+
+> 对应 openspec change:`complete-business-processes`(41/41 任务完成)
+
+### 新增能力
+
+- **用户生命周期闭环**：`users` 表 `password_hash` 非空 + `is_active`/username 索引（迁移 004）；admin 用户管理 API（`GET/POST /admin/users`、`PATCH /admin/users/{id}`，重复用户名 409，密码 bcrypt 哈希，创建/变更审计含操作者与旧新值）。
+- **外部系统接入**：`BaseTool._call_external` 抽象 + `tool_provider` 开关（mock/http）；统一 HTTP 适配器（httpx 超时、指数退避、401/403 与 5xx 归一化、凭证不入日志）；CRM/邮件/工单 7 个工具接入适配契约（Mock 默认）。
+- **后台任务**：Redis List 任务队列（文档入库、Saga 补偿重试），失败带 `retry_count` 与退避重排；worker 启动/周期回写审计本地缓存。
+
+### 修复与验证
+
+- 测试从 36 项增至 **58 项**（新增 HTTP 适配契约、任务队列 fakeredis、用户管理 API、ToolGateway RBAC/注入、Aggregator、Saga 补偿重试等），全部通过。
+- W7 工具执行回归 7/7 通过（真实 DeepSeek + PG/Redis）。
+- 产品文档/使用案例手册/运维维护手册补齐运营闭环（知识审核、审批超时、重规划、用户管理、worker）章节。
+- `openspec validate` 两个 change 均通过。
+
+### 兼容性说明
+
+- 认证默认仍为「密码任意」（`AUTH_REQUIRE_PASSWORD=false`）；外部系统默认 mock（`tool_provider=mock`），切换 http 需配置凭证与 base URL。
+- 新增迁移 003/004 均幂等；`init.sql` 已同步。
+
 ## v1.0.0 · 生产级基线（2026-08-04）
 
 > Git tag:`v1.0.0`

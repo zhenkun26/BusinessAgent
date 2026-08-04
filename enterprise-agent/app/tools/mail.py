@@ -22,7 +22,9 @@ from typing import Any, Optional
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
 
+from app.config import get_settings
 from app.tools.base import BaseTool, ToolCategory, ToolResult
+from app.tools.http_adapter import call_external_api
 
 
 # ============ Schemas ============
@@ -88,6 +90,26 @@ class SendEmailInternalTool(BaseTool):
     category = ToolCategory.ACTION
     description = "发送内部邮件给同事(仅内部域名,如 @company.internal)"
     input_schema = SendEmailSchema
+
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实邮件系统适配:POST /send(scope=internal)"""
+        settings = get_settings()
+        ok, data, error = await call_external_api(
+            "POST",
+            f"{settings.mail_api_base}/send",
+            api_token=settings.mail_api_token,
+            json_body={**params, "scope": "internal"},
+        )
+        if not ok:
+            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+        message_id = data.get("message_id") if isinstance(data, dict) else None
+        return ToolResult(
+            success=True,
+            tool_name=self.name,
+            output={"message_id": message_id, "recipients": len(params["to"])},
+            side_effects={"sent_message_id": message_id},
+            compensation_data={"message_id": message_id, "action": "recall"},
+        )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         to_list = params["to"]
@@ -155,6 +177,26 @@ class SendEmailExternalTool(BaseTool):
     # 高风险操作:执行前需经理审批(审批通过后服务端自动执行)
     requires_approval = True
     risk_level = "high"
+
+    async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
+        """真实邮件系统适配:POST /send(scope=external)"""
+        settings = get_settings()
+        ok, data, error = await call_external_api(
+            "POST",
+            f"{settings.mail_api_base}/send",
+            api_token=settings.mail_api_token,
+            json_body={**params, "scope": "external"},
+        )
+        if not ok:
+            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+        message_id = data.get("message_id") if isinstance(data, dict) else None
+        return ToolResult(
+            success=True,
+            tool_name=self.name,
+            output={"message_id": message_id, "recipients": len(params["to"])},
+            side_effects={"sent_message_id": message_id},
+            compensation_data={"message_id": message_id, "action": "recall"},
+        )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         to_list = params["to"]
