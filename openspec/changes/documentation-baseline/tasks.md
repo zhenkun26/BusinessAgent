@@ -1,8 +1,8 @@
 ## 1. Git 版本控制初始化
 
-- [ ] 1.1 校验并补充 `.gitignore`（覆盖 `.venv_e2e/`、`backups/`、`*.log` 等；确认 `.env`/密钥/模型目录已排除）
-- [ ] 1.2 在仓库根目录执行 `git init`
-- [ ] 1.3 提交基线快照（commit 1：`docs-baseline: 现状快照`），提交前核对 `git status` 与 `git ls-files` 无敏感文件
+- [x] 1.1 校验并补充 `.gitignore`（覆盖 `.venv_e2e/`、`backups/`、`*.log` 等；确认 `.env`/密钥/模型目录已排除）
+- [x] 1.2 在仓库根目录执行 `git init`
+- [x] 1.3 提交基线快照（commit 1：`docs-baseline: 现状快照`），提交前核对 `git status` 与 `git ls-files` 无敏感文件
 
 ## 2. 目录骨架与文件迁移（documentation-layout）
 

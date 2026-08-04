@@ -4,16 +4,20 @@
 
 本仓库是「Hello，小A——企业知识工作流 Agent」的学习与演示项目：基于
 LangChain + LangGraph + Milvus 构建的多 Agent 系统。后端代码位于
-`enterprise-agent/`，仓库根目录存放产品文档、演示网页、使用手册和阶段性总结。
+`enterprise-agent/`，文档统一存放在 `docs/`（六大层分类），面试与演示资产
+独立存放在 `interview/`。
 
 ## 目录结构
 
 - `enterprise-agent/`：FastAPI 后端主工程，包含 `app/`（API、Agent、Graph、
   RAG、工具、安全、可观测性）、`eval/`（W2-W9 评测脚本）、`deploy/`（部署配置）、
   `README.md`
-- `产品介绍网页/`：产品演示页（单文件 `index.html`，零构建）
-- `前置准备/`：产品方案 v1-v3、研究报告与模型选型资料
-- 根目录 `.md` 文件：产品文档、使用手册、运维维护手册、阶段性总结
+- `docs/`：统一文档体系，按六大层分类（产品方案 / 产品文档 / 操作手册 /
+  过程记录 / 工程文档 / 知识数据库 + 归档层），每层有 README 索引
+- `interview/`：面试与演示资产独立体系（面试备稿 + 产品介绍网页）
+- `openspec/`：openspec 变更与主规格（需求演进规范化）
+- 根目录保留：`README.md`（导航入口）、`contents.md`（目录索引）、
+  `CHANGELOG.md`（版本变更）、`启动小A.bat`（一键启动）
 
 ## 常用命令
 
@@ -51,7 +55,11 @@ python -m eval.run_w9_tracing
 ## 关键文档
 
 - [enterprise-agent/README.md](enterprise-agent/README.md)
-- [产品文档.md](产品文档.md)
-- [运维维护手册.md](运维维护手册.md)
-- [产品使用手册-前端版.md](产品使用手册-前端版.md)
-- [使用案例手册.md](使用案例手册.md)
+- [contents.md](contents.md)（全仓库目录树索引）
+- [docs/20-product/产品文档.md](docs/20-product/产品文档.md)
+- [docs/30-guides/运维维护手册.md](docs/30-guides/运维维护手册.md)
+- [docs/30-guides/产品使用手册-前端版.md](docs/30-guides/产品使用手册-前端版.md)
+- [docs/30-guides/使用案例手册.md](docs/30-guides/使用案例手册.md)
+- [docs/40-process/ROADMAP.md](docs/40-process/ROADMAP.md)（里程碑规划）
+- [docs/40-process/ISSUES.md](docs/40-process/ISSUES.md)（问题与坑记录）
+- [docs/40-process/DECISIONS.md](docs/40-process/DECISIONS.md)（设计决策记录）
