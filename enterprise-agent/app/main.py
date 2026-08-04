@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from loguru import logger
 
 from app.config import get_settings
@@ -78,6 +79,19 @@ def create_app() -> FastAPI:
     )
 
     # 中间件(顺序:后注册的先执行)
+    @app.middleware("http")
+    async def strip_markdown_asterisks(request, call_next):
+        """URL 容错:去掉路径尾部的 markdown 加粗星号(**)
+
+        用户从带加粗的文案中复制 URL 时会带上 ** 后缀(如 /ui**),
+        直接 404。此处清洗路径后 307 重定向,避免"网站打不开"。
+        """
+        path = request.url.path
+        if path.endswith("**"):
+            clean_path = path.rstrip("*") or "/"
+            return RedirectResponse(clean_path, status_code=307)
+        return await call_next(request)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"] if settings.is_dev else ["https://your-frontend.com"],

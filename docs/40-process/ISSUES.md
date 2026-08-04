@@ -5,6 +5,15 @@
 
 ## 一、待办与开放问题
 
+### I-09 跨机器迁移后本地启动环境缺失（2026-08-04）
+
+- 状态：fixed（已恢复）· 优先级 P2
+- 现象：项目从 Windows 拷贝到 macOS 后，登录页/全站请求 Failed to fetch、网站打不开。
+- 根因：① 后端未运行（8000 无监听、Docker daemon 未启动）；② 无项目 Python 环境与数据库初始化；③ 旧 uvicorn 仅绑定 127.0.0.1，IPv6 localhost(::1) 与局域网不可达；④ 从加粗文案复制的 URL 带 `**` 后缀导致 404（日志 `GET /ui%2A%2A 404`）。
+- 修复：启动 Docker（PG/Redis）→ uv 建 venv 装依赖 → init.sql + 迁移 001/002 → 按 .env `APP_HOST=0.0.0.0` 启动 API；前端 file:// 直开给出明确指引；main.py 增加 URL 尾部 `**` 清洗重定向；新增 macOS 一键启动脚本 `启动小A.command`。
+- 验证：`/health` healthy、登录 200、`/ui` 200、`/ui**` 自动重定向 200。
+- 注意：知识问答仍需 Milvus + 本地模型（bge-m3/reranker），`.env` 模型路径为 Windows 路径，本机未配置。
+
 ### I-01 压测未做
 
 - 状态：open · 优先级 P3
