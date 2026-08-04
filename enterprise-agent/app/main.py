@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.config import get_settings
-from app.api import chat, approval, auth, prompts
+from app.api import chat, approval, auth, prompts, admin
 from app.core.database import init_db
 from app.core.milvus_client import init_milvus
 from app.middleware.rate_limit import rate_limit_middleware
@@ -97,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix="/api/v1/chat", tags=["对话"])
     app.include_router(approval.router, prefix="/api/v1", tags=["审批"])
     app.include_router(prompts.router, prefix="/api/v1", tags=["Prompt管理"])
+    app.include_router(admin.router, prefix="/api/v1", tags=["Admin运营"])
 
     # 前端静态页(单文件 SPA,访问 /ui)
     from pathlib import Path

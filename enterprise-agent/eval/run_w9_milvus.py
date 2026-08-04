@@ -88,7 +88,7 @@ async def test_ingest_docs():
     total = 0
     for md_file in sorted(sample_dir.glob("*.md")):
         try:
-            count = ingest.ingest_file(
+            count = await ingest.ingest_file(
                 file_path=md_file,
                 title=md_file.stem,
                 doc_type="policy",
@@ -224,7 +224,7 @@ async def test_degradation_chain():
     chain = DegradationChain(retriever)
 
     # 正常场景:Milvus 可用,应命中 vector 阶段
-    result = chain.run(
+    result = await chain.run(
         query="折扣权限",
         user_role="salesperson",
         dept_namespace="dept_sales",

@@ -41,9 +41,9 @@
 
 ## 6. 导航与收尾
 
-- [ ] 6.1 重写根目录 `README.md` 为全仓库唯一导航入口（各层文档链接 + 常用命令 + 维护入口）
-- [ ] 6.2 新建根目录 `contents.md`：完整目录树 + 每一行注释用途，与磁盘实际结构一致
-- [ ] 6.3 全量校验：目录树 vs contents.md 对照、相对链接目标存在性检查（`rg` + 脚本断言）、`git status` 无敏感文件
-- [ ] 6.4 回归确认：`enterprise-agent/` 代码路径与 `complete-business-processes` 实施范围未受影响
-- [ ] 6.5 提交基建收尾（commit 3：`docs-baseline: 导航与记录规范化`）
+- [x] 6.1 重写根目录 `README.md` 为全仓库唯一导航入口（各层文档链接 + 常用命令 + 维护入口）
+- [x] 6.2 新建根目录 `contents.md`：完整目录树 + 每一行注释用途，与磁盘实际结构一致
+- [x] 6.3 全量校验：目录树 vs contents.md 对照、相对链接目标存在性检查（`rg` + 脚本断言）、`git status` 无敏感文件
+- [x] 6.4 回归确认：`enterprise-agent/` 代码路径与 `complete-business-processes` 实施范围未受影响
+- [x] 6.5 提交基建收尾（commit 3：`docs-baseline: 导航与记录规范化`）
 - [ ] 6.6 确认 `openspec validate` 通过后等待归档（用户确认后执行 `openspec archive`）

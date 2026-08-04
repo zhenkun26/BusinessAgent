@@ -542,15 +542,18 @@ async def submit_feedback(
         await db.execute(
             text(
                 "INSERT INTO documents (document_id, title, doc_type, "
-                "dept_namespace, status, access_roles, uploaded_by) "
+                "dept_namespace, status, access_roles, uploaded_by, content, "
+                "source_session_id) "
                 "VALUES (:did, :title, 'faq', 'shared_company', 'draft', "
-                "CAST(:roles AS JSONB), :uid)"
+                "CAST(:roles AS JSONB), :uid, :content, :sid)"
             ),
             {
                 "did": document_id,
                 "title": comment[:50],
                 "roles": json.dumps(access_roles),
                 "uid": user.user_id,
+                "content": comment[:500],
+                "sid": req.session_id,
             },
         )
         draft_created = True

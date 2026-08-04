@@ -1,11 +1,11 @@
 ## 1. 知识库运营闭环
 
-- [ ] 1.1 编写幂等迁移：`documents` 表补充 `search_vector` 与审核字段（`reviewed_by`/`reviewed_at`/`reject_reason`），并给 `document_id` 建唯一索引
-- [ ] 1.2 改造 `app/rag/ingest.py`：向量写入成功后同步 upsert `documents` 台账（active），写入失败保留失败标记并可重试
-- [ ] 1.3 实现 `KeywordRetriever` 第三级：PostgreSQL tsvector 查询，强制 `dept_namespace in (本部门, shared_company)` 与 `access_roles` 过滤
-- [ ] 1.4 新增知识候选审核 API：`GET /admin/knowledge-candidates`、`POST /admin/knowledge-candidates/{id}/approve`、`POST /admin/knowledge-candidates/{id}/reject`，仅 admin 可用
-- [ ] 1.5 审核通过时触发向量入库并将候选置为 active；拒绝时记录 `reject_reason` 并置为 rejected
-- [ ] 1.6 新增文档台账 API（`GET /admin/documents`），前端知识库文档页改为调用真实接口并渲染 draft/active/rejected 状态
+- [x] 1.1 编写幂等迁移：`documents` 表补充 `search_vector` 与审核字段（`reviewed_by`/`reviewed_at`/`reject_reason`），并给 `document_id` 建唯一索引
+- [x] 1.2 改造 `app/rag/ingest.py`：向量写入成功后同步 upsert `documents` 台账（active），写入失败保留失败标记并可重试
+- [x] 1.3 实现 `KeywordRetriever` 第三级：PostgreSQL tsvector 查询，强制 `dept_namespace in (本部门, shared_company)` 与 `access_roles` 过滤
+- [x] 1.4 新增知识候选审核 API：`GET /admin/knowledge-candidates`、`POST /admin/knowledge-candidates/{id}/approve`、`POST /admin/knowledge-candidates/{id}/reject`，仅 admin 可用
+- [x] 1.5 审核通过时触发向量入库并将候选置为 active；拒绝时记录 `reject_reason` 并置为 rejected
+- [x] 1.6 新增文档台账 API（`GET /admin/documents`），前端知识库文档页改为调用真实接口并渲染 draft/active/rejected 状态
 - [ ] 1.7 为降级链与审核接口补充单元测试（见第 6 组），并更新使用案例手册中知识库运营流程
 
 ## 2. 审批生命周期闭环
@@ -46,7 +46,7 @@
 
 ## 6. 质量测试闭环
 
-- [ ] 6.1 建立 `tests/` 目录与 pytest 配置，接入 `pytest-asyncio`，确认离线可运行
+- [x] 6.1 建立 `tests/` 目录与 pytest 配置，接入 `pytest-asyncio`，确认离线可运行
 - [ ] 6.2 建立公共测试基座：DB 依赖替换、Mock LLM、Mock HTTP、临时目录 fixture
 - [ ] 6.3 为本 change 新增的审核、审批超时、重规划、用户管理、外部适配接口补齐正常/边界/错误路径测试
 - [ ] 6.4 为既有核心接口补齐单元测试：auth/chat/approval API、KnowledgeAgent、AnalysisAgent、ExecutionAgent、ToolGateway、RAG 检索与图节点

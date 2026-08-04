@@ -487,7 +487,7 @@
           <a :class="{active: refTab==='customers'}" @click="refTab='customers'">客户 ({{ customers.length }})</a>
           <a :class="{active: refTab==='orders'}" @click="refTab='orders'">订单 ({{ orders.length }})</a>
           <a :class="{active: refTab==='tickets'}" @click="refTab='tickets'">工单 ({{ tickets.length }})</a>
-          <a :class="{active: refTab==='docs'}" @click="refTab='docs'">知识库文档 ({{ documents.length }})</a>
+          <a :class="{active: refTab==='docs'}" @click="openDocsTab()">知识库文档 ({{ documents.length }})</a>
         </div>
 
         <div v-if="refTab==='customers'">
@@ -1164,6 +1164,24 @@ createApp({
     async loadStatus() {
       try { this.status = await this.api('/ready'); }
       catch (e) { this.showToast('加载状态失败:' + e.message); }
+    },
+
+    // ===== 知识库文档台账(真实数据,仅 admin 可读) =====
+    async openDocsTab() {
+      this.refTab = 'docs';
+      await this.loadDocuments();
+    },
+    async loadDocuments() {
+      try {
+        const d = await this.api('/api/v1/admin/documents?limit=100');
+        if (d && d.data && Array.isArray(d.data.items)) {
+          this.documents = d.data.items;
+          return;
+        }
+      } catch (e) {
+        // 非 admin 或接口不可用:保留内置演示数据并提示
+        this.showToast('文档台账加载失败(仅 admin 可读):' + e.message);
+      }
     },
   },
   mounted() {

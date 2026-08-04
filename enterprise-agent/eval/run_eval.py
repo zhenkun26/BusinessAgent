@@ -90,7 +90,7 @@ def load_eval_set() -> dict:
         return json.load(f)
 
 
-def ensure_ingest(recreate: bool = False) -> dict:
+async def ensure_ingest(recreate: bool = False) -> dict:
     """自动入库 sample_docs(若 VectorStore 为空)"""
     settings = get_settings()
 
@@ -116,7 +116,7 @@ def ensure_ingest(recreate: bool = False) -> dict:
     from app.rag.ingest import MilvusIngestService
 
     service = MilvusIngestService(vector_store=vs)
-    stats = service.ingest_directory(
+    stats = await service.ingest_directory(
         dir_path=SAMPLE_DOCS_DIR,
         doc_type="policy",
         dept_namespace="shared_company",
@@ -332,7 +332,7 @@ def main():
 
     # 入库(如需要)
     if args.ingest:
-        ensure_ingest(recreate=args.recreate)
+        asyncio.run(ensure_ingest(recreate=args.recreate))
 
     # 构造 retriever(按 --rerank 选精排策略)
     if args.rerank == "passthrough":

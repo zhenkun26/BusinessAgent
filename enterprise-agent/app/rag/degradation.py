@@ -39,8 +39,8 @@ class DegradationResult:
 class KeywordRetriever:
     """关键词检索器(BM25 + PG LIKE 兜底)
 
-    W3 阶段:从 Milvus 全表扫描 + 关键词匹配(模拟 BM25)
-    W11 阶段:接 PostgreSQL 全文索引(tsvector + ts_rank)
+    - 第一级:从 Milvus 全表扫描 + 关键词匹配(模拟 BM25)
+    - 第二级:PostgreSQL tsvector 全文检索(documents.search_vector,第三级降链)
 
     简化实现:对 collection 做 query 关键词扫描,返回包含关键词的 chunks。
     适合 Milvus 不可用时的降级,不追求高准确率,只求"有结果"。
@@ -51,7 +51,7 @@ class KeywordRetriever:
 
         self._settings = get_settings()
 
-    def retrieve_by_keywords(
+    async def retrieve_by_keywords(
         self,
         query: str,
         top_k: int = 10,
@@ -65,13 +65,14 @@ class KeywordRetriever:
             logger.warning(f"关键词提取为空,query={query!r}")
             return []
 
-        # W3 简化实现:从 Milvus 全表 query 所有 active chunks,匹配关键词
-        # 生产实现应接 PostgreSQL documents 表的 tsvector 索引
+        # 第一级降级:Milvus 全表扫描 + Python 层关键词匹配
         try:
             return self._scan_via_milvus(keywords, top_k, user_role, dept_namespace)
         except Exception as e:  # noqa: BLE001
             logger.error(f"Milvus 关键词扫描失败: {e}")
-            return self._fallback_pg_like(keywords, top_k, user_role, dept_namespace)
+            return await self._fallback_pg_tsvector(
+                keywords, top_k, user_role, dept_namespace
+            )
 
     @staticmethod
     def _extract_keywords(query: str) -> list[str]:
@@ -172,20 +173,95 @@ class KeywordRetriever:
             for s, e in scored
         ]
 
-    def _fallback_pg_like(
+    async def _fallback_pg_tsvector(
         self,
         keywords: list[str],
         top_k: int,
         user_role: Optional[str],
         dept_namespace: Optional[str] = None,
     ) -> list[SearchResult]:
-        """PostgreSQL LIKE 兜底(需要 documents 表,W3 暂未实现)
+        """PostgreSQL tsvector 全文检索(降级链第三级)
 
-        TODO W11:接 PostgreSQL documents 表时必须带 dept_namespace 过滤
-        (本部门 + shared_company),避免降级路径泄露其他部门文档。
+        强制应用命名空间隔离(本部门 + shared_company)与角色过滤(access_roles),
+        防止降级路径泄露其他部门文档——口径与主路径向量检索完全一致。
+
+        Args:
+            keywords: 已提取的关键词列表
+            top_k: 返回条数上限
+            user_role: 当前用户角色(access_roles 过滤)
+            dept_namespace: 当前用户部门(命名空间过滤)
+
+        Returns:
+            带 ts_rank 排序的检索结果;查询失败或库不可用时返回空列表
         """
-        logger.warning("PG LIKE 兜底未实现,返回空结果")
-        return []
+        from sqlalchemy import text
+
+        try:
+            from app.core.database import get_session_factory
+
+            factory = get_session_factory()
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"PG tsvector 降级: 数据库未就绪, {e}")
+            return []
+
+        # tsquery:关键词 OR 组合(simple 配置,中文可控的关键词匹配)
+        ts_query = " | ".join(keywords[:8])
+        if not ts_query:
+            return []
+
+        try:
+            async with factory() as session:
+                # search_vector 未维护时按 content 模糊匹配兜底(老数据)
+                rows = (
+                    await session.execute(
+                        text(
+                            """
+                            SELECT document_id, title, content, dept_namespace,
+                                   doc_type, source_url, updated_at,
+                                   ts_rank_cd(
+                                       COALESCE(search_vector,
+                                                to_tsvector('simple', COALESCE(content, ''))),
+                                       to_tsquery('simple', :ts_query)
+                                   ) AS rank
+                            FROM documents
+                            WHERE status = 'active'
+                              AND (search_vector @@ to_tsquery('simple', :ts_query)
+                                   OR content ILIKE '%' || :kw || '%')
+                              AND dept_namespace IN (:dept_ns, 'shared_company')
+                              AND access_roles @> CAST(:role AS JSONB)
+                            ORDER BY rank DESC
+                            LIMIT :limit
+                            """
+                        ),
+                        {
+                            "ts_query": ts_query,
+                            "kw": keywords[0],
+                            "dept_ns": dept_namespace or "shared_company",
+                            "role": f'["{user_role}"]' if user_role else "[]",
+                            "limit": top_k,
+                        },
+                    )
+                ).fetchall()
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"PG tsvector 降级检索失败: {e}")
+            return []
+
+        results: list[SearchResult] = []
+        for row in rows:
+            results.append(
+                SearchResult(
+                    chunk_id=f"{row.document_id}_chunk_pg",
+                    document_id=row.document_id,
+                    title=row.title or "",
+                    content=row.content or "",
+                    score=float(row.rank) if row.rank is not None else 0.0,
+                    dept_namespace=row.dept_namespace or "",
+                    doc_type=row.doc_type or "",
+                    source_url=row.source_url or "",
+                    updated_at=int(row.updated_at.timestamp()) if row.updated_at else 0,
+                )
+            )
+        return results
 
 
 class DegradationChain:
@@ -202,7 +278,7 @@ class DegradationChain:
         self.primary = primary_retriever
         self.keyword_retriever = KeywordRetriever()
 
-    def run(
+    async def run(
         self,
         query: str,
         user_role: Optional[str] = None,
@@ -234,7 +310,7 @@ class DegradationChain:
 
         # 2. 降级 1:BM25 / 关键词
         try:
-            results = self.keyword_retriever.retrieve_by_keywords(
+            results = await self.keyword_retriever.retrieve_by_keywords(
                 query=query, top_k=top_k, user_role=user_role,
                 dept_namespace=dept_namespace,
             )

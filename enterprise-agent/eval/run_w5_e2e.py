@@ -48,7 +48,7 @@ async def ensure_ingest():
     total = 0
     for md_file in sorted(sample_dir.glob("*.md")):
         try:
-            count = ingest.ingest_file(
+            count = await ingest.ingest_file(
                 file_path=md_file,
                 title=md_file.stem,
                 doc_type="policy",

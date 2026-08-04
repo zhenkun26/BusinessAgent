@@ -191,7 +191,7 @@ async def test_degradation_isolation():
     print(f"✓ 正对照通过:salesperson 命中 dept_sales chunk {len(hits)} 条")
 
     # 4c. 链路级:retrieve_by_keywords(dept_namespace 沿调用链传入)
-    results_chain = kr.retrieve_by_keywords(
+    results_chain = await kr.retrieve_by_keywords(
         query="冲刺先锋奖怎么评选",
         top_k=10,
         user_role="customer_service",

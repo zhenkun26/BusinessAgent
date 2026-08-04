@@ -132,7 +132,7 @@ class KnowledgeAgent:
             from app.graph.history import expand_query_with_history
 
             retrieval_query = expand_query_with_history(query, history)
-            deg_result = self.degradation_chain.run(
+            deg_result = await self.degradation_chain.run(
                 query=retrieval_query,
                 user_role=self.user_role.value if hasattr(self.user_role, "value") else str(self.user_role),
                 dept_namespace=self.user_dept,

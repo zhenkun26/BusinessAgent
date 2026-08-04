@@ -128,9 +128,16 @@ CREATE TABLE IF NOT EXISTS documents (
     source_url VARCHAR(1024),
     doc_type VARCHAR(32),  -- policy / product / faq / manual
     dept_namespace VARCHAR(64),
-    status VARCHAR(32) DEFAULT 'draft',  -- draft / active / archived / deleted
+    status VARCHAR(32) DEFAULT 'draft',  -- draft / active / rejected / failed / archived / deleted
     access_roles JSONB,
     content_hash VARCHAR(64),
+    content TEXT,                        -- 文档正文(反馈候选审核入库时作为检索片段)
+    source_session_id VARCHAR(64),       -- 来源会话(反馈候选追溯)
+    ingest_error TEXT,                   -- 入库失败标记(worker 重试依据)
+    search_vector tsvector,              -- PG 全文检索降级第三级
+    reviewed_by VARCHAR(64) REFERENCES users(user_id),  -- 审核人
+    reviewed_at TIMESTAMP,               -- 审核时间
+    reject_reason TEXT,                  -- 拒绝原因
     uploaded_by VARCHAR(64) REFERENCES users(user_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -138,6 +145,10 @@ CREATE TABLE IF NOT EXISTS documents (
 
 CREATE INDEX IF NOT EXISTS idx_documents_namespace ON documents(dept_namespace);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+CREATE INDEX IF NOT EXISTS idx_documents_search ON documents USING GIN (search_vector);
+CREATE INDEX IF NOT EXISTS idx_documents_review_status
+    ON documents (status) WHERE status IN ('draft', 'active', 'rejected');
+CREATE INDEX IF NOT EXISTS idx_documents_content_hash ON documents (content_hash);
 
 -- Prompt 版本管理(P2-1:A/B 测试与回滚)
 -- 模板语法为 Python str.format,JSON 示例花括号需 {{ }} 转义(与代码内约定一致)

@@ -75,7 +75,7 @@ async def test_state_persistence():
     from app.graph.graph import run_graph
 
     # 确保 sample_docs 已入库
-    _ensure_ingest()
+    await _ensure_ingest()
 
     thread_id = f"w6-persist-{uuid.uuid4().hex[:8]}"
     user_input = UserInput(
@@ -133,7 +133,7 @@ async def test_cross_process_recovery():
     from app.graph.checkpointer import get_checkpointer
     from app.graph.graph import run_graph
 
-    _ensure_ingest()
+    await _ensure_ingest()
 
     thread_id = f"w6-recover-{uuid.uuid4().hex[:8]}"
     user_input = UserInput(
@@ -289,7 +289,7 @@ async def test_interrupt_human_in_loop():
 # ============ 工具函数 ============
 
 
-def _ensure_ingest():
+async def _ensure_ingest():
     """确保 sample_docs 已入库(复用 W5 逻辑)"""
     sample_dir = Path(__file__).parent / "sample_docs"
     if not sample_dir.exists():
@@ -311,7 +311,7 @@ def _ensure_ingest():
     total = 0
     for md_file in sorted(sample_dir.glob("*.md")):
         try:
-            count = ingest.ingest_file(
+            count = await ingest.ingest_file(
                 file_path=md_file,
                 title=md_file.stem,
                 doc_type="policy",
