@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hello，小A — 企业知识工作流 Agent · 演讲汇报</title>
+<link href="fonts.css" rel="stylesheet">
+<style>
+/* ===================== 设计令牌 ===================== */
+@property --orb-color{syntax:'<color>';inherits:true;initial-value:#1E63D6}
+:root{
+  --bg:#F6F8FC; --bg-soft:#EEF2F9; --surface:#FFFFFF; --surface-alt:#F1F4FA;
+  --ink:#0A1B3A; --ink-soft:#475569; --ink-muted:#8DA0BC;
+  --brand:#0B3D91; --brand-bright:#1E63D6; --brand-light:#E8EFFB;
+  --accent:#F59E0B; --accent-soft:#FEF3C7;
+  --success:#059669; --danger:#DC2626;
+  --border:#DCE3ED; --grid:#E8ECF3;
+  --shadow-sm:0 1px 2px rgba(11,61,145,.06),0 1px 3px rgba(11,61,145,.08);
+  --shadow-md:0 4px 12px rgba(11,61,145,.08),0 2px 6px rgba(11,61,145,.06);
+  --shadow-lg:0 18px 40px -12px rgba(11,61,145,.18),0 6px 16px rgba(11,61,145,.08);
+  --font-display:"Fraunces","Noto Serif SC",serif;
+  --font-body:"Manrope","Noto Sans SC",sans-serif;
+  --font-mono:"JetBrains Mono",monospace;
+}
+
+/* ===================== 各幕主题色(每幕一个性格) ===================== */
+.slide[data-act="1"]{--act:#1E63D6;--act-2:#7C3AED;--act-soft:#E8EFFB;--act-glow:rgba(30,99,214,.18)} /* 缘起·深蓝 */
+.slide[data-act="2"]{--act:#0891B2;--act-2:#0EA5E9;--act-soft:#CFFAFE;--act-glow:rgba(8,145,178,.18)} /* 全貌·青蓝 */
+.slide[data-act="3"]{--act:#7C3AED;--act-2:#A855F7;--act-soft:#EDE9FE;--act-glow:rgba(124,58,237,.18)} /* 核心能力·紫 */
+.slide[data-act="4"]{--act:#059669;--act-2:#10B981;--act-soft:#D1FAE5;--act-glow:rgba(5,150,105,.18)} /* 工程亮点·翠绿 */
+.slide[data-act="5"]{--act:#EA580C;--act-2:#F59E0B;--act-soft:#FED7AA;--act-glow:rgba(234,88,12,.18)} /* 实战演示·橙 */
+.slide[data-act="6"]{--act:#E11D48;--act-2:#F43F5E;--act-soft:#FCE7F3;--act-glow:rgba(225,29,72,.18)} /* 取舍教训·玫红 */
+.slide[data-act="7"]{--act:#4F46E5;--act-2:#6366F1;--act-soft:#E0E7FF;--act-glow:rgba(79,70,229,.18)} /* 现状展望·靛蓝 */
+.slide[data-act="8"]{--act:#CA8A04;--act-2:#EAB308;--act-soft:#FEF3C7;--act-glow:rgba(202,138,4,.18)} /* 收尾·金 */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+body{position:relative}
+
+/* ===================== 粒子背景(独显加速) ===================== */
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none;transform:translateZ(0);will-change:transform}
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:48px 48px;mask-image:radial-gradient(ellipse 80% 70% at 50% 40%,#000 30%,transparent 80%);
+  opacity:0;transition:opacity 2.4s ease}
+.grid-bg.loaded{opacity:.5}
+
+/* ===================== 幻灯片容器(独显加速) ===================== */
+.deck{position:relative;z-index:2;height:100vh;width:100vw;perspective:2000px}
+.slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  opacity:0;visibility:hidden;
+  transition:transform .9s cubic-bezier(.7,0,.2,1),opacity .65s ease,visibility .9s;
+  transform-style:preserve-3d;backface-visibility:hidden;padding:64px 80px 80px;
+  will-change:transform,opacity;transform:translateZ(0)}
+/* 多样化入场动效 —— 每页一种性格 */
+.slide[data-trans="cover"]{transform:scale(.82) rotateZ(-3deg) translateZ(0)}
+.slide[data-trans="rise"]{transform:translateY(90px) scale(.96) translateZ(0)}
+.slide[data-trans="fall"]{transform:translateY(-90px) scale(.96) translateZ(0)}
+.slide[data-trans="zoom-in"]{transform:scale(.7) translateZ(0)}
+.slide[data-trans="zoom-out"]{transform:scale(1.22) translateZ(0)}
+.slide[data-trans="flip"]{transform:rotateY(95deg) scale(.88) translateZ(0)}
+.slide[data-trans="slide-l"]{transform:translateX(90px) rotateY(-16deg) scale(.94) translateZ(0)}
+.slide[data-trans="slide-r"]{transform:translateX(-90px) rotateY(16deg) scale(.94) translateZ(0)}
+.slide[data-trans="rotate"]{transform:rotate(7deg) scale(.85) translateZ(0)}
+.slide[data-trans="cascade"]{transform:translateY(50px) scale(.97) rotateX(8deg) translateZ(0)}
+.slide.active{opacity:1;visibility:visible;transform:translateX(0) translateY(0) rotateY(0) rotateZ(0) rotate(0) scale(1) translateZ(0);z-index:5}
+.slide.prev{transform:translateX(-90px) rotateY(16deg) scale(.94) translateZ(0);opacity:0;visibility:hidden}
+.slide.next{transform:translateX(90px) rotateY(-16deg) scale(.94) translateZ(0);opacity:0;visibility:hidden}
+.slide-inner{width:100%;max-width:1240px;margin:0 auto;position:relative;z-index:2}
+
+/* 全局背景光晕(固定在视口,不跟随 slide 转场;颜色随幕过渡) */
+.bg-orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-orbs .orb{position:fixed;border-radius:50%;filter:blur(70px);
+  background:radial-gradient(circle,var(--orb-color) 0%,transparent 62%);
+  transition:--orb-color 3s ease,opacity 2.4s ease;
+  will-change:transform;opacity:0}
+.bg-orbs .orb2{background:radial-gradient(circle,var(--orb-color) 0%,transparent 65%)}
+.bg-orbs.loaded .orb1{top:-15%;right:-10%;width:55vw;height:55vw;opacity:.85;
+  animation:orbFloat 18s ease-in-out infinite}
+.bg-orbs.loaded .orb2{bottom:-15%;left:-10%;width:45vw;height:45vw;opacity:.5;
+  animation:orbFloat 22s ease-in-out infinite reverse}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-30px,40px) scale(1.08)}}
+
+/* ===================== 顶部进度条 + 幕标 ===================== */
+.progress-wrap{position:fixed;top:0;left:0;right:0;z-index:50;height:4px;background:rgba(220,227,237,.4)}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--brand) 0%,var(--brand-bright) 50%,var(--accent) 100%);
+  width:0;transition:width .6s cubic-bezier(.65,0,.35,1);box-shadow:0 0 12px rgba(30,99,214,.5)}
+.act-tag{position:fixed;top:18px;left:32px;z-index:50;font-family:var(--font-mono);font-size:11px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--ink-muted);font-weight:500}
+.act-tag b{color:var(--brand);font-weight:700}
+.brand-mark{position:fixed;top:14px;right:32px;z-index:50;font-family:var(--font-display);font-weight:700;
+  font-size:15px;color:var(--brand);letter-spacing:-.01em}
+.brand-mark span{color:var(--accent)}
+
+/* ===================== 底部导航 ===================== */
+.nav-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  padding:18px 32px 20px;pointer-events:none}
+.nav-bar>*{pointer-events:auto}
+.nav-btns{display:flex;gap:10px}
+.nav-btn{width:42px;height:42px;border-radius:50%;border:1px solid var(--border);background:var(--surface);
+  color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .25s;box-shadow:var(--shadow-sm);font-family:var(--font-mono)}
+.nav-btn:hover{background:var(--brand);color:#fff;border-color:var(--brand);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.nav-btn:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.page-info{font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);letter-spacing:.05em}
+.page-info b{color:var(--brand);font-weight:700;font-size:14px}
+.hint{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:50;font-family:var(--font-mono);
+  font-size:11px;color:var(--ink-muted);letter-spacing:.1em;opacity:.7}
+
+/* ===================== 排版基础 ===================== */
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--act,var(--brand-bright));font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:12px}
+.eyebrow::before{content:"";width:36px;height:3px;background:linear-gradient(90deg,var(--act,var(--accent)),var(--act-2,var(--accent)));border-radius:2px;display:inline-block}
+h1.title{font-family:var(--font-display);font-weight:900;font-size:clamp(40px,5.2vw,76px);line-height:1.02;
+  letter-spacing:-.025em;color:var(--ink);margin-bottom:24px}
+h1.title em{font-style:italic;color:var(--act,var(--brand));font-weight:700}
+h2.title{font-family:var(--font-display);font-weight:700;font-size:clamp(32px,3.6vw,52px);line-height:1.08;
+  letter-spacing:-.02em;color:var(--ink);margin-bottom:14px}
+h2.title em{font-style:italic;color:var(--act,var(--brand))}
+h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,21px);color:var(--ink-soft);
+  line-height:1.5;max-width:max-content;margin-bottom:36px}
+.lead{font-size:17px;line-height:1.65;color:var(--ink-soft);max-width:680px}
+.lead b{color:var(--ink);font-weight:600}
+
+/* ===================== 入场动效 ===================== */
+.slide.active .reveal{animation:rise .8s cubic-bezier(.2,.7,.3,1) both}
+.slide.active .reveal-1{animation-delay:.15s}
+.slide.active .reveal-2{animation-delay:.3s}
+.slide.active .reveal-3{animation-delay:.45s}
+.slide.active .reveal-4{animation-delay:.6s}
+.slide.active .reveal-5{animation-delay:.75s}
+.slide.active .reveal-6{animation-delay:.9s}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===================== 卡片 ===================== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px 28px;
+  box-shadow:var(--shadow-sm);transition:transform .3s,box-shadow .3s}
+.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
+.card .ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-weight:700;font-size:18px;margin-bottom:16px}
+.card h4{font-family:var(--font-display);font-weight:700;font-size:19px;color:var(--ink);margin-bottom:8px}
+.card p{font-size:14px;line-height:1.6;color:var(--ink-soft)}
+
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+
+/* ===================== 封面 ===================== */
+.cover{display:flex;flex-direction:row;align-items:center;justify-content:space-between;
+  gap:48px;height:100%;max-width:min(1560px,92vw)}
+.cover-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.cover .hello{font-family:var(--font-display);font-weight:500;font-style:italic;font-size:clamp(22px,2vw,30px);
+  color:var(--ink-muted);margin-bottom:8px;letter-spacing:.02em}
+.cover h1{font-family:var(--font-display);font-weight:900;font-size:clamp(84px,11.5vw,186px);line-height:.92;
+  letter-spacing:-.04em;color:var(--ink)}
+.cover h1 .accent{color:var(--act,var(--brand));position:relative}
+.cover h1 .accent::after{content:"";position:absolute;left:0;right:0;bottom:.08em;height:.12em;
+  background:var(--accent);border-radius:2px;transform:scaleX(0);transform-origin:left;
+  animation:underline 1.2s .8s cubic-bezier(.65,0,.35,1) forwards}
+@keyframes underline{to{transform:scaleX(1)}}
+.cover .tagline{font-family:var(--font-display);font-weight:500;font-size:clamp(24px,2.6vw,38px);
+  color:var(--ink-soft);margin-top:24px;letter-spacing:-.01em}
+.cover .tagline em{color:var(--act,var(--brand));font-style:italic}
+.cover .meta{display:flex;gap:36px;margin-top:56px;font-family:var(--font-mono);font-size:13px;color:var(--ink-muted)}
+.cover .meta b{color:var(--ink);font-weight:600}
+.cover .lead-sub,.thanks .lead-sub{margin-top:10px;font-size:14.5px;line-height:1.6;color:var(--ink-muted);letter-spacing:.02em}
+.cover .lead-chips,.thanks .lead-chips{display:flex;gap:12px;margin-top:16px}
+.thanks .lead-chips{justify-content:center;margin-top:18px}
+.thanks .lead-sub{margin-top:12px}
+.cover .lead-chips .chip,.thanks .lead-chips .chip{display:inline-flex;align-items:center;gap:8px;padding:7px 16px 7px 8px;
+  border-radius:999px;font-size:13.5px;font-weight:600;letter-spacing:.02em;
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-sm);
+  transition:transform .25s,box-shadow .25s}
+.cover .lead-chips .chip:hover,.thanks .lead-chips .chip:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.cover .lead-chips .chip i,.thanks .lead-chips .chip i{font-style:normal;font-family:var(--font-mono);font-weight:700;font-size:12px;
+  width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+.cover .lead-chips .c1,.thanks .lead-chips .c1{color:var(--brand)}.cover .lead-chips .c1 i,.thanks .lead-chips .c1 i{background:var(--brand-light)}
+.cover .lead-chips .c2,.thanks .lead-chips .c2{color:#92400E}.cover .lead-chips .c2 i,.thanks .lead-chips .c2 i{background:var(--accent-soft)}
+.cover .lead-chips .c3,.thanks .lead-chips .c3{color:var(--success)}.cover .lead-chips .c3 i,.thanks .lead-chips .c3 i{background:#D1FAE5}
+.cover-deco{position:absolute;right:80px;top:50%;transform:translateY(-50%);width:340px;height:340px;opacity:.9}
+
+/* 封面机器人(同款小A头像放大版) */
+.cover-bot{position:relative;flex:none;width:340px;height:340px;
+  display:flex;align-items:center;justify-content:center}
+.bot-avatar{position:relative;z-index:2;width:196px;height:196px;border-radius:58px;
+  background:linear-gradient(135deg,#E6F4FF 0%,#D6E4FF 100%);
+  display:flex;align-items:center;justify-content:center;font-size:104px;
+  box-shadow:0 24px 60px -12px rgba(30,99,214,.35),0 0 0 1px rgba(255,255,255,.7) inset;
+  animation:botFloat 3.6s ease-in-out infinite}
+.bot-avatar .online{position:absolute;right:-6px;bottom:-6px;width:34px;height:34px;border-radius:50%;
+  background:#52C41A;border:6px solid var(--bg);z-index:3;
+  animation:onlinePulse 2.4s ease-in-out infinite}
+@keyframes botFloat{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-14px) rotate(1.5deg)}}
+@keyframes onlinePulse{0%,100%{box-shadow:0 0 0 0 rgba(82,196,26,.45)}50%{box-shadow:0 0 0 10px rgba(82,196,26,0)}}
+.bot-shadow{position:absolute;bottom:6px;left:50%;width:150px;height:22px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(11,61,145,.22),transparent 70%);
+  transform:translateX(-50%);animation:botShadow 3.6s ease-in-out infinite;z-index:1}
+@keyframes botShadow{0%,100%{transform:translateX(-50%) scale(1);opacity:.9}50%{transform:translateX(-50%) scale(.78);opacity:.5}}
+.bot-ring{position:absolute;border-radius:50%;border:1.5px dashed rgba(30,99,214,.28);z-index:1}
+.bot-ring.r1{inset:8px;animation:ringSpin 26s linear infinite}
+.bot-ring.r2{inset:-16px;border-color:rgba(245,158,11,.3);animation:ringSpin 38s linear infinite reverse}
+@keyframes ringSpin{to{transform:rotate(360deg)}}
+.bot-orbit{position:absolute;width:12px;height:12px;border-radius:50%;z-index:2;
+  animation:orbitFloat 4.2s ease-in-out infinite}
+.bot-orbit.d1{top:24px;right:44px;background:var(--brand-bright);box-shadow:0 0 12px rgba(30,99,214,.5)}
+.bot-orbit.d2{bottom:52px;left:18px;background:var(--accent);box-shadow:0 0 12px rgba(245,158,11,.5);
+  width:9px;height:9px;animation-delay:-1.4s}
+.bot-orbit.d3{top:46%;left:-8px;background:#7C3AED;box-shadow:0 0 12px rgba(124,58,237,.5);
+  width:7px;height:7px;animation-delay:-2.8s}
+@keyframes orbitFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media(max-width:1100px){.cover-bot{display:none}.cover{justify-content:center}}
+
+/* ===================== 痛点页 ===================== */
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px}
+.pain{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px 28px;
+  position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
+.pain::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--danger)}
+.pain .num{font-family:var(--font-display);font-weight:900;font-size:48px;color:var(--brand-light);
+  line-height:1;margin-bottom:14px}
+.pain h4{font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--ink);margin-bottom:10px}
+.pain p{font-size:14px;line-height:1.6;color:var(--ink-soft)}
+.value-strip{margin-top:40px;background:linear-gradient(110deg,var(--act,var(--brand)) 0%,var(--act-2,var(--brand-bright)) 100%);
+  border-radius:16px;padding:28px 36px;color:#fff;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-lg);
+  position:relative;overflow:hidden}
+.value-strip::after{content:"";position:absolute;top:0;right:0;width:200px;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18));transform:skewX(-15deg) translateX(60px)}
+.value-strip .lbl{font-family:var(--font-mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+  opacity:.85;white-space:nowrap}
+.value-strip .txt{font-family:var(--font-display);font-weight:600;font-size:22px;line-height:1.4;position:relative;z-index:1}
+
+/* ===================== 技术栈表 ===================== */
+.stack-table{display:grid;grid-template-columns:1.2fr .8fr 1.8fr 1.2fr;gap:0;margin-top:32px;
+  border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-sm)}
+.stack-table>div{padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;line-height:1.5}
+.stack-table>div:nth-last-child(-n+4){border-bottom:none}
+.stack-table .hd{background:var(--surface-alt);font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-muted);font-weight:600}
+.stack-table .comp{font-family:var(--font-display);font-weight:700;color:var(--brand);font-size:14px}
+.stack-table .ver{font-family:var(--font-mono);color:var(--ink-soft);font-size:12px}
+.stack-table .role{color:var(--ink)}
+.stack-table .role b{color:var(--accent);font-weight:600}
+.stack-table .store{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft)}
+
+/* ===================== 架构图 SVG ===================== */
+.arch-wrap{margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:18px;
+  padding:36px 28px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.arch-svg{width:100%;height:auto}
+.arch-flow{stroke:var(--brand-bright);stroke-width:2;fill:none;stroke-dasharray:6 6;
+  animation:flow 1.5s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-24}}
+.arch-node{fill:var(--brand-light);stroke:var(--brand);stroke-width:1.5}
+.arch-node-exec{fill:#FEF3C7;stroke:var(--accent);stroke-width:1.5}
+.arch-node-agg{fill:#D1FAE5;stroke:var(--success);stroke-width:1.5}
+.arch-text{font-family:var(--font-body);font-size:13px;font-weight:600;fill:var(--ink);text-anchor:middle}
+.arch-sub{font-family:var(--font-mono);font-size:10px;fill:var(--ink-muted);text-anchor:middle}
+
+/* ===================== Harness 六组件 ===================== */
+.harness-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:32px}
+.hcell{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;
+  position:relative;box-shadow:var(--shadow-sm)}
+.hcell .status{position:absolute;top:18px;right:18px;font-family:var(--font-mono);font-size:10px;
+  padding:3px 8px;border-radius:6px;font-weight:600}
+.hcell .status.full{background:#D1FAE5;color:var(--success)}
+.hcell .status.part{background:var(--accent-soft);color:#B45309}
+.hcell h4{font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--ink);margin-bottom:6px}
+.hcell .duty{font-size:12px;color:var(--ink-muted);margin-bottom:10px;font-family:var(--font-mono)}
+.hcell p{font-size:13px;line-height:1.55;color:var(--ink-soft)}
+
+/* ===================== 流程步骤 ===================== */
+.flow-row{display:flex;align-items:stretch;gap:28px;margin-top:36px;position:relative}
+.flow-step{flex:1;background:var(--surface);border:1px solid var(--border);padding:22px 20px;position:relative;
+  box-shadow:var(--shadow-sm)}
+/* 蓝色向右三角箭头:放在卡片间隙正中央,浮于上层 */
+.flow-step:not(:last-child)::after{content:"";position:absolute;right:-21px;top:50%;transform:translateY(-50%);
+  width:0;height:0;border-left:14px solid var(--brand-bright);
+  border-top:9px solid transparent;border-bottom:9px solid transparent;
+  z-index:5;filter:drop-shadow(0 2px 4px rgba(11,61,145,.25))}
+.flow-step .stp{font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.1em}
+.flow-step h4{font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--ink);margin:6px 0 8px}
+.flow-step p{font-size:12.5px;line-height:1.55;color:var(--ink-soft)}
+
+/* ===================== 降级链 ===================== */
+.deg-chain{display:grid;grid-template-columns:150px 1fr 22px 1fr 22px 1fr;align-items:center;
+  column-gap:6px;margin:10px 0}
+.deg-chain.head{margin:0 0 4px}
+.deg-chain.head .hd-c{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-muted);font-weight:600;text-align:center}
+.deg-label{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--brand);
+  text-align:right;padding-right:14px}
+.deg-node{background:var(--surface);border:1.5px solid var(--brand);color:var(--ink);padding:8px 14px;
+  border-radius:8px;font-size:13px;font-weight:500;box-shadow:var(--shadow-sm);text-align:center}
+.deg-node.fallback{border-color:var(--accent);color:#92400E;background:var(--accent-soft)}
+.deg-node.last{border-color:var(--danger);color:var(--danger);background:#FEE2E2}
+.deg-arrow{color:var(--ink-muted);font-family:var(--font-mono);font-size:14px;text-align:center}
+
+/* ===================== 审批闭环 ===================== */
+.approval-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;position:relative}
+.leg{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;position:relative;
+  box-shadow:var(--shadow-sm)}
+.leg .role-tag{display:inline-block;font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-radius:6px;
+  font-weight:600;margin-bottom:12px}
+.leg .role-tag.sales{background:var(--brand-light);color:var(--brand)}
+.leg .role-tag.mgr{background:var(--accent-soft);color:#92400E}
+.leg h4{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--ink);margin-bottom:10px}
+.leg p{font-size:13px;line-height:1.6;color:var(--ink-soft);margin-bottom:10px}
+.leg .outcome{font-family:var(--font-mono);font-size:12px;color:var(--success);font-weight:600;
+  padding:8px 12px;background:#D1FAE5;border-radius:8px;display:inline-block}
+
+/* 截屏位 —— 图片网格 + 加载占位 */
+.shot-grid{display:grid;gap:14px;margin-top:24px}
+.shot-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.shot-grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.shot-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;box-shadow:var(--shadow-sm);position:relative;
+  transition:transform .35s cubic-bezier(.2,.7,.3,1),box-shadow .35s}
+.shot-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.shot-card .frame{position:relative;width:100%;aspect-ratio:16/10;background:linear-gradient(135deg,var(--surface-alt),var(--bg-soft));
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.shot-card .frame img{width:100%;height:100%;object-fit:cover;display:block;
+  opacity:0;transition:opacity .6s ease}
+.shot-card .frame img.loaded{opacity:1}
+.shot-card .frame::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);
+  transform:translateX(-100%);animation:shotShimmer 2.4s infinite}
+.shot-card .frame.has-img::before{display:none}
+@keyframes shotShimmer{to{transform:translateX(100%)}}
+.shot-card .placeholder{position:absolute;display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:var(--ink-muted);font-family:var(--font-mono);font-size:11px;letter-spacing:.05em}
+.shot-card .placeholder .icon{font-size:24px;opacity:.5}
+.shot-card .frame.has-img .placeholder{display:none}
+.shot-card .caption{padding:10px 14px;background:var(--surface);font-family:var(--font-mono);
+  font-size:11px;color:var(--ink-soft);letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--border)}
+.shot-card .caption b{color:var(--act,var(--brand));font-weight:700}
+.shot-card .caption .tag{font-size:10px;padding:2px 8px;border-radius:4px;background:var(--act-soft,var(--brand-light));color:var(--act,var(--brand));font-weight:600}
+
+/* 单张大图(满宽) */
+.shot-hero{margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;box-shadow:var(--shadow-sm);position:relative}
+.shot-hero .frame{position:relative;width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,var(--surface-alt),var(--bg-soft));
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.shot-hero .frame img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .6s ease}
+.shot-hero .frame img.loaded{opacity:1}
+.shot-hero .frame::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);
+  transform:translateX(-100%);animation:shotShimmer 2.4s infinite}
+.shot-hero .frame.has-img::before{display:none}
+.shot-hero .placeholder{position:absolute;display:flex;flex-direction:column;align-items:center;gap:8px;
+  color:var(--ink-muted);font-family:var(--font-mono);font-size:13px}
+.shot-hero .placeholder .icon{font-size:32px;opacity:.5}
+.shot-hero .frame.has-img .placeholder{display:none}
+.shot-hero .caption{padding:12px 18px;background:var(--surface);font-family:var(--font-mono);
+  font-size:12px;color:var(--ink-soft);display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--border)}
+.shot-hero .caption b{color:var(--act,var(--brand));font-weight:700}
+
+/* 实屏横向轮播 —— 图大但不撑屏,左右切换 */
+.slide-inner.wide-shot{max-width:min(1190px,72vw)}
+.shot-carousel{margin-top:24px;position:relative}
+.shot-carousel .track{display:flex;overflow:hidden;border-radius:16px;
+  box-shadow:var(--shadow-sm);background:var(--surface)}
+.shot-carousel .viewport{overflow-x:auto;scroll-snap-type:x proximity;scroll-behavior:smooth;
+  scrollbar-width:none;-ms-overflow-style:none;cursor:grab;
+  border-radius:16px;border:1px solid var(--border);
+  box-shadow:0 24px 60px -24px rgba(11,61,145,.22),0 4px 14px rgba(11,61,145,.06)}
+.shot-carousel .viewport.dragging{scroll-snap-type:none;scroll-behavior:auto;cursor:grabbing;user-select:none}
+.shot-carousel .viewport::-webkit-scrollbar{display:none;height:0;width:0}
+.shot-carousel .slides{display:flex}
+.shot-carousel .slide-item{flex:0 0 100%;min-width:0;scroll-snap-align:center;opacity:.4;transform:scale(.985);
+  transition:opacity .5s ease,transform .5s ease}
+.shot-carousel .slide-item.active{opacity:1;transform:none}
+.shot-carousel .shot-hero{margin:0;border:none;border-radius:0;box-shadow:none}
+.shot-carousel .shot-hero .frame{aspect-ratio:auto;max-height:none;background:var(--surface-alt)}
+.shot-carousel .shot-hero .frame:not(.has-img){aspect-ratio:16/9;background:linear-gradient(135deg,var(--surface-alt),var(--bg-soft))}
+.shot-carousel .shot-hero .frame img{object-fit:contain;width:100%;height:auto;max-height:none;background:var(--surface-alt)}
+.shot-carousel .shot-hero .caption{font-size:12.5px;padding:11px 16px}
+
+/* 轮播控件 */
+.sc-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;
+  border-radius:50%;background:rgba(255,255,255,.85);backdrop-filter:blur(8px);
+  border:1px solid rgba(11,61,145,.14);box-shadow:0 6px 18px rgba(11,61,145,.16);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:19px;color:var(--act,var(--brand));z-index:5;
+  transition:transform .22s ease,box-shadow .22s ease,background .22s ease,opacity .22s ease;user-select:none}
+.sc-nav:hover{background:#fff;transform:translateY(-50%) scale(1.1);box-shadow:0 10px 26px rgba(11,61,145,.22)}
+.sc-nav:active{transform:translateY(-50%) scale(.94)}
+.sc-nav.prev{left:-20px}
+.sc-nav.next{right:-20px}
+.sc-nav.disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+.sc-dots{display:flex;justify-content:center;gap:8px;margin-top:16px}
+.sc-dots .dot{width:8px;height:8px;border-radius:50%;background:var(--border);
+  cursor:pointer;transition:all .3s ease;border:none;padding:0}
+.sc-dots .dot:hover{background:var(--ink-muted);transform:scale(1.25)}
+.sc-dots .dot.active{background:var(--act,var(--brand));width:26px;border-radius:4px}
+.sc-counter{position:absolute;top:12px;right:14px;background:rgba(11,61,145,.78);
+  backdrop-filter:blur(6px);color:#fff;padding:4px 11px;border-radius:12px;font-size:11px;
+  font-family:var(--font-mono);z-index:5;letter-spacing:.08em;box-shadow:0 4px 12px rgba(11,61,145,.25)}
+
+/* 翻页提示条 */
+.shot-note{margin-top:22px;padding:12px 18px;background:var(--act-soft,var(--brand-light));
+  border-left:3px solid var(--act,var(--brand));border-radius:0 8px 8px 0;
+  font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:10px}
+.shot-note b{color:var(--act,var(--brand));font-weight:700}
+.shot-note-arrow{font-size:16px;color:var(--act,var(--brand));font-weight:700}
+
+/* ===================== Q&A 滚动墙 ===================== */
+.qa-wall{margin-top:24px;display:flex;flex-direction:column;gap:6px;
+  height:58vh;overflow:hidden;position:relative;
+  margin-left:-70px;margin-right:-70px;
+  mask-image:linear-gradient(180deg,transparent 0%,#000 6%,#000 94%,transparent 100%);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 6%,#000 94%,transparent 100%)}
+.qa-row{flex:1;overflow:hidden;position:relative;display:flex;align-items:center;
+  mask-image:linear-gradient(90deg,transparent 0,#000 9%,#000 91%,transparent 100%);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 9%,#000 91%,transparent 100%)}
+/* Q&A 页:标题区与加宽的滚动墙左对齐 */
+.slide-inner:has(.qa-wall) .eyebrow,.slide-inner:has(.qa-wall) .title,.slide-inner:has(.qa-wall) .sub{margin-left:-70px}
+.qa-track{display:flex;align-items:center;gap:12px;flex-shrink:0;padding-right:12px;will-change:transform}
+.qa-track.paused{animation-play-state:paused !important}
+.qa-row[data-dir="left"] .qa-track{animation:qaScrollLeft var(--dur,40s) linear infinite}
+.qa-row[data-dir="right"] .qa-track{animation:qaScrollRight var(--dur,40s) linear infinite}
+@keyframes qaScrollLeft{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+@keyframes qaScrollRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+
+/* 问题气泡 */
+.qa-bubble{flex-shrink:0;background:var(--surface);border:1.5px solid var(--border);
+  border-radius:999px;padding:10px 18px;font-family:var(--font-display);font-weight:600;
+  font-size:14px;color:var(--ink);cursor:pointer;white-space:nowrap;
+  box-shadow:0 4px 12px -4px rgba(11,61,145,.12);
+  transition:transform .25s cubic-bezier(.2,.7,.3,1),box-shadow .25s,border-color .25s,background .25s;
+  position:relative}
+.qa-bubble:hover{transform:translateY(-2px) scale(1.04);border-color:var(--act,var(--brand));
+  box-shadow:0 8px 20px -4px rgba(11,61,145,.25);background:#fff;z-index:3}
+.qa-bubble::before{content:"Q";display:inline-block;width:18px;height:18px;line-height:18px;
+  text-align:center;border-radius:50%;background:var(--act,var(--brand));color:#fff;
+  font-family:var(--font-mono);font-size:10px;font-weight:700;margin-right:8px;vertical-align:1px}
+.qa-bubble.alt{background:linear-gradient(110deg,var(--act,var(--brand)) 0%,var(--act-2,var(--brand-bright)) 100%);color:#fff;border-color:transparent}
+.qa-bubble.alt::before{background:rgba(255,255,255,.3);color:#fff}
+.qa-bubble.alt:hover{background:linear-gradient(110deg,var(--act-2,var(--brand-bright)) 0%,var(--act,var(--brand)) 100%)}
+
+/* Q&A 弹窗(灵动入场) */
+.qa-modal-mask{position:fixed;inset:0;background:rgba(10,27,58,.45);backdrop-filter:blur(6px);
+  z-index:100;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .35s ease}
+.qa-modal-mask.show{opacity:1;pointer-events:auto}
+.qa-modal{background:var(--surface);border-radius:20px;padding:32px 36px;
+  max-width:680px;width:90%;max-height:80vh;overflow-y:auto;
+  box-shadow:0 24px 60px -12px rgba(11,61,145,.35),0 0 0 1px var(--border);
+  transform:translateY(40px) scale(.92) rotateX(-8deg);opacity:0;
+  transition:transform .5s cubic-bezier(.34,1.56,.64,1),opacity .35s ease;
+  transform-origin:50% 100%;position:relative}
+.qa-modal-mask.show .qa-modal{transform:translateY(0) scale(1) rotateX(0);opacity:1}
+.qa-modal .q-tag{display:inline-block;background:var(--act-soft,var(--brand-light));color:var(--act,var(--brand));
+  font-family:var(--font-mono);font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;
+  letter-spacing:.08em;margin-bottom:12px}
+.qa-modal .q-text{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--ink);
+  line-height:1.4;margin-bottom:18px}
+.qa-modal .a-text{font-size:14.5px;line-height:1.75;color:var(--ink-soft)}
+.qa-modal .a-text b{color:var(--act,var(--brand));font-weight:700}
+.qa-modal .a-text code{font-family:var(--font-mono);background:var(--surface-alt);padding:1px 6px;border-radius:4px;font-size:12.5px}
+.qa-modal .close{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;
+  border:none;background:var(--surface-alt);color:var(--ink-muted);cursor:pointer;font-size:18px;
+  display:flex;align-items:center;justify-content:center;transition:all .2s}
+.qa-modal .close:hover{background:var(--danger);color:#fff;transform:rotate(90deg) scale(1.1)}
+.qa-modal .footer{margin-top:20px;padding-top:14px;border-top:1px dashed var(--border);
+  font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);display:flex;justify-content:space-between}
+
+/* ===================== 取舍 / 教训 ===================== */
+.tradeoff{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:28px;border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-sm)}
+.tradeoff .row{display:contents}
+.tradeoff .pick,.tradeoff .drop{padding:16px 20px;border-bottom:1px solid var(--border);font-size:13.5px;line-height:1.55}
+.tradeoff .pick{background:#F0FDF4;color:var(--success);font-weight:600;border-right:1px solid var(--border)}
+.tradeoff .pick::before{content:"选 ";font-family:var(--font-mono);font-weight:700}
+.tradeoff .drop{background:#FEF2F2;color:var(--danger)}
+.tradeoff .drop::before{content:"弃 ";font-family:var(--font-mono);font-weight:700}
+
+.lesson{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);
+  border-radius:0 12px 12px 0;padding:22px 26px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+.lesson .ph{font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;margin-bottom:8px}
+.lesson h4{font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--ink);margin-bottom:8px}
+.lesson p{font-size:13.5px;line-height:1.6;color:var(--ink-soft)}
+.lesson .takeaway{margin-top:10px;padding:10px 14px;background:var(--surface-alt);border-radius:8px;
+  font-size:13px;color:var(--ink);font-weight:500}
+.lesson .takeaway b{color:var(--brand)}
+
+/* ===================== 教训横向轮播(像素级自由滚动) ===================== */
+.lesson-carousel{position:relative;margin-top:24px}
+.lesson-carousel-viewport{overflow-x:auto;overflow-y:hidden;border-radius:16px;padding:14px 6px;margin:0 60px;
+  scroll-behavior:smooth;
+  mask-image:linear-gradient(90deg,transparent 0,#000 4%,#000 96%,transparent 100%);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 4%,#000 96%,transparent 100%);
+  scrollbar-width:none;-ms-overflow-style:none;
+  cursor:grab}
+.lesson-carousel-viewport.dragging{cursor:grabbing;scroll-behavior:auto;user-select:none}
+.lesson-carousel-viewport::-webkit-scrollbar{display:none;height:0;width:0;background:transparent}
+.lesson-carousel-track{display:flex;gap:22px;will-change:scroll-position;padding:0 6px}
+.lesson-carousel-track .lesson{flex:0 0 350px;margin-bottom:0;height:auto;max-height:60vh;overflow-y:auto;
+  border-radius:14px;border-left-width:5px;display:flex;flex-direction:column;
+  scroll-behavior:smooth;transition:transform .3s,box-shadow .3s,border-left-color .3s;
+  pointer-events:auto}
+.lesson-carousel-viewport.dragging .lesson{pointer-events:none}
+.lesson-carousel-track .lesson::-webkit-scrollbar{width:5px}
+.lesson-carousel-track .lesson::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.lesson-carousel-track .lesson:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.lesson-carousel-track .lesson .ph{font-size:10.5px;letter-spacing:.12em;margin-bottom:10px}
+.lesson-carousel-track .lesson h4{font-size:16px;line-height:1.3;margin-bottom:10px}
+.lesson-carousel-track .lesson p{font-size:13px;line-height:1.62;flex:1 1 auto}
+.lesson-carousel-track .lesson .takeaway{font-size:12.5px;line-height:1.6;margin-top:12px}
+.lesson-carousel-nav{position:absolute;top:48%;transform:translateY(-50%);width:48px;height:48px;
+  border-radius:50%;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-md);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;
+  color:var(--brand);z-index:5;transition:all .25s;font-family:var(--font-mono)}
+.lesson-carousel-nav:hover:not(.disabled){background:var(--brand);color:#fff;border-color:var(--brand);
+  transform:translateY(-50%) scale(1.08);box-shadow:var(--shadow-lg)}
+.lesson-carousel-nav:active:not(.disabled){transform:translateY(-50%) scale(.95)}
+.lesson-carousel-nav.prev{left:6px}
+.lesson-carousel-nav.next{right:6px}
+.lesson-carousel-nav.disabled{opacity:.25;cursor:not-allowed}
+.lesson-carousel-info{display:flex;justify-content:space-between;align-items:center;margin-top:18px;
+  font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);padding:0 14px;margin-left:60px;margin-right:60px}
+.lesson-carousel-info .lc-cur{color:var(--brand);font-weight:700;font-size:14px}
+.lesson-carousel-dots{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:60%}
+.lesson-carousel-dots .dot{width:8px;height:8px;border-radius:50%;background:var(--border);
+  cursor:pointer;transition:all .3s;border:none;padding:0}
+.lesson-carousel-dots .dot:hover{background:var(--ink-muted)}
+.lesson-carousel-dots .dot.active{background:var(--brand);width:22px;border-radius:4px}
+.lesson-carousel-hint{font-size:11px;letter-spacing:.08em;opacity:.7}
+/* 教训页:标题与轮播(内缩60px)左对齐 */
+.slide-inner.head-inset .eyebrow,.slide-inner.head-inset .title{margin-left:60px}
+
+/* ===================== 模型路由矩阵 ===================== */
+.route-matrix{display:grid;grid-template-columns:1.5fr 2.2fr 1fr;gap:0;margin-top:18px;
+  border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-sm)}
+.route-matrix>div{padding:11px 16px;border-bottom:1px solid var(--border);font-size:12.5px;line-height:1.5}
+.route-matrix>div:nth-last-child(-n+3){border-bottom:none}
+.route-matrix .hd{background:var(--surface-alt);font-family:var(--font-mono);font-size:10.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);font-weight:600}
+.route-matrix .call{font-weight:600;color:var(--ink)}
+.route-matrix .model{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft)}
+.route-matrix .model b{color:var(--brand);font-weight:600}
+.route-matrix .model .pri{color:var(--brand);font-weight:700}
+.route-matrix .model .flash{color:var(--accent);font-weight:700}
+.route-matrix .model .local{color:var(--success);font-weight:700}
+.route-matrix .model .none{color:var(--ink-muted);font-weight:600}
+.route-matrix .model .arrow{color:var(--ink-muted);margin:0 4px}
+.route-matrix .lat{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-muted);text-align:right}
+.route-matrix .lat b{color:var(--ink);font-weight:600}
+
+/* 三链路卡片 */
+.route-chains{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.route-chain{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;
+  box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.route-chain::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--act),var(--act-2))}
+.route-chain h5{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--ink);margin-bottom:6px}
+.route-chain .role-tag{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--act);font-weight:700;margin-bottom:10px;display:inline-block;
+  padding:3px 8px;background:var(--act-soft);border-radius:4px}
+.route-chain .chain{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.route-chain .node{font-family:var(--font-mono);font-size:11.5px;padding:5px 9px;border-radius:6px;
+  background:var(--surface-alt);color:var(--ink);font-weight:500;white-space:nowrap}
+.route-chain .node.primary{background:var(--brand-light);color:var(--brand);font-weight:700}
+.route-chain .node.local{background:#D1FAE5;color:var(--success);font-weight:700}
+.route-chain .node.cloud{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.route-chain .node.fallback{background:#FEE2E2;color:var(--danger);font-weight:600}
+.route-chain .arr{color:var(--ink-muted);font-size:13px;font-weight:700}
+.route-chain p{font-size:11.5px;line-height:1.5;color:var(--ink-soft);margin-top:6px}
+
+/* 路由反转记录 */
+.route-fix{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);
+  border-radius:0 12px 12px 0;padding:14px 18px;box-shadow:var(--shadow-sm)}
+.route-fix .date{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;margin-bottom:6px}
+.route-fix h5{font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--ink);margin-bottom:6px}
+.route-fix p{font-size:12px;line-height:1.6;color:var(--ink-soft)}
+.route-fix p b{color:var(--ink);font-weight:600}
+
+/* ===================== 状态指标 ===================== */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:32px}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 20px;
+  text-align:center;box-shadow:var(--shadow-sm)}
+.metric .v{font-family:var(--font-display);font-weight:900;font-size:42px;color:var(--brand);line-height:1}
+.metric .v.acc{color:var(--accent)}
+.metric .l{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-muted);margin-top:8px}
+
+/* ===================== 标签 / 徽章 ===================== */
+.badge{display:inline-block;font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-radius:6px;
+  font-weight:600;margin-right:6px}
+.badge.ok{background:#D1FAE5;color:var(--success)}
+.badge.warn{background:var(--accent-soft);color:#92400E}
+.badge.info{background:var(--brand-light);color:var(--brand)}
+.badge.danger{background:#FEE2E2;color:var(--danger)}
+
+/* ===================== 结尾 ===================== */
+.thanks{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center}
+.thanks h1{font-family:var(--font-display);font-weight:900;font-size:clamp(64px,9vw,128px);line-height:1;
+  color:var(--ink);letter-spacing:-.03em}
+.thanks h1 em{color:var(--act,var(--brand));font-style:italic}
+.thanks .sub{font-family:var(--font-display);font-weight:500;font-size:clamp(20px,2vw,28px);color:var(--ink-soft);
+  margin-top:20px}
+.thanks .qa{margin-top:48px;font-family:var(--font-mono);font-size:14px;color:var(--brand);letter-spacing:.15em}
+
+/* ===================== 目录页 ===================== */
+.slide-inner.toc{max-width:min(1680px,94vw)}
+.toc{display:grid;grid-template-columns:1fr minmax(280px,360px) 1fr;gap:32px;align-items:center;height:100%}
+.toc-center{text-align:center}
+.toc-center .en{font-family:var(--font-mono);font-size:12px;letter-spacing:.45em;color:var(--ink-muted);margin-bottom:12px}
+.toc-center h1{font-family:var(--font-display);font-weight:900;font-size:clamp(72px,7.5vw,120px);
+  letter-spacing:.02em;color:var(--ink);line-height:1}
+.toc-center .tip{margin-top:16px;font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);letter-spacing:.15em;opacity:.75}
+.toc-col{display:flex;flex-direction:column;gap:24px}
+.toc-col.left{align-items:flex-end}
+.toc-col.right{align-items:flex-start}
+.toc-bubble{background:var(--surface);border:1.5px solid var(--border);border-radius:18px;
+  padding:20px 26px;cursor:pointer;box-shadow:var(--shadow-sm);min-width:350px;max-width:420px;
+  transition:transform .25s cubic-bezier(.2,.7,.3,1),box-shadow .25s,border-color .25s;position:relative}
+.toc-col.left .toc-bubble{text-align:right}
+.toc-col.left .toc-bubble:nth-child(odd){margin-right:34px}
+.toc-col.right .toc-bubble:nth-child(odd){margin-left:34px}
+.toc-bubble::before{content:"";position:absolute;top:50%;width:8px;height:8px;border-radius:50%;
+  background:var(--bc,var(--brand));transform:translateY(-50%);opacity:.9}
+.toc-col.left .toc-bubble::before{right:-4px;transform:translate(100%,-50%)}
+.toc-col.right .toc-bubble::before{left:-4px;transform:translate(-100%,-50%)}
+.toc-bubble:hover{transform:translateY(-3px) scale(1.03);border-color:var(--bc,var(--brand));
+  box-shadow:var(--shadow-md)}
+.toc-bubble .no{font-family:var(--font-mono);font-size:14px;letter-spacing:.14em;
+  color:var(--bc,var(--brand));font-weight:700}
+.toc-bubble h4{font-family:var(--font-display);font-weight:700;font-size:23px;color:var(--ink);margin:6px 0 5px;letter-spacing:.05em}
+.toc-bubble .pages{font-family:var(--font-mono);font-size:12.5px;color:var(--ink-muted);line-height:1.55}
+@media(max-width:1100px){
+  .toc{grid-template-columns:1fr;gap:20px;height:auto}
+  .toc-center{order:-1}
+  .toc-col.left,.toc-col.right{align-items:stretch}
+  .toc-col.left .toc-bubble{text-align:left}
+  .toc-col.left .toc-bubble:nth-child(odd),.toc-col.right .toc-bubble:nth-child(odd){margin:0}
+  .toc-bubble::before{display:none}
+}
+
+/* ===================== 响应式 ===================== */
+@media(max-width:1100px){
+  .slide{padding:56px 48px 72px}
+  .grid-3,.harness-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-4,.metric-grid{grid-template-columns:repeat(2,1fr)}
+  .pain-grid,.approval-flow{grid-template-columns:1fr}
+  .stack-table{grid-template-columns:1fr 1fr;font-size:12px}
+  .route-chains{grid-template-columns:1fr}
+  .route-matrix{grid-template-columns:1fr 1fr;font-size:11px}
+}
+@media(max-width:680px){
+  .slide{padding:48px 24px 64px}
+  .grid-3,.grid-2,.grid-4,.harness-grid,.metric-grid,.tradeoff{grid-template-columns:1fr}
+  .flow-row{flex-direction:column;gap:16px}
+  .flow-step:not(:last-child)::after{display:none}
+  .route-matrix{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+<div class="bg-orbs">
+  <div class="orb orb1" id="orb1"></div>
+  <div class="orb orb2" id="orb2"></div>
+</div>
+<div class="grid-bg"></div>
+
+<div class="progress-wrap"><div class="progress-bar" id="pbar"></div></div>
+<div class="act-tag" id="actTag"><b>第一幕</b> · 缘起</div>
+<div class="brand-mark">Hello，<span>小A</span></div>
+
+<div class="deck" id="deck">
+
+<!-- ============ 1. 封面 ============ -->
+<section class="slide active" data-act="1" data-actname="缘起" data-title="封面">
+  <div class="slide-inner cover">
+    <div class="cover-main">
+      <div class="hello reveal reveal-1">Hello，你好</div>
+      <h1 class="reveal reveal-2">我是<span class="accent">小A</span></h1>
+      <div class="tagline reveal reveal-3">企业知识工作流 <em>Agent</em></div>
+      <div class="lead reveal reveal-4" style="margin-top:28px;max-width:580px">
+        用自然语言一站式完成<b>知识问答</b>、<b>数据分析</b>与<b>业务执行</b>。
+        <div class="lead-chips">
+          <span class="chip c1"><i>K</i>知识问答</span>
+          <span class="chip c2"><i>A</i>数据分析</span>
+          <span class="chip c3"><i>E</i>业务执行</span>
+        </div>
+        <div class="lead-sub">带权限隔离、审批闭环与全栈降级的企业级多 Agent 系统。</div>
+      </div>
+      <div class="meta reveal reveal-5">
+        <div><b>版本</b> v3.2 · 2026-07-28</div>
+        <div><b>技术栈</b> LangGraph + Milvus + 本地 qwen3.5</div>
+        <div><b>联调</b> 17/17 通过</div>
+      </div>
+    </div>
+    <div class="cover-bot reveal reveal-3" aria-hidden="true">
+      <div class="bot-ring r1"></div>
+      <div class="bot-ring r2"></div>
+      <div class="bot-orbit d1"></div>
+      <div class="bot-orbit d2"></div>
+      <div class="bot-orbit d3"></div>
+      <div class="bot-avatar">🤖<span class="online"></span></div>
+      <div class="bot-shadow"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 1b. 目录 ============ -->
+<section class="slide" data-act="1" data-actname="缘起" data-title="目录">
+  <div class="slide-inner toc">
+    <div class="toc-col left">
+      <div class="toc-bubble reveal reveal-2" data-goto="2" style="--bc:#1E63D6">
+        <div class="no">ACT 01 · 缘起</div>
+        <h4>问题与价值</h4>
+        <div class="pages">三大痛点 · 价值主张</div>
+      </div>
+      <div class="toc-bubble reveal reveal-3" data-goto="3" style="--bc:#0891B2">
+        <div class="no">ACT 02 · 全貌</div>
+        <h4>产品定位与技术架构</h4>
+        <div class="pages">定位 · 技术栈 · 架构总图 · Harness</div>
+      </div>
+      <div class="toc-bubble reveal reveal-4" data-goto="7" style="--bc:#7C3AED">
+        <div class="no">ACT 03 · 核心能力</div>
+        <h4>问答 · 分析 · 执行</h4>
+        <div class="pages">两阶段检索 · Python 聚合 · Saga</div>
+      </div>
+      <div class="toc-bubble reveal reveal-5" data-goto="10" style="--bc:#059669">
+        <div class="no">ACT 04 · 工程亮点</div>
+        <h4>降级 · 安全 · 可靠性</h4>
+        <div class="pages">降级链 · 安全闭环 · 断点恢复 · 可观测</div>
+      </div>
+    </div>
+    <div class="toc-center reveal reveal-1">
+      <div class="en">CONTENTS</div>
+      <h1>目录</h1>
+      <div class="tip">点击气泡跳转</div>
+    </div>
+    <div class="toc-col right">
+      <div class="toc-bubble reveal reveal-2" data-goto="14" style="--bc:#EA580C">
+        <div class="no">ACT 05 · 实战演示</div>
+        <h4>界面与真实闭环</h4>
+        <div class="pages">界面概览 · 审批三棒 · 多 Agent 并行</div>
+      </div>
+      <div class="toc-bubble reveal reveal-3" data-goto="19" style="--bc:#E11D48">
+        <div class="no">ACT 06 · 取舍与教训</div>
+        <h4>关键取舍与十四个坑</h4>
+        <div class="pages">取舍 · 模型路由 · 路由反转 · 教训</div>
+      </div>
+      <div class="toc-bubble reveal reveal-4" data-goto="23" style="--bc:#4F46E5">
+        <div class="no">ACT 07 · 现状与展望</div>
+        <h4>当前状态与边界</h4>
+        <div class="pages">指标 · P3 收尾 · 技术债务 · 展望</div>
+      </div>
+      <div class="toc-bubble reveal reveal-5" data-goto="25" style="--bc:#CA8A04">
+        <div class="no">ACT 08 · 收尾</div>
+        <h4>Q & A 与致谢</h4>
+        <div class="pages">问答滚动墙 · 谢谢聆听</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. 问题与价值 ============ -->
+<section class="slide" data-act="1" data-title="问题与价值">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第一幕 · 缘起</div>
+    <h2 class="title reveal reveal-2">企业内部知识,为何总<em>问不到、找不到、控不住</em>?</h2>
+    <h3 class="sub reveal reveal-2">三个真实痛点,催生了这个项目。</h3>
+    <div class="pain-grid">
+      <div class="pain reveal reveal-3">
+        <div class="num">01</div>
+        <h4>知识分散</h4>
+        <p>制度、流程、业务知识散落在各类文档,员工查询靠问人、翻文档,效率低且口径不一。</p>
+      </div>
+      <div class="pain reveal reveal-4">
+        <div class="num">02</div>
+        <h4>系统割裂</h4>
+        <p>查客户、发邮件、建工单要在多个系统间手工切换,每个动作都要重新登录、复制粘贴。</p>
+      </div>
+      <div class="pain reveal reveal-5">
+        <div class="num">03</div>
+        <h4>风险失控</h4>
+        <p>高风险操作(如外部邮件)无审批拦截,越权访问难以防范,出了事无法追溯。</p>
+      </div>
+    </div>
+    <div class="value-strip reveal reveal-6">
+      <div class="lbl">价值主张</div>
+      <div class="txt">一个 Agent,三类能力,企业级安全闭环 —— 让员工用一句话完成原来跨五系统的工作。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. 产品定位 ============ -->
+<section class="slide" data-act="2" data-actname="全貌" data-title="产品定位">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第二幕 · 全貌</div>
+    <h2 class="title reveal reveal-2">一句话定位:<em>自然语言入口,工作流编排</em></h2>
+    <h3 class="sub reveal reveal-2">三大核心能力,对应三类业务场景;企业级四要素贯穿始终。</h3>
+    <div class="grid-3" style="margin-top:36px">
+      <div class="card reveal reveal-3">
+        <div class="ic" style="background:var(--brand-light);color:var(--brand)">K</div>
+        <h4>知识问答</h4>
+        <p>基于企业知识库的 RAG 问答,带部门命名空间隔离、来源标注、场景化置信度决策。<b style="color:var(--brand)">拒答优于编造</b>。</p>
+      </div>
+      <div class="card reveal reveal-4">
+        <div class="ic" style="background:var(--accent-soft);color:#92400E">A</div>
+        <h4>数据分析</h4>
+        <p>业务数据的统计、对比、趋势分析。<b style="color:#92400E">数字永远来自 Python 真实聚合</b>,LLM 只负责表达,禁止编造。</p>
+      </div>
+      <div class="card reveal reveal-5">
+        <div class="ic" style="background:#D1FAE5;color:var(--success)">E</div>
+        <h4>业务执行</h4>
+        <p>调用 CRM / 邮件 / 工单等 8 个工具完成动作,带 RBAC、高风险审批流与 Saga 补偿。</p>
+      </div>
+    </div>
+    <div class="grid-4 reveal reveal-6" style="margin-top:24px">
+      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">权限安全</h4><p style="font-size:12.5px">5 角色×8 工具 RBAC + 命名空间隔离 + 注入防护 + 审批流</p></div>
+      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">可用性</h4><p style="font-size:12.5px">LLM / 检索 / Checkpointer 三条降级链,任一故障不宕机</p></div>
+      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">可观测</h4><p style="font-size:12.5px">OTel 全链路追踪 + Prometheus 指标 + 6 类审计落库</p></div>
+      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">状态可靠</h4><p style="font-size:12.5px">Redis Checkpointer 断点恢复,进程重启对话不丢</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. 技术栈详解 ============ -->
+<section class="slide" data-act="2" data-title="技术栈详解">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第二幕 · 全貌</div>
+    <h2 class="title reveal reveal-2">技术栈:每个组件<em>存什么、干什么</em></h2>
+    <h3 class="sub reveal reveal-2">不是堆砌名词,而是各有明确职责与存储边界。</h3>
+    <div class="stack-table reveal reveal-3">
+      <div class="hd">组件</div><div class="hd">版本</div><div class="hd">存什么 / 干什么</div><div class="hd">角色</div>
+      <div class="comp">LangGraph</div><div class="ver">1.2.9</div>
+      <div class="role">AgentState + Send fan-out + Checkpointer,显式 StateGraph 编排三节点图</div>
+      <div class="store">编排引擎</div>
+      <div class="comp">Milvus</div><div class="ver">2.4</div>
+      <div class="role">存 <b>1024 维向量</b>(bge-m3)+ 部门 <b>partition</b> + HNSW 索引;7 篇文档 / 22 chunk,双条件过滤隔离</div>
+      <div class="store">向量检索</div>
+      <div class="comp">PostgreSQL</div><div class="ver">16</div>
+      <div class="role">存 <b>users / sessions / approval_requests / audit_logs / prompt_versions / user_feedback / documents</b></div>
+      <div class="store">业务持久化</div>
+      <div class="comp">Redis Stack</div><div class="ver">7.4</div>
+      <div class="role">存 <b>checkpoint 快照链</b>(每个 super-step 落盘)+ 限流 <b>ZSET 滑动窗口</b></div>
+      <div class="store">状态 + 限流</div>
+      <div class="comp">Ollama</div><div class="ver">qwen3.5:4b</div>
+      <div class="role">本地 LLM,<b>lite 主路径</b>:意图分类 / 工具选择 / 答案生成 / 自评 / 闲聊判断,实测 0.2-0.3s/次</div>
+      <div class="store">本地推理</div>
+      <div class="comp">bge-m3 / reranker</div><div class="ver">local</div>
+      <div class="role">Embedding(1024 维)+ 两阶段检索精排,本地 CUDA,数据不出内网</div>
+      <div class="store">向量化 + 精排</div>
+      <div class="comp">FastAPI</div><div class="ver">0.140</div>
+      <div class="role">REST API + <b>SSE 流式</b>(astream_events + final_answer 标签过滤)+ 单文件 SPA /ui</div>
+      <div class="store">Web 层</div>
+      <div class="comp">OTel + Prometheus</div><div class="ver">1.x</div>
+      <div class="role">全链路 span(tool/saga)+ /metrics 指标 + /ready 依赖检查 + 6 类审计</div>
+      <div class="store">可观测</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. 系统架构总图 ============ -->
+<section class="slide" data-act="2" data-title="系统架构总图">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第二幕 · 全貌</div>
+    <h2 class="title reveal reveal-2">三节点图:<em>planner → fan-out → aggregator</em></h2>
+    <div class="arch-wrap reveal reveal-3">
+      <svg class="arch-svg" viewBox="0 0 1120 380" xmlns="http://www.w3.org/2000/svg">
+        <!-- planner -->
+        <rect x="460" y="20" width="200" height="64" rx="12" class="arch-node"/>
+        <text x="560" y="48" class="arch-text">planner</text>
+        <text x="560" y="68" class="arch-sub">意图分类 + 任务分解</text>
+        <!-- dispatcher -->
+        <rect x="460" y="130" width="200" height="48" rx="10" fill="#EEF2F9" stroke="var(--ink-muted)" stroke-dasharray="4 4"/>
+        <text x="560" y="160" class="arch-text" style="font-size:12px">dispatcher · 条件边</text>
+        <!-- 三条 fan-out 线 -->
+        <path d="M560 178 L560 200 L200 220 L200 248" class="arch-flow"/>
+        <path d="M560 178 L560 248" class="arch-flow"/>
+        <path d="M560 178 L560 200 L920 220 L920 248" class="arch-flow"/>
+        <!-- 三个 executor -->
+        <rect x="100" y="248" width="200" height="64" rx="12" class="arch-node-exec"/>
+        <text x="200" y="276" class="arch-text">KnowledgeAgent</text>
+        <text x="200" y="296" class="arch-sub">RAG · 两阶段检索 · 置信度</text>
+        <rect x="460" y="248" width="200" height="64" rx="12" class="arch-node-exec"/>
+        <text x="560" y="276" class="arch-text">AnalysisAgent</text>
+        <text x="560" y="296" class="arch-sub">Python 聚合 · 禁止编造</text>
+        <rect x="820" y="248" width="200" height="64" rx="12" class="arch-node-exec"/>
+        <text x="920" y="276" class="arch-text">ExecutionAgent</text>
+        <text x="920" y="296" class="arch-sub">工具 · RBAC · Saga · 审批</text>
+        <!-- 汇聚到 aggregator -->
+        <path d="M200 312 L200 340 L560 340" class="arch-flow"/>
+        <path d="M560 312 L560 340" class="arch-flow"/>
+        <path d="M920 312 L920 340 L560 340" class="arch-flow"/>
+        <rect x="460" y="332" width="200" height="0" fill="none"/>
+        <text x="560" y="362" class="arch-text" style="fill:var(--success)">aggregator · 四分支汇总</text>
+      </svg>
+    </div>
+    <div class="grid-3 reveal reveal-4" style="margin-top:20px">
+      <div class="card" style="padding:16px 18px"><h4 style="font-size:14px;margin-bottom:4px;color:var(--brand)">Send fan-out</h4><p style="font-size:12px">条件边返回 list[Send],每个携带独立只读子状态,框架自动并行调度,reducer 合并结果</p></div>
+      <div class="card" style="padding:16px 18px"><h4 style="font-size:14px;margin-bottom:4px;color:var(--brand)">async 节点</h4><p style="font-size:12px">executor/aggregator 为 async 节点,避免 asyncpg 跨事件循环崩溃;Agent 按 (task_type,dept,role,user_id) 缓存</p></div>
+      <div class="card" style="padding:16px 18px"><h4 style="font-size:14px;margin-bottom:4px;color:var(--brand)">可重置 reducer</h4><p style="font-size:12px">agent_results 空列表重置 / 非空累加,一个 reducer 同时满足"每轮重置"与"并行累加"两种语义</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. Harness 六组件 ============ -->
+<section class="slide" data-act="2" data-title="Harness 六组件构建">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第二幕 · 全貌</div>
+    <h2 class="title reveal reveal-2">Harness 六组件:<em>谁来理解、怎么拆、怎么合、存哪里</em></h2>
+    <h3 class="sub reveal reveal-2">对照 Harness 框架,本项目六组件落地状态。</h3>
+    <div class="harness-grid">
+      <div class="hcell reveal reveal-3">
+        <span class="status full">完整</span>
+        <h4>编排引擎</h4>
+        <div class="duty">control · schedule · route</div>
+        <p>LangGraph StateGraph:planner → Send 并行 fan-out → executor → aggregator,路由是代码而非 LLM 即兴决策</p>
+      </div>
+      <div class="hcell reveal reveal-3">
+        <span class="status part">部分</span>
+        <h4>上下文工程</h4>
+        <div class="duty">prompt · compress · budget</div>
+        <p>按节点最小化注入(工具按角色裁剪);多轮历史已落地(5 轮);<b>压缩与 token 预算未做</b></p>
+      </div>
+      <div class="hcell reveal reveal-4">
+        <span class="status part">部分</span>
+        <h4>记忆系统</h4>
+        <div class="duty">working · short · long</div>
+        <p>工作记忆=AgentState;短期=Checkpointer 快照;会话元数据=sessions 表;长期记忆表已建<b>未接代码</b></p>
+      </div>
+      <div class="hcell reveal reveal-4">
+        <span class="status full">完整</span>
+        <h4>工具接入层</h4>
+        <div class="duty">register · auth · invoke</div>
+        <p>ToolGateway 统一网关 + 注册表 + 8 工具 + Saga 补偿;六道关卡:RBAC→参数→注入→执行→审计→兜底</p>
+      </div>
+      <div class="hcell reveal reveal-5">
+        <span class="status full">完整</span>
+        <h4>安全护栏</h4>
+        <div class="duty">rbac · approval · inject</div>
+        <p>RBAC 三防线 + 高风险审批流 + Prompt 注入 10 模式检测 + 限流;循环上限=分析多跳 ≤2 轮</p>
+      </div>
+      <div class="hcell reveal reveal-5">
+        <span class="status full">完整</span>
+        <h4>可观测 & 恢复</h4>
+        <div class="duty">trace · metric · fallback</div>
+        <p>OTel tracing + Prometheus + 审计落库;三条降级链;checkpoint 断点恢复;Saga 回滚</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. 知识问答 ============ -->
+<section class="slide" data-act="3" data-actname="核心能力" data-title="知识问答">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第三幕 · 核心能力</div>
+    <h2 class="title reveal reveal-2">知识问答:<em>两阶段检索 + 拒答优于编造</em></h2>
+    <div class="flow-row">
+      <div class="flow-step reveal reveal-2">
+        <div class="stp">STEP 1</div>
+        <h4>向量粗排</h4>
+        <p>bge-m3 向量化 query → Milvus HNSW 召回 top_k×4 候选;部门 partition + access_roles 双条件过滤</p>
+      </div>
+      <div class="flow-step reveal reveal-3">
+        <div class="stp">STEP 2</div>
+        <h4>精排 top5</h4>
+        <p>bge-reranker-large 对候选逐对打分,取 top-5;政策场景 shared 平局优先(ε=0.03 噪声带)</p>
+      </div>
+      <div class="flow-step reveal reveal-4">
+        <div class="stp">STEP 3</div>
+        <h4>置信度决策</h4>
+        <p>检索分×0.6 + 本地自评×0.4,场景化阈值(POLICY/FACTUAL 等)→ answer / hint / reject</p>
+      </div>
+      <div class="flow-step reveal reveal-5">
+        <div class="stp">STEP 4</div>
+        <h4>生成 + 标注</h4>
+        <p>本地 qwen 生成(lite 主路径),严格基于片段,末尾 [来源N] 标注;多轮指代消解</p>
+      </div>
+    </div>
+    <div class="grid-3 reveal reveal-6" style="margin-top:28px">
+      <div class="card" style="padding:18px 20px;border-left:3px solid var(--brand)">
+        <h4 style="font-size:15px;margin-bottom:6px">命名空间隔离</h4>
+        <p style="font-size:12.5px">Milvus 部门 partition + access_roles 标量,降级链同口径过滤(4 项回归守护)</p>
+      </div>
+      <div class="card" style="padding:18px 20px;border-left:3px solid var(--accent)">
+        <h4 style="font-size:15px;margin-bottom:6px">拒答优于编造</h4>
+        <p style="font-size:12.5px">企业知识库给错误制度答案的代价远高于"不知道";低置信明确拒答</p>
+      </div>
+      <div class="card" style="padding:18px 20px;border-left:3px solid var(--success)">
+        <h4 style="font-size:15px;margin-bottom:6px">实测</h4>
+        <p style="font-size:12.5px">首请求 48s(冷加载),稳定后 14.6s;命中率 22/22;6 次模型调用 0 次上云</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8. 数据分析 ============ -->
+<section class="slide" data-act="3" data-title="数据分析">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第三幕 · 核心能力</div>
+    <h2 class="title reveal reveal-2">数据分析:<em>数字永远来自 Python,LLM 只负责表达</em></h2>
+    <h3 class="sub reveal reveal-2">这是"禁止编造数字"的工程实现,而非 prompt 祈求。</h3>
+    <div class="flow-row">
+      <div class="flow-step reveal reveal-3">
+        <div class="stp">STEP 1</div>
+        <h4>计划解析</h4>
+        <p>lite LLM 解析分析计划 JSON:metrics / entities / compare / dimensions</p>
+      </div>
+      <div class="flow-step reveal reveal-4">
+        <div class="stp">STEP 2</div>
+        <h4>Python 真实聚合</h4>
+        <p>对 CRM Mock 数据真实计算(非 LLM 算!),数字来自代码;数据不足多跳补充 ≤2 轮</p>
+      </div>
+      <div class="flow-step reveal reveal-5">
+        <div class="stp">STEP 3</div>
+        <h4>报告生成</h4>
+        <p>primary LLM 生成报告,模板硬约束"禁止编造数字";LLM 失败降级为 Markdown 表格直出</p>
+      </div>
+    </div>
+    <div class="card reveal reveal-6" style="margin-top:32px;border-left:4px solid var(--accent)">
+      <h4 style="font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--ink);margin-bottom:10px">实例:对比 C001 / C002 累计销售额</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:12px">
+        <div style="background:var(--surface-alt);padding:14px;border-radius:8px">
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);margin-bottom:4px">C001 北京华信科技</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:24px;color:var(--brand)">¥2,850,000</div>
+        </div>
+        <div style="background:var(--surface-alt);padding:14px;border-radius:8px">
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);margin-bottom:4px">C002 上海拓维贸易</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:24px;color:var(--brand)">¥1,520,000</div>
+        </div>
+        <div style="background:var(--accent-soft);padding:14px;border-radius:8px">
+          <div style="font-family:var(--font-mono);font-size:11px;color:#92400E;margin-bottom:4px">差额</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:24px;color:#92400E">¥1,330,000</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--ink-muted);margin-top:10px;font-family:var(--font-mono)">数字来自 Python 聚合客户档案 total_revenue 字段,非 LLM 生成</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9. 业务执行 ============ -->
+<section class="slide" data-act="3" data-title="业务执行">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第三幕 · 核心能力</div>
+    <h2 class="title reveal reveal-2">业务执行:<em>RBAC 三防线 + Saga 补偿 + 审批闭环</em></h2>
+    <div class="grid-2" style="margin-top:32px">
+      <div class="card reveal reveal-3" style="border-top:3px solid var(--brand)">
+        <h4 style="font-size:18px;margin-bottom:14px">工具选择 · 云端优先(高风险)</h4>
+        <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">
+          <div style="padding:8px 0;border-bottom:1px dashed var(--border)"><span class="badge info">1</span>云端 deepseek-v4-flash 优先(高风险操作如外部邮件,选错代价大)</div>
+          <div style="padding:8px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">2</span>本地 qwen3.5:4b 兜底(schema 显式注入,低风险常规任务)</div>
+          <div style="padding-top:8px"><span class="badge danger">3</span>关键词映射兜底(含外部邮件地址纠偏)</div>
+        </div>
+      </div>
+      <div class="card reveal reveal-4" style="border-top:3px solid var(--success)">
+        <h4 style="font-size:18px;margin-bottom:14px">RBAC · 三防线</h4>
+        <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">
+          <div style="padding:8px 0;border-bottom:1px dashed var(--border)"><span class="badge ok">防线1</span>prompt 层:无权工具不注入,模型看不到</div>
+          <div style="padding:8px 0;border-bottom:1px dashed var(--border)"><span class="badge ok">防线2</span>执行层:ROLE_TOOLS 显式过滤 LLM 输出</div>
+          <div style="padding-top:8px"><span class="badge ok">防线3</span>工具层:invoke() 内 can_use_tool 终审 + 审计</div>
+        </div>
+      </div>
+      <div class="card reveal reveal-5" style="border-top:3px solid var(--accent)">
+        <h4 style="font-size:18px;margin-bottom:14px">Saga · 反向补偿</h4>
+        <div style="font-size:13px;line-height:1.7;color:var(--ink-soft)">
+          多工具顺序执行,任一 <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:12px">block_on_failure</code> 步骤失败 → <b style="color:var(--accent)">反向顺序补偿</b>已成功步骤;QUERY 类免补偿;补偿失败记 errors 不阻断,运维介入(最终一致性)
+        </div>
+      </div>
+      <div class="card reveal reveal-6" style="border-top:3px solid var(--danger)">
+        <h4 style="font-size:18px;margin-bottom:14px">高风险 · 审批流</h4>
+        <div style="font-size:13px;line-height:1.7;color:var(--ink-soft)">
+          <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:12px">requires_approval</code> 工具不直接执行,自动建审批单(prefill_payload 冻结参数)→ 经理批准后服务端同步执行 → <b style="color:var(--danger)">批准不越权</b>(仍按发起人角色终审)
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10. 三条降级链 ============ -->
+<section class="slide" data-act="4" data-actname="工程亮点" data-title="三条降级链">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第四幕 · 工程亮点</div>
+    <h2 class="title reveal reveal-2">三条降级链:<em>任一故障不宕机</em></h2>
+    <h3 class="sub reveal reveal-2">但最深的教训也在这里 —— 降级必须配"我在降级"的信号。</h3>
+    <div class="card reveal reveal-3" style="margin-top:32px;padding:28px 32px">
+      <div class="deg-chain head">
+        <div></div>
+        <div class="hd-c">主路径</div><div></div>
+        <div class="hd-c">降级</div><div></div>
+        <div class="hd-c">最终兜底</div>
+      </div>
+      <div class="deg-chain">
+        <div class="deg-label">LLM (primary)</div>
+        <div class="deg-node">DeepSeek v4-pro</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node fallback">qwen3.5:4b 本地</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node last">规则匹配 / 拼接</div>
+      </div>
+      <div class="deg-chain">
+        <div class="deg-label">LLM (lite)</div>
+        <div class="deg-node">qwen3.5:4b 本地</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node fallback">v4-flash 云端</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node last">primary 兜底</div>
+      </div>
+      <div class="deg-chain">
+        <div class="deg-label">意图分类(运行时)</div>
+        <div class="deg-node">本地 qwen 分类</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node fallback">云端 flash 重试</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node last">规则关键词兜底</div>
+      </div>
+      <div class="deg-chain">
+        <div class="deg-label">向量检索</div>
+        <div class="deg-node">Milvus HNSW</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node fallback">BM25 关键词</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node last">PG LIKE</div>
+      </div>
+      <div class="deg-chain">
+        <div class="deg-label">Checkpointer</div>
+        <div class="deg-node">Redis AsyncRedisSaver</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node fallback">PostgresSaver</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node last">MemorySaver</div>
+      </div>
+      <div class="deg-chain">
+        <div class="deg-label">限流</div>
+        <div class="deg-node">Redis ZSET 滑动窗口</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node fallback">内存计数降级</div>
+      </div>
+      <div class="deg-chain">
+        <div class="deg-label">审计</div>
+        <div class="deg-node">PG 写入</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node fallback">本地 logs/audit/ 文件</div>
+        <span class="deg-arrow">→</span>
+        <div class="deg-node last">连续失败 5 次告警</div>
+      </div>
+    </div>
+    <div class="card reveal reveal-5" style="margin-top:20px;border-left:4px solid var(--accent);background:var(--accent-soft)">
+      <p style="font-size:14px;color:#92400E;line-height:1.6"><b>关键教训:</b>降级链曾经把"向量检索没生效"这个配置错误掩盖了两个月 —— 因为 BM25 关键词降级兜得太好。从此坚持:<b>降级策略必须配"我在降级"的信号</b>,后端标识暴露在 /ready 和每次响应里。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11. 安全闭环 ============ -->
+<section class="slide" data-act="4" data-title="安全闭环">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第四幕 · 工程亮点</div>
+    <h2 class="title reveal reveal-2">安全闭环:<em>审批不越权,是核心设计</em></h2>
+    <h3 class="sub reveal reveal-2">经理批准销售员的外部邮件,执行时仍按销售员角色终审 —— 审批系统不会成为提权通道。</h3>
+    <div class="grid-2" style="margin-top:32px">
+      <div class="card reveal reveal-3">
+        <h4 style="font-size:17px;margin-bottom:12px">RBAC 矩阵 · 5 角色 × 8 工具</h4>
+        <div style="font-size:12.5px;color:var(--ink-soft)">
+          <div style="display:flex;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)"><b style="color:var(--brand);font-family:var(--font-mono);font-size:12px;flex:0 0 128px">salesperson</b><span style="display:flex;flex-wrap:wrap;gap:6px"><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">query_customer</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">query_order</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">create_task</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">email_internal</code><code style="font-family:var(--font-mono);background:#FEF2F2;color:var(--danger);padding:2px 8px;border-radius:6px;font-size:11px">email_external · 审批</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">my_approvals</code></span></div>
+          <div style="display:flex;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)"><b style="color:var(--brand);font-family:var(--font-mono);font-size:12px;flex:0 0 128px">customer_service</b><span style="display:flex;flex-wrap:wrap;gap:6px"><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">query_customer</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">create_ticket</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">update_ticket</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">email_internal</code></span></div>
+          <div style="display:flex;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)"><b style="color:var(--brand);font-family:var(--font-mono);font-size:12px;flex:0 0 128px">finance</b><span style="display:flex;flex-wrap:wrap;gap:6px"><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">query_order</code><code style="font-family:var(--font-mono);background:var(--surface-alt);padding:2px 8px;border-radius:6px;font-size:11px">email_internal</code></span></div>
+          <div style="display:flex;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)"><b style="color:var(--brand);font-family:var(--font-mono);font-size:12px;flex:0 0 128px">manager</b><span>全部 8 个工具</span></div>
+          <div style="display:flex;align-items:baseline;gap:12px;padding-top:8px"><b style="color:var(--brand);font-family:var(--font-mono);font-size:12px;flex:0 0 128px">admin</b><span>全部 8 个工具</span></div>
+        </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:12.5px;color:var(--ink-soft)">高风险工具 <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:11.5px">email_external</code> 挂 <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:11.5px">requires_approval</code>,不直接执行 → 自动建审批单</div>
+      </div>
+      <div class="card reveal reveal-4">
+        <h4 style="font-size:17px;margin-bottom:12px">命名空间隔离</h4>
+        <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">
+          <div style="padding:8px 0;border-bottom:1px dashed var(--border)"><b style="color:var(--ink)">文档侧</b> · chunk 带 <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:11.5px">dept_namespace</code> + <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:11.5px">access_roles</code> 标量,按部门物理 partition</div>
+          <div style="padding:8px 0;border-bottom:1px dashed var(--border)"><b style="color:var(--ink)">检索侧</b> · <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:11.5px">dept_namespace in [本部门, shared_company]</code> + <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:11.5px">ARRAY_CONTAINS(access_roles, 角色)</code> 双条件</div>
+          <div style="padding:8px 0;border-bottom:1px dashed var(--border)"><b style="color:var(--ink)">降级链同口径</b> · BM25 / PG LIKE 走同一过滤(曾修复降级路径跨部门泄露)</div>
+          <div style="padding-top:8px"><b style="color:var(--ink)">回归守护</b> · <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:11.5px">eval/run_p2_namespace.py</code> 4/4 通过</div>
+        </div>
+      </div>
+    </div>
+    <div class="card reveal reveal-5" style="margin-top:20px;border-left:4px solid var(--danger)">
+      <h4 style="font-size:17px;margin-bottom:12px;color:var(--danger)">审批不越权 · 三道保证</h4>
+      <div class="grid-3">
+        <div style="font-size:13px;line-height:1.6"><b style="color:var(--brand)">① 执行 context</b><br>role/dept 取自 users 表发起人当前角色,非审批人</div>
+        <div style="font-size:13px;line-height:1.6"><b style="color:var(--brand)">② 执行前预检</b><br>pending 期间发起人角色若被收回,提前失败并记 security_violation</div>
+        <div style="font-size:13px;line-height:1.6"><b style="color:var(--brand)">③ 工具层终审</b><br>invoke() 内 can_use_tool 按发起人角色终审;审计分离记录 decided_by 与 executed_as_*</div>
+      </div>
+    </div>
+    <div class="card reveal reveal-6" style="margin-top:16px;padding:16px 20px">
+      <p style="font-size:13px;color:var(--ink-soft)"><b>Prompt 注入防护:</b>工具入参递归扫描 10 种模式(系统提示覆盖 / 身份劫持 / 越权指令 / 代码注入 / 危险命令),命中即拒绝 + 记审计;邮件 HTML 注入另检测 script/iframe/object/embed 四标签</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12. 状态可靠性 ============ -->
+<section class="slide" data-act="4" data-title="状态可靠性">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第四幕 · 工程亮点</div>
+    <h2 class="title reveal reveal-2">状态可靠性:<em>杀进程重启,会话不丢</em></h2>
+    <div class="grid-2" style="margin-top:32px">
+      <div class="card reveal reveal-3" style="border-top:3px solid var(--brand)">
+        <h4 style="font-size:18px;margin-bottom:12px">Checkpointer 断点恢复</h4>
+        <p style="font-size:13.5px;line-height:1.7;color:var(--ink-soft)">每个 super-step(planner 后 / 各 executor 后 / aggregator 后)自动落 Redis 快照。<b style="color:var(--ink)">thread_id = session_id</b>,同会话天然跨进程恢复。</p>
+        <div style="margin-top:14px;padding:12px 16px;background:var(--surface-alt);border-radius:8px;font-family:var(--font-mono);font-size:12px;color:var(--ink)">
+          实测:杀 API 进程重启 → 旧 session 续聊 → checkpoint 完整恢复 → 本轮检索真实走 Milvus(余弦分 0.57/0.50)→ 耗时 115s 长链路通过
+        </div>
+      </div>
+      <div class="card reveal reveal-4" style="border-top:3px solid var(--accent)">
+        <h4 style="font-size:18px;margin-bottom:12px">Saga 反向补偿</h4>
+        <p style="font-size:13.5px;line-height:1.7;color:var(--ink-soft)">多工具顺序执行,任一步失败反向补偿已成功步骤;每个 ACTION 工具实现 <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:12px">compensate</code>,执行时记录 compensation_data。</p>
+        <div style="margin-top:14px;padding:12px 16px;background:var(--surface-alt);border-radius:8px;font-family:var(--font-mono);font-size:12px;color:var(--ink)">
+          实例:[建任务✓ → 发邮件✗] → 反向补偿:取消任务 → 任务 status=compensated → 用户看到「任务已创建但通知失败,已自动取消」
+        </div>
+      </div>
+    </div>
+    <div class="card reveal reveal-5" style="margin-top:20px;border-left:4px solid var(--success)">
+      <h4 style="font-size:16px;margin-bottom:8px">补偿失败怎么办?</h4>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6">补偿失败<b style="color:var(--ink)">不阻断流程</b>,记入 <code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:12px">compensation_errors</code> 返还运维 —— 这是最终一致性不是 ACID。邮件发出去了只能发撤回信,分布式系统没有真回滚。原则:<b>宁可"补偿失败 + 告警 + 人工介入",也不假装能完美回滚</b>。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13. 可观测与审计 ============ -->
+<section class="slide" data-act="4" data-title="可观测与审计">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第四幕 · 工程亮点</div>
+    <h2 class="title reveal reveal-2">可观测与审计:<em>故障可定位,行为可追溯</em></h2>
+    <div class="grid-3" style="margin-top:36px">
+      <div class="card reveal reveal-3" style="border-top:3px solid var(--brand)">
+        <div class="ic" style="background:var(--brand-light);color:var(--brand);width:36px;height:36px;font-size:14px">T</div>
+        <h4 style="font-size:16px">OpenTelemetry 追踪</h4>
+        <p style="font-size:13px">手动 span:tool.{name} / saga.execute;自动埋点:FastAPI / Redis / requests → Jaeger 全链路</p>
+      </div>
+      <div class="card reveal reveal-4" style="border-top:3px solid var(--accent)">
+        <div class="ic" style="background:var(--accent-soft);color:#92400E;width:36px;height:36px;font-size:14px">M</div>
+        <h4 style="font-size:16px">Prometheus 指标</h4>
+        <p style="font-size:13px">/metrics 导出 + /ready 依赖检查(db/milvus/checkpointer/tools 健康度 + 实体数)</p>
+      </div>
+      <div class="card reveal reveal-5" style="border-top:3px solid var(--success)">
+        <div class="ic" style="background:#D1FAE5;color:var(--success);width:36px;height:36px;font-size:14px">A</div>
+        <h4 style="font-size:16px">6 类审计落库</h4>
+        <p style="font-size:13px">chat_request/response · tool_call · approval · auth · feedback · prompt_change + security_violation</p>
+      </div>
+    </div>
+    <div class="card reveal reveal-6" style="margin-top:24px;border-left:4px solid var(--brand)">
+      <h4 style="font-size:16px;margin-bottom:10px">降级声明 · 可观测性设计</h4>
+      <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.7">当前生效后端(<code style="font-family:var(--font-mono);background:var(--surface-alt);padding:1px 5px;border-radius:3px;font-size:12px">checkpointer_backend</code>、向量 provider)暴露在 /ready 和每次对话响应里。一次请求可从 audit 的 request_id 串到 tracing 的 span 树,定位到具体哪个 Agent 的哪次 LLM/工具调用慢了或挂了。<b style="color:var(--brand)">降级次数突增往往比错误率更早告警</b>。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13b. 前端界面概览 ============ -->
+<section class="slide" data-act="5" data-actname="实战演示" data-title="前端界面概览">
+  <div class="slide-inner wide-shot">
+    <div class="eyebrow reveal reveal-1">第五幕 · 实战演示 · 界面入口</div>
+    <h2 class="title reveal reveal-2">前端界面<em>概览</em></h2>
+    <h3 class="sub reveal reveal-2">登录页浅色磨砂卡片 + 人员选择器;登录后个性化欢迎态(问候 + 角色简介 + 场景建议卡片)。</h3>
+    <div class="shot-carousel reveal reveal-3" data-sc>
+      <button class="sc-nav prev" aria-label="上一张">‹</button>
+      <button class="sc-nav next" aria-label="下一张">›</button>
+      <div class="sc-counter"><span class="sc-cur">1</span>/<span class="sc-total">2</span></div>
+      <div class="viewport">
+        <div class="slides">
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/01-login.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>登录页 · 浅色磨砂卡片 + 人员选择器</div></div>
+              </div>
+              <div class="caption"><b>登录页</b> 10 种子用户(5 角色 × 4 部门)<span class="tag">/ui</span></div>
+            </div>
+          </div>
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/02-zhangsan-welcome.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>张三欢迎态 · 问候 + 角色简介 + 场景卡片</div></div>
+              </div>
+              <div class="caption"><b>欢迎态</b> 个性化问候 + 4 张场景建议卡片<span class="tag">角色感知</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sc-dots">
+        <button class="dot active" data-i="0" aria-label="第1张"></button>
+        <button class="dot" data-i="1" aria-label="第2张"></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14. 多人协作审批闭环 ============ -->
+<section class="slide" data-act="5" data-actname="实战演示" data-title="多人协作审批闭环">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第五幕 · 实战演示</div>
+    <h2 class="title reveal reveal-2">多人协作审批闭环:<em>三棒接力,全程在 /ui</em></h2>
+    <h3 class="sub reveal reveal-2">销售员发起外部邮件 → 经理审批 → 销售员跟踪进度。RBAC + 审批 + 工具执行的真实闭环。</h3>
+    <div class="approval-flow">
+      <div class="leg reveal reveal-3">
+        <span class="role-tag sales">第一棒 · 销售员张三</span>
+        <h4>发起外部邮件</h4>
+        <p>「给客户 C001 的联系人张经理发外部邮件,邮箱 zhang@huaxin-tech.com,主题:续约报价」</p>
+        <p style="font-size:12px;color:var(--ink-muted);font-family:var(--font-mono)">命中 send_email_external → requires_approval=True → 建审批单</p>
+        <div class="outcome">已提交审批 appr_xxx,待经理审批</div>
+      </div>
+      <div class="leg reveal reveal-4">
+        <span class="role-tag mgr">第二棒 · 经理赵六</span>
+        <h4>审批 + 自动执行</h4>
+        <p>「审批」页签 → 待我审批 → 看到该单(high 橙色)→ 点「批准」</p>
+        <p style="font-size:12px;color:var(--ink-muted);font-family:var(--font-mono)">校验审批人角色 → 检查 requester_token → 执行 prefill_payload(按发起人角色终审)</p>
+        <div class="outcome">已批准,工具已执行 message_id EXT-xxx</div>
+      </div>
+      <div class="leg reveal reveal-5">
+        <span class="role-tag sales">第三棒 · 销售员张三</span>
+        <h4>跟踪进度</h4>
+        <p>「审批」页签 → 我的审批 → 状态「已执行」绿色徽标</p>
+        <p style="font-size:12px;color:var(--ink-muted);font-family:var(--font-mono)">对话直接问「我的审批到哪了」→ 命中 query_my_approvals 工具 → 返回真实状态</p>
+        <div class="outcome">闭环完成,全程可追溯</div>
+      </div>
+    </div>
+    <div class="shot-note reveal reveal-6">
+      <span class="shot-note-arrow">→</span>
+      <span>三棒接力实屏见 <b>下一页</b>(满宽大图,可清晰看到审批号、状态徽标、工具回执)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14b. 审批闭环实屏(三棒大图) ============ -->
+<section class="slide" data-act="5" data-actname="实战演示" data-title="审批闭环实屏">
+  <div class="slide-inner wide-shot">
+    <div class="eyebrow reveal reveal-1">第五幕 · 实战演示 · 实屏对照</div>
+    <h2 class="title reveal reveal-2">审批闭环<em>三棒实屏</em></h2>
+    <h3 class="sub reveal reveal-2">张三发起 → 赵六批准自动执行 → 张三跟踪,全程在 /ui 完成。</h3>
+    <div class="shot-carousel reveal reveal-3" data-sc>
+      <button class="sc-nav prev" aria-label="上一张">‹</button>
+      <button class="sc-nav next" aria-label="下一张">›</button>
+      <div class="sc-counter"><span class="sc-cur">1</span>/<span class="sc-total">5</span></div>
+      <div class="viewport">
+        <div class="slides">
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/03-zhangsan-submitted.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>张三发起外部邮件 · 已提交审批</div></div>
+              </div>
+              <div class="caption"><b>第1步</b> 张三发起外部邮件<span class="tag">appr_xxx</span></div>
+            </div>
+          </div>
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/04-zhaoliu-pending.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>赵六待审批列表 · 看到该单</div></div>
+              </div>
+              <div class="caption"><b>第2步</b> 赵六「待我审批」看到该单<span class="tag">high 橙色</span></div>
+            </div>
+          </div>
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/05-zhaoliu-approved.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>赵六批准 · 工具已执行</div></div>
+              </div>
+              <div class="caption"><b>第3步</b> 赵六批准,服务端自动执行<span class="tag">EXT-xxx</span></div>
+            </div>
+          </div>
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/06-zhangsan-tracked.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>张三我的审批 · 已执行</div></div>
+              </div>
+              <div class="caption"><b>第4步</b> 张三「我的审批」状态已执行<span class="tag">闭环完成</span></div>
+            </div>
+          </div>
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/07-zhangsan-ask-progress.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>张三对话问进度 · 命中工具</div></div>
+              </div>
+              <div class="caption"><b>第5步</b> 对话问「我的审批到哪了」<span class="tag">query_my_approvals</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sc-dots">
+        <button class="dot active" data-i="0" aria-label="第1张"></button>
+        <button class="dot" data-i="1" aria-label="第2张"></button>
+        <button class="dot" data-i="2" aria-label="第3张"></button>
+        <button class="dot" data-i="3" aria-label="第4张"></button>
+        <button class="dot" data-i="4" aria-label="第5张"></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 15. 多 Agent 并行实例 ============ -->
+<section class="slide" data-act="5" data-title="多 Agent 并行实例">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第五幕 · 实战演示</div>
+    <h2 class="title reveal reveal-2">多 Agent 并行 + Saga 三步:<em>一句话,三动作,自动协调</em></h2>
+    <h3 class="sub reveal reveal-2">经理赵六:「查客户 C005 信息 + 建 urgent 工单 + 发内部邮件通知」—— planner 拆三子任务并行,工具链走 Saga。</h3>
+    <div class="flow-row">
+      <div class="flow-step reveal reveal-3">
+        <div class="stp">PLANNER</div>
+        <h4>意图分类 + 任务分解</h4>
+        <p>multi_task 意图 → primary LLM 拆三子任务:execution(C005 查询) + execution(建工单) + execution(发邮件)</p>
+      </div>
+      <div class="flow-step reveal reveal-4">
+        <div class="stp">FAN-OUT</div>
+        <h4>Send 并行调度</h4>
+        <p>dispatcher 返回 list[Send] → 三个 agent_executor 并行 → 各自独立子状态,结果经 reducer 合并</p>
+      </div>
+      <div class="flow-step reveal reveal-5">
+        <div class="stp">SAGA</div>
+        <h4>工具链顺序执行</h4>
+        <p>ExecutionAgent 内部 Saga 协调:query_customer → create_ticket → send_email_internal,任一失败反向补偿</p>
+      </div>
+      <div class="flow-step reveal reveal-6">
+        <div class="stp">AGGREGATE</div>
+        <h4>汇总返回</h4>
+        <p>aggregator 多结果 primary LLM 整合 → 客户信息 + 工单号 TK-xxx + 邮件编号 INT-xxx 全部返回</p>
+      </div>
+    </div>
+    <div class="grid-3 reveal reveal-6" style="margin-top:24px">
+      <div class="card" style="padding:16px 18px"><h4 style="font-size:14px;margin-bottom:4px;color:var(--brand)">并行收益</h4><p style="font-size:12.5px">总耗时 ≈ 较慢分支 + 汇总,而非各分支相加</p></div>
+      <div class="card" style="padding:16px 18px"><h4 style="font-size:14px;margin-bottom:4px;color:var(--accent)">分支隔离</h4><p style="font-size:12.5px">分支 B 失败不影响分支 A,aggregator 标注失败并保留成功结果</p></div>
+      <div class="card" style="padding:16px 18px"><h4 style="font-size:14px;margin-bottom:4px;color:var(--success)">子任务去重</h4><p style="font-size:12.5px">2026-07-27 修复:语义重叠子任务合并,消除重复建单双写</p></div>
+    </div>
+    <div class="shot-note reveal reveal-6">
+      <span class="shot-note-arrow">→</span>
+      <span>Saga 三步实屏见 <b>下一页</b>(满宽大图,可清晰看到客户信息、工单号、邮件编号)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 15b. 多 Agent 并行实屏(两张大图) ============ -->
+<section class="slide" data-act="5" data-actname="实战演示" data-title="多 Agent 并行实屏">
+  <div class="slide-inner wide-shot">
+    <div class="eyebrow reveal reveal-1">第五幕 · 实战演示 · 实屏对照</div>
+    <h2 class="title reveal reveal-2">多 Agent 并行<em>实屏</em></h2>
+    <h3 class="sub reveal reveal-2">赵六一句话三动作 → planner 拆三子任务并行 → Saga 顺序执行 → 汇总返回。</h3>
+    <div class="shot-carousel reveal reveal-3" data-sc>
+      <button class="sc-nav prev" aria-label="上一张">‹</button>
+      <button class="sc-nav next" aria-label="下一张">›</button>
+      <div class="sc-counter"><span class="sc-cur">1</span>/<span class="sc-total">2</span></div>
+      <div class="viewport">
+        <div class="slides">
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/08-zhaoliu-saga-input.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>赵六发起 · 一句话三动作</div></div>
+              </div>
+              <div class="caption"><b>赵六发起</b> 一句话三动作:查客户 + 建工单 + 发邮件<span class="tag">multi_task</span></div>
+            </div>
+          </div>
+          <div class="slide-item">
+            <div class="shot-hero">
+              <div class="frame" data-img="screenshots/09-zhaoliu-saga-result.webp">
+                <div class="placeholder"><div class="icon">📷</div><div>Saga 三步结果 · 客户+工单+邮件</div></div>
+              </div>
+              <div class="caption"><b>Saga 三步</b> 客户信息 + 工单号 + 邮件编号全部返回<span class="tag">TK/INT-xxx</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sc-dots">
+        <button class="dot active" data-i="0" aria-label="第1张"></button>
+        <button class="dot" data-i="1" aria-label="第2张"></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16. 关键取舍 ============ -->
+<section class="slide" data-act="6" data-actname="取舍与教训" data-title="关键取舍">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
+    <h2 class="title reveal reveal-2">关键取舍:<em>放弃了什么,什么情况下会改</em></h2>
+    <h3 class="sub reveal reveal-2">每个"选"都对应一个"弃",这才是工程决策的本质。</h3>
+    <div class="tradeoff reveal reveal-3">
+      <div class="pick">显式 StateGraph —— 路由可预测、权限可审计、断点可恢复</div>
+      <div class="drop">ReAct 自由循环 —— 应对开放任务的灵活性(任务域封闭,用不上)</div>
+      <div class="pick">Mock-first —— 契约对齐真实 API,安全链路提前两周端到端联调</div>
+      <div class="drop">等真实系统 —— 数据真实性(测不出真实脏数据与延迟分布)</div>
+      <div class="pick">本地 qwen3.5:4b 承担高频低风险任务 —— 成本降 40%+,数据不出内网,闲聊 5.9s 零云端</div>
+      <div class="drop">全部本地 —— 高风险操作准确率(小模型选错工具不触发回退,需云端优先)</div>
+      <div class="pick">单结果直通不调 LLM —— 最常见场景零额外成本,忠实于 Agent 原始输出</div>
+      <div class="drop">一律 LLM 汇总 —— 汇总层"润色"的可能(可能引入幻觉)</div>
+      <div class="pick">Saga 补偿失败不阻断 —— 流程不卡死,可审计可告警,最终一致性</div>
+      <div class="drop">强一致 —— 假装能完美回滚(邮件发出去了只能发撤回信)</div>
+      <div class="pick">审批后按发起人角色终审 —— 审批系统不会成为提权通道</div>
+      <div class="drop">审批人全权代办 —— 一点便利性(某些场景审批人确实想代办)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16b. 模型路由与成本 ============ -->
+<section class="slide" data-act="6" data-title="模型路由与成本">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
+    <h2 class="title reveal reveal-2">模型路由:<em>用对模型,省对成本</em></h2>
+    <h3 class="sub reveal reveal-2" style="max-width:none;white-space:nowrap">三链路分级 + 运行时回退 —— 大模型管推理,小模型管高频,规则管兜底,任一故障都有退路。</h3>
+
+    <div class="route-chains reveal reveal-3">
+      <div class="route-chain">
+        <span class="role-tag">primary · 复杂任务</span>
+        <h5>答案生成 / 规划 / 报告</h5>
+        <div class="chain">
+          <span class="node primary">DeepSeek v4-pro 云端</span>
+          <span class="arr">→</span>
+          <span class="node local">本地 qwen(无 key 降级)</span>
+        </div>
+        <p>需要推理/理解的关键任务:max_retries=2 内部重试,仍失败由调用点走非 LLM 兜底(规则匹配/表格直出)。</p>
+      </div>
+      <div class="route-chain">
+        <span class="role-tag">lite · 轻量任务</span>
+        <h5>意图分类 / 工具选择 / 计划解析</h5>
+        <div class="chain" style="flex-wrap:nowrap">
+          <span class="node local">本地 qwen</span>
+          <span class="arr">→</span>
+          <span class="node cloud">云端 v4-flash</span>
+          <span class="arr">→</span>
+          <span class="node fallback">primary 兜底</span>
+        </div>
+        <p>本地优先(实测 0.2-1.4s,免费且快于云端 flash 的 8.7-18.1s);本地不可用降级云端 flash,均不可用兜底 primary。</p>
+      </div>
+      <div class="route-chain">
+        <span class="role-tag">local · 高频简单</span>
+        <h5>闲聊判断 / 答案自评 / Reranker</h5>
+        <div class="chain">
+          <span class="node local">本地 qwen3.5:4b</span>
+          <span class="arr">→</span>
+          <span class="node cloud">云端兜底</span>
+        </div>
+        <p>闲聊判断 ~0.3s/条零云端成本;答案自评 ~0.2s/次;reasoning=False 关闭思考 token,实测从 44-94s 降到 0.2s。</p>
+      </div>
+    </div>
+
+    <div class="route-matrix reveal reveal-4">
+      <div class="hd">调用点</div>
+      <div class="hd">模型选择(优先级 → 降级)</div>
+      <div class="hd">实测延迟</div>
+
+      <div class="call">闲聊判断</div>
+      <div class="model"><span class="local">qwen3.5:4b 本地</span><span class="arrow">·</span>reasoning=False</div>
+      <div class="lat"><b>~0.3s</b>/条 · 零云端</div>
+
+      <div class="call">意图分类</div>
+      <div class="model"><span class="local">本地 qwen</span><span class="arrow">→</span><span class="flash">v4-flash 运行时回退</span><span class="arrow">→</span>规则关键词</div>
+      <div class="lat"><b>~0.2s</b> 本地 / flash 1.2-1.5s</div>
+
+      <div class="call">任务分解</div>
+      <div class="model"><span class="pri">deepseek-v4-pro</span><span class="arrow">·</span>仅 multi_task 触发</div>
+      <div class="lat"><b>~6s</b></div>
+
+      <div class="call">knowledge 答案生成</div>
+      <div class="model"><span class="local">本地 qwen</span><span class="arrow">→</span><span class="flash">v4-flash 降级</span></div>
+      <div class="lat"><b>~1.4s</b> 本地优先</div>
+
+      <div class="call">答案自评</div>
+      <div class="model"><span class="local">本地 qwen</span><span class="arrow">·</span>reasoning=False</div>
+      <div class="lat"><b>~0.2s</b>/次</div>
+
+      <div class="call">analysis 计划解析</div>
+      <div class="model"><span class="local">本地 qwen</span><span class="arrow">→</span><span class="flash">v4-flash 降级</span></div>
+      <div class="lat"><b>~0.2s</b> 本地</div>
+
+      <div class="call">execution 工具选择</div>
+      <div class="model"><span class="flash">云端 flash 优先</span><span class="arrow">→</span><span class="local">本地 qwen</span><span class="arrow">→</span>关键词兜底</div>
+      <div class="lat"><b>1.2-1.5s</b> 云端优先</div>
+
+      <div class="call">analysis 报告 / 多结果汇总</div>
+      <div class="model"><span class="pri">deepseek-v4-pro</span></div>
+      <div class="lat"><b>~35s</b> 报告 / <b>~8s</b> 汇总</div>
+
+      <div class="call">aggregator 单结果</div>
+      <div class="model"><span class="none">不调 LLM(直通)</span></div>
+      <div class="lat"><b>0s</b> · 零成本</div>
+
+      <div class="call">aggregator 闲聊</div>
+      <div class="model">命中分支:<span class="none">模板零 LLM</span><span class="arrow">·</span>未命中:<span class="local">本地 qwen 即兴</span></div>
+      <div class="lat"><b>0s</b> 模板 / 本地生成零云端</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16c. 两次路由反转 ============ -->
+<section class="slide" data-act="6" data-title="两次路由反转">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
+    <h2 class="title reveal reveal-2">两次路由反转:<em>路由策略是测出来的,不是想出来的</em></h2>
+    <h3 class="sub reveal reveal-2">两次"凭印象"的模型路由设计,都被实测数据推翻。</h3>
+    <div class="route-fix reveal reveal-3" style="padding:20px 24px">
+      <div class="date">2026-07-26 · 路由反转 #1</div>
+      <h5 style="font-size:16px">lite 层从"云端 flash 优先"反转为"本地优先"</h5>
+      <p style="font-size:13px">曾误判本地慢是 GPU 争用迁云端,后实测发现真因是 <b>ChatOpenAI 走 Ollama /v1 端点时 extra_body={"think": False} 被忽略</b>,模型照生成 thinking token(自评单次 44-94s)。迁移 <b>ChatOllama + reasoning=False</b> 走原生 /api/chat 后,本地 0.2-0.3s/次,快于云端 flash(8.7-18.1s),lite 层反转为本地优先、云端 flash 降级。</p>
+    </div>
+    <div class="route-fix reveal reveal-4" style="padding:20px 24px">
+      <div class="date">2026-07-28 · 路由反转 #2</div>
+      <h5 style="font-size:16px">execution 工具选择反转为"云端 flash 优先"</h5>
+      <p style="font-size:13px">本地 4B 会返回"合法 JSON 但选错工具"(实测发外部邮件话术稳定只选 query_customer,漏掉 send_email_external),此时旧回退(仅本地失败/返回空才上云)<b>不触发</b>,审批单建不出来。改候选链 <b>云端 flash → 本地 → 关键词</b> 后实测建单恢复,云端 flash 仅 1.2-1.5s/次,成本≈0。教训:工具选择是 4B 最弱环节,"选错工具"比"返回空"更危险。</p>
+    </div>
+    <div class="card reveal reveal-5" style="margin-top:20px;border-left:4px solid var(--act)">
+      <p style="font-size:14px;color:var(--ink-soft);line-height:1.7"><b style="color:var(--act)">共同教训:</b>模型路由不能凭印象设计 —— <b style="color:var(--ink)">延迟要实测</b>(本地"慢"的真相是协议适配层抽象泄漏)、<b style="color:var(--ink)">正确率要回归</b>("返回合法 JSON"不等于"选对了工具")。候选链不只看"是否失败",还要看"是否正确"。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 17. 深刻教训 ============ -->
+<section class="slide" data-act="6" data-title="深刻教训">
+  <div class="slide-inner head-inset">
+    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
+    <h2 class="title reveal reveal-2">十四个深刻教训:<em>二阶思考比修复更重要</em></h2>
+    <div class="lesson-carousel reveal reveal-3">
+      <button class="lesson-carousel-nav prev" aria-label="上一条">‹</button>
+      <div class="lesson-carousel-viewport">
+        <div class="lesson-carousel-track">
+          <div class="lesson">
+            <div class="ph">坑 1 · 最有讲头</div>
+            <h4>降级链掩盖配置错误</h4>
+            <p>联调前 RAG 一直"能出结果",但 VECTOR_STORE_PROVIDER 实际是 memory,向量检索从未生效 —— BM25 关键词降级在兜底。从外部看一切正常,实际上向量检索空转两个月。</p>
+            <div class="takeaway"><b>二阶思考:</b>任何兜底机制都是双刃剑 —— 它消化故障的同时也在消化信号。<b>降级策略必须配"我在降级"的声明</b>,监控把"降级次数"作为独立指标。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 2 · 组合状态盲区</div>
+            <h4>operator.add reducer + checkpoint = 跨轮污染</h4>
+            <p>断点恢复后续聊,aggregator 汇总出了上一轮的结果。根因:默认 reducer 语义是"追加",checkpoint 恢复把上轮 agent_results 带回来,新一轮写入追加在残留上。</p>
+            <div class="takeaway"><b>二阶思考:</b>框架默认值和业务真实语义不一致时,<b>默认值是最危险的地方</b> —— 它在单轮测试里永远正确,只在"恢复+新一轮"的组合场景爆炸。组合状态 × 生命周期是测试盲区。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 3 · 隐性契约</div>
+            <h4>同步节点跨事件循环调 DB</h4>
+            <p>executor 内审批建单报 "Future attached to a different loop"。根因:asyncpg 连接绑定主事件循环,sync 节点跑在线程池,线程里 asyncio.run 建新 loop 去用旧 loop 的连接。</p>
+            <div class="takeaway"><b>二阶思考:</b>async 生态里"哪个对象绑定哪个 loop"是隐性契约,单元测试(单 loop)永远测不出。<b>并发模型必须在架构评审时显性化</b>,画清楚每个资源归哪个 loop。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 4 · 选错工具比返回空更危险</div>
+            <h4>本地小模型返回合法 JSON 但选错工具</h4>
+            <p>外部邮件场景,本地 qwen3.5:4b 返回合法 JSON,却只选了 query_customer 漏掉 send_email_external —— 旧回退只在"本地失败/空响应"时上云,"选错工具"不触发回退,导致外部邮件突然不送审、绕过审批。根因:本地小模型"能选对工具"和"能填对参数"是两个能力层级。</p>
+            <div class="takeaway"><b>二阶思考:</b>候选链不能只看"是否失败",还要看"是否正确"。高风险操作改为<b>云端 deepseek-v4-flash 优先</b> → 本地 qwen 兜底 → 关键词兜底。实测云端 flash 1.2-1.5s,比本地还快。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 5 · 序列化边界</div>
+            <h4>checkpoint 反序列化类型漂移</h4>
+            <p>断点恢复后 Aggregator 访问 AgentResult.success 崩溃;流式 sources 全部 score 0.000、标题与分区为空;多轮历史派生时 user_input 取不到 message 字段。三次独立场景、同一类问题反复出现。根因:LangGraph checkpoint 以 JSON 存储,pydantic 模型反序列化后变成 dict;Redis saver 不复活自定义类,部分字段还以 LangChain 序列化信封 {"lc","type":"constructor","kwargs":{...}} 形态存在。</p>
+            <div class="takeaway"><b>二阶思考:</b>任何跨序列化边界的类型契约都不可信。生产方"我是 pydantic 模型"的保证在序列化那一刻就失效了,<b>消费方防御比生产方保证更可靠</b>。修复:消费入口 model_validate 或按 dict 兼容访问,跨 checkpoint 边界取数必须先解 kwargs 层。单元测试(单进程内对象直传)永远测不出。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 6 · 安全不变量漂移</div>
+            <h4>降级路径绕过部门隔离(跨部门泄露)</h4>
+            <p>P2 调研发现 BM25 降级检索只过滤了 is_active 和 access_roles,漏了 dept_namespace —— 向量检索挂掉走降级时,跨部门文档会泄露给无权用户。根因:主路径的过滤逻辑实现向量检索层里,降级路径是后来补的,安全条件没有跟着复制一遍。代码评审看不出来,因为两条路径各自都"看起来合理"。</p>
+            <div class="takeaway"><b>二阶思考:</b>安全不变量必须独立于实现路径。"部门隔离"应该是一条无论走哪条检索路径都成立的不变量,最好的结构是<b>把过滤条件收敛到一个构造函数,所有路径调用它</b>,而不是每条路径各写一份。靠 run_p2_namespace.py 4 项断言(含降级路径)做长期守护。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 7 · ORM 升级盲区</div>
+            <h4>SQLAlchemy 2.x 原生 SQL 扫盲区</h4>
+            <p>① 服务起不来,conn.execute("SELECT 1") 直接报错(阻塞性);② 待审批列表 500,JSONB 列 = ANY(jsonb_col) 语法 PG 不支持。根因:SQLAlchemy 2.x 强制要求原生 SQL 用 text() 包装;JSONB 数组成员判断必须用 jsonb_col ? 'value' 或 @> 操作符。ORM 托管的查询有版本兼容层,手写 SQL 没保护。</p>
+            <div class="takeaway"><b>二阶思考:</b>升级 ORM 大版本后,<b>原生 SQL 是扫盲区</b> —— ORM 把日常 CRUD 的兼容性吃掉了,让开发者误以为"升级没影响",但手写 SQL 部分仍是裸 SQL。升级 checklist 里必须有"全量 grep 原生 SQL + JSONB 操作符"。这个坑是阻塞性的(服务起不来),必须在升级前回归。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 8 · 镜像默认行为依赖</div>
+            <h4>Redis 镜像 ENTRYPOINT 的隐性依赖</h4>
+            <p>checkpointer 启动报 FT._LIST unknown command;换 redis-stack-server 后又出现"容器活着但 RediSearch 模块没加载"。根因:① redis:7-alpine 不含 RediSearch 模块,checkpointer 需要 FT.* 命令;② docker-compose 里覆盖 command: 会跳过镜像默认的 ENTRYPOINT 模块加载链,必须显式 --loadmodule redisearch.so rejson.so。</p>
+            <div class="takeaway"><b>二阶思考:</b>镜像的默认行为(ENTRYPOINT/CMD 链)也是依赖。覆盖 command 时,继承关系要搞清楚 —— 不能只看"容器活着"。<b>验证手段要直抵能力本身</b>(redis-cli FT._LIST 验证索引存在),而不是"容器状态 healthy"。"healthy"只代表进程活着,不代表业务能力可用。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 9 · 工程解法 vs prompt 祈求</div>
+            <h4>LLM 输出格式宽容解析</h4>
+            <p>① SendEmailSchema.to 拒收单字符串(LLM 高频输出 str 而非 [str]);② 审批摘要把 list 逐字符 join 了(["a","b"] → "['a', 'b']" 当字符串处理);③ 收件人参数被 LLM 猜成 recipient/content 而非 to/body。根因:prompt 里写"必须输出数组"只能降低概率,不能消除 —— LLM 输出格式永远有抖动。schema 层严格校验直接拒绝,导致正常请求失败。</p>
+            <div class="takeaway"><b>二阶思考:</b>对 LLM 输出要"<b>宽容解析、严格校验、默认值兜底</b>"。prompt 是软约束,pydantic validator 是硬约束 —— 把格式归一化(单 str 自动包装为 list、显式 null 走默认值)做在 schema 层,而不是反复改 prompt 求模型配合。凡是能用代码兜底的格式问题,都不要靠 prompt 解决。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 10 · 过度容错</div>
+            <h4>Aggregator 错误兜底掩盖友好提示</h4>
+            <p>RBAC 拒绝时用户看到"处理失败:未知错误",而不是"您的角色(customer_service)无权执行所需工具" —— Agent 精心构造的友好拒绝被兜底逻辑覆盖。根因:兜底逻辑一律用 error 字段拼装回答,而 Agent 已经返回了带友好话术的 output.answer;兜底没区分"有信息"和"无信息"两种情况。</p>
+            <div class="takeaway"><b>二阶思考:</b>兜底应该兜"没有信息"的底,而不是覆盖"已有信息"。<b>分层回答要分清给谁看</b> —— Agent 的友好话术是产品体验的一部分,兜底的"未知错误"是诊断信息,二者优先级不能反。修复:优先保留 Agent 自带回答,仅无回答时才用错误兜底。容错要把"已有有效输出"和"真失败"分开。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 11 · 抽象泄漏误诊</div>
+            <h4>ChatOpenAI 走 Ollama /v1 端点忽略 extra_body</h4>
+            <p>本地 qwen3.5:4b 自评单次 44-94s、闲聊判断 ~4.4s/条,一度判断为"GPU 争用"迁到云端 flash;后实测发现是 ChatOpenAI 走 Ollama /v1/chat/completions 端点时 extra_body={"think": False} 被 Ollama 忽略,模型照生成 thinking token,所有时间烧在隐藏思考上。根因:OpenAI 兼容端点是社区适配层,不是 Ollama 原生协议。</p>
+            <div class="takeaway"><b>二阶思考:</b>"对症下药的药"可能治的是错症。第一次诊断"GPU 争用"是基于现象的合理推断,但根因在协议适配层 —— 这层抽象泄漏(OpenAI 兼容端点 ≠ OpenAI 协议语义)只有实测隐藏 token 才能发现。改用 ChatOllama + reasoning=False(走原生 /api/chat)后,自评 65.8s→0.23s、闲聊 4.4s→0.27s。<b>性能问题根因诊断必须有"白盒证据"</b>。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 12 · 模型能力迁移暴露隐性依赖</div>
+            <h4>工具选择 prompt 不含参数 schema</h4>
+            <p>/ui 里「给客户 C001 创建回访任务并发内部邮件通知经理」连续报"处理失败";本地 qwen 把 to/body 猜成 recipient/content,漏填必填的 title/assignee,pydantic 校验直接失败。此前这类用例能过,是因为本地恰好返回空 → 云端 flash 重试接管(云端按参数名惯例猜得对)。根因:工具选择 prompt 只注入工具名/描述/类别,不含参数 schema。</p>
+            <div class="takeaway"><b>二阶思考:</b>lite 本地优先之后,凡依赖"模型猜约定"的环节都要把约定显式化。云端大模型之所以"好用",部分原因是它内化了大量参数命名惯例(隐性约定);一旦切到能力更弱的小模型,<b>这些隐性约定必须显式注入 prompt</b>(字段名+必填标记+字段描述)。修复:_param_spec() 从 model_fields 生成参数规格注入 {tools} 槽;assignee 改 Optional 缺省回填发起人。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 13 · Prompt 定义完整性</div>
+            <h4>意图分类 prompt 漏定义导致路由错误</h4>
+            <p>「查询订单 ORD-2026-001 的详情」被路由到知识问答,回答"知识库未覆盖" —— 明显错误路由。根因:意图分类 prompt 的 data_operation 定义只写了"创建/更新/删除",没覆盖"查询业务记录";4B 小模型把"查询"动词归到 knowledge_qa。同时本地分类失败时没有运行时回退,直接吃下了错误分类。</p>
+            <div class="takeaway"><b>二阶思考:</b>Prompt 中的枚举定义是分类的"边界" —— 少写一项,模型就把该类的样本全部错分到相邻类。规则关键词兜底(RULE_KEYWORDS)也必须同步更新,否则 prompt 修了、兜底还是错的。<b>Prompt 工程的"定义完整性"比"措辞精妙"更重要</b>,且 prompt 与兜底规则是两个事实源,改 prompt 必须同步改规则。</div>
+          </div>
+          <div class="lesson">
+            <div class="ph">坑 14 · 数据卫生底线</div>
+            <h4>入库脚本不幂等导致 collection 膨胀</h4>
+            <p>反复执行入库脚本后,Milvus collection 从 22 实体膨胀到 116 实体,问答 sources 被同一文档的重复 chunk 挤占(实测 top-5 里三个"销售政策")。根因:run_w9_milvus / run_eval --ingest / app.rag.ingest 三条入库路径均不做幂等去重,反复执行就追加。Milvus 不像 PG 有唯一约束,doc_id 重复不会报错。</p>
+            <div class="takeaway"><b>二阶思考:</b>入库脚本的幂等性是数据卫生的底线。开发期反复执行是常态,如果脚本不是幂等的,数据会悄悄污染检索质量 —— 而且这种污染不会被功能测试发现(检索"能出结果"),只有召回质量回归(run_eval 命中率/score 分布)才能发现。修复:init_milvus(recreate=True) drop 重建。<b>数据写入路径必须有"幂等性测试"</b>。</div>
+          </div>
+        </div>
+      </div>
+      <button class="lesson-carousel-nav next" aria-label="下一条">›</button>
+      <div class="lesson-carousel-info">
+        <span><span class="lc-cur">1</span> / <span class="lc-total">14</span></span>
+        <div class="lesson-carousel-dots"></div>
+        <span class="lesson-carousel-hint">‹ 左右点击翻页 ›</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 18. 当前状态 ============ -->
+<section class="slide" data-act="7" data-actname="现状与展望" data-title="当前状态">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第七幕 · 现状与展望</div>
+    <h2 class="title reveal reveal-2">当前状态:<em>功能验证充分,生产化在路上</em></h2>
+    <div class="metric-grid">
+      <div class="metric reveal reveal-3"><div class="v">17/17</div><div class="l">联调通过</div></div>
+      <div class="metric reveal reveal-3"><div class="v acc">8</div><div class="l">工具数</div></div>
+      <div class="metric reveal reveal-4"><div class="v">10</div><div class="l">种子用户</div></div>
+      <div class="metric reveal reveal-4"><div class="v acc">4</div><div class="l">部门隔离</div></div>
+      <div class="metric reveal reveal-5"><div class="v">11</div><div class="l">Prompt 版本管理</div></div>
+      <div class="metric reveal reveal-5"><div class="v acc">5</div><div class="l">角色 RBAC</div></div>
+      <div class="metric reveal reveal-6"><div class="v">3</div><div class="l">降级链</div></div>
+      <div class="metric reveal reveal-6"><div class="v acc">P2</div><div class="l">迭代完成</div></div>
+    </div>
+    <div class="grid-2 reveal reveal-6" style="margin-top:28px">
+      <div class="card" style="border-left:3px solid var(--success);padding:18px 22px">
+        <h4 style="font-size:15px;margin-bottom:8px;color:var(--success)">✅ 已完成</h4>
+        <p style="font-size:12.5px;line-height:1.7">W2-W9 全阶段 · P1(分析/审批/审计/反馈)· P2(Prompt 版本管理 / 取消机制 / 命名空间隔离 / sessions 状态机)· 前端 v3 业务场景化 · SSE 流式 · 多轮上下文注入 · 多人协作闭环</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--accent);padding:18px 22px">
+        <h4 style="font-size:15px;margin-bottom:8px;color:#92400E">⏳ P3 收尾</h4>
+        <p style="font-size:12.5px;line-height:1.7">压测(vegeta/k6)· UAT + 安全实测 · needs_replan 误报复查 · pymilvus 3.1 迁移(硬 deadline)· Windows uvicorn reload 修复</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 19. 技术债务与展望 ============ -->
+<section class="slide" data-act="7" data-title="技术债务与展望">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第七幕 · 现状与展望</div>
+    <h2 class="title reveal reveal-2">技术债务与展望:<em>诚实说明边界</em></h2>
+    <h3 class="sub reveal reveal-2">每个"没做"都能回答:为什么不做、什么时候做、怎么做。</h3>
+    <div class="grid-2" style="margin-top:32px">
+      <div class="card reveal reveal-3">
+        <h4 style="font-size:17px;margin-bottom:14px">已知边界(P3)</h4>
+        <div style="font-size:13px;line-height:1.9;color:var(--ink-soft)">
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span>对话压缩未实现(历史 5 轮封顶)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span><code style="font-family:var(--font-mono);font-size:11.5px">depends_on</code> 未编排(子任务一律并行)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span>checkpoint 无 TTL(快照随会话增长)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span><code style="font-family:var(--font-mono);font-size:11.5px">ROLE_NAMESPACES</code> 未接入(manager 跨部门不可见)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span><code style="font-family:var(--font-mono);font-size:11.5px">user_memories</code> 表已建未接(长期记忆)</div>
+          <div style="padding:6px 0"><span class="badge warn">边界</span>token usage 部分采集(未持久化)</div>
+        </div>
+      </div>
+      <div class="card reveal reveal-4">
+        <h4 style="font-size:17px;margin-bottom:14px">远期展望(v3 方案)</h4>
+        <div style="font-size:13px;line-height:1.9;color:var(--ink-soft)">
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>真实业务系统对接(CRM/邮件/工单契约已对齐)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>多租户扩展(dept_namespace → tenant_id)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>K8s 部署清单 + 密钥管理 + TLS 全量</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>对话压缩(滑动窗口 + 分段摘要)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>子任务依赖编排(拓扑分批 fan-out)</div>
+          <div style="padding:6px 0"><span class="badge info">规划</span>checkpoint TTL + 长期记忆读写</div>
+        </div>
+      </div>
+    </div>
+    <div class="value-strip reveal reveal-5">
+      <div class="lbl">边界原则</div>
+      <div class="txt">每个"没做"都能回答三问 —— <b style="background:rgba(255,255,255,.22);padding:1px 6px;border-radius:4px">为什么现在不做</b> · <b style="background:rgba(255,255,255,.22);padding:1px 6px;border-radius:4px">什么信号触发就做</b> · <b style="background:rgba(255,255,255,.22);padding:1px 6px;border-radius:4px">怎么入手</b>。说不清的"没做"是疏忽,说得清的是取舍。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 20. Q&A 滚动墙 ============ -->
+<section class="slide" data-act="8" data-actname="收尾" data-title="Q&A 滚动墙">
+  <div class="slide-inner">
+    <div class="eyebrow reveal reveal-1">第八幕 · 收尾 · 互动问答</div>
+    <h2 class="title reveal reveal-2">Q & A<em>滚动墙</em></h2>
+    <h3 class="sub reveal reveal-2">点击任意问题气泡,滚动暂停并展开答案。再点空白处或关闭按钮恢复滚动。</h3>
+    <div class="qa-wall reveal reveal-3" id="qaWall">
+      <div class="qa-row" data-speed="38" data-dir="left">
+        <div class="qa-track"></div>
+        <div class="qa-track" aria-hidden="true"></div>
+      </div>
+      <div class="qa-row" data-speed="52" data-dir="right">
+        <div class="qa-track"></div>
+        <div class="qa-track" aria-hidden="true"></div>
+      </div>
+      <div class="qa-row" data-speed="32" data-dir="left">
+        <div class="qa-track"></div>
+        <div class="qa-track" aria-hidden="true"></div>
+      </div>
+      <div class="qa-row" data-speed="60" data-dir="right">
+        <div class="qa-track"></div>
+        <div class="qa-track" aria-hidden="true"></div>
+      </div>
+      <div class="qa-row" data-speed="44" data-dir="left">
+        <div class="qa-track"></div>
+        <div class="qa-track" aria-hidden="true"></div>
+      </div>
+      <div class="qa-row" data-speed="70" data-dir="right">
+        <div class="qa-track"></div>
+        <div class="qa-track" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 21. 致谢与问答 ============ -->
+<section class="slide" data-act="8" data-actname="收尾" data-title="致谢与问答">
+  <div class="slide-inner thanks">
+    <div class="hello reveal reveal-1" style="font-family:var(--font-display);font-style:italic;color:var(--ink-muted);font-size:24px;margin-bottom:8px">谢谢聆听</div>
+    <h1 class="reveal reveal-2">Hello，<em>小A</em></h1>
+    <div class="sub reveal reveal-3">企业知识工作流 Agent</div>
+    <div class="lead reveal reveal-4" style="margin-top:24px;text-align:center;max-width:640px">
+      用自然语言一站式完成<b>知识问答</b>、<b>数据分析</b>与<b>业务执行</b>。
+      <div class="lead-chips">
+        <span class="chip c1"><i>K</i>知识问答</span>
+        <span class="chip c2"><i>A</i>数据分析</span>
+        <span class="chip c3"><i>E</i>业务执行</span>
+      </div>
+      <div class="lead-sub">带权限隔离、审批闭环与全栈降级的企业级多 Agent 系统。</div>
+    </div>
+    <div class="qa reveal reveal-5">Q & A · 欢迎提问</div>
+    <div class="meta reveal reveal-6" style="margin-top:48px;display:flex;gap:36px;font-family:var(--font-mono);font-size:12px;color:var(--ink-muted)">
+      <div><b style="color:var(--ink)">版本</b> v3.2</div>
+      <div><b style="color:var(--ink)">日期</b> 2026-07-28</div>
+      <div><b style="color:var(--ink)">联调</b> 17/17 通过</div>
+    </div>
+    <div class="reveal reveal-7" style="margin-top:22px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-muted);opacity:.75">感谢赵震坤同学的算力支持</div>
+  </div>
+</section>
+
+</div>
+
+<div class="nav-bar">
+  <div class="nav-btns">
+    <button class="nav-btn" id="prevBtn" aria-label="上一页">‹</button>
+    <button class="nav-btn" id="nextBtn" aria-label="下一页">›</button>
+    <button class="nav-btn" id="fsBtn" aria-label="全屏" title="全屏">⛶</button>
+  </div>
+  <div class="page-info"><b id="curPage">1</b> / <span id="totalPage">27</span></div>
+</div>
+<div class="hint">← → 翻页 · 空格 下一页 · F 全屏 · Home/End 首尾</div>
+
+<script>
+/* ===================== 幻灯片导航 ===================== */
+const slides=[...document.querySelectorAll('.slide')];
+const total=slides.length;
+/* 粒子色(提前声明避免 TDZ,update() 会用到) */
+let particleColor={r:30,g:99,b:214};
+/* 每页一种转场(按内容性格匹配) */
+const transTypes=['cover','zoom-in','rise','zoom-out','flip','zoom-in','cascade','slide-l','rise','slide-r','fall','flip','zoom-out','rise','slide-l','cascade','zoom-in','slide-r','rise','zoom-in','slide-l','cascade','cover'];
+slides.forEach((s,i)=>{if(!s.dataset.trans)s.dataset.trans=transTypes[i]||'slide-l'});
+let cur=0;
+const pbar=document.getElementById('pbar');
+const actTag=document.getElementById('actTag');
+const curPageEl=document.getElementById('curPage');
+const totalPageEl=document.getElementById('totalPage');
+const prevBtn=document.getElementById('prevBtn');
+const nextBtn=document.getElementById('nextBtn');
+const fsBtn=document.getElementById('fsBtn');
+totalPageEl.textContent=total;
+
+function go(n){
+  n=Math.max(0,Math.min(total-1,n));
+  if(n===cur)return;
+  const old=cur;
+  slides[old].classList.remove('active');
+  if(n>old){
+    slides[old].classList.add('prev');   // 前进:旧页退场到左
+    slides[old].classList.remove('next');
+  }else{
+    slides[old].classList.add('next');   // 后退:旧页退场到右
+    slides[old].classList.remove('prev');
+  }
+  // 清理非目标页状态(保留 old 的 prev/next 做退场动画)
+  slides.forEach((s,i)=>{
+    if(i!==n){
+      s.classList.remove('active');
+      if(i!==old){
+        s.classList.remove('prev');
+        s.classList.remove('next');
+      }
+    }
+  });
+  slides[n].classList.remove('prev');
+  slides[n].classList.remove('next');
+  slides[n].classList.add('active');
+  cur=n;
+  update();
+}
+function update(){
+  pbar.style.width=((cur+1)/total*100)+'%';
+  curPageEl.textContent=cur+1;
+  const s=slides[cur];
+  const act=s.dataset.act||'1';
+  const actname=s.dataset.actname||'';
+  const actNames={1:'缘起',2:'全貌',3:'核心能力',4:'工程亮点',5:'实战演示',6:'取舍与教训',7:'现状与展望',8:'收尾'};
+  actTag.innerHTML=`<b>第${['','一','二','三','四','五','六','七','八'][act]}幕</b> · ${actNames[act]||actname}`;
+  prevBtn.disabled=cur===0;
+  nextBtn.disabled=cur===total-1;
+  if(typeof updateParticleColor==='function')updateParticleColor();
+  if(typeof loadSlideImages==='function')loadSlideImages(s);
+}
+
+/* 按需加载当前页截图(异步淡入) */
+const imgCache=new Map();
+function loadSlideImages(slide){
+  const frames=slide.querySelectorAll('.frame[data-img]:not(.has-img)');
+  frames.forEach(frame=>{
+    const src=frame.dataset.img;
+    if(!src)return;
+    if(imgCache.has(src)){applyImg(frame,src,imgCache.get(src));return}
+    const img=new Image();
+    img.onload=()=>{imgCache.set(src,img);applyImg(frame,src,img)};
+    img.onerror=()=>{/* 加载失败保持 placeholder */}
+    img.src=src;
+  });
+}
+function applyImg(frame,src,cachedImg){
+  if(frame.classList.contains('has-img'))return;
+  const el=document.createElement('img');
+  el.src=src;
+  // 已缓存(cachedImg.complete)或新图 onload 后,触发淡入
+  const markLoaded=()=>el.classList.add('loaded');
+  if(cachedImg && cachedImg.complete){
+    // 缓存命中:下一帧触发淡入
+    requestAnimationFrame(markLoaded);
+  }else{
+    el.addEventListener('load',markLoaded);
+  }
+  frame.appendChild(el);
+  frame.classList.add('has-img');
+}
+
+/* ====== 截屏轮播初始化(像素级自由滚动 + 拖拽) ====== */
+function initShotCarousels(){
+  document.querySelectorAll('.shot-carousel[data-sc]').forEach(sc=>{
+    if(sc.dataset.scInit==='1')return;
+    sc.dataset.scInit='1';
+    const slides=sc.querySelectorAll('.slide-item');
+    const total=slides.length;
+    const viewport=sc.querySelector('.viewport');
+    const dots=sc.querySelectorAll('.sc-dots .dot');
+    const curEl=sc.querySelector('.sc-cur');
+    const totalEl=sc.querySelector('.sc-total');
+    const prevBtn=sc.querySelector('.sc-nav.prev');
+    const nextBtn=sc.querySelector('.sc-nav.next');
+    if(totalEl)totalEl.textContent=total;
+    let idx=0, scrollLock=false, lockTimer=null;
+    // 同步 UI(不含滚动位置)
+    function syncUI(){
+      slides.forEach((s,i)=>s.classList.toggle('active',i===idx));
+      dots.forEach((d,i)=>d.classList.toggle('active',i===idx));
+      if(curEl)curEl.textContent=idx+1;
+      if(prevBtn)prevBtn.classList.toggle('disabled',idx===0);
+      if(nextBtn)nextBtn.classList.toggle('disabled',idx===total-1);
+      // 按需加载当前及相邻 slide 的图片
+      [idx-1,idx,idx+1].forEach(i=>{
+        if(i<0||i>=total)return;
+        const frame=slides[i].querySelector('.frame[data-img]:not(.has-img)');
+        if(frame)loadSlideImages(slides[i]);
+      });
+    }
+    function goSc(n){
+      idx=Math.max(0,Math.min(total-1,n));
+      syncUI();
+      // 程序化滚动:上锁,避免 scroll 监听反向改写 idx
+      scrollLock=true;
+      viewport.scrollTo({left:idx*viewport.clientWidth,behavior:'smooth'});
+      clearTimeout(lockTimer);
+      lockTimer=setTimeout(()=>{scrollLock=false},700);
+    }
+    // 用户像素滚动/拖拽时,反向同步当前页码
+    viewport.addEventListener('scroll',()=>{
+      if(scrollLock)return;
+      const i=Math.round(viewport.scrollLeft/viewport.clientWidth);
+      if(i!==idx&&i>=0&&i<total){idx=i;syncUI()}
+    });
+    if(prevBtn)prevBtn.onclick=e=>{e.stopPropagation();goSc(idx-1)};
+    if(nextBtn)nextBtn.onclick=e=>{e.stopPropagation();goSc(idx+1)};
+    dots.forEach(d=>d.onclick=e=>{e.stopPropagation();goSc(+d.dataset.i)});
+    // 阻止轮播内点击冒泡触发翻页
+    sc.addEventListener('click',e=>e.stopPropagation());
+    // 鼠标滚轮 = 像素横向滚动
+    sc.addEventListener('wheel',e=>{
+      if(Math.abs(e.deltaY)<Math.abs(e.deltaX))return;
+      e.preventDefault();
+      viewport.scrollLeft+=e.deltaY;
+    },{passive:false});
+    // 鼠标拖拽像素滚动
+    let dragX=0, dragL=0, moved=false;
+    viewport.addEventListener('mousedown',e=>{
+      dragX=e.clientX;dragL=viewport.scrollLeft;moved=false;
+      viewport.classList.add('dragging');
+    });
+    window.addEventListener('mousemove',e=>{
+      if(!viewport.classList.contains('dragging'))return;
+      const dx=e.clientX-dragX;
+      if(Math.abs(dx)>3)moved=true;
+      viewport.scrollLeft=dragL-dx;
+    });
+    window.addEventListener('mouseup',()=>{
+      viewport.classList.remove('dragging');
+      if(moved){
+        // 拖拽后吸附到最近一页
+        setTimeout(()=>goSc(Math.round(viewport.scrollLeft/viewport.clientWidth)),50);
+        // 阻止拖拽后的 click 误触发
+        const stop=e=>{e.stopPropagation();e.preventDefault()};
+        viewport.addEventListener('click',stop,{capture:true,once:true});
+      }
+    });
+    // 暴露给外部,以便 update 时切到该页可重渲染
+    sc._goSc=goSc;
+    syncUI();
+  });
+}
+initShotCarousels();
+
+/* ====== 教训横向轮播(像素级自由滚动) ====== */
+function initLessonCarousel(){
+  const carousel=document.querySelector('.lesson-carousel');
+  if(!carousel||carousel.dataset.init==='1')return;
+  carousel.dataset.init='1';
+  const viewport=carousel.querySelector('.lesson-carousel-viewport');
+  const lessons=carousel.querySelectorAll('.lesson');
+  const prevBtn=carousel.querySelector('.lesson-carousel-nav.prev');
+  const nextBtn=carousel.querySelector('.lesson-carousel-nav.next');
+  const curEl=carousel.querySelector('.lc-cur');
+  const totalEl=carousel.querySelector('.lc-total');
+  const dotsEl=carousel.querySelector('.lesson-carousel-dots');
+  const total=lessons.length;
+  if(totalEl)totalEl.textContent=total;
+
+  function getVisibleCount(){
+    const vw=window.innerWidth;
+    if(vw<1100)return 1;
+    if(vw<1500)return 2;
+    return 3;
+  }
+  // 一屏的像素宽度(visible 张卡片 + 间隔)
+  function getPageWidth(){
+    const visible=getVisibleCount();
+    const card=lessons[0].getBoundingClientRect().width;
+    const gap=22;
+    return card*visible+gap*(visible-1);
+  }
+  function maxScroll(){return viewport.scrollWidth-viewport.clientWidth}
+
+  // 根据当前 scrollLeft 计算页码(用于显示)
+  function calcPage(){
+    const pw=getPageWidth();
+    if(pw<=0)return 0;
+    return Math.round(viewport.scrollLeft/pw);
+  }
+  function totalPages(){
+    const pw=getPageWidth();
+    if(pw<=0)return 1;
+    return Math.max(1,Math.round(maxScroll()/pw)+1);
+  }
+
+  // 构建圆点(只在 resize 时调用)
+  function buildDots(){
+    if(!dotsEl)return;
+    const tp=totalPages();
+    dotsEl.innerHTML='';
+    for(let i=0;i<tp;i++){
+      const dot=document.createElement('button');
+      dot.className='dot';
+      dot.title=`第 ${i+1} 页`;
+      dot.onclick=e=>{e.stopPropagation();const pw=getPageWidth();viewport.scrollTo({left:i*pw,behavior:'smooth'})};
+      dotsEl.appendChild(dot);
+    }
+  }
+  // 滚动时更新 UI(轻量,不重建 dots)
+  function onScroll(){
+    const ms=maxScroll();
+    const sl=viewport.scrollLeft;
+    const page=Math.min(calcPage(),totalPages()-1);
+    if(curEl)curEl.textContent=page+1;
+    prevBtn.classList.toggle('disabled',sl<=0);
+    nextBtn.classList.toggle('disabled',sl>=ms-1);
+    if(dotsEl){
+      const dots=dotsEl.querySelectorAll('.dot');
+      dots.forEach((d,i)=>d.classList.toggle('active',i===page));
+    }
+  }
+
+  // 滚轮:deltaY 转横向像素滚动(连续,不吸附)
+  viewport.addEventListener('wheel',e=>{
+    e.preventDefault();
+    // 像素级累加,带自然阻尼
+    viewport.scrollLeft+=e.deltaY;
+  },{passive:false});
+
+  // 拖拽滚动(鼠标按住拖动)
+  let dragging=false,downX=0,downScroll=0,downTime=0,moved=false;
+  viewport.addEventListener('mousedown',e=>{
+    // 点击卡片内部链接/按钮时不拖
+    if(e.target.closest('a,button'))return;
+    dragging=true;moved=false;
+    downX=e.pageX;downScroll=viewport.scrollLeft;downTime=Date.now();
+    viewport.classList.add('dragging');
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const dx=e.pageX-downX;
+    if(Math.abs(dx)>3)moved=true;
+    viewport.scrollLeft=downScroll-dx;
+  });
+  window.addEventListener('mouseup',()=>{
+    if(!dragging)return;
+    dragging=false;
+    viewport.classList.remove('dragging');
+  });
+  // 拖拽后阻止 click 误触发(若发生过移动)
+  viewport.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false}},true);
+
+  // 箭头:平滑滚动一屏
+  prevBtn.onclick=e=>{e.stopPropagation();viewport.scrollBy({left:-getPageWidth(),behavior:'smooth'})};
+  nextBtn.onclick=e=>{e.stopPropagation();viewport.scrollBy({left:getPageWidth(),behavior:'smooth'})};
+
+  // 阻止轮播内点击冒泡触发翻页
+  carousel.addEventListener('click',e=>e.stopPropagation());
+
+  // 滚动事件驱动 UI 更新(节流)
+  let scrollTimer;
+  viewport.addEventListener('scroll',()=>{
+    onScroll();
+    clearTimeout(scrollTimer);
+    scrollTimer=setTimeout(onScroll,80);
+  });
+
+  // 键盘左右(仅当当前页是教训页时);到边界则翻幻灯片
+  function onKey(e){
+    if(slides[cur]!==carousel.closest('.slide'))return;
+    const ms=maxScroll();
+    const sl=viewport.scrollLeft;
+    if(e.key==='ArrowLeft'){
+      if(sl>1){viewport.scrollBy({left:-getPageWidth(),behavior:'smooth'});e.preventDefault()}
+      else{go(cur-1);e.preventDefault()}
+    }
+    else if(e.key==='ArrowRight'){
+      if(sl<ms-1){viewport.scrollBy({left:getPageWidth(),behavior:'smooth'});e.preventDefault()}
+      else{go(cur+1);e.preventDefault()}
+    }
+  }
+  document.addEventListener('keydown',onKey);
+
+  // 窗口变化重建 dots + 更新
+  let resizeTimer;
+  window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{buildDots();onScroll()},150)});
+  // 进入该页时重新计算
+  const mo=new MutationObserver(()=>{if(carousel.closest('.slide.active')){buildDots();onScroll()}});
+  mo.observe(carousel.closest('.slide'),{attributes:true,attributeFilter:['class']});
+
+  buildDots();
+  onScroll();
+}
+initLessonCarousel();
+
+prevBtn.onclick=()=>go(cur-1);
+nextBtn.onclick=()=>go(cur+1);
+/* 目录页气泡跳转 */
+document.querySelectorAll('.toc-bubble').forEach(b=>{
+  b.onclick=e=>{e.stopPropagation();go(+b.dataset.goto)};
+});
+fsBtn.onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()};
+document.addEventListener('keydown',e=>{
+  // 教训轮播横向翻页优先:当前页是教训页且左右键时,交给轮播处理
+  const onLessonSlide=slides[cur]&&slides[cur].dataset.title==='深刻教训';
+  if(onLessonSlide&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){
+    // 让 initLessonCarousel 的 onKey 处理;这里不阻止,但也不翻幻灯片
+    // 通过 setTimeout(0) 让轮播先处理,如果轮播到边界则翻幻灯片
+    return;
+  }
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();go(cur+1)}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();go(cur-1)}
+  else if(e.key==='Home'){e.preventDefault();go(0)}
+  else if(e.key==='End'){e.preventDefault();go(total-1)}
+  else if(e.key==='f'||e.key==='F'){e.preventDefault();fsBtn.click()}
+});
+update();
+
+/* 启动时背景光晕淡入:先保持透明,300ms 后加 .loaded 触发 2.4s 淡入,避免一启动就蓝色冲击 */
+setTimeout(()=>{
+  document.querySelector('.bg-orbs')?.classList.add('loaded');
+  document.querySelector('.grid-bg')?.classList.add('loaded');
+},300);
+
+/* ===================== 粒子背景(独显加速) ===================== */
+const canvas=document.getElementById('particles');
+const ctx=canvas.getContext('2d',{desynchronized:true,alpha:true,willReadFrequently:false});
+let W,H,particles=[];
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
+resize();addEventListener('resize',resize);
+
+function initParticles(){
+  const count=Math.min(54,Math.floor(W*H/28000));
+  particles=[];
+  for(let i=0;i<count;i++){
+    particles.push({
+      x:Math.random()*W,y:Math.random()*H,
+      vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,
+      r:Math.random()*1.8+.6
+    });
+  }
+}
+initParticles();addEventListener('resize',initParticles);
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const {r,g,b}=particleColor;
+  // 点
+  for(const p of particles){
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0||p.x>W)p.vx*=-1;
+    if(p.y<0||p.y>H)p.vy*=-1;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${r},${g},${b},0.5)`;
+    ctx.fill();
+  }
+  // 连线
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x;
+      const dy=particles[i].y-particles[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<130){
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x,particles[i].y);
+        ctx.lineTo(particles[j].x,particles[j].y);
+        ctx.strokeStyle=`rgba(${r},${g},${b},${0.2*(1-d/130)})`;
+        ctx.lineWidth=.6;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(draw);
+}
+/* 粒子颜色跟随当前幕主题色(updateParticleColor 函数声明会被提升,particleColor 已在导航代码块顶部声明) */
+function updateParticleColor(){
+  const active=document.querySelector('.slide.active');
+  if(!active)return;
+  const c=getComputedStyle(active).getPropertyValue('--act').trim();
+  if(c && c.startsWith('#') && c.length>=7){
+    particleColor.r=parseInt(c.slice(1,3),16);
+    particleColor.g=parseInt(c.slice(3,5),16);
+    particleColor.b=parseInt(c.slice(5,7),16);
+  }
+  // 同步更新背景光晕颜色变量(@property 注册后,--orb-color 变量本身可过渡)
+  const glow=getComputedStyle(active).getPropertyValue('--act-glow').trim()||c;
+  document.documentElement.style.setProperty('--orb-color',glow);
+}
+draw();
+
+/* ===================== 触屏滑动 ===================== */
+let touchStartX=0;
+document.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX});
+document.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-touchStartX;
+  if(Math.abs(dx)>60){go(dx<0?cur+1:cur-1)}
+});
+
+/* ===================== Q&A 滚动墙 ===================== */
+const QA_DATA=[
+  {cat:"架构",q:"为什么选 LangGraph 而不是 AgentExecutor / AutoGen?",a:"AgentExecutor 是 ReAct 黑盒循环,模型自己决定下一步,<b>权限决策发生在哪一步不可审计</b>。AutoGen 路由由对话涌现,无法保证'高风险操作必过审批'这种硬约束。LangGraph 的 StateGraph 把路由变成显式代码:planner 输出 intent,条件边决定去哪,每一步<b>可审计、可断点恢复、可并行</b>。放弃的是 ReAct 应对完全未知任务的开放性 —— 我们的任务域是封闭的(知识/分析/执行三类),用不上。"},
+  {cat:"架构",q:"为什么拆三个 Agent,而不是单 Agent + 多工具?",a:"三类任务的差异在三个维度都很大:<b>上下文构造</b>(RAG 片段 vs 计算结果 JSON vs 工具列表)、<b>权限模型</b>(文档命名空间 vs 工具 RBAC vs 审批流)、<b>失败语义</b>(低置信拒答 vs 降级表格 vs Saga 补偿)。揉在一个 Agent 里 prompt 会互相污染、无法独立调优。拆开后每个 Agent 有统一 <code>AgentResult</code> 契约,可独立评测、独立换模型。代价是多结果时多一次汇总 LLM 调用 —— 用'单结果直通不调 LLM'把成本压回了最常见的场景。"},
+  {cat:"架构",q:"Send fan-out 踩过什么坑?",a:"Send 是 LangGraph 的 map-reduce 原语:条件边函数返回 <code>list[Send]</code>,每个 Send 携带独立子状态并行调度,结果通过 reducer 合并。踩过的坑:Send 必须<b>在条件边函数返回</b>,不能在节点里返回 —— 节点返回 list[Send] 直接报 Expected dict。我们把 dispatcher 节点删掉、逻辑挪进 <code>add_conditional_edges</code> 的路由函数才解决。另一个设计点:并行分支不共享可变状态,每个 Send 的子状态只含只读字段,从结构上消除并行写冲突。"},
+  {cat:"RAG",q:"两阶段检索为什么有效?参数怎么定的?",a:"向量召回快但精度有限(语义相近但答非所问的片段也会高分),所以先用 HNSW 粗排扩大候选池(<code>top_k×4</code>),再用 bge-reranker-large 对候选做交叉编码精排,取 top-5。reranker 逐对打分慢,不能直接对全库用,两阶段是<b>召回率和精确率的成本折中</b>。×4 和 top-5 是经验起点,靠 W4 评测集(命中率/覆盖率指标)校准,不是拍的。"},
+  {cat:"RAG",q:"检索不到 / 向量库挂了怎么办?",a:"三级降级链:<b>Milvus HNSW → BM25 关键词(Milvus query 全表扫描 + Python 打分)→ PG LIKE</b>。关键点:降级链每一级的<b>权限过滤口径必须和主路径一致</b> —— 联调后发现 BM25 降级路径只过滤了 is_active 和 access_roles,漏了 dept_namespace,跨部门文档会在降级时泄露。这类'降级绕过防护'的问题靠代码评审很难发现,我们补了专门的回归脚本(4 项断言,含降级路径隔离)。"},
+  {cat:"RAG",q:"企业文档权限隔离怎么做的?",a:"双条件过滤:物理上 Milvus 按部门分 partition,检索表达式 <code>dept_namespace in ['用户部门','shared_company']</code> + <code>ARRAY_CONTAINS(access_roles, '角色')</code>。两个条件正交:namespace 解决'哪个部门的文档',access_roles 解决'哪个角色能看'。教训:不能严格等于用户部门 —— 公司级共享文档(员工手册)所有人都要能看,所以是<b>本部门 + shared 双匹配</b>。入库侧也有坑:partition 名传错会静默落进 shared_company,部门文档变全员可见。"},
+  {cat:"RAG",q:"置信度怎么算?为什么不用 LLM 一句话判断?",a:"场景化置信度:<b>检索分×0.6 + 本地小模型自评分×0.4</b>,按问题场景(POLICY/FACTUAL/COMPARATIVE 等)用不同阈值决策 answer / answer_with_hint / reject。自评用本地 qwen3.5:4b 而不是云端 —— 自评是高频调用,本地免费;且只需 0-10 打分这种弱能力,小模型够。<b>拒绝回答比编造回答好</b>,这是企业知识库的底线。"},
+  {cat:"安全",q:"怎么防越权?为什么一层不够?",a:"三防线。<b>prompt 层</b>:工具选择时只注入本角色有权限的工具,模型看不到无权工具 —— 防'无意',但防不住关键词降级绕过。<b>执行层</b>:LLM 输出再经 ROLE_TOOLS 显式过滤。<b>工具层</b>:invoke() 内 can_use_tool 终审,越权尝试记 security_violation 审计。最后一层最关键的场景是审批:经理批准了销售员的外部邮件申请,执行时仍按<b>发起人</b>角色做 RBAC —— 批准不越权,审批人不能通过批准让下属获得本没有的权限。"},
+  {cat:"安全",q:"高风险操作怎么处理?token 过期怎么办?",a:"<code>requires_approval</code> 标记的工具(如外部邮件)不直接执行,自动建审批单:prefill_payload 存工具调用参数、requester_token 存发起人 JWT。审批人 decide 后三条路径:拒绝→终止;批准+token 有效→服务端直接执行;批准+token 过期→置 approved_pending_reauth,发起人重新登录后走 resume 端点恢复执行。<b>token 过期是企业审批的真实痛点</b> —— 审批可能隔天才批,发起人凭证早过期了,不能不处理也不能用审批人的 token 越权执行。"},
+  {cat:"安全",q:"多个工具调用一半失败怎么办?补偿也失败呢?",a:"多工具走 <b>Saga 协调器</b>:顺序执行,任一步失败反向顺序补偿已成功步骤(每个 ACTION 工具实现 compensate,执行时记录 compensation_data)。QUERY 类无副作用免补偿;补偿失败不阻断流程,记入 compensation_errors 返还给运维 —— 这是<b>最终一致性不是 ACID</b>,分布式场景本来就没有真正的回滚,邮件发出去了只能发撤回邮件。取舍:宁可'补偿失败 + 告警 + 人工介入',也不假装能完美回滚。"},
+  {cat:"容错",q:"LLM 挂了 / 超时 / 返回垃圾怎么办?",a:"三层。<b>重试</b>:ChatOpenAI max_retries=2。<b>降级</b>:primary 链路 DeepSeek v4-pro → 本地 qwen3.5:4b;lite 链路本地优先 → 云端 flash 降级 → primary 兜底。<b>运行时回退</b>:意图分类和工具选择在本地失败/输出无法解析时,自动上云 deepseek-v4-flash 重试一次,仍失败走规则关键词;工具选择对高风险操作(外部邮件)改为<b>云端优先</b>——本地 qwen 曾返回合法 JSON 但选错工具(漏 send_email_external),旧回退只在'返回空'时上云,选错工具不触发。<b>解析容错</b>:LLM 返回的 JSON 先剥 markdown 代码块、再整体 loads、再正则提取首个 {} 块,三级尝试。原则:<b>任何 LLM 失败都有非 LLM 的退路,用户永远拿到响应</b>。"},
+  {cat:"容错",q:"降级链会不会掩盖配置错误?",a:"会,而且真实踩过。联调前 .env 里 VECTOR_STORE_PROVIDER=memory,但检索一直'能出结果' —— 因为向量失败后 BM25 关键词降级兜底了,从外部看一切正常,实际上<b>向量检索从未生效</b>。教训:① 降级链每一级命中都要显式可观测 —— 我们把当前生效后端暴露在 /ready 和每次响应里;② 联调要专门设计'验证主路径真的在走'的用例,比如断点恢复测试里核对了 Milvus 余弦分(0.57/0.50)证明向量检索真实发生。"},
+  {cat:"容错",q:"进程重启状态丢不丢?",a:"不丢。checkpointer 三级降级:<b>AsyncRedisSaver(主,需 redis-stack-server 的 RediSearch)→ PostgresSaver → MemorySaver</b>(进程内,仅兜底)。thread_id = session_id,同一会话天然跨进程恢复。实测:杀 API 进程重启,旧 session 续聊状态完整(联调测试 12,115s 长链路)。降级只在初始化时判定一次,运行期不切,当前后端在响应里可观测。边界:checkpoint 无 TTL,快照随会话数增长,清理策略是遗留项。"},
+  {cat:"工程",q:"并发下会不会串用户身份 / 状态?",a:"三个机制保证不串:① Send 并行分支只带<b>只读子状态</b>,结果经 reducer 合并,无共享可变状态;② Agent 单例缓存 key 是 <code>(task_type, dept, role, user_id)</code> —— 含 user_id,张三的 KnowledgeAgent 不会被李四复用(既防身份串,也避免重复初始化 Retriever);③ 每轮 agent_results 显式重置(可重置 reducer),断点恢复不混入上轮结果。"},
+  {cat:"工程",q:"agent_results 的 reducer 有什么讲究?",a:"LangGraph 并行分支写同一个 state 字段靠 reducer 合并。标准 operator.add 有个坑:断点恢复后,上一轮的 agent_results 残留在 checkpoint 里,新一轮 executor 写入会<b>追加到残留上</b>,汇总时混入上一轮结果。我们写了可重置 reducer <code>_resettable_add</code>:右值为空列表(每轮初始状态)→ 重置;右值非空(executor 并行写入)→ 累加。<b>一个 reducer 同时满足'每轮重置'和'并行累加'两种语义</b>。"},
+  {cat:"工程",q:"executor 为什么必须是 async 节点?",a:"Agent 内部要访问 SQLAlchemy async 引擎(审计/审批建单),asyncpg 的连接绑定创建它的事件循环。同步节点跑在线程池里,如果在线程中 asyncio.run() 调 DB,会报 <code>Future attached to a different loop</code> —— P1 联调真实踩中,整个执行链路崩掉。改成 async 节点后,Agent.run() 直接 await,与主循环上的 DB 引擎同 loop。<b>这类问题单元测试测不出</b>(单请求单 loop 不触发),只有真实并发/真实 DB 联调才暴露。"},
+  {cat:"工具",q:"工具现在是 Mock?那这套东西有用吗?",a:"<b>Mock-first 是有意识的策略</b>:8 个工具的 pydantic schema、ToolResult、compensation_data 完全对齐真实 API 契约,切真实系统只需子类覆盖 _execute。价值在于:RBAC/Saga/审批/注入防护这些<b>安全链路</b>在真实系统缺位时就完成了端到端联调 —— 如果等有真实 CRM 才开发,安全逻辑和业务联调会挤在一起,出问题分不清是哪层。联调期间 Mock 邮件'真实发出'并返回 message_id,审批全链路可追。"},
+  {cat:"评测",q:"怎么证明你的 Agent '好'?",a:"三层证据。<b>离线</b>:W4 评测集四指标(检索命中率/答案覆盖率/置信度分布/延迟),每次改检索或 prompt 跑一遍。<b>联调</b>:17 项 E2E 全过,含负例(RBAC 拒绝、越权审批 403、无 token 401)—— 只测正例的联调不算联调。<b>在线</b>:每次请求落审计(latency/confidence),用户 like/dislike 反馈入库形成质量回流。诚实边界:离线评测集还偏小,覆盖率靠人工标注,没有自动化的回归门禁(CI 里跑 eval 是下一步)。"},
+  {cat:"展望",q:"接真实业务系统要改什么?",a:"按设计只需要:工具子类覆盖 _execute 接真实 API(<b>契约已对齐</b>)、审批的 requester_token 换真实凭证体系、CRM Mock 数据换真实数据源。<b>RBAC/Saga/审批/审计链路零改动</b> —— 这是 Mock-first 策略的回报。真正的工作量在非功能面:真实系统的 SLA 对齐(超时/重试/熔断)、数据一致性(真实系统支不支持补偿语义)、灰度方案。"},
+  {cat:"展望",q:"这个系统离'生产真上线'还差什么?",a:"三件事,按序:<b>压测</b>拿并发基线(功能已验证,承载未知)→ <b>UAT + 安全实测</b>(Prompt 注入攻击面、模糊测试)→ <b>prompt A/B 效果数据积累</b>。多轮上下文注入已落地(历史注入轻量版,含指代消解);再往后是超长会话的对话压缩(摘要机制,方案已设计好)。技术债里 pymilvus 3.1 迁移是硬 deadline(升级前必须做),其余是体验项。"},
+  {cat:"架构",q:"子任务之间有依赖怎么办?",a:"诚实答:<code>SubTask.depends_on</code> 字段在模型里定义了,但调度器目前不消费,所有子任务一律并行。这是有意识的取舍 —— 目前观测到的'依赖'几乎都是同一业务域内的(如'查客户 C001 然后给他发邮件'),这类依赖被 ExecutionAgent 内部的<b>工具编排(Saga 顺序执行)吸收</b>了,不需要图级 DAG。真出现跨 Agent 强依赖,会把 dispatcher 改成按依赖拓扑分批 fan-out,图结构不用动。"},
+  {cat:"架构",q:"如果重新设计,会改哪里?",a:"三处:① planner 改 <b>async 节点</b>(现在 sync 节点里 llm.invoke 走线程池,取消语义不够即时);② 图级支持 <code>depends_on</code> 拓扑调度;③ aggregator 输出改 SSE 流式。但主图骨架(planner→fan-out→aggregator)不会变 —— 它经受住了 17 项联调和真实降级场景的验证。"},
+  {cat:"RAG",q:"Embedding / Reranker 为什么选 bge 系列?",a:"bge-m3:中文效果第一梯队、1024 维、支持稠密+稀疏混合、可本地 CUDA 部署无 API 依赖 —— <b>企业数据不出内网</b>的硬性要求。bge-reranker-large 同理,本地免费,精排质量显著好于纯向量余弦。代价是首次加载慢(实测知识问答首请求 48s 含冷加载),用 Agent 单例缓存摊销。"},
+  {cat:"上下文",q:"多轮对话的上下文怎么管理?",a:"分两层。<b>状态层</b>:thread_id = session_id,LangGraph checkpointer 把每轮完整 AgentState 快照存 Redis,杀进程重启后同 session 续聊状态完整恢复。<b>prompt 层</b>:历史注入已落地(轻量版)—— 从 checkpoint 快照链提取最近 5 轮 (message, final_answer) 对写进 AgentState 的 history 字段;knowledge 检索前做轻量指代消解,query 含'它/这/那'时拼接上一轮用户消息做 embedding。实测'销售提成政策是什么'→'那它的折扣呢'第二轮意图正确。边界:<b>无压缩机制</b>,历史固定 5 轮封顶。"},
+  {cat:"上下文",q:"记忆系统怎么分层?",a:"<b>工作记忆</b> = AgentState,图执行期内各节点交换上下文的唯一通道;<b>短期记忆</b> = checkpointer 快照,会话粒度,Redis 持久;<b>会话元数据</b> = PG sessions 表(status/耗时/错误,供运营统计和外键);<b>长期记忆</b> = user_memories 表(memory JSONB + memory_type)—— 表已建但代码未接,是 v3 方案的预留。说'预留'比硬吹'有长期记忆'诚实,面试官一眼能看穿。"},
+  {cat:"上下文",q:"上下文爆炸 / token 预算怎么控制?",a:"现状:输入侧天然小(message ≤2000 字符、检索片段 top-5、计算结果 JSON),没出现窗口压力,所以没做压缩 —— 这是'压力未出现不过度设计'的取舍。成本控制靠另一道闸:<b>五模型分层</b>。高频简单任务(闲聊判断、答案自评)全走本地 qwen3.5:4b 免费;云端只留给真正需要推理的(任务分解、答案生成、汇总);超短消息连本地模型都不调。实测云端成本降 40%+。"},
+  {cat:"安全",q:"怎么防 prompt 注入?",a:"工具入参递归扫描(嵌套 dict/list 都扫),<b>10 种模式分四类</b>:系统提示覆盖(ignore previous/system:)、身份劫持(you are now)、越权指令(as an admin)、代码注入(eval()/__import__),命中即拒绝+记审计。邮件场景另有 HTML 注入防护(script/iframe/object/embed 四标签)。诚实边界:这是<b>规则级防护</b>,能挡已知模式,挡不住编码混淆/间接注入(如检索到的文档里藏指令)—— 间接注入的缓解靠'答案必须基于片段+来源标注'和工具层终审。"},
+  {cat:"容错",q:"如何取消一个正在跑的长任务?",a:"知识问答 40-110s,必须可取消。设计:session_id → asyncio.Task 注册表,POST /chat/cancel 触发 <code>task.cancel()</code>;难点是取消的即时性 —— 原来 Agent 内 llm.invoke 是同步调用,阻塞事件循环,取消信号要等 HTTP 返回才能生效,所以先把 LLM 调用全面 <b>ainvoke 化</b>。planner/aggregator 是 sync 节点走线程池,线程杀不掉,取消在节点边界生效,可接受。语义上<b>取消 ≠ 回滚</b>,已执行的副作用不撤销。"},
+  {cat:"容错",q:"全系统有哪些'必不死'设计?",a:"任何单点故障都有响应:LLM 全挂→规则/拼接/表格;Milvus 挂→BM25→PG;Redis 挂→PG/Memory checkpointer + 内存限流;PG 挂→审计写本地文件(连续失败 5 次告警);单 Agent 异常→包装成 error AgentResult 不炸图,aggregator 优先保留 Agent 的友好回答(这个也是踩坑改的:原来一律'处理失败:未知错误',把 RBAC 拒绝的友好提示全掩盖了)。"},
+  {cat:"评测",q:"prompt 改了怎么保证不变差?A/B 怎么做?",a:"P2 做了 prompt 版本管理:全部 11 个 prompt 从代码常量迁到 <code>prompt_versions</code> 表(draft/active/archived 状态机 + traffic_weight),启动时代码默认值作为 v1 同步入库,DB 挂了降级代码默认。A/B:同名两个 active 版本按 <code>md5(user_id+name)%100</code> 确定性分流 —— <b>同一用户永远命中同一版本</b>,避免体验跳跃;命中的版本号写进审计 payload,效果对比靠按版本号聚合 confidence/feedback。回滚 = 激活旧版本号。"},
+  {cat:"评测",q:"线上出问题怎么定位?",a:"OpenTelemetry 全链路(手动 span:tool.{name}/saga.execute,自动埋点 FastAPI/Redis/requests)接 Jaeger;Prometheus 指标(延迟/错误率/sessions 数);审计 6 类事件落 PG。一次请求可以从 audit 的 request_id 串到 tracing 的 span 树,<b>定位到具体是哪个 Agent 的哪次 LLM/工具调用慢了或挂了</b>。"},
+  {cat:"工程",q:"SQLAlchemy 2.x 有什么坑?",a:"原生 SQL 必须 <code>text()</code> 包装 —— <code>conn.execute('SELECT 1')</code> 直接报错,联调时这个 bug 让服务起不来,是<b>阻塞性</b>的。PG JSONB 列不能用 <code>= ANY(jsonb_col)</code>,数组成员判断要用 <code>jsonb_col ? 'value'</code> 或 <code>@></code> —— 待审批列表因为这个 500 过。"},
+  {cat:"工程",q:"Redis 有什么坑?",a:"checkpointer 需要 <b>RediSearch 模块</b>(FT.* 命令),redis:7-alpine 不含,换 redis-stack-server;第二个坑更隐蔽:compose 里覆盖 <code>command:</code> 会跳过镜像默认的模块加载,必须显式 <code>--loadmodule redisearch.so rejson.so</code>。排查方法是直接 <code>redis-cli FT._LIST</code> 验证,而不是猜。"},
+  {cat:"工程",q:"长请求(40-110s)对 API 架构的影响?",a:"同步等待会占住连接和 worker —— 所以 P2 先做<b>取消机制</b>(create_task + 注册表 + cancel 端点),SSE 流式放更远期;生产部署 uvicorn --workers 4 + Nginx 反代;限流按用户滑动窗口防单用户打爆。长请求的根源是 LLM 串行链路(检索→生成→自评),<b>优化方向是流式生成 + 自评与生成并行化,而不是加机器</b>。"},
+  {cat:"前端",q:"前端为什么做单文件 SPA,不用 React 工程?",a:"阶段匹配的取舍。当前是功能验证期,前端的主要用途是演示和手工测试:单文件 HTML(Vue3+marked 走 CDN)由 FastAPI StaticFiles 托管在 /ui,<b>零 Node 依赖、零构建、与 API 同源无 CORS 问题</b>,一个文件覆盖登录/对话/审批/Prompt 管理全功能。等进入性能优化期再迁 Vite + Vue3 工程化,届时接口契约不变,只换前端壳。"},
+  {cat:"展望",q:"QPS 翻 100 倍,哪里先崩?",a:"按顺序崩:① <b>云端 LLM 的 rate limit 和成本</b>(最先,且是外部约束)—— 对策:本地模型承接更多、请求级缓存、prompt 压缩;② uvicorn worker 数(长请求占满 worker)—— 对策:SSE + 水平扩 worker;③ Milvus 单机内存 —— 对策:集群或缩 embedding 维度;④ Redis checkpoint 存储 —— 对策:加 TTL + 集群。PG 和工具层(Mock)反而靠后。要点是<b>先崩的是外部依赖,不是自己的服务</b>。"},
+  {cat:"展望",q:"显式状态机 vs ReAct,未来会融合吗?",a:"会,但边界要划清:<b>主图保持显式状态机</b>(权限和审计要求),在 executor 内部对开放式子任务引入受限 ReAct 循环(限步数、限工具白名单、全程 tracing)。原则是'确定性骨架 + 局部自治' —— 自治的范围越大,护栏就要越密(步数上限、token 预算、循环检测),这些护栏我们现在只有多跳 ≤2 轮这一个,是明确的能力边界。"},
+  {cat:"工程",q:"闲聊话术机械 / Markdown 加粗不渲染怎么解决?",a:"两个细节修复,都是'细节决定体验'的典型。<b>闲聊人格化</b>:aggregator._chitchat_reply 从 4 分支固定模板重写为小A 人格六分支 —— 问候含用户称呼(「你好,张三」)、情绪共情、自我介绍、感谢、再见、默认,告别「我是企业知识助手…」机械话术。<b>加粗渲染</b>:折扣政策回答中 <code>**5%-10%**</code> 显示字面星号 —— CommonMark 侧翼规则:闭合 <code>**</code> 前是标点(%)且后紧跟中文时不构成加粗,marked 按规范不渲染(已 node 实测复现)。修复:前端 renderMd 预处理,<code>**x**</code> 统一转 <code>&lt;strong&gt;</code> 再交 marked,绕开侧翼规则。架构再强,话术机械/格式错乱,用户感知就是'不智能'。"},
+  {cat:"架构",q:"查询订单被路由到知识问答怎么办?",a:"意图分类 prompt 的 <code>data_operation</code> 定义只写了'创建/更新/删除',没覆盖'查询业务记录',4B 小模型把'查询'动词归到 knowledge_qa —— 回答'知识库未覆盖'。<b>三层修复</b>:① <code>planner_intent_classify</code> 模板补齐 data_operation(查询或变更具体业务记录)/ knowledge_qa(仅政策制度)定义与判定规则,<code>RULE_KEYWORDS</code> 同步加'查询订单/ord-/工单/查客户';② planner 意图分类加<b>运行时回退</b>:本地失败或输出无法解析 → 云端 flash 重试一次 → 仍失败走规则关键词;③ <code>knowledge_rag_answer</code> 模板加引导:问具体业务记录时提示改用查询指令(兜底路由仍漏的场景)。实测订单查询 intent=data_operation 返回真实订单明细。"}
+];
+
+/* 把问题分配到 6 行(轮转交替),每行复制一份用于无缝滚动 */
+function initQAWall(){
+  const wall=document.getElementById('qaWall');
+  if(!wall || wall.dataset.init==='1')return;
+  wall.dataset.init='1';
+  const rows=wall.querySelectorAll('.qa-row');
+  // 分组:按 cat 维度打散,每行 5-6 个问题
+  const shuffled=[...QA_DATA];
+  // 简单轮转分配,保证每行问题类别多样
+  const buckets=[[],[],[],[],[],[]];
+  shuffled.forEach((item,i)=>buckets[i%6].push(item));
+  // 补齐到每行至少 5 个(从其他桶借)
+  buckets.forEach((b,i)=>{
+    while(b.length<5){
+      const src=buckets[(i+1)%6];
+      b.push(src[Math.floor(Math.random()*src.length)]);
+    }
+  });
+  rows.forEach((row,ri)=>{
+    const items=buckets[ri];
+    const tracks=row.querySelectorAll('.qa-track');
+    tracks.forEach(track=>{
+      track.innerHTML=items.map((it,i)=>`
+        <button class="qa-bubble ${i%2?'alt':''}" data-idx="${QA_DATA.indexOf(it)}">${it.q}</button>
+      `).join('');
+    });
+    // 设置滚动速度(数据属性里的 speed 是"走完一屏的秒数")
+    const speed=+row.dataset.speed||40;
+    row.style.setProperty('--dur',speed+'s');
+  });
+
+  /* 气泡点击 → 暂停所有滚动 + 弹窗 */
+  wall.addEventListener('click',e=>{
+    const bubble=e.target.closest('.qa-bubble');
+    if(!bubble)return;
+    const idx=+bubble.dataset.idx;
+    const item=QA_DATA[idx];
+    if(!item)return;
+    // 暂停所有 track
+    wall.querySelectorAll('.qa-track').forEach(t=>t.classList.add('paused'));
+    openQAModal(item);
+  });
+}
+
+/* 弹窗逻辑 */
+let qaMask=null;
+function openQAModal(item){
+  if(!qaMask){
+    qaMask=document.createElement('div');
+    qaMask.className='qa-modal-mask';
+    qaMask.innerHTML=`
+      <div class="qa-modal">
+        <button class="close" aria-label="关闭">×</button>
+        <div class="q-tag"></div>
+        <div class="q-text"></div>
+        <div class="a-text"></div>
+        <div class="footer"><span>来源:面试备稿</span><span>点击空白或 × 关闭</span></div>
+      </div>`;
+    document.body.appendChild(qaMask);
+    // 点击遮罩关闭
+    qaMask.addEventListener('click',e=>{
+      if(e.target===qaMask || e.target.closest('.close'))closeQAModal();
+    });
+    // ESC 关闭
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape' && qaMask.classList.contains('show'))closeQAModal();
+    });
+  }
+  qaMask.querySelector('.q-tag').textContent=item.cat.toUpperCase()+' · QUESTION';
+  qaMask.querySelector('.q-text').textContent=item.q;
+  qaMask.querySelector('.a-text').innerHTML=item.a;
+  // 触发动画
+  requestAnimationFrame(()=>qaMask.classList.add('show'));
+  // 阻止背景滚动
+  document.body.style.overflow='hidden';
+}
+function closeQAModal(){
+  if(!qaMask)return;
+  qaMask.classList.remove('show');
+  document.body.style.overflow='';
+  // 恢复滚动(延迟一点,等弹窗动画结束)
+  setTimeout(()=>{
+    document.querySelectorAll('.qa-track').forEach(t=>t.classList.remove('paused'));
+  },400);
+}
+
+/* 当切到 Q&A 页时初始化 */
+const origUpdate=update;
+update=function(){
+  origUpdate();
+  const active=document.querySelector('.slide.active');
+  if(active && active.querySelector('#qaWall')){
+    initQAWall();
+  }
+};
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv_*/
+venv/
+env/
+
+# 测试与静态检查
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# 环境变量（含密钥）
+.env
+.env.local
+.env.*.local
+.env.prod
+
+# 运行时数据与日志
+logs/
+audit_logs/
+data/
+volumes/
+eval/results/
+backups/
+*.log
+*.pid
+
+# 向量库 / 数据库数据
+milvus_data/
+etcd_data/
+minio_data/
+
+# 前端产物
+node_modules/
+dist/
+build/
+
+# 本地模型与 IDE 个人配置
+models/
+.idea/

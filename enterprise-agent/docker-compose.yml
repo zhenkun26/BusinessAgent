@@ -1,0 +1,212 @@
+services:
+  # ============================================
+  # 基础设施层
+  # ============================================
+
+  # Milvus 向量数据库(单机模式,生产环境建议集群)
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.4.10
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: wJ6pbV5eBkzMT2AYDT9w2i8V
+      POSTGRES_DB: enterprise_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d enterprise_agent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis(用 redis-stack-server,含 RediSearch/RedisJSON 模块)
+  # langgraph-checkpoint-redis 0.5+ 依赖 RediSearch(FT.* 命令)存储/检索 checkpoint
+  redis:
+    image: redis/redis-stack-server:7.4.0-v3
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      # RediSearch 内存上限(与 redis maxmemory 分开)
+      REDISEARCH_THREADS: 4
+    # 必须用 redis-stack 的 redis-server 二进制,并显式 loadmodule
+    # (覆盖 command 会跳过镜像默认的模块加载,需手动加载 redisearch/rejson)
+    command: >
+      /opt/redis-stack/bin/redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --requirepass V5lOkygYvgaD6ZZ8rmqJAcO7
+      --loadmodule /opt/redis-stack/lib/redisearch.so
+      --loadmodule /opt/redis-stack/lib/rejson.so
+    healthcheck:
+      # ping 验证 redis 核心,FT._LIST 验证 RediSearch 模块(带密码 -a)
+      test: ["CMD-SHELL", "redis-cli -a V5lOkygYvgaD6ZZ8rmqJAcO7 ping | grep PONG && redis-cli -a V5lOkygYvgaD6ZZ8rmqJAcO7 FT._LIST >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # 应用层
+  # ============================================
+
+  # API Gateway
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      MILVUS_HOST: milvus-standalone
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      HF_HOME: /data/hf_cache
+    depends_on:
+      milvus-standalone:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro
+      - ./eval:/app/eval:ro
+      - hf_cache:/data/hf_cache
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Worker(用于后台任务,如文档入库、Saga 补偿重试)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      MILVUS_HOST: milvus-standalone
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      HF_HOME: /data/hf_cache
+    depends_on:
+      milvus-standalone:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro
+      - ./eval:/app/eval:ro
+      - hf_cache:/data/hf_cache
+    command: python -m app.worker
+
+  # ============================================
+  # 监控层(可选,生产建议启用)
+  # ============================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    profiles: ["monitoring"]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    profiles: ["monitoring"]
+
+  # Jaeger(分布式追踪,接收 OTLP 协议)
+  # 启用: docker compose --profile monitoring up -d jaeger
+  # UI: http://localhost:16686
+  # OTLP gRPC: localhost:4317  OTLP HTTP: localhost:4318
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    profiles: ["monitoring"]
+
+volumes:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  postgres_data:
+  redis_data:
+  hf_cache:
+  prometheus_data:
+  grafana_data:

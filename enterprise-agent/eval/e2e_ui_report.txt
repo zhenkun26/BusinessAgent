@@ -1,0 +1,74 @@
+PASS=56 FAIL=10
+[PASS] F1 登录页下拉含 10 个种子用户 | 实际 10 个
+[PASS] F1 登录页底部种子用户提示 | 
+[PASS] F1 登录 销售员张三 | who=销售员张三 role=salesperson dept=dept_sales tabs=['对话', '业务数据', '系统状态']
+[PASS] F1 登录 销售员王芳 | who=销售员王芳 role=salesperson dept=dept_sales tabs=['对话', '业务数据', '系统状态']
+[PASS] F1 登录 销售员李雷 | who=销售员李雷 role=salesperson dept=dept_sales tabs=['对话', '业务数据', '系统状态']
+[PASS] F1 登录 销售经理赵六 | who=销售经理赵六 role=manager dept=dept_sales tabs=['对话', '审批', 'Prompt 管理', '业务数据', '系统状态']
+[PASS] F1 登录 客服李四 | who=客服李四 role=customer_service dept=dept_cs tabs=['对话', '业务数据', '系统状态']
+[PASS] F1 登录 客服韩梅梅 | who=客服韩梅梅 role=customer_service dept=dept_cs tabs=['对话', '业务数据', '系统状态']
+[PASS] F1 登录 财务王五 | who=财务王五 role=finance dept=dept_finance tabs=['对话', '业务数据', '系统状态']
+[PASS] F1 登录 财务经理钱八 | who=财务经理钱八 role=manager dept=dept_finance tabs=['对话', '审批', 'Prompt 管理', '业务数据', '系统状态']
+[PASS] F1 登录 HR孙九 | who=HR孙九 role=customer_service dept=dept_hr tabs=['对话', '业务数据', '系统状态']
+[PASS] F1 登录 管理员钱七 | who=管理员钱七 role=admin dept=shared_company tabs=['对话', '审批', 'Prompt 管理', '业务数据', '系统状态']
+[PASS] F2 系统状态 db/milvus healthy | 数据库:healthy | Milvus:healthy | 文档实体数:22 | Checkpointer:redis | 注册工具:7
+[PASS] F2 文档实体数 ≥10 | entities=22
+[PASS] F2 注册工具 =7 | tools=7
+[PASS] F2.5 客户表 8 行 | 实际 8
+[PASS] F2.5 C001「查询」按钮跳转并填入 | draft='查一下客户 C001 的信息'
+[PASS] F2.5 订单表 8 行 | 实际 8
+[PASS] F2.5 ORD-2026-005「查询」填入 | draft='查询订单 ORD-2026-005 的详情,包含明细'
+[PASS] F2.5 工单表 6 行 | 实际 6
+[PASS] F2.5 TK-EXIST003「查询」填入 | draft='查询工单 TK-EXIST003 的处理进度'
+[PASS] F2.5 文档表 7 行(5 shared + 2 部门) | 实际 7 ns=['shared_company', 'shared_company', 'shared_company', 'shared_company', 'shared_company', 'dept_sales', 'dept_finance']
+[PASS] F3.5 场景面板 ['通用', '销售场景'] | groups=['通用', '销售场景'] chip填入='给客户 C001 创建一个回访任务,并发内部邮件通知经理赵六'
+[PASS] F3 闲聊 intent=chitchat conf=0.9 无来源 | badges=['chitchat', '置信度 0.90', '0.0s'] sources=[]
+[PASS] F4 知识问答 intent=knowledge_qa 带来源 置信度≥0.6 | conf=0.82 sources=['[1] 销售政策 · shared_company · score 0.707', '[2] 销售政策 · shared_company · score 0.702']
+[PASS] F4 流式打字机(答案逐段增长) | stream_grew=True
+[PASS] F4 会话号已生成 | sid=sess_user_sales_001_414c0cd3
+[FAIL] F4 多轮上下文:追问「那销售提成呢」承接上文 | badges=['knowledge_qa', '置信度 0.46', '11.3s'] answer[:80]='根据现有知识片段，未找到关于“销售提成”的具体定义或计算方式。片段中仅提及“佣金政策”（如基础佣金为合同金额的2%、超额佣金为超额部分的5%等）[来源3]，以及'
+[PASS] F5 张三命中销售部专属文档 | sources=['[1] 销售部内部激励方案 · dept_sales · score 0.718', '[2] 销售部内部激励方案 · dept_sales · score 0.504'] answer[:60]='根据知识片段，冲刺先锋奖的评选规则如下：\n\n每季度评选一次，授予业绩达成率排名第一的销售人员。\n由销售总监提名，部门全体'
+[PASS] F7 查客户 C001 | answer[:80]="已成功执行工具 query_customer。结果: {'customer': {'customer_id': 'C001', 'name': '北京华信科技有"
+[PASS] F7 查订单 ORD-2026-005 含明细 | answer[:100]="已成功执行工具 query_order。结果: {'order': {'order_id': 'ORD-2026-005', 'customer_id': 'C001', 'amount': 4500"
+[PASS] F8 销售员发外部邮件友好拒绝 | answer[:80]='您的角色(salesperson)无权执行所需工具。请联系管理员申请权限。\n\ndata_operation\n置信度 0.00\n6.4s\n👍\n👎'
+[FAIL] F7 销售员更新工单被拒 | answer[:80]="未识别到需要执行的工具操作。如需查询知识请直接提问,如需执行操作请明确说明(如'给XX发邮件')。\n\ndata_operation\n置信度 0.00\n5.8s\n"
+[PASS] F11 👍 反馈 toast | toast='感谢反馈'
+[FAIL] F11 👎 负反馈(弹窗评论)toast | toast='感谢反馈'
+[PASS] F13 历史快照卡片 | 
+[PASS] F13 刷新后保持登录态+会话号 | before=sess_user_sales_001_414c0cd3 after=sess_user_sales_001_414c0cd3
+[PASS] F13 新会话清空消息+会话号 | sid=(发送首条消息后生成) msgs=0
+[FAIL] 张三 测试套件 张三 异常中断 | not enough values to unpack (expected 4, got 3)
+[PASS] F3.5 场景面板 ['通用', '客服场景'] | groups=['通用', '客服场景'] chip填入='查询工单 TK-EXIST003 的处理进度'
+[PASS] F5 李四问销售专属内容被隔离 | sources=['[1] 销售政策 · shared_company · score 0.501', '[2] 销售政策 · shared_company · score 0.501'] conf=0.3
+[FAIL] F7 查工单 TK-EXIST003 | answer[:80]='现有知识库未覆盖该情形。知识片段中仅描述了故障处理的标准流程和升级机制，未提供具体工单（如TK-EXIST003）的实时处理进度查询功能或状态信息。如需查询该工'
+[PASS] F7 工单 TK-EXIST002 open→resolved | answer[:100]="已成功执行工具 update_ticket。结果: {'ticket': {'ticket_id': 'TK-EXIST002', 'title': 'C003 标准版功能咨询', 'descript"
+[PASS] F6 客服问数据分析被拒 | answer[:80]='抱歉,您的角色(customer_service)没有订单数据查询权限,无法进行数据分析。如需分析支持,请联系销售或财务同事协助。\n\ndata_analysis'
+[PASS] F9X.2 查退款工单 TK-EXIST004 | answer[:80]="已成功执行 2 个工具调用:\n\nquery_customer: {'customer': {'customer_id': 'C002', 'name': '上海"
+[PASS] F9X.2 工单 TK-EXIST004 →closed | answer[:100]="已成功执行工具 update_ticket。结果: {'ticket': {'ticket_id': 'TK-EXIST004', 'title': 'C002 退款申请', 'description"
+[PASS] F3.5 场景面板 ['通用', '财务场景'] | groups=['通用', '财务场景'] chip填入='差旅费的报销标准是什么'
+[PASS] F5 王五命中财务部专属文档 | sources=['[1] 财务部预算审批细则 · dept_finance · score 0.729', '[2] 财务部预算审批细则 · dept_finance · score 0.674'] answer[:60]='根据知识片段，预算冻结线为：当某部门年度预算执行率达到95%时，即触及“预算冻结线”，该部门所有非刚性支出一律冻结。[来'
+[PASS] F9X.2 财务查 ORD-2026-008 refunded | answer[:100]="已成功执行工具 query_order。结果: {'order': {'order_id': 'ORD-2026-008', 'customer_id': 'C002', 'amount': 7800"
+[PASS] F3.5 场景面板 ['通用', '管理场景', '销售场景', '客服场景', '财务场景'] | groups=['通用', '管理场景', '销售场景', '客服场景', '财务场景'] chip填入='给客户 C001 创建回访任务,发内部邮件给赵六,并创建售后工单'
+[FAIL] F6 对比 C001 vs C002 含真实数字 | answer[:120]='结论\n\nVIP客户“北京华信科技有限公司”（C001）的累计销售额为285.00万元，显著高于A级客户“上海瑞达贸易集团”（C002）的152.00万元，前者较后者高出133.00万元，优势明显。\n\n数据明细\n客户编号\t客户名称\t客户等级\t'
+[PASS] F6 客户排名前三 C001>C002>C005 | answer[:120]='累计销售额前三名客户为：北京华信科技有限公司、上海瑞达贸易集团、杭州云图网络科技有限公司。\n\n排名\t客户ID\t客户名称\t客户等级\t累计销售额（元）\n1\tC001\t北京华信科技有限公司\tVIP\t2,850,000\n2\tC002\t上海瑞达贸易集'
+[FAIL] F6 VIP/A 级行业分布 | answer[:120]='{"need_more": {"entities": ["C001", "C002", "C005"]}, "reason": "计算结果中缺少客户所属行业字段，无法统计VIP和A级客户分布的行业"}}\n\ndata_analysis\n置信度'
+[PASS] F6 订单状态分布 pending=3 | answer[:120]='{"need_more": {"entities": ["C001","C002","C003","C004","C005","C007"], "reason": "缺少订单状态信息，无法统计 pending 待付款数量及状态分布"}}\n\n'
+[PASS] F7 三步 Saga(查客户+建工单+邮件) | answer[:150]='现有知识库未覆盖该情形。知识片段中未包含客户 C005 的任何详细信息，如客户名称、等级、联系方式或采购记录等。 [来源1][来源2][来源3][来源4][来源5]关于客户 C005 的信息，当前知识库中未查询到任何相关记录，包括客户名称、等级、联系方式或采购记录等。基于这一情况，我们已优先执行了您'
+[PASS] F9X.3 紧急 Bug 多步 Saga | answer[:150]='现有根据知识库未覆盖该情形。知识片段中未包含现有知识库现有，无法任何关于具体查询订单（如ORD到-2026-003客户 C）的详细信息，知识005 的详细信息，库未覆盖包括订单状态、金额包括联系方式、等级、关联该情形。知识片段、商品、客户等数据公司等。知识片段中。建议中未包含仅包含通过工客户等级评定'
+[PASS] F9 发外部邮件建审批单 | 审批号=appr_b8fa8deebc9f answer[:100]='以下操作已提交审批(审批号 appr_b8fa8deebc9f),待经理审批后自动执行: send_email_external\n\ndata_operation\n置信度 0.90\n6.7s\n👍\n👎'
+[PASS] F9 审批页签出现该审批单 | appr_b8fa8deebc9f
+[FAIL] 赵六 测试套件 赵六 异常中断 | Locator.inner_text: Error: strict mode violation: locator(".page") resolved to 4 elements:
+    1) <div class="page">…</div> aka get_by_text("待我审批 刷新共 4 条向 zhang@huaxin-")
+    2) <div class="page">…</div> aka locator("div").filter(has_text="Prompt 版本管理 刷新").nth(3)
+    3) <div class="page">…</div> aka
+[PASS] F9X.4 C008 新客户查询 | answer[:80]='根据现有知识库，未检索到客户“C008”的相关信息。知识片段中仅包含客户等级评定标准（如VIP、A、B、C级）及跟进政策，但未提供具体客户编号（如C008）的详'
+[PASS] F3.5 admin 全场景 chips | groups=['通用', '管理场景', '销售场景', '客服场景', '财务场景']
+[FAIL] F12 Prompt 列表 11 个 | 实际 15:['向 zhang@huaxin-tech.com 发送邮件「产品报价单」', '通知经理赵六关于 C001 的跟进安排', '为客户 C001 创建季度跟进任务']…
+[PASS] F12 建 draft 新版本 | toast='已创建 planner_chitchat_detect v2(draft)'
+[FAIL] F12 激活 v2(不归档) | toast='已创建 planner_chitchat_detect v2(draft)'
+[PASS] F12 A/B 流量 v1=80 v2=20 | v1 active w=80 v2 active w=20
+[PASS] F12 回滚 v1 active w=100 其余 archived | v1 active w=100 v2 archived w=20
+
+console errors:
+Failed to load resource: the server responded with a status of 404 (Not Found)
+Failed to load resource: the server responded with a status of 429 (Too Many Requests)

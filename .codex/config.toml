@@ -1,0 +1,10 @@
+# Project-level Codex configuration for BusinessAgent.
+#
+# Options set here apply to every Codex session started in this repository
+# and override the user-level settings in ~/.codex/config.toml.
+#
+# Keep model / model_provider unset here so each developer keeps their own
+# default model. Add team-wide settings below when needed, for example:
+#
+# model_reasoning_effort = "high"
+# disable_response_storage = true

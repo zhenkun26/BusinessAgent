@@ -1,0 +1,227 @@
+{
+  "version": "1.0",
+  "description": "企业知识库 RAG 评测集 - 销售政策 + 财务报销",
+  "total": 22,
+  "samples": [
+    {
+      "query_id": "Q001",
+      "query": "刚接触一个新客户,多久之内要在系统里建跟进任务",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "1.1 新客户跟进",
+      "expected_keywords": ["24小时", "CRM", "跟进任务"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q002",
+      "query": "A类客户一般多久跟进一次比较合适",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "1.2 现有客户跟进",
+      "expected_keywords": ["每周", "1次", "A类"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q003",
+      "query": "客户多久没跟进,系统会自动提示有流失风险",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "1.3 流失客户预警",
+      "expected_keywords": ["30天", "流失风险"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q004",
+      "query": "给客户让利 12% 的折扣,需要谁来审批",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "2.1 折扣权限",
+      "expected_keywords": ["销售总监", "10%-15%"],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q005",
+      "query": "战略客户想申请特殊折扣,要走什么流程",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "2.2 特殊折扣",
+      "expected_keywords": ["特殊折扣申请单", "财务总监"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q006",
+      "query": "签一份 30 万的合同需要谁审批",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "3.1 合同金额分级",
+      "expected_keywords": ["销售总监", "10-50万"],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q007",
+      "query": "合同签完之后多久之内要归档",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "3.2 合同模板",
+      "expected_keywords": ["3个工作日", "归档"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q008",
+      "query": "开发新客户的首单能拿多少佣金奖励",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "4.1 佣金计算",
+      "expected_keywords": ["1%", "额外", "新客户首单"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q009",
+      "query": "一个合同回款率才 70%,佣金能正常发吗",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "4.2 佣金发放",
+      "expected_keywords": ["80%", "回款率", "才可发放"],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q010",
+      "query": "有个客户年采购额 150 万,他属于什么等级",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "5.1 等级标准",
+      "expected_keywords": ["A", "100-200万"],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q011",
+      "query": "客户连续两个季度采购额没达到等级标准,会怎么处理",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "5.2 等级调整",
+      "expected_keywords": ["等级下调", "连续两个季度"],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q012",
+      "query": "客户软件订阅超期 50 天了,服务和数据会怎样",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "6.1 软件产品超期",
+      "expected_keywords": ["服务暂停", "数据保留", "6个月"],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q013",
+      "query": "一笔报销从提交到打款,正常流程一共要几个工作日",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "1.1 标准流程",
+      "expected_keywords": ["7", "工作日"],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q014",
+      "query": "紧急报销一个月能用几次",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "1.2 紧急报销",
+      "expected_keywords": ["1次", "每月"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q015",
+      "query": "去上海出差住宿费每天能报多少",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "2.1 差旅费",
+      "expected_keywords": ["800元", "一线城市"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q016",
+      "query": "请客户吃饭花 2000 块,这笔招待费要谁审批",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "2.2 招待费",
+      "expected_keywords": ["部门负责人", "1000-3000"],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q017",
+      "query": "想申请一台办公电脑,需要走什么流程",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "2.3 办公费",
+      "expected_keywords": ["资产采购申请", "IT部门"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q018",
+      "query": "发票开出来之后多久之内必须报销",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "3.3 发票时效",
+      "expected_keywords": ["90天"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q019",
+      "query": "去年的发票今年还能报销吗,截止到什么时候",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "3.3 发票时效",
+      "expected_keywords": ["次年1月31日", "跨年"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q020",
+      "query": "一笔 20 万的转账需要谁审批",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "4.1 转账分级",
+      "expected_keywords": ["财务总监", "总经理", "10-50万"],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q021",
+      "query": "员工因公出差最多能借多少钱",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "5.1 借款条件",
+      "expected_keywords": ["月薪2倍", "借款"],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q022",
+      "query": "部门预算超支了 15%,这笔支出要谁审批",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "6.2 预算审批",
+      "expected_keywords": ["总经理", "10%以上"],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "hard"
+    }
+  ]
+}

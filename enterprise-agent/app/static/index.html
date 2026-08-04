@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小A · 企业知识工作流 Agent</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; color: #333; }
+  #app { height: 100vh; display: flex; flex-direction: column; }
+
+  /* ===== 登录页 ===== */
+  .login-wrap { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #f6f8ff 0%, #edf1fd 45%, #f7f4ff 100%); }
+  .login-wrap .blob { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; }
+  .login-wrap .blob.b1 { width: 430px; height: 430px; background: #c3d3ff; opacity: .55; top: -130px; left: -110px; }
+  .login-wrap .blob.b2 { width: 400px; height: 400px; background: #e0d0ff; opacity: .5; bottom: -150px; right: -90px; }
+  .login-wrap .blob.b3 { width: 280px; height: 280px; background: #c4e9ff; opacity: .4; bottom: 8%; left: 10%; }
+  .login-card { position: relative; z-index: 1; background: rgba(255,255,255,.82); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.75); border-radius: 20px; padding: 34px 38px 28px; width: 400px;
+    box-shadow: 0 20px 55px rgba(76,96,220,.16); }
+  .login-card h1 { font-size: 22px; margin-bottom: 6px; color: #1f2333; }
+  .login-card .sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+  .login-hero { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+  .login-avatar { position: relative; width: 64px; height: 64px; border-radius: 22px; flex: none;
+    background: linear-gradient(135deg, #e6f4ff 0%, #d6e4ff 100%);
+    display: flex; align-items: center; justify-content: center; font-size: 34px;
+    box-shadow: 0 4px 14px rgba(47,84,235,.18); animation: xaFloat 3s ease-in-out infinite; }
+  .login-avatar .online { position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; border-radius: 50%;
+    background: #52c41a; border: 2.5px solid #fff; }
+  .login-hero .hi { font-size: 12px; color: #4f6bff; background: #eef2ff; border-radius: 999px; padding: 3px 12px; margin-bottom: 6px; display: inline-block; }
+  .login-hero h1 { margin: 0; }
+  @keyframes xaFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  /* 人员选择器(自定义下拉) */
+  .picker { position: relative; margin-bottom: 12px; }
+  .picker-cur { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #e3e6f0;
+    border-radius: 12px; background: #f8f9fd; cursor: pointer; transition: all .2s; }
+  .picker-cur:hover { border-color: #b9c4f5; background: #fff; }
+  .picker.open .picker-cur { border-color: #4f6bff; background: #fff; box-shadow: 0 0 0 3px rgba(79,107,255,.12); }
+  .p-avatar { width: 34px; height: 34px; border-radius: 10px; flex: none;
+    background: linear-gradient(135deg, #eef2ff, #e7f4ff);
+    display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .p-meta { display: flex; flex-direction: column; line-height: 1.35; flex: 1; min-width: 0; }
+  .p-meta b { font-size: 14px; color: #1f2333; font-weight: 600; }
+  .p-meta i { font-style: normal; font-size: 12px; color: #8a90a6; }
+  .p-arrow { color: #8a90a6; font-size: 11px; transition: transform .2s; }
+  .picker.open .p-arrow { transform: rotate(180deg); }
+  .picker-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #fff;
+    border: 1px solid #ecedf5; border-radius: 12px; box-shadow: 0 14px 36px rgba(31,35,51,.14);
+    max-height: 262px; overflow-y: auto; z-index: 30; padding: 6px; }
+  .picker-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+    cursor: pointer; transition: background .15s; }
+  .picker-item:hover { background: #f3f5fe; }
+  .picker-item.sel { background: #eef2ff; }
+  .picker-item.sel .p-meta b { color: #4f6bff; }
+  .p-check { color: #4f6bff; font-weight: 700; }
+  .picker-list::-webkit-scrollbar { width: 6px; }
+  .picker-list::-webkit-scrollbar-thumb { background: #dfe3f0; border-radius: 3px; }
+  .manual-toggle { text-align: center; font-size: 12px; color: #8a90a6; cursor: pointer; margin: 0 0 12px; }
+  .manual-toggle:hover { color: #4f6bff; }
+  .login-card input { width: 100%; padding: 11px 14px; border: 1px solid #e3e6f0; border-radius: 12px;
+    font-size: 14px; margin-bottom: 12px; background: #f8f9fd; transition: all .2s; }
+  .login-card input:focus { outline: none; border-color: #4f6bff; background: #fff; box-shadow: 0 0 0 3px rgba(79,107,255,.12); }
+  .role-tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
+  .role-tag.sales { background: #e6f4ff; color: #0958d9; }
+  .role-tag.cs { background: #f6ffed; color: #389e0d; }
+  .role-tag.fin { background: #fff7e6; color: #d46b08; }
+  .role-tag.mgr { background: #fff0f6; color: #c41d7f; }
+  .role-tag.admin { background: #f9f0ff; color: #531dab; }
+  .btn { display: inline-block; padding: 9px 18px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; background: #2f54eb; color: #fff; transition: all .2s; }
+  .btn:hover { background: #1d39c4; transform: translateY(-1px); }
+  .btn:disabled { background: #a5b8f3; cursor: not-allowed; transform: none; }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-ghost { background: #fff; color: #2f54eb; border: 1px solid #2f54eb; }
+  .btn-ghost:hover { background: #f0f5ff; }
+  .btn-danger { background: #fff; color: #cf1322; border: 1px solid #cf1322; }
+  .btn-danger:hover { background: #fff1f0; }
+  .login-err { color: #cf1322; font-size: 13px; margin-bottom: 10px; min-height: 18px; }
+  .login-card .btn { border-radius: 12px; padding: 12px 18px; font-size: 15px; font-weight: 600; letter-spacing: 4px;
+    background: linear-gradient(135deg, #4f6bff 0%, #7a5cff 100%); box-shadow: 0 8px 20px rgba(99,91,255,.28); }
+  .login-card .btn:hover { background: linear-gradient(135deg, #4560f0 0%, #6e50f5 100%); transform: translateY(-1px);
+    box-shadow: 0 10px 26px rgba(99,91,255,.34); }
+  .login-card .btn:disabled { background: #c3cbf0; box-shadow: none; }
+
+  /* ===== 主框架 ===== */
+  .topbar { background: #001529; color: #fff; padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 20px;
+    box-shadow: 0 2px 12px rgba(0,21,41,.28); position: relative; z-index: 10; }
+  .topbar .logo { font-size: 17px; font-weight: 700; letter-spacing: 1px;
+    background: linear-gradient(135deg, #7dd3fc, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .topbar nav { display: flex; gap: 4px; flex: 1; }
+  .topbar nav a { color: rgba(255,255,255,.65); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all .2s; }
+  .topbar nav a.active, .topbar nav a:hover { color: #fff; background: rgba(255,255,255,.12); }
+  .topbar .who { font-size: 13px; color: rgba(255,255,255,.8); display: flex; align-items: center; gap: 8px; }
+  .topbar .who b { color: #fff; }
+  .topbar .who .dept { font-size: 11px; color: rgba(255,255,255,.5); }
+  .topbar .logout { color: rgba(255,255,255,.6); font-size: 12px; cursor: pointer; margin-left: 8px; }
+  .topbar .logout:hover { color: #fff; }
+  .main { flex: 1; min-height: 0; display: flex; justify-content: center; padding: 16px; }
+  .panel { width: 100%; max-width: 1400px; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.05); display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ===== 对话 ===== */
+  .chat-head { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #666; flex-wrap: wrap; }
+  .chat-head .sid { font-family: monospace; background: #f5f5f5; padding: 2px 8px; border-radius: 4px; }
+  .chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
+  .msg { margin-bottom: 16px; display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .bubble { max-width: 78%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.7; }
+  .msg.user .bubble { background: #2f54eb; color: #fff; border-bottom-right-radius: 2px; }
+  .msg.agent .bubble { background: #f6f8fa; border: 1px solid #eee; border-bottom-left-radius: 2px; }
+  .bubble table { border-collapse: collapse; margin: 8px 0; }
+  .bubble th, .bubble td { border: 1px solid #ddd; padding: 4px 10px; font-size: 13px; }
+  .bubble pre { background: #282c34; color: #eee; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; margin: 6px 0; }
+  /* markdown 排版(全局 reset 清掉了列表缩进与段落间距,这里补回) */
+  .bubble p { margin: 6px 0; }
+  .bubble p:first-child, .bubble h1:first-child, .bubble h2:first-child,
+  .bubble h3:first-child, .bubble ul:first-child, .bubble ol:first-child { margin-top: 0; }
+  .bubble p:last-child, .bubble ul:last-child, .bubble ol:last-child { margin-bottom: 0; }
+  .bubble ul, .bubble ol { margin: 6px 0; padding-left: 22px; }
+  .bubble li { margin: 3px 0; }
+  .bubble li > ul, .bubble li > ol { margin: 2px 0; }
+  .bubble h1, .bubble h2, .bubble h3, .bubble h4 { margin: 12px 0 6px; font-size: 15px; line-height: 1.5; }
+  .bubble code { background: #eef1f6; color: #c7254e; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+  .bubble pre code { background: none; color: inherit; padding: 0; }
+  .msg.user .bubble code { background: rgba(255,255,255,.22); color: #fff; }
+  .bubble a { color: #2f54eb; }
+  .msg.user .bubble a { color: #dbe4ff; }
+  .bubble blockquote { border-left: 3px solid #d9d9d9; padding-left: 10px; color: #666; margin: 6px 0; }
+  .bubble hr { border: none; border-top: 1px solid #e5e5e5; margin: 10px 0; }
+  .meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e6f4ff; color: #0958d9; }
+  .badge.gray { background: #f5f5f5; color: #666; }
+  .badge.green { background: #f6ffed; color: #389e0d; }
+  .badge.orange { background: #fff7e6; color: #d46b08; }
+  .badge.purple { background: #f9f0ff; color: #531dab; }
+  .src { margin-top: 8px; border-top: 1px dashed #e0e0e0; padding-top: 6px; }
+  .src-item { font-size: 12px; color: #666; padding: 2px 0; }
+  .fb { margin-left: auto; display: flex; gap: 4px; }
+  .fb button { border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 2px 8px; }
+  .fb button.done { background: #f6ffed; border-color: #b7eb8f; }
+  .pending-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 13px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid #ffe58f; border-top-color: #d48806; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== 业务场景快捷面板(弹窗式) ===== */
+  .scene-sec { margin-bottom: 10px; }
+  .scene-sec:last-child { margin-bottom: 2px; }
+  .scene-sec .sec-name { font-size: 12px; color: #8a90a6; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .scene-sec .sec-name::after { content: ''; flex: 1; height: 1px; background: #f0f1f6; }
+  .scene-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px;
+    border-radius: 8px; cursor: pointer; font-size: 13px; color: #3a3f55; transition: all .15s; }
+  .scene-item:hover { background: #f3f5fe; color: #4f6bff; }
+  .scene-item .go { color: #c3c8dc; font-size: 12px; flex: none; }
+  .scene-item:hover .go { color: #4f6bff; }
+  .chip { display: inline-block; padding: 3px 10px; font-size: 12px; border-radius: 12px; background: #fff; border: 1px solid #d9d9d9; color: #595959; cursor: pointer; transition: all .15s; }
+  .chip:hover { border-color: #2f54eb; color: #2f54eb; background: #f0f5ff; }
+  .chip.cat { background: #e6f4ff; border-color: #91caff; color: #0958d9; font-weight: 500; cursor: default; }
+  .chip.cat:hover { background: #e6f4ff; color: #0958d9; }
+  .scene-btn { align-self: stretch; padding: 0 14px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #595959; font-size: 13px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .scene-btn:hover, .scene-btn.on { border-color: #2f54eb; color: #2f54eb; background: #f0f5ff; }
+  .pop-mask { position: fixed; inset: 0; z-index: 40; }
+  .scene-pop { position: absolute; bottom: calc(100% + 8px); left: 16px; width: min(560px, calc(100% - 32px)); max-height: 280px; overflow-y: auto; background: #fff; border: 1px solid #eee; border-radius: 14px; box-shadow: 0 10px 32px rgba(0,0,0,.14); padding: 12px 14px 8px; z-index: 50; }
+  .scene-pop .pop-title { font-size: 13px; font-weight: 600; color: #1f2333; margin-bottom: 10px; display: flex; align-items: baseline; justify-content: space-between; }
+  .scene-pop .pop-title .tip { font-size: 11px; font-weight: 400; color: #a0a5bb; }
+
+  /* ===== 空会话欢迎态(个性化 + 建议卡片) ===== */
+  .welcome { margin: 5vh auto 0; width: min(560px, 92%); padding: 24px 0; }
+  .welcome .w-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  .welcome .w-avatar { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg,#e6f4ff,#f0f5ff); display: flex; align-items: center; justify-content: center; font-size: 24px; flex: none; }
+  .welcome h3 { font-size: 19px; font-weight: 600; color: #1f1f1f; margin: 0; letter-spacing: .2px; }
+  .welcome .w-role { font-size: 12px; color: #999; margin-top: 3px; letter-spacing: .3px; }
+  .welcome .w-bubble { margin: 14px 0 22px; background: #f7f9fc; border: 1px solid #e8ecf3; border-radius: 16px; padding: 16px 18px; }
+  .welcome .w-hello { font-size: 15px; font-weight: 600; color: #1f1f1f; letter-spacing: .3px; margin: 0 0 6px; }
+  .welcome .w-sub { font-size: 13px; color: #777; line-height: 1.8; letter-spacing: .3px; margin: 0; }
+  .sug-list { display: flex; flex-direction: column; gap: 10px; }
+  .sug-card { text-align: left; padding: 13px 18px; border: 1px solid #e8e8e8; border-radius: 16px; background: #fff; cursor: pointer; font-size: 14px; color: #333; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: all .18s; display: flex; align-items: center; gap: 10px; }
+  .sug-card:hover { border-color: #2f54eb; box-shadow: 0 6px 16px rgba(47,84,235,.13); transform: translateY(-2px); }
+  .sug-card .txt { flex: 1; }
+  .sug-card .go { color: #c0c4d0; font-size: 15px; transition: color .18s; }
+  .sug-card:hover .go { color: #2f54eb; }
+
+  .chat-input { border-top: 1px solid #f0f0f0; padding: 12px 16px; display: flex; gap: 10px; position: relative; }
+  .chat-input textarea { flex: 1; resize: none; height: 44px; padding: 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; font-family: inherit; }
+  .chat-input textarea:focus { outline: none; border-color: #2f54eb; box-shadow: 0 0 0 2px rgba(47,84,235,.1); }
+
+  /* ===== 审批 / Prompt / 状态 / 参考 ===== */
+  .page { flex: 1; min-height: 0; padding: 20px; overflow-y: auto; }
+  .page h2 { font-size: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .card { border: 1px solid #f0f0f0; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+  .card .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card .title { font-size: 14px; font-weight: 600; flex: 1; }
+  .card .desc { font-size: 13px; color: #555; margin-top: 6px; white-space: pre-wrap; }
+  .risk-high { color: #cf1322; font-weight: 600; }
+  .empty { color: #999; text-align: center; padding: 40px 0; font-size: 13px; }
+  .ver-tag { font-size: 12px; font-family: monospace; background: #f5f5f5; border-radius: 4px; padding: 2px 8px; }
+  .st-draft { color: #d46b08; } .st-active { color: #389e0d; } .st-archived { color: #999; }
+  .st-deleted { color: #999; text-decoration: line-through; }
+  textarea.area { width: 100%; min-height: 120px; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; font-family: monospace; margin: 8px 0; }
+  input.mini { width: 70px; padding: 4px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .stat { border: 1px solid #f0f0f0; border-radius: 8px; padding: 16px; text-align: center; }
+  .stat .k { font-size: 13px; color: #888; margin-bottom: 8px; }
+  .stat .v { font-size: 16px; font-weight: 600; }
+  .v.ok { color: #389e0d; } .v.bad { color: #cf1322; }
+  .toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.75); color: #fff; padding: 8px 20px; border-radius: 6px; font-size: 13px; z-index: 99; }
+
+  /* ===== 参考数据表(客户/订单/工单) ===== */
+  .ref-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
+  .ref-tabs a { padding: 8px 14px; font-size: 13px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; }
+  .ref-tabs a.active { color: #2f54eb; border-bottom-color: #2f54eb; font-weight: 500; }
+  .ref-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .ref-table th { background: #fafafa; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 1px solid #f0f0f0; }
+  .ref-table td { padding: 8px 10px; border-bottom: 1px solid #f5f5f5; }
+  .ref-table tr:hover { background: #fafafa; }
+  .ref-table .mono { font-family: monospace; }
+  .lvl-VIP { color: #cf1322; font-weight: 600; }
+  .lvl-A { color: #d46b08; font-weight: 600; }
+  .lvl-B { color: #0958d9; }
+  .lvl-C { color: #666; }
+  .st-completed { color: #389e0d; }
+  .st-pending { color: #d46b08; }
+  .st-cancelled { color: #999; text-decoration: line-through; }
+  .st-refunded { color: #cf1322; }
+  .st-open { color: #0958d9; }
+  .st-in_progress { color: #d46b08; }
+  .st-resolved { color: #389e0d; }
+  .st-closed { color: #999; }
+  .pri-urgent { color: #cf1322; font-weight: 600; }
+  .pri-high { color: #d46b08; font-weight: 600; }
+  .pri-normal { color: #0958d9; }
+  .pri-low { color: #666; }
+
+  /* ===== 自适应 ===== */
+  @media (max-width: 1440px) { .panel { max-width: 100%; } }
+  @media (max-width: 768px) {
+    .main { padding: 8px; }
+    .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .topbar .logo { font-size: 14px; }
+    .bubble { max-width: 92%; }
+    .chat-head { flex-wrap: wrap; }
+    .chat-input textarea { height: 40px; }
+    .login-card { width: 92%; padding: 24px; }
+    .page { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div v-if="toast" class="toast">{{ toast }}</div>
+
+  <!-- ===== 登录页 ===== -->
+  <div v-if="!token" class="login-wrap">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <div class="login-card">
+      <div class="login-hero">
+        <div class="login-avatar">🤖<span class="online"></span></div>
+        <div>
+          <span class="hi">你的企业知识工作流智能助手</span>
+          <h1>Hello，我是小A 👋</h1>
+        </div>
+      </div>
+      <div class="picker" :class="{open:pickerOpen}" @click.stop>
+        <div class="picker-cur" @click="pickerOpen=!pickerOpen">
+          <span class="p-avatar">{{ pickedUser.avatar }}</span>
+          <span class="p-meta"><b>{{ pickedUser.name }}</b><i>{{ pickedUser.sub }}</i></span>
+          <span class="p-arrow">▼</span>
+        </div>
+        <div v-if="pickerOpen" class="picker-list">
+          <div v-for="u in userOptions" :key="u.username" class="picker-item" :class="{sel:u.username===loginName}" @click="pickUser(u)">
+            <span class="p-avatar">{{ u.avatar }}</span>
+            <span class="p-meta"><b>{{ u.name }}</b><i>{{ u.sub }}</i></span>
+            <span v-if="u.username===loginName" class="p-check">✓</span>
+          </div>
+        </div>
+      </div>
+      <div class="manual-toggle" v-if="!showManual" @click="showManual=true">使用其他账号登录</div>
+      <input v-if="showManual" v-model="loginName" placeholder="输入用户名">
+      <div class="login-err">{{ loginErr }}</div>
+      <button class="btn btn-block" :disabled="logging" @click="doLogin">
+        {{ logging ? '登录中…' : '登 录' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== 主界面 ===== -->
+  <template v-else>
+    <div class="topbar">
+      <div class="logo">小A</div>
+      <nav>
+        <a :class="{active: tab==='chat'}" @click="tab='chat'">对话</a>
+        <a :class="{active: tab==='approval'}" @click="openTab('approval')">审批</a>
+        <a v-if="isApprover" :class="{active: tab==='prompt'}" @click="openTab('prompt')">Prompt 管理</a>
+        <a :class="{active: tab==='reference'}" @click="openTab('reference')">业务数据</a>
+        <a :class="{active: tab==='status'}" @click="openTab('status')">系统状态</a>
+      </nav>
+      <div class="who">
+        <b>{{ username }}</b>
+        <span class="role-tag" :class="roleClass">{{ roleTitle || role }}</span>
+        <span class="dept">{{ deptLabel }}</span>
+        <span class="logout" @click="doLogout">退出</span>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- ===== 对话 ===== -->
+      <div v-show="tab==='chat'" class="panel">
+        <div class="chat-head">
+          <span>会话</span><span class="sid">{{ sessionId ? '···' + sessionId.slice(-8) : '(发送首条消息后生成)' }}</span>
+          <button class="btn-sm btn-ghost" @click="newSession">新会话</button>
+          <button class="btn-sm btn-ghost" v-if="sessionId" @click="loadHistory">历史</button>
+          <span class="badge purple">{{ deptLabel }}</span>
+        </div>
+        <div class="chat-body" ref="chatBody">
+          <div v-if="messages.length===0" class="welcome">
+            <div class="w-head">
+              <div class="w-avatar">{{ roleAvatar }}</div>
+              <div>
+                <h3>你好，{{ username }}！{{ greeting }}</h3>
+                <div class="w-role">{{ roleTitle }} · {{ deptLabel }}</div>
+              </div>
+            </div>
+            <div class="w-bubble">
+              <div class="w-hello">我是小A！你有什么想问我的吗？</div>
+              <div class="w-sub">{{ roleIntro }}</div>
+            </div>
+            <div class="sug-list">
+              <div class="sug-card" v-for="(s,k) in welcomeSuggestions" :key="k" @click="useSuggestion(s)">
+                <span class="txt">{{ s.text }}</span>
+                <span class="go">→</span>
+              </div>
+            </div>
+          </div>
+          <div v-for="(m,i) in messages" :key="i" class="msg" :class="m.role">
+            <div class="bubble">
+              <div v-if="m.role==='user'">{{ m.text }}</div>
+              <div v-else v-html="renderMd(m.text)"></div>
+              <template v-if="m.role==='agent'">
+                <div class="meta">
+                  <span class="badge" v-if="m.intent">{{ intentLabel(m.intent) }}</span>
+                  <span class="badge" :class="m.confidence>=0.6?'green':'orange'" v-if="m.confidence!==undefined">置信度 {{ m.confidence.toFixed(2) }}</span>
+                  <span class="badge gray" v-if="m.latencyMs">{{ (m.latencyMs/1000).toFixed(1) }}s</span>
+                  <span class="fb" v-if="!m.cancelled">
+                    <button :class="{done: m.fb==='like'}" @click="sendFeedback(m,'like')">👍</button>
+                    <button :class="{done: m.fb==='dislike'}" @click="sendFeedback(m,'dislike')">👎</button>
+                  </span>
+                </div>
+                <div class="src" v-if="m.sources && m.sources.length">
+                  <div class="src-item" v-for="(s,j) in m.sources" :key="j">
+                    [{{ j+1 }}] {{ s.title }} · {{ s.namespace }} · score {{ (s.score||0).toFixed(3) }}
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div v-if="pending" class="pending-bar">
+            <div class="spinner"></div>
+            <span>{{ progressText }} {{ elapsed }}s</span>
+            <button class="btn-sm btn-danger" @click="cancelChat">取消</button>
+          </div>
+        </div>
+
+        <div class="chat-input">
+          <div class="pop-mask" v-if="sceneOpen" @click="sceneOpen=false"></div>
+          <div class="scene-pop" v-if="sceneOpen">
+            <div class="pop-title">快捷指令<span class="tip">点击填入输入框,可编辑后发送</span></div>
+            <div class="scene-sec" v-for="g in sceneGroups" :key="g.cat">
+              <div class="sec-name">{{ sceneCatIcon(g.cat) }} {{ g.cat }}</div>
+              <div class="scene-item" v-for="(s,k) in g.items" :key="k" @click="useScene(s)">
+                <span class="txt">{{ s.text }}</span><span class="go">→</span>
+              </div>
+            </div>
+          </div>
+          <button class="scene-btn" :class="{on: sceneOpen}" @click="sceneOpen=!sceneOpen">✨ 场景</button>
+          <textarea v-model="draft" placeholder="输入消息,Enter 发送(Shift+Enter 换行)"
+                    @keydown.enter.exact.prevent="sendChat" :disabled="pending"></textarea>
+          <button class="btn" @click="sendChat" :disabled="pending || !draft.trim()">发送</button>
+        </div>
+      </div>
+
+      <!-- ===== 审批 ===== -->
+      <div v-show="tab==='approval'" class="panel"><div class="page">
+        <template v-if="isApprover">
+        <h2>待我审批
+          <button class="btn-sm btn-ghost" @click="loadApprovals">刷新</button>
+          <span style="font-size:12px;color:#888;margin-left:auto">共 {{ approvals.length }} 条</span>
+        </h2>
+        <div v-if="approvals.length===0" class="empty">暂无待审批请求<br><br>💡 提示:用经理身份发起「发外部邮件」即可产生审批单;init.sql 已预置 3 条批量审批(batch_2026_001)</div>
+        <div v-for="a in approvals" :key="a.approval_id" class="card">
+          <div class="row">
+            <span class="title">{{ a.summary || a.operation_type }}</span>
+            <span class="badge" :class="a.risk_level==='high'?'orange':'gray'">{{ a.risk_level }}</span>
+            <span v-if="a.batch_id" class="badge purple">batch: {{ a.batch_id }}</span>
+          </div>
+          <div class="desc">审批号:{{ a.approval_id }} · {{ fmtTime(a.created_at) }}<br>操作类型:{{ a.operation_type }}</div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn-sm btn" @click="decide(a,'approved')">批准</button>
+            <button class="btn-sm btn-danger" @click="decide(a,'rejected')">拒绝</button>
+            <span v-if="a.result" class="badge green">{{ a.result }}</span>
+          </div>
+        </div>
+        </template>
+
+        <template v-if="isApprover">
+        <h2 style="margin-top:24px">我经手的
+          <button class="btn-sm btn-ghost" @click="loadHandled">刷新</button>
+          <span style="font-size:12px;color:#888;margin-left:auto">共 {{ handledApprovals.length }} 条</span>
+        </h2>
+        <div v-if="handledApprovals.length===0" class="empty">暂无经手记录<br><br>💡 提示:「待我审批」里批准/拒绝过的单子会在这里留痕</div>
+        <div v-for="h in handledApprovals" :key="h.approval_id" class="card">
+          <div class="row">
+            <span class="title">{{ h.summary || h.operation_type }}</span>
+            <span class="badge" :class="statusClass(h.status)">{{ statusLabel(h.status) }}</span>
+            <span class="badge" :class="h.risk_level==='high'?'orange':'gray'">{{ h.risk_level }}</span>
+            <span v-if="h.batch_id" class="badge purple">batch: {{ h.batch_id }}</span>
+          </div>
+          <div class="desc">
+            审批号:{{ h.approval_id }} · 发起人:{{ h.requester_id }}<br>
+            操作类型:{{ h.operation_type }} · 发起于 {{ fmtTime(h.created_at) }}
+            <template v-if="h.decided_at"><br>经手于 {{ fmtTime(h.decided_at) }}<span v-if="h.comment"> · 意见:{{ h.comment }}</span></template>
+          </div>
+        </div>
+        </template>
+
+        <h2 style="margin-top:24px">我的审批
+          <button class="btn-sm btn-ghost" @click="loadMine">刷新</button>
+          <span style="font-size:12px;color:#888;margin-left:auto">共 {{ myApprovals.length }} 条</span>
+        </h2>
+        <div v-if="myApprovals.length===0" class="empty">暂无我发起的审批<br><br>💡 提示:高风险操作(如发外部邮件)会先建审批单,审批进度在这里跟踪</div>
+        <div v-for="m in myApprovals" :key="m.approval_id" class="card">
+          <div class="row">
+            <span class="title">{{ m.summary || m.operation_type }}</span>
+            <span class="badge" :class="statusClass(m.status)">{{ statusLabel(m.status) }}</span>
+            <span class="badge" :class="m.risk_level==='high'?'orange':'gray'">{{ m.risk_level }}</span>
+            <span v-if="m.batch_id" class="badge purple">batch: {{ m.batch_id }}</span>
+          </div>
+          <div class="desc">
+            审批号:{{ m.approval_id }} · 发起于 {{ fmtTime(m.created_at) }}<br>
+            操作类型:{{ m.operation_type }}
+            <template v-if="m.approver_id"><br>审批人:{{ m.approver_id }} · {{ fmtTime(m.decided_at) }}<span v-if="m.comment"> · 意见:{{ m.comment }}</span></template>
+          </div>
+          <div class="row" v-if="m.status==='approved_pending_reauth'" style="margin-top:10px">
+            <button class="btn-sm btn" @click="resume(m)">恢复执行</button>
+            <span style="font-size:12px;color:#888">审批已通过,但发起时登录已过期,点击以当前身份恢复执行</span>
+          </div>
+        </div>
+      </div></div>
+
+      <!-- ===== Prompt 管理 ===== -->
+      <div v-show="tab==='prompt'" class="panel"><div class="page">
+        <h2>Prompt 版本管理 <button class="btn-sm btn-ghost" @click="loadPrompts">刷新</button></h2>
+        <div v-for="(versions, name) in prompts" :key="name" class="card">
+          <div class="row">
+            <span class="title">{{ name }}</span>
+            <span v-for="v in versions" :key="v.version" class="ver-tag">
+              v{{ v.version }} <span :class="'st-'+v.status">{{ v.status }}</span> w={{ v.traffic_weight }}
+            </span>
+          </div>
+          <div v-for="v in versions" :key="'pv'+v.version" style="font-size:12px;color:#999;margin-top:2px">v{{ v.version }} · {{ v.preview }}</div>
+          <details style="margin-top:8px">
+            <summary style="font-size:13px;color:#2f54eb;cursor:pointer">新建版本 / 激活 / 流量</summary>
+            <textarea class="area" v-model="promptDrafts[name]" placeholder="新版本内容(str.format 语法,JSON 花括号 {{}} 转义)"></textarea>
+            <div class="row">
+              <button class="btn-sm btn" @click="createVersion(name)">存为 draft</button>
+              <span style="font-size:13px">激活 v</span>
+              <input class="mini" v-model.number="activateVer[name]" placeholder="版本">
+              <label style="font-size:12px"><input type="checkbox" v-model="archiveOthers[name]"> 归档其他(回滚勾选;A/B 不勾)</label>
+              <button class="btn-sm btn-ghost" @click="activate(name)">激活</button>
+              <span style="font-size:13px">权重:</span>
+              <span v-for="v in versions.filter(x=>x.status==='active')" :key="v.version" style="font-size:13px">
+                v{{ v.version }}=<input class="mini" style="width:50px" v-model.number="weights[name+'_'+v.version]" :placeholder="v.traffic_weight">
+              </span>
+              <button class="btn-sm btn-ghost" @click="setTraffic(name, versions)">设流量</button>
+            </div>
+          </details>
+        </div>
+      </div></div>
+
+      <!-- ===== 业务数据(客户/订单/工单参考) ===== -->
+      <div v-show="tab==='reference'" class="panel"><div class="page">
+        <h2>业务数据参考
+          <span style="font-size:12px;color:#888;margin-left:auto">Mock 数据,与 CRM/工单系统 API 同源</span>
+        </h2>
+        <div class="ref-tabs">
+          <a :class="{active: refTab==='customers'}" @click="refTab='customers'">客户 ({{ customers.length }})</a>
+          <a :class="{active: refTab==='orders'}" @click="refTab='orders'">订单 ({{ orders.length }})</a>
+          <a :class="{active: refTab==='tickets'}" @click="refTab='tickets'">工单 ({{ tickets.length }})</a>
+          <a :class="{active: refTab==='docs'}" @click="refTab='docs'">知识库文档 ({{ documents.length }})</a>
+        </div>
+
+        <div v-if="refTab==='customers'">
+          <table class="ref-table">
+            <thead><tr><th>ID</th><th>客户名称</th><th>联系人</th><th>行业</th><th>等级</th><th>累计销售额</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="c in customers" :key="c.customer_id">
+                <td class="mono">{{ c.customer_id }}</td>
+                <td>{{ c.name }}</td>
+                <td>{{ c.contact }}</td>
+                <td>{{ c.industry }}</td>
+                <td><span :class="'lvl-'+c.level">{{ c.level }}</span></td>
+                <td>¥{{ c.total_revenue.toLocaleString() }}</td>
+                <td><button class="btn-sm btn-ghost" @click="ask('查一下客户 '+c.customer_id+' 的信息')">查询</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="refTab==='orders'">
+          <table class="ref-table">
+            <thead><tr><th>订单号</th><th>客户</th><th>金额</th><th>状态</th><th>下单日期</th><th>SKU</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="o in orders" :key="o.order_id">
+                <td class="mono">{{ o.order_id }}</td>
+                <td>{{ o.customer_id }}</td>
+                <td>¥{{ o.amount.toLocaleString() }}</td>
+                <td><span :class="'st-'+o.status">{{ o.status }}</span></td>
+                <td>{{ o.created_at }}</td>
+                <td>{{ (o.items||[]).map(i=>i.sku).join(', ') }}</td>
+                <td><button class="btn-sm btn-ghost" @click="ask('查询订单 '+o.order_id+' 的详情,包含明细')">查询</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="refTab==='tickets'">
+          <table class="ref-table">
+            <thead><tr><th>工单号</th><th>标题</th><th>客户</th><th>优先级</th><th>分类</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="t in tickets" :key="t.ticket_id">
+                <td class="mono">{{ t.ticket_id }}</td>
+                <td>{{ t.title }}</td>
+                <td>{{ t.customer_id || '-' }}</td>
+                <td><span :class="'pri-'+t.priority">{{ t.priority }}</span></td>
+                <td>{{ t.category }}</td>
+                <td><span :class="'st-'+t.status">{{ t.status }}</span></td>
+                <td><button class="btn-sm btn-ghost" @click="ask('查询工单 '+t.ticket_id+' 的处理进度')">查询</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="refTab==='docs'">
+          <table class="ref-table">
+            <thead><tr><th>文档ID</th><th>标题</th><th>类型</th><th>命名空间</th><th>状态</th><th>上传者</th></tr></thead>
+            <tbody>
+              <tr v-for="d in documents" :key="d.document_id">
+                <td class="mono">{{ d.document_id }}</td>
+                <td>{{ d.title }}</td>
+                <td>{{ d.doc_type }}</td>
+                <td>{{ d.dept_namespace }}</td>
+                <td><span :class="'st-'+d.status">{{ d.status }}</span></td>
+                <td class="mono">{{ d.uploaded_by }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div></div>
+
+      <!-- ===== 系统状态 ===== -->
+      <div v-show="tab==='status'" class="panel"><div class="page">
+        <h2>系统状态 <button class="btn-sm btn-ghost" @click="loadStatus">刷新</button></h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="k">数据库</div><div class="v" :class="status.db?.status==='healthy'?'ok':'bad'">{{ status.db?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">Milvus</div><div class="v" :class="status.milvus?.status==='healthy'?'ok':'bad'">{{ status.milvus?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">文档实体数</div><div class="v">{{ status.milvus?.num_entities ?? '-' }}</div></div>
+          <div class="stat"><div class="k">Checkpointer</div><div class="v" :class="(status.checkpointer === 'redis' || status.checkpointer === 'postgres') ? 'ok' : 'bad'">{{ status.checkpointer || '-' }}</div></div>
+          <div class="stat"><div class="k">注册工具</div><div class="v">{{ status.tools_count ?? '-' }}</div></div>
+        </div>
+      </div></div>
+    </div>
+  </template>
+</div>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+  data() {
+    return {
+      toast: '',
+      // auth
+      token: localStorage.getItem('ea_token') || '',
+      username: localStorage.getItem('ea_username') || '',
+      role: localStorage.getItem('ea_role') || '',
+      userDept: localStorage.getItem('ea_dept') || '',
+      seedUsers: [
+        { username: '销售员张三', role: 'salesperson', department: 'dept_sales', label: '张三 · 销售员 · 销售部' },
+        { username: '销售员王芳', role: 'salesperson', department: 'dept_sales', label: '王芳 · 销售员 · 销售部' },
+        { username: '销售员李雷', role: 'salesperson', department: 'dept_sales', label: '李雷 · 销售员 · 销售部' },
+        { username: '销售经理赵六', role: 'manager', department: 'dept_sales', label: '赵六 · 销售经理 · 销售部' },
+        { username: '客服李四', role: 'customer_service', department: 'dept_cs', label: '李四 · 客服专员 · 客服部' },
+        { username: '客服韩梅梅', role: 'customer_service', department: 'dept_cs', label: '韩梅梅 · 客服专员 · 客服部' },
+        { username: '财务王五', role: 'finance', department: 'dept_finance', label: '王五 · 财务专员 · 财务部' },
+        { username: '财务经理钱八', role: 'manager', department: 'dept_finance', label: '钱八 · 财务经理 · 财务部' },
+        { username: 'HR孙九', role: 'customer_service', department: 'dept_hr', label: '孙九 · HR 专员 · 人力资源部' },
+        { username: '管理员钱七', role: 'admin', department: 'shared_company' },
+      ],
+      loginName: '销售员张三',
+      loginErr: '',
+      logging: false,
+      pickerOpen: false,
+      showManual: false,
+      // nav
+      tab: 'chat',
+      refTab: 'customers',
+      // chat
+      sessionId: localStorage.getItem('ea_sid') || '',
+      backend: '',
+      messages: [],
+      draft: '',
+      pending: false,
+      elapsed: 0,
+      progressText: '',
+      _timer: null,
+      _abort: null,
+      // approval
+      approvals: [],
+      myApprovals: [],
+      handledApprovals: [],
+      // 场景弹窗
+      sceneOpen: false,
+      // prompts
+      prompts: {},
+      promptDrafts: {},
+      activateVer: {},
+      archiveOthers: {},
+      weights: {},
+      // status
+      status: {},
+      // 业务参考数据(与 init.sql / crm.py / ticket.py 同源)
+      customers: [
+        { customer_id: 'C001', name: '北京华信科技有限公司', contact: '张经理', industry: '软件开发', level: 'VIP', total_revenue: 2850000 },
+        { customer_id: 'C002', name: '上海瑞达贸易集团', contact: '李总', industry: '进出口贸易', level: 'A', total_revenue: 1520000 },
+        { customer_id: 'C003', name: '深圳新创电子有限公司', contact: '王工', industry: '电子制造', level: 'B', total_revenue: 680000 },
+        { customer_id: 'C004', name: '广州恒通物流股份', contact: '陈总', industry: '物流运输', level: 'B', total_revenue: 420000 },
+        { customer_id: 'C005', name: '杭州云图网络科技有限公司', contact: '刘CTO', industry: '互联网', level: 'A', total_revenue: 1180000 },
+        { customer_id: 'C006', name: '成都天府制造有限公司', contact: '赵厂长', industry: '机械制造', level: 'C', total_revenue: 85000 },
+        { customer_id: 'C007', name: '武汉中百零售集团', contact: '孙总监', industry: '零售连锁', level: 'B', total_revenue: 350000 },
+        { customer_id: 'C008', name: '南京博雅教育科技', contact: '周校长', industry: '教育培训', level: 'C', total_revenue: 52000 },
+      ],
+      orders: [
+        { order_id: 'ORD-2026-001', customer_id: 'C001', amount: 85000, status: 'completed', created_at: '2026-01-15', items: [{sku:'P-A001'},{sku:'P-S005'}] },
+        { order_id: 'ORD-2026-002', customer_id: 'C002', amount: 12000, status: 'pending', created_at: '2026-07-20', items: [{sku:'P-B010'}] },
+        { order_id: 'ORD-2026-003', customer_id: 'C005', amount: 156000, status: 'completed', created_at: '2026-03-08', items: [{sku:'P-A001'},{sku:'P-S010'}] },
+        { order_id: 'ORD-2026-004', customer_id: 'C003', amount: 6800, status: 'cancelled', created_at: '2026-05-12', items: [{sku:'P-B010'}] },
+        { order_id: 'ORD-2026-005', customer_id: 'C001', amount: 45000, status: 'pending', created_at: '2026-07-22', items: [{sku:'P-M003'},{sku:'P-M005'}] },
+        { order_id: 'ORD-2026-006', customer_id: 'C007', amount: 23000, status: 'completed', created_at: '2026-06-10', items: [{sku:'P-B010'},{sku:'P-S003'}] },
+        { order_id: 'ORD-2026-007', customer_id: 'C004', amount: 9500, status: 'pending', created_at: '2026-07-25', items: [{sku:'P-S008'}] },
+        { order_id: 'ORD-2026-008', customer_id: 'C002', amount: 78000, status: 'refunded', created_at: '2026-04-18', items: [{sku:'P-A001'}] },
+      ],
+      tickets: [
+        { ticket_id: 'TK-EXIST001', title: 'C001 企业版授权到期提醒', customer_id: 'C001', priority: 'high', category: 'renewal', status: 'in_progress' },
+        { ticket_id: 'TK-EXIST002', title: 'C003 标准版功能咨询', customer_id: 'C003', priority: 'normal', category: 'consultation', status: 'open' },
+        { ticket_id: 'TK-EXIST003', title: 'C005 数据分析模块 bug 反馈', customer_id: 'C005', priority: 'urgent', category: 'bug_report', status: 'in_progress' },
+        { ticket_id: 'TK-EXIST004', title: 'C002 退款申请', customer_id: 'C002', priority: 'high', category: 'refund', status: 'open' },
+        { ticket_id: 'TK-EXIST005', title: 'C007 续费方案咨询', customer_id: 'C007', priority: 'normal', category: 'consultation', status: 'resolved' },
+        { ticket_id: 'TK-EXIST006', title: 'C004 物流接口对接故障', customer_id: 'C004', priority: 'urgent', category: 'incident', status: 'closed' },
+      ],
+      documents: [
+        { document_id: 'doc_policy_sales', title: '销售政策', doc_type: 'policy', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
+        { document_id: 'doc_policy_finance', title: '财务报销制度', doc_type: 'policy', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
+        { document_id: 'doc_manual_product', title: '产品手册', doc_type: 'manual', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
+        { document_id: 'doc_faq', title: '常见问题FAQ', doc_type: 'faq', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
+        { document_id: 'doc_policy_aftersale', title: '售后服务政策', doc_type: 'policy', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
+        { document_id: 'doc_sales_internal', title: '销售部内部报价指南', doc_type: 'policy', dept_namespace: 'dept_sales', status: 'active', uploaded_by: 'user_mgr_001' },
+        { document_id: 'doc_finance_internal', title: '财务部对账流程', doc_type: 'policy', dept_namespace: 'dept_finance', status: 'active', uploaded_by: 'user_fin_002' },
+      ],
+    };
+  },
+  computed: {
+    isApprover() { return ['manager', 'admin'].includes(this.role); },
+    roleClass() {
+      const m = { salesperson: 'sales', customer_service: 'cs', finance: 'fin', manager: 'mgr', admin: 'admin' };
+      return m[this.role] || '';
+    },
+    greeting() {
+      const h = new Date().getHours();
+      if (h < 6) return '夜深了，要注意休息哦～';
+      if (h < 12) return '上午好，今天也要元气满满～';
+      if (h < 14) return '中午好，记得按时吃饭哦～';
+      if (h < 18) return '下午好，喝口水继续加油～';
+      return '晚上好，辛苦一天啦～';
+    },
+    deptLabel() {
+      const m = { dept_sales: '销售部', dept_cs: '客服部', dept_finance: '财务部', dept_hr: '人力资源部' };
+      return m[this.userDept] || this.userDept;
+    },
+    userOptions() {
+      const am = { salesperson: '💼', customer_service: '🎧', finance: '💰', manager: '📊', admin: '🛠️' };
+      return this.seedUsers.map(u => {
+        const parts = (u.label || u.username).split(' · ');
+        return { username: u.username, avatar: am[u.role] || '👤', name: parts[0] || u.username, sub: parts.slice(1).join(' · ') };
+      });
+    },
+    pickedUser() {
+      return this.userOptions.find(u => u.username === this.loginName) ||
+        { username: this.loginName, avatar: '👤', name: this.loginName || '请选择账号', sub: '手动输入的账号' };
+    },
+    roleAvatar() {
+      const m = { salesperson: '💼', customer_service: '🎧', finance: '💰', manager: '📊', admin: '🛠️' };
+      return m[this.role] || '🤖';
+    },
+    roleTitle() {
+      const m = { salesperson: '销售顾问', customer_service: '客服专员', finance: '财务专员', manager: '部门经理', admin: '系统管理员' };
+      return m[this.role] || this.role;
+    },
+    roleIntro() {
+      const m = {
+        salesperson: '查客户、看订单、建跟进任务、发邮件都交给我～外部邮件我会先送经理审批；销售政策、折扣、佣金问题也随便问！',
+        customer_service: '工单查询、创建、进度更新我全包了～售后政策和 SLA 标准也尽管问，随问随答！',
+        finance: '订单和退款状态随问随查～差旅报销、转账限额、预算制度我也门儿清，直接开口就行！',
+        manager: '数据分析、高风险审批、Prompt 版本管理都归我兜底；查客户、建任务、发外部邮件也可以直接吩咐～',
+        admin: '数据分析、高风险审批、Prompt 版本和系统配置都归我管；各业务工具也能直接操作，尽管吩咐～',
+      };
+      return m[this.role] || '我是小A，你的企业知识工作流助手～问答知识、分析数据、执行工具，样样都行！';
+    },
+    welcomeSuggestions() {
+      // 取当前角色主场景组的前 4 条作为建议卡片(通用组只作寒暄,不展示)
+      const g = this.sceneGroups.find(x => x.cat !== '通用') || this.sceneGroups[0];
+      return (g ? g.items : []).slice(0, 4);
+    },
+    sceneGroups() {
+      // 按角色显示不同业务场景指令;条目与《产品使用手册-前端版》实测场景一一对应
+      const common = [
+        { label: '你好', text: '你好' },
+        { label: '折扣政策', text: '公司的折扣审批政策是怎样的' },
+      ];
+      const sales = [
+        { label: '查客户 C001', text: '查一下客户 C001 的信息' },
+        { label: '查订单 ORD-2026-005', text: '查询订单 ORD-2026-005 的详情,包含明细' },
+        { label: '建跟进任务', text: '给客户 C001 创建一个回访任务,并发内部邮件通知经理赵六' },
+        { label: '对比客户', text: '对比一下 C001 和 C002 两个客户的累计销售额' },
+        { label: '客户排名', text: '所有客户里谁的累计销售额最高,给出前三名' },
+        { label: '提成政策', text: '销售提成政策是怎么规定的?' },
+        { label: '发外部邮件(需审批)', text: '给客户 C001 的联系人张经理发一封外部邮件,邮箱 zhang@huaxin-tech.com,主题:续约报价,正文:本季度续约报价请查收' },
+        { label: '查审批进度', text: '我的审批到哪了' },
+      ];
+      const cs = [
+        { label: '查工单 TK-EXIST004', text: '查询工单 TK-EXIST004 退款申请的详情,客户 C002' },
+        { label: '更新工单 TK-EXIST002', text: '把工单 TK-EXIST002 的状态更新为 resolved,备注:已确认支持批量导入' },
+        { label: '售后政策', text: '退款政策是怎样的' },
+        { label: 'SLA 标准', text: 'P0 故障的响应时间是多少' },
+        { label: '发外部邮件(无权演示)', text: '给外部客户 wang@external.com 发封邮件,同步续约报价' },
+        { label: '数据分析(无权演示)', text: '统计一下所有客户的订单总额' },
+      ];
+      const fin = [
+        { label: '预算冻结线', text: '预算冻结线是多少' },
+        { label: '查退款订单 ORD-2026-008', text: '查询订单 ORD-2026-008 的详情,确认退款状态' },
+        { label: '差旅报销', text: '差旅费的报销标准是什么' },
+        { label: '转账限额', text: '资金转账的审批权限是怎么规定的' },
+      ];
+      const mgr = [
+        { label: '对比客户', text: '对比一下 C001 和 C002 两个客户的累计销售额' },
+        { label: '客户排名', text: '所有客户里谁的累计销售额最高,给出前三名' },
+        { label: '订单状态分布', text: '统计所有订单的状态分布,有多少笔 pending 待付款' },
+        { label: 'Saga 三步', text: '查一下客户 C005 的信息,然后为她创建一个 urgent 工单跟踪数据分析 bug,最后发内部邮件给经理赵六说明处理进展' },
+        { label: '发外部邮件', text: '给外部客户王总 wang@external.com 发邮件,主题:续约报价,正文:本季度续约报价请查收' },
+        { label: '查待审批', text: '查看我待审批的批量请求' },
+      ];
+      const groups = [{ cat: '通用', items: common }];
+      if (this.role === 'salesperson') groups.push({ cat: '销售场景', items: sales });
+      if (this.role === 'customer_service') groups.push({ cat: '客服场景', items: cs });
+      if (this.role === 'finance') groups.push({ cat: '财务场景', items: fin });
+      if (['manager', 'admin'].includes(this.role)) {
+        groups.push({ cat: '管理场景', items: mgr });
+        groups.push({ cat: '销售场景', items: sales });
+        groups.push({ cat: '客服场景', items: cs });
+        groups.push({ cat: '财务场景', items: fin });
+      }
+      return groups;
+    },
+  },
+  methods: {
+    showToast(msg, ms = 2600) {
+      this.toast = msg;
+      setTimeout(() => (this.toast = ''), ms);
+    },
+    async api(path, opts = {}) {
+      const headers = { 'Content-Type': 'application/json; charset=utf-8', ...(opts.headers || {}) };
+      if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
+      const resp = await fetch(path, { ...opts, headers });
+      if (resp.status === 401) { this.doLogout(); throw new Error('登录已过期,请重新登录'); }
+      const text = await resp.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = text; }
+      if (!resp.ok) {
+        const detail = (data && data.detail) ? data.detail : ('HTTP ' + resp.status);
+        throw new Error(detail);
+      }
+      return data;
+    },
+    renderMd(text) {
+      if (!text) return '';
+      // CommonMark 侧翼规则:闭合 ** 前是标点(如 %)且后紧跟中文时不算加粗,
+      // 「**5%-10%**需…」会漏渲染成字面星号——先把 **x** 统一转 <strong> 再走 marked
+      const pre = String(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+      try { return DOMPurify.sanitize(marked.parse(pre)); } catch { return text; }
+    },
+    fmtTime(t) {
+      if (!t) return '';
+      // DB 是 UTC 朴素时间戳(PG 容器时区 UTC + TIMESTAMP 无时区),
+      // API 原样输出不带偏移——这里按 UTC 解析,转浏览器本地时区显示
+      const s = String(t);
+      const hasTz = /(Z|[+-]\d{2}:?\d{2})$/.test(s);
+      const d = new Date(s.replace(' ', 'T') + (hasTz ? '' : 'Z'));
+      if (isNaN(d)) return s.replace('T', ' ').slice(0, 19);
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} `
+        + `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    },
+    intentLabel(t) {
+      const m = { knowledge_qa: '知识问答', data_operation: '数据操作', multi_task: '多步任务',
+        approval: '审批流程', analysis: '数据分析', general: '通用对话', chat: '通用对话' };
+      return m[t] || t;
+    },
+    sceneCatIcon(cat) {
+      const m = { '通用': '💬', '销售场景': '💼', '客服场景': '🎧', '财务场景': '💰', '管理场景': '📊' };
+      return m[cat] || '📌';
+    },
+    useScene(s) { this.draft = s.text; this.sceneOpen = false; },
+    useSuggestion(s) { this.draft = s.text; this.sendChat(); },
+    ask(text) { this.draft = text; this.tab = 'chat'; this.$nextTick(() => this.$refs && this.$refs.chatBody && this.$refs.chatBody.focus && this.$refs.chatBody.focus()); },
+
+    // ===== auth =====
+    pickUser(u) { this.loginName = u.username; this.pickerOpen = false; this.loginErr = ''; },
+    async doLogin() {
+      this.loginErr = '';
+      if (!this.loginName.trim()) { this.loginErr = '请输入用户名'; return; }
+      this.logging = true;
+      try {
+        const d = await this.api('/api/v1/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ username: this.loginName.trim() }),
+        });
+        this.token = d.access_token;
+        this.role = d.role;
+        this.username = this.loginName.trim();
+        // 优先用登录响应里的部门(非种子用户也有),fallback 到 seedUsers
+        const u = this.seedUsers.find(x => x.username === this.username);
+        this.userDept = d.department || (u ? u.department : '');
+        localStorage.setItem('ea_token', this.token);
+        localStorage.setItem('ea_role', this.role);
+        localStorage.setItem('ea_username', this.username);
+        localStorage.setItem('ea_dept', this.userDept);
+      } catch (e) {
+        this.loginErr = e.message;
+      } finally {
+        this.logging = false;
+      }
+    },
+    doLogout() {
+      ['ea_token', 'ea_role', 'ea_username', 'ea_sid', 'ea_dept'].forEach(k => localStorage.removeItem(k));
+      this.token = ''; this.role = ''; this.username = ''; this.userDept = '';
+      this.messages = []; this.sessionId = '';
+      // 清掉进行中的请求状态,避免重登后卡在 pending-bar
+      this.pending = false;
+      clearInterval(this._timer);
+      if (this._abort) { try { this._abort.abort(); } catch (e) {} }
+      this.progressText = ''; this.elapsed = 0;
+      this.tab = 'chat';
+    },
+    openTab(t) {
+      this.tab = t;
+      if (t === 'approval') { this.loadApprovals(); this.loadMine(); this.loadHandled(); }
+      if (t === 'prompt') this.loadPrompts();
+      if (t === 'status') this.loadStatus();
+    },
+
+    // ===== chat =====
+    newSession() {
+      this.sessionId = '';
+      localStorage.removeItem('ea_sid');
+      this.messages = [];
+      this.showToast('已开始新会话');
+    },
+    progressLabel(ev) {
+      const names = { planner: '意图识别', agent_executor: '子任务执行', aggregator: '结果汇总' };
+      const n = names[ev.node] || ev.node;
+      return ev.phase === 'start' ? `⏳ ${n}…` : `✓ ${n}完成`;
+    },
+    async sendChat() {
+      const text = this.draft.trim();
+      if (!text || this.pending) return;
+      this.messages.push({ role: 'user', text });
+      this.draft = '';
+      this.scrollBottom();
+      this.pending = true;
+      this.elapsed = 0;
+      this.progressText = '⏳ 正在规划…';
+      this._timer = setInterval(() => this.elapsed++, 1000);
+      this._abort = new AbortController();
+      const agentMsg = { role: 'agent', text: '', sources: [], intent: '' };
+      let pushed = false;
+      const ensurePush = () => { if (!pushed) { this.messages.push(agentMsg); pushed = true; } };
+      try {
+        const body = { message: text };
+        if (this.sessionId) body.session_id = this.sessionId;
+        const resp = await fetch('/api/v1/chat/stream', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': 'Bearer ' + this.token,
+          },
+          body: JSON.stringify(body),
+          signal: this._abort.signal,
+        });
+        if (resp.status === 401) { this.doLogout(); throw new Error('登录已过期,请重新登录'); }
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let idx;
+          while ((idx = buf.indexOf('\n\n')) >= 0) {
+            const raw = buf.slice(0, idx);
+            buf = buf.slice(idx + 2);
+            const line = raw.split('\n').find(l => l.startsWith('data: '));
+            if (!line) continue;
+            const ev = JSON.parse(line.slice(6));
+            // 流式事件携带 session_id,首轮对话即可取消(不必等 final)
+            if (ev.session_id && !this.sessionId) {
+              this.sessionId = ev.session_id;
+              localStorage.setItem('ea_sid', this.sessionId);
+            }
+            if (ev.type === 'progress') {
+              this.progressText = this.progressLabel(ev);
+            } else if (ev.type === 'token') {
+              ensurePush();
+              agentMsg.text += ev.data;
+              this.scrollBottom();
+            } else if (ev.type === 'final') {
+              const d = ev.data;
+              this.sessionId = d.session_id;
+              localStorage.setItem('ea_sid', this.sessionId);
+              this.backend = d.checkpointer_backend || '';
+              ensurePush();
+              if (!agentMsg.text) agentMsg.text = d.answer || '(空回复)';
+              agentMsg.sources = (d.sources || []).map(s => (s && s.kwargs) ? s.kwargs : s);
+              agentMsg.confidence = d.confidence;
+              agentMsg.intent = d.intent;
+              agentMsg.latencyMs = d.latency_ms;
+              agentMsg.cancelled = d.intent === 'cancelled';
+            } else if (ev.type === 'cancelled') {
+              ensurePush();
+              if (!agentMsg.text) agentMsg.text = '本次对话已取消。';
+              agentMsg.intent = 'cancelled';
+              agentMsg.cancelled = true;
+            } else if (ev.type === 'error') {
+              ensurePush();
+              agentMsg.text = '❌ ' + ev.data;
+              agentMsg.intent = 'error';
+            }
+          }
+        }
+        if (pushed && !agentMsg.text) agentMsg.text = '(无内容)';
+      } catch (e) {
+        if (!this.token) {
+          // 已登出(401 触发 doLogout 清空了 messages),不再推错误气泡
+        } else if (e.name === 'AbortError') {
+          ensurePush();
+          if (!agentMsg.text) agentMsg.text = '⚠️ 已中止等待。';
+          agentMsg.intent = agentMsg.intent || 'cancelled';
+          agentMsg.cancelled = true;
+        } else {
+          this.messages.push({ role: 'agent', text: '❌ ' + e.message, intent: 'error' });
+        }
+      } finally {
+        this.pending = false;
+        clearInterval(this._timer);
+        this.progressText = '';
+        this.scrollBottom();
+      }
+    },
+    async cancelChat() {
+      if (!this.sessionId) { this.showToast('无会话可取消'); return; }
+      try {
+        const d = await this.api('/api/v1/chat/cancel', {
+          method: 'POST',
+          body: JSON.stringify({ session_id: this.sessionId }),
+        });
+        this.showToast(d.cancelled ? '已请求取消' : '任务已结束或不存在');
+        if (this._abort) this._abort.abort();
+      } catch (e) {
+        this.showToast('取消失败:' + e.message);
+      }
+    },
+    async sendFeedback(m, type) {
+      if (!this.sessionId || m.fb) return;
+      let comment = '';
+      if (type === 'dislike') {
+        const r = window.prompt('点踩原因(将用于生成知识候选草稿):');
+        if (r === null) return; // 用户取消,不发请求
+        comment = r;
+      }
+      try {
+        await this.api('/api/v1/chat/feedback', {
+          method: 'POST',
+          body: JSON.stringify({ session_id: this.sessionId, feedback_type: type, comment }),
+        });
+        m.fb = type;
+        this.showToast(type === 'like' ? '感谢反馈' : (comment.trim() ? '已记录,负反馈将生成知识候选草稿' : '已记录点踩(未填原因,不生成草稿)'));
+      } catch (e) {
+        this.showToast('反馈失败:' + e.message);
+      }
+    },
+    async loadHistory() {
+      try {
+        const d = await this.api('/api/v1/chat/history/' + this.sessionId);
+        if (!d.found) { this.showToast('未找到历史' + (d.session_status ? '(状态:' + d.session_status + ')' : '')); return; }
+        this.messages.push({
+          role: 'agent',
+          text: `📜 历史快照(step=${d.step}, backend=${d.checkpointer_backend}):\n\n**意图**: ${d.intent}\n\n**最近回答**: ${d.final_answer || '(无)'}`,
+          intent: 'history', confidence: d.confidence,
+        });
+        this.scrollBottom();
+      } catch (e) {
+        this.showToast('读取历史失败:' + e.message);
+      }
+    },
+    scrollBottom() {
+      this.$nextTick(() => {
+        const el = this.$refs.chatBody;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    // ===== approval =====
+    async loadApprovals() {
+      if (!this.isApprover) return;
+      try {
+        const d = await this.api('/api/v1/approvals/pending');
+        this.approvals = d.items || [];
+      } catch (e) {
+        this.showToast('加载审批列表失败:' + e.message);
+      }
+    },
+    async loadMine() {
+      try {
+        const d = await this.api('/api/v1/approvals/mine');
+        this.myApprovals = d.items || [];
+      } catch (e) {
+        this.showToast('加载我的审批失败:' + e.message);
+      }
+    },
+    async loadHandled() {
+      if (!this.isApprover) return;
+      try {
+        const d = await this.api('/api/v1/approvals/handled');
+        this.handledApprovals = d.items || [];
+      } catch (e) {
+        this.showToast('加载经手记录失败:' + e.message);
+      }
+    },
+    statusLabel(s) {
+      const m = {
+        pending: '待审批',
+        executed: '已执行',
+        approved: '已批准',
+        rejected: '已拒绝',
+        approved_pending_reauth: '已批准·待恢复',
+        timeout: '已超时',
+      };
+      return m[s] || s;
+    },
+    statusClass(s) {
+      const m = {
+        pending: 'orange',
+        executed: 'green',
+        approved: 'green',
+        rejected: 'gray',
+        approved_pending_reauth: 'purple',
+        timeout: 'gray',
+      };
+      return m[s] || 'gray';
+    },
+    async resume(m) {
+      try {
+        const d = await this.api('/api/v1/pending-executions/' + m.approval_id + '/resume', {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+        this.showToast(d.message || d.status);
+        this.loadMine();
+      } catch (e) {
+        this.showToast('恢复执行失败:' + e.message);
+      }
+    },
+    async decide(a, decision) {
+      const comment = window.prompt((decision === 'approved' ? '批准' : '拒绝') + '意见(可空):') ?? '';
+      try {
+        const d = await this.api('/api/v1/approval/' + a.approval_id + '/decide', {
+          method: 'POST',
+          body: JSON.stringify({ decision, comment }),
+        });
+        a.result = d.message || d.status;
+        this.showToast('已' + (decision === 'approved' ? '批准' : '拒绝') + ':' + (d.message || d.status));
+        setTimeout(() => { this.loadApprovals(); this.loadMine(); this.loadHandled(); }, 1200);
+      } catch (e) {
+        this.showToast('审批失败:' + e.message);
+      }
+    },
+
+    // ===== prompts =====
+    async loadPrompts() {
+      try {
+        const d = await this.api('/api/v1/prompts');
+        this.prompts = d.prompts || {};
+      } catch (e) {
+        this.showToast('加载 prompt 列表失败:' + e.message);
+      }
+    },
+    async createVersion(name) {
+      const content = (this.promptDrafts[name] || '').trim();
+      if (!content) { this.showToast('请先填写新版本内容'); return; }
+      try {
+        const d = await this.api('/api/v1/prompts/' + name + '/versions', {
+          method: 'POST', body: JSON.stringify({ content }),
+        });
+        this.showToast(`已创建 ${name} v${d.version}(draft)`);
+        this.promptDrafts[name] = '';
+        this.loadPrompts();
+      } catch (e) {
+        this.showToast('创建失败:' + e.message);
+      }
+    },
+    async activate(name) {
+      const v = this.activateVer[name];
+      if (!v) { this.showToast('请输入要激活的版本号'); return; }
+      try {
+        await this.api('/api/v1/prompts/' + name + '/activate', {
+          method: 'POST',
+          body: JSON.stringify({ version: v, archive_others: !!this.archiveOthers[name] }),
+        });
+        this.showToast(`已激活 ${name} v${v}`);
+        this.loadPrompts();
+      } catch (e) {
+        this.showToast('激活失败:' + e.message);
+      }
+    },
+    async setTraffic(name, versions) {
+      const weights = {};
+      for (const v of versions.filter(x => x.status === 'active')) {
+        const w = this.weights[name + '_' + v.version];
+        if (w !== undefined && w !== null && w !== '') weights[String(v.version)] = Number(w);
+      }
+      if (Object.keys(weights).length === 0) { this.showToast('请先填写权重'); return; }
+      try {
+        await this.api('/api/v1/prompts/' + name + '/traffic', {
+          method: 'PUT', body: JSON.stringify({ weights }),
+        });
+        this.showToast('流量权重已更新');
+        this.loadPrompts();
+      } catch (e) {
+        this.showToast('设置失败:' + e.message);
+      }
+    },
+
+    // ===== status =====
+    async loadStatus() {
+      try { this.status = await this.api('/ready'); }
+      catch (e) { this.showToast('加载状态失败:' + e.message); }
+    },
+  },
+  mounted() {
+    document.addEventListener('click', () => { this.pickerOpen = false; });
+    if (this.token) this.openTab('chat');
+  },
+}).mount('#app');
+</script>
+</body>
+</html>
