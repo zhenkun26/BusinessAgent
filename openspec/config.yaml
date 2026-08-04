@@ -3,11 +3,25 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  「Hello，小A——企业知识工作流 Agent」学习与演示项目：基于 LangChain + LangGraph + Milvus
+  的企业级多 Agent 系统，员工用自然语言完成知识问答、数据分析、业务执行三类工作。
+
+  技术栈：Python 3.11+ / FastAPI / LangGraph 1.2+ / LangChain 1.x / Milvus 2.4 / PostgreSQL 16 /
+  Redis 7(redis-stack-server) / Ollama 本地 qwen3.5:4b / bge-m3 与 bge-reranker 本地模型 /
+  DeepSeek v4-pro(primary) 与 v4-flash(lite 降级)。
+
+  工程约定：PEP 8、行宽 100、全量类型注解、异步代码优先、类在 __init__ 初始化全部属性；
+  密钥只从环境变量读取(.env 永不提交)；SQL 一律参数化；外部 API 调用设置超时与重试；
+  所有外部输入视为不可信；破坏性操作先与用户确认；修改后端行为后运行 eval/ 脚本验证。
+
+  文档规范：文档统一存放在 docs/ 六大层(10-product-plan 产品方案 / 20-product 产品文档 /
+  30-guides 操作手册 / 40-process 过程记录 / 50-engineering 工程文档 / 60-knowledge 知识数据库
+  + 90-archive 归档)；面试与演示资产在 interview/；根目录 contents.md 为目录树索引、
+  CHANGELOG.md 为版本变更、README.md 为唯一导航入口；ROADMAP/DECISIONS/ISSUES 各为单一事实源。
+
+  当前在途：openspec change complete-business-processes(业务闭环补齐，知识运营/审批超时/重规划/
+  外部系统/用户生命周期/测试闭环，0/41 任务) 与 documentation-baseline(文档基线，实施中)。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
