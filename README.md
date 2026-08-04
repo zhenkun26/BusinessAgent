@@ -30,6 +30,11 @@
 
 ## 🏗️ 架构总览
 
+![BusinessAgent 架构总览](docs/assets/architecture.png)
+
+<details>
+<summary>查看 mermaid 源码版本</summary>
+
 ```mermaid
 flowchart TD
     U["员工(浏览器 /ui 或 API)"] --> A["FastAPI + uvicorn(多副本)"]
@@ -44,6 +49,8 @@ flowchart TD
     W["Worker 常驻:审批超时扫描 · 任务队列 · 审计回写"] -.-> PG
     W -.-> RD
 ```
+
+</details>
 
 ## 🚀 快速开始
 
