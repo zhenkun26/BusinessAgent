@@ -14,6 +14,14 @@
 - 验证：`/health` healthy、登录 200、`/ui` 200、`/ui**` 自动重定向 200。
 - 注意：知识问答仍需 Milvus + 本地模型（bge-m3/reranker），`.env` 模型路径为 Windows 路径，本机未配置。
 
+### I-10 本机原生 Redis 与 Docker Redis 端口冲突（2026-08-04）
+
+- 状态：fixed · 优先级 P2
+- 现象：限流器报「AUTH called without any password configured」降级内存；checkpointer 降级 PG 后报 NotImplementedError，聊天全部失败。
+- 根因：macOS 原生 Homebrew Redis（`homebrew.mxcl.redis`，无密码）监听 127.0.0.1:6379，把 Docker Redis（带 requirepass）在 IPv4 回环上遮蔽；应用连 localhost 时命中原生 Redis，认证必然失败。
+- 修复：`brew services stop redis` 解除占用（可逆：`brew services start redis` 恢复）；启动脚本 `启动小A.command` 增加 6379 冲突自检。
+- 验证：限流器「Redis(生产模式)」、Redis Checkpointer 初始化成功、聊天 66ms 返回、`/ready` db/milvus healthy。
+
 ### I-01 压测未做
 
 - 状态：open · 优先级 P3

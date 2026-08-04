@@ -32,10 +32,20 @@ fi
 # 2. 基础设施:PG + Redis(必需);Milvus 可选(首次拉镜像较慢,注释掉则跳过)
 cd "$API_DIR"
 echo "== 启动 PostgreSQL + Redis =="
+
+# 6379 端口冲突自检:本机若有原生 Redis(如 brew 服务)占用 localhost:6379,
+# 会遮蔽 Docker Redis 导致认证失败/限流降级。提示用户停止后重试。
+if lsof -iTCP:6379 -sTCP:LISTEN -P 2>/dev/null | grep -v 'com.docke' | grep -q 'redis'; then
+  echo "!! 检测到非 Docker 的 Redis 占用 6379 端口(常见为 Homebrew 服务)。"
+  echo "   请先执行: brew services stop redis"
+  echo "   再重新运行本脚本。(恢复: brew services start redis)"
+  exit 1
+fi
+
 docker compose up -d postgres redis
 
-# 如需向量检索,取消下一行注释(首次会拉取约 2.5GB 镜像)
-# docker compose up -d etcd minio milvus-standalone
+# 向量检索(Milvus + etcd + MinIO;首次会拉取约 2.5GB 镜像)
+docker compose up -d etcd minio milvus-standalone
 
 # 3. 数据库初始化(幂等:已有表/数据会自动跳过)
 echo "== 初始化数据库(幂等) =="
