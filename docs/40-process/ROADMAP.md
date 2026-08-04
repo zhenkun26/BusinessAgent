@@ -19,13 +19,13 @@
 | P1 | 分析/审批/审计/反馈 | ✅ | AnalysisAgent、审批流打通、审计 6 类事件、反馈循环 |
 | P2 | 体验与验证补强 | ✅ | Prompt 版本管理、取消机制、命名空间隔离、sessions 梳理 |
 | P2 后续 | 前端与流式 | ✅ | 单文件 SPA、SSE 流式、/metrics、前端 v2/v3、审批进度跟踪 |
+| 生产对抗性审查 | 2026-08-04 | ✅ | 12 项漏洞修复、36 项测试、1000 并发 0 失败、生产镜像与 K8s 清单 |
+| 业务闭环补全 | 2026-08-04 | ✅ | openspec complete-business-processes 41/41 完成并归档(v1.1.0) |
+| 项目归档完结 | 2026-08-04 | ✅ | 两个 change 全部归档、主规格 10 项、v1.2.0 收口 |
 
 ## 二、进行中
 
-| Change | 主题 | 进度 | 说明 |
-|---|---|---|---|
-| `documentation-baseline` | 文档基线（Git/目录/记录/openspec） | 实施中 | 根目录清理、docs/ 分层、contents.md、CHANGELOG、ROADMAP/DECISIONS/ISSUES、主规格沉淀 |
-| `complete-business-processes` | 业务闭环补齐 | 0/41 任务 | 知识运营 / 审批超时 / 重规划 / 外部系统 / 用户生命周期 / 测试闭环 |
+当前无进行中 change；新需求按 openspec 生命周期（propose → apply → archive）重新开启。
 
 ## 三、挂起事项（P3，暂不上线）
 

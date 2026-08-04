@@ -85,6 +85,17 @@ else
   curl -s -o /dev/null "http://localhost:$PORT/health" || { echo "!! API 启动失败,请查看上方日志"; exit 1; }
 fi
 
+# 5.1 启动 Worker(审批超时扫描/任务队列/审计回写;已运行则跳过)
+if pgrep -f "app.worker" >/dev/null 2>&1; then
+  echo "== Worker 已在运行 =="
+else
+  echo "== 启动 Worker(后台任务) =="
+  (
+    cd "$API_DIR"
+    nohup env PYTHONIOENCODING=utf-8 "$VENV_PY" -m app.worker > "$API_DIR/logs/worker.log" 2>&1 &
+  )
+fi
+
 # 6. 打开页面
 echo "== 打开 http://localhost:$PORT/ui =="
 open "http://localhost:$PORT/ui"

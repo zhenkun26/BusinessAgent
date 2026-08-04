@@ -1,6 +1,6 @@
 # Hello，小A——企业知识工作流 Agent
 
-> 当前版本:v1.1.0(2026-08-04 业务闭环补全;版本单一事实源见 `app/__init__.py`,变更记录见根目录 `CHANGELOG.md`)
+> 当前版本:v1.2.0(2026-08-04 项目归档完结;版本单一事实源见 `app/__init__.py`,变更记录见根目录 `CHANGELOG.md`)
 
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统。
 

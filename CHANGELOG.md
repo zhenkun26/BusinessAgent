@@ -8,6 +8,29 @@
 > 单一事实源:`enterprise-agent/app/__init__.py` 的 `__version__`;
 > 升级时同步 `pyproject.toml`、本文件、核心文档版本头,并打 Git tag `vX.Y.Z`。
 
+## v1.2.0 · 项目归档完结（2026-08-04）
+
+> Git tag:`v1.2.0`
+
+### 里程碑说明
+
+两个 openspec change 全部归档,openspec 生命周期闭环:
+
+- `documentation-baseline` → `openspec/changes/archive/2026-08-04-documentation-baseline/`
+- `complete-business-processes` → `openspec/changes/archive/2026-08-04-complete-business-processes/`
+- 主规格:10 项能力规格(4 文档类 + 6 业务类),`openspec validate --all` 全部通过
+- 当前无进行中 change;新需求按 propose → apply → archive 重新开启
+
+### 变更
+
+- Worker 纳入一键启动(`启动小A.command`),后台运行审批超时扫描/任务队列/审计回写(实测启动即回写 147 条缓存审计)。
+- ROADMAP 更新:两 change 移入已完成里程碑,进行中区清空。
+- CI 全绿:main 与 tag 推送的测试(3.11/3.13)+ 镜像构建 3/3 通过。
+
+### 兼容性说明
+
+- 无 API 契约变化;归档仅移动 openspec 目录与规格沉淀,不影响运行。
+
 ## v1.1.0 · 业务闭环补全（2026-08-04）
 
 > 对应 openspec change:`complete-business-processes`(41/41 任务完成)

@@ -1,6 +1,6 @@
 # Hello，小A——企业知识工作流 Agent
 
-[![版本](https://img.shields.io/badge/版本-v1.1.0-1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
+[![版本](https://img.shields.io/badge/版本-v1.2.0-1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
 [![CI](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-1.2-1C3C3C)](https://github.com/langchain-ai/langgraph)
@@ -12,7 +12,7 @@
 [![K8s](https://img.shields.io/badge/Kubernetes-清单就绪-326CE5)](enterprise-agent/deploy/k8s)
 [![License](https://img.shields.io/badge/License-未指定-gray)](https://github.com/zhenkun26/BusinessAgent)
 
-> 当前版本:v1.1.0(2026-08-04 业务闭环补全)
+> 当前版本:v1.2.0(2026-08-04 项目归档完结)
 
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统：员工用自然语言一站式完成 **知识问答、数据分析、业务执行**，带权限隔离、审批闭环、全栈降级。
 
