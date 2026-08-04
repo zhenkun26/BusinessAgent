@@ -21,6 +21,8 @@ from typing import Optional
 
 from loguru import logger
 
+from app import __version__
+
 # 全局 tracer(懒加载)
 _tracer: Optional[object] = None
 _initialized: bool = False
@@ -60,7 +62,7 @@ def init_tracing(service_name: str = "enterprise-agent") -> bool:
         resource = Resource.create(
             {
                 "service.name": service_name,
-                "service.version": "0.1.0",
+                "service.version": __version__,
                 "deployment.env": os.environ.get("APP_ENV", "dev"),
             }
         )

@@ -51,6 +51,7 @@ python -m eval.run_w9_tracing
 - 所有外部输入视为不可信，使用前校验；涉及删除、清库等破坏性操作先与用户确认。
 - 修改后端行为后运行相关 `eval/` 脚本验证；新增公共接口时补充单元测试。
 - 保持根目录中文文档与代码同步，重要变更同步更新 README 或对应手册。
+- 版本管理：项目版本单一事实源为 `enterprise-agent/app/__init__.py` 的 `__version__`（语义化版本）；升级时同步 `pyproject.toml`、`CHANGELOG.md`、核心文档版本头并打 Git tag `vX.Y.Z`。
 
 ## 关键文档
 

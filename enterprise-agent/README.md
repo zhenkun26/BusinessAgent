@@ -1,5 +1,7 @@
 # Hello，小A——企业知识工作流 Agent
 
+> 当前版本:v1.0.0(2026-08-04 生产级基线;版本单一事实源见 `app/__init__.py`,变更记录见根目录 `CHANGELOG.md`)
+
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统。
 
 ## 快速开始

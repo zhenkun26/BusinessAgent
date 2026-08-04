@@ -10,6 +10,7 @@ from loguru import logger
 
 from app.config import get_settings, validate_production_settings
 from app.api import chat, approval, auth, prompts, admin
+from app import __version__
 from app.core.database import init_db
 from app.core.milvus_client import init_milvus
 from app.middleware.rate_limit import rate_limit_middleware
@@ -101,7 +102,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Hello，小A——企业知识工作流 Agent",
         description="基于 LangChain + LangGraph + Milvus 的企业级多 Agent 系统",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
@@ -180,7 +181,7 @@ def create_app() -> FastAPI:
     # 健康检查
     @app.get("/health", tags=["运维"])
     async def health():
-        return {"status": "healthy", "version": "0.1.0"}
+        return {"status": "healthy", "version": __version__}
 
     @app.get("/ready", tags=["运维"])
     async def ready():

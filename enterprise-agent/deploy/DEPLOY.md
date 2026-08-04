@@ -174,7 +174,7 @@ docker compose -f docker-compose.prod.yml ps
 
 # 2. 健康检查
 curl -k https://localhost/health
-# 期望: {"status":"healthy","version":"0.1.0"}
+# 期望: {"status":"healthy","version":"1.0.0"}
 
 # 3. 就绪检查
 curl -k https://localhost/ready

@@ -1,5 +1,7 @@
 # Hello，小A——企业知识工作流 Agent
 
+> 当前版本:v1.0.0(2026-08-04 生产级基线)
+
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统：员工用自然语言一站式完成 **知识问答、数据分析、业务执行**，带权限隔离、审批闭环、全栈降级。
 
 > 本文件是全仓库唯一导航入口。目录索引见 [contents.md](contents.md)，版本变更见 [CHANGELOG.md](CHANGELOG.md)，Codex 工程约定见 [AGENTS.md](AGENTS.md)。

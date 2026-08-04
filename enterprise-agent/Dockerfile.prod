@@ -11,6 +11,7 @@
 # ============================================================
 
 ARG INSTALL_ML=0
+ARG APP_VERSION=1.0.0
 
 # ---------- Stage 1: Builder ----------
 FROM python:3.13-slim AS builder
@@ -45,7 +46,7 @@ FROM python:3.13-slim AS runner
 
 LABEL org.opencontainers.image.title="Hello 小A enterprise agent" \
       org.opencontainers.image.description="企业知识工作流 Agent 生产镜像(精简)" \
-      org.opencontainers.image.version="0.1.0"
+      org.opencontainers.image.version="${APP_VERSION}"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
