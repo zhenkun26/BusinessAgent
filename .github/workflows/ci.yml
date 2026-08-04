@@ -34,7 +34,7 @@ jobs:
 
       - name: 安装依赖（离线测试无需 Docker/LLM/向量库）
         run: |
-          pip install -r deploy/requirements-prod.txt
+          pip install -r enterprise-agent/deploy/requirements-prod.txt
           pip install pytest pytest-asyncio pytest-cov
 
       - name: 运行单元测试 + 覆盖率
