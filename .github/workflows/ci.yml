@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 单元测试（Python ${{ matrix.python-version }}）
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: 安装依赖（离线测试无需 Docker/LLM/向量库）
+        run: |
+          pip install -r deploy/requirements-prod.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: 运行单元测试 + 覆盖率
+        working-directory: enterprise-agent
+        run: |
+          PYTHONPATH=. python -m pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml
+
+      - name: 上传覆盖率报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: enterprise-agent/coverage.xml
+          if-no-files-found: ignore
+
+  docker:
+    name: 构建生产镜像（多阶段）
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 构建镜像（PR 只构建不推送）
+        uses: docker/build-push-action@v6
+        with:
+          context: enterprise-agent
+          file: enterprise-agent/Dockerfile.prod
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
