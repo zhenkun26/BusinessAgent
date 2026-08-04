@@ -778,6 +778,9 @@ createApp({
       setTimeout(() => (this.toast = ''), ms);
     },
     async api(path, opts = {}) {
+      if (location.protocol === 'file:') {
+        throw new Error('页面需通过 http://localhost:8000/ui 打开(当前为 file:// 直开,无法连接后端)');
+      }
       const headers = { 'Content-Type': 'application/json; charset=utf-8', ...(opts.headers || {}) };
       if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
       const resp = await fetch(path, { ...opts, headers });
@@ -1186,6 +1189,11 @@ createApp({
   },
   mounted() {
     document.addEventListener('click', () => { this.pickerOpen = false; });
+    if (location.protocol === 'file:') {
+      // 直接双击 index.html 打开时无法访问后端,给出明确指引而非"Failed to fetch"
+      this.loginErr = '⚠️ 请通过 http://localhost:8000/ui 访问本系统(当前以 file:// 打开,无法连接后端)';
+      return;
+    }
     if (this.token) this.openTab('chat');
   },
 }).mount('#app');
