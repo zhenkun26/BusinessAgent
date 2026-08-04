@@ -118,6 +118,68 @@ class AuditLogger:
         except Exception as e:
             logger.error(f"审计日志本地缓存写入失败: {e}")
 
+    async def flush_local_cache(self) -> int:
+        """将本地缓存审计逐条回写 PG(worker 启动时调用)
+
+        数据库故障期间 audit_logs 写入本地缓存;恢复后回写避免审计丢失。
+        回写成功即删除对应缓存文件;失败保留并在下次重试。
+
+        Returns:
+            成功回写并删除的条数
+        """
+        from app.core.database import get_session_factory
+
+        if not os.path.isdir(self.local_cache):
+            return 0
+        try:
+            factory = get_session_factory()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"审计缓存回写: 数据库未就绪,跳过: {e}")
+            return 0
+
+        synced_count = 0
+        for filename in sorted(os.listdir(self.local_cache)):
+            if not filename.endswith(".json"):
+                continue
+            file_path = os.path.join(self.local_cache, filename)
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    record = json.load(f)
+                async with factory() as session:
+                    await session.execute(
+                        text(
+                            "INSERT INTO audit_logs (event_type, session_id, user_id, "
+                            "tool_name, input_summary, output_summary, success, "
+                            "latency_ms, payload) "
+                            "VALUES (:event_type, :session_id, :user_id, :tool_name, "
+                            ":input_summary, :output_summary, :success, :latency_ms, "
+                            "CAST(:payload AS JSONB))"
+                        ),
+                        {
+                            "event_type": record.get("event_type", "unknown"),
+                            "session_id": record.get("session_id"),
+                            "user_id": record.get("user_id"),
+                            "tool_name": record.get("tool_name"),
+                            "input_summary": (record.get("input_summary") or "")[:500],
+                            "output_summary": (record.get("output_summary") or "")[:500],
+                            "success": record.get("success"),
+                            "latency_ms": record.get("latency_ms"),
+                            "payload": (
+                                json.dumps(record.get("payload"), ensure_ascii=False)
+                                if record.get("payload") is not None
+                                else None
+                            ),
+                        },
+                    )
+                    await session.commit()
+                os.remove(file_path)
+                synced_count += 1
+            except Exception as e:  # noqa: BLE001 单条失败保留文件,下次重试
+                logger.warning(f"审计缓存回写失败,保留待重试: {filename}: {e}")
+        if synced_count:
+            logger.info(f"审计缓存回写完成: {synced_count} 条")
+        return synced_count
+
     async def _send_alert(self, message: str):
         """告警(实际接入告警系统)"""
         logger.error(f"[AUDIT ALERT] {message}")

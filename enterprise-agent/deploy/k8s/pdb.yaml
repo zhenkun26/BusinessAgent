@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agent-api-pdb
+  namespace: hello-xiao-a
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: agent-api

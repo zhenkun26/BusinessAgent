@@ -7,6 +7,7 @@ from typing import Optional
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -102,7 +103,13 @@ class UserContext(BaseModel):
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
 ) -> User:
-    """FastAPI 依赖:从 JWT 解析当前用户"""
+    """FastAPI 依赖:从 JWT 解析当前用户
+
+    安全加固(auth_check_db):
+    - 默认每次请求回查 users 表,用户被禁用/删除后旧 token 立即失效;
+      角色/部门变更对后续请求即时生效(不再依赖 token 内的陈旧 claim)。
+    - 数据库不可用时降级为仅 JWT 校验并告警(保持可用性,但禁用即时性降级)。
+    """
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -122,14 +129,50 @@ async def get_current_user(
     except jwt.PyJWTError:
         raise HTTPException(401, "Token 无效")
 
-    # 返回简化用户对象(避免每次查库)
-    return User(
+    payload_user = User(
         user_id=payload["sub"],
         username=payload.get("username", ""),
         role=payload.get("role", "salesperson"),
         department=payload.get("department"),
         is_active=True,
     )
+
+    settings = get_settings()
+    if not settings.auth_check_db:
+        return payload_user
+
+    try:
+        from app.core.database import get_session_factory
+        from sqlalchemy import text
+
+        factory = get_session_factory()
+        async with factory() as session:
+            row = (
+                await session.execute(
+                    text(
+                        "SELECT username, role, department, is_active "
+                        "FROM users WHERE user_id = :uid"
+                    ),
+                    {"uid": payload_user.user_id},
+                )
+            ).fetchone()
+        if row is None:
+            # 用户已删除:旧 token 立即失效
+            raise HTTPException(401, "用户不存在或已被禁用")
+        if not row.is_active:
+            raise HTTPException(401, "用户不存在或已被禁用")
+        return User(
+            user_id=payload_user.user_id,
+            username=row.username or payload_user.username,
+            role=row.role or payload_user.role,
+            department=row.department,
+            is_active=True,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 数据库故障不阻断请求,降级 JWT 校验
+        logger.warning(f"get_current_user 数据库校验失败,降级 JWT: {e}")
+        return payload_user
 
 
 def get_user_context(user: User = Depends(get_current_user)) -> UserContext:

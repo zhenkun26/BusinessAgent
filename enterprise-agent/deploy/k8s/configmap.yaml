@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-config
+  namespace: hello-xiao-a
+data:
+  APP_ENV: "prod"
+  LOG_LEVEL: "INFO"
+  LLM_PROVIDER: "openai_compatible"
+  OPENAI_BASE_URL: "https://api.deepseek.com/v1"
+  PRIMARY_LLM_MODEL: "deepseek-v4-pro"
+  LITE_LLM_MODEL: "deepseek-v4-flash"
+  PRIMARY_LLM_TEMPERATURE: "0.2"
+  PRIMARY_LLM_MAX_TOKENS: "2048"
+  LOCAL_LLM_BASE_URL: "http://ollama:11434/v1"
+  LOCAL_LLM_MODEL: "qwen3.5:4b"
+  EMBEDDING_PROVIDER: "local"
+  EMBEDDING_MODEL: "BAAI/bge-m3"
+  EMBEDDING_DIM: "1024"
+  HF_HOME: "/data/hf_cache"
+  RERANKER_PROVIDER: "local_bge"
+  RERANKER_MODEL: "BAAI/bge-reranker-large"
+  VECTOR_STORE_PROVIDER: "milvus"
+  MILVUS_HOST: "milvus"
+  MILVUS_PORT: "19530"
+  MILVUS_COLLECTION: "enterprise_knowledge"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "agent"
+  POSTGRES_DB: "enterprise_agent"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  JWT_ALGORITHM: "HS256"
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "480"
+  RATE_LIMIT_PER_MINUTE: "60"
+  KB_FEEDBACK_AUTO_DRAFT: "true"
+  # 生产认证加固:强制密码校验 + 回查数据库(禁用用户即时失效)
+  AUTH_REQUIRE_PASSWORD: "true"
+  AUTH_CHECK_DB: "true"
+  CORS_ALLOW_ORIGINS: "https://agent.example.com"

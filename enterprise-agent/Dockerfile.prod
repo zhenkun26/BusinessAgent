@@ -1,0 +1,80 @@
+# syntax=docker/dockerfile:1
+# ============================================================
+# Hello，小A 生产镜像(多阶段极致瘦身)
+# 构建: docker build -f Dockerfile.prod -t enterprise-agent:prod .
+# 说明:
+#   - 默认不装 ML 重型包(torch/sentence-transformers ~2GB),镜像显著瘦身;
+#     向量化/精排需外部模型服务或挂载模型时用:
+#     docker build --build-arg INSTALL_ML=1 -f Dockerfile.prod -t enterprise-agent:full .
+#   - 运行时以非 root(nobody)运行
+#   - 依赖清单 deploy/requirements-prod.txt 由 uv pip freeze 冻结
+# ============================================================
+
+ARG INSTALL_ML=0
+
+# ---------- Stage 1: Builder ----------
+FROM python:3.13-slim AS builder
+
+ARG INSTALL_ML
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=120
+
+WORKDIR /build
+
+# 系统依赖(仅 builder 阶段,runner 不携带)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 依赖层: 标准 venv(脚本 shebang 指向 venv python,site-packages 自包含)
+COPY deploy/requirements-prod.txt ./
+RUN python -m venv /opt/venv
+RUN --mount=type=cache,target=/root/.cache/pip \
+    /opt/venv/bin/pip install -r requirements-prod.txt
+
+# 可选 ML 栈(默认关闭,开启后镜像显著增大)
+RUN if [ "$INSTALL_ML" = "1" ]; then \
+      --mount=type=cache,target=/root/.cache/pip \
+      /opt/venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu \
+      && /opt/venv/bin/pip install sentence-transformers; \
+    fi
+
+# ---------- Stage 2: Runner ----------
+FROM python:3.13-slim AS runner
+
+LABEL org.opencontainers.image.title="Hello 小A enterprise agent" \
+      org.opencontainers.image.description="企业知识工作流 Agent 生产镜像(精简)" \
+      org.opencontainers.image.version="0.1.0"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    APP_ENV=prod \
+    PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+# 运行时系统依赖(最小集;时区与 CA 证书;apt 网络抖动时容错,
+# 因为 python:3.13-slim 基础镜像已内置 CA 证书,缺失仅影响时区)
+RUN (apt-get update --fix-missing || true) \
+    && (apt-get install -y --no-install-recommends ca-certificates tzdata || true) \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/logs /data && chown -R 65534:65534 /app /data
+
+# 仅复制 Python 依赖(venv),不复制 builder 工具链
+COPY --from=builder /opt/venv /opt/venv
+
+# 应用代码
+COPY app ./app
+COPY deploy/init.sql ./deploy/init.sql
+COPY deploy/migrations ./deploy/migrations
+
+USER 65534:65534
+
+EXPOSE 8000
+
+# 健康检查(无 curl,用标准库 urllib;区分存活与就绪见 K8s 探针)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4); sys.exit(0)"]
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--no-access-log"]

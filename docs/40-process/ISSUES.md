@@ -22,6 +22,13 @@
 - 修复：`brew services stop redis` 解除占用（可逆：`brew services start redis` 恢复）；启动脚本 `启动小A.command` 增加 6379 冲突自检。
 - 验证：限流器「Redis(生产模式)」、Redis Checkpointer 初始化成功、聊天 66ms 返回、`/ready` db/milvus healthy。
 
+### I-11 最终对抗性生产级审查（2026-08-04）
+
+- 状态：fixed（P0/P1 已修）· 优先级 P0
+- 内容：12 项漏洞（JWT 默认密钥、认证绕过、默认数据库口令、Redis 密码日志泄漏、禁用用户越权、CORS、PG checkpointer 500、Milvus 表达式注入、审计缓存丢失、配置幻觉、缺 TraceId 等）全部修复并补 18 项测试。
+- 详细报告：[生产对抗性审查与部署验收报告.md](生产对抗性审查与部署验收报告.md)
+- 验证：36/36 测试通过、1000 并发 0 失败、生产镜像 742MB 冒烟通过、K8s 清单 8 文件校验通过。
+
 ### I-01 压测未做
 
 - 状态：open · 优先级 P3

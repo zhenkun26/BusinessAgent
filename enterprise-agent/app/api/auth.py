@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.core.database import get_db
 from app.observability.audit import get_audit_logger
 from app.security.jwt_manager import JWTManager
+from app.security.password import verify_password
 from app.security.rbac import User, get_current_user
 
 router = APIRouter()
@@ -33,16 +34,27 @@ class TokenResponse(BaseModel):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """用户登录,返回 JWT"""
-    # 查询用户(开发环境简化:不校验密码)
+    """用户登录,返回 JWT
+
+    认证策略:
+    - AUTH_REQUIRE_PASSWORD=false(演示默认):保留"密码任意"兼容,仅校验用户存在与启用
+    - AUTH_REQUIRE_PASSWORD=true(生产):校验 bcrypt 密码;错误/缺失统一 401,
+      文案与"用户不存在"一致,防止账号枚举
+    """
+    # 查询用户(启用/禁用均查询,统一 401 文案防枚举)
     result = await db.execute(
-        select(User).where(User.username == req.username, User.is_active.is_(True))
+        select(User).where(User.username == req.username)
     )
     user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(401, "用户名不存在或已禁用")
 
     settings = get_settings()
+    auth_ok = user is not None and user.is_active
+    if auth_ok and settings.auth_require_password:
+        auth_ok = verify_password(req.password, user.password_hash or "")
+    if not auth_ok:
+        # 统一文案:不区分"用户不存在"与"密码错误"
+        raise HTTPException(401, "用户名或密码错误")
+
     expires_delta = timedelta(minutes=settings.jwt_access_token_expire_minutes)
     expire = datetime.now(timezone.utc) + expires_delta
 

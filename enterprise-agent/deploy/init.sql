@@ -174,22 +174,23 @@ CREATE INDEX IF NOT EXISTS idx_prompt_versions_status ON prompt_versions(status)
 -- ============================================
 
 -- ---- 用户(12 人,覆盖全部角色与部门) ----
-INSERT INTO users (user_id, username, email, role, department) VALUES
+-- 密码哈希:默认密码 ChangeMe123!(演示/开发);AUTH_REQUIRE_PASSWORD=true 时生效
+INSERT INTO users (user_id, username, email, role, department, password_hash) VALUES
     -- 销售部(4 人:3 销售员 + 1 经理)
-    ('user_sales_001', '销售员张三', 'zhangsan@example.com', 'salesperson', 'dept_sales'),
-    ('user_sales_002', '销售员王芳', 'wangfang@example.com', 'salesperson', 'dept_sales'),
-    ('user_sales_003', '销售员李雷', 'lilei@example.com', 'salesperson', 'dept_sales'),
-    ('user_mgr_001',   '销售经理赵六', 'zhaoliu@example.com', 'manager', 'dept_sales'),
+    ('user_sales_001', '销售员张三', 'zhangsan@example.com', 'salesperson', 'dept_sales', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
+    ('user_sales_002', '销售员王芳', 'wangfang@example.com', 'salesperson', 'dept_sales', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
+    ('user_sales_003', '销售员李雷', 'lilei@example.com', 'salesperson', 'dept_sales', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
+    ('user_mgr_001',   '销售经理赵六', 'zhaoliu@example.com', 'manager', 'dept_sales', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
     -- 客服部(2 人)
-    ('user_cs_001', '客服李四', 'lisi@example.com', 'customer_service', 'dept_cs'),
-    ('user_cs_002', '客服韩梅梅', 'hanmeimei@example.com', 'customer_service', 'dept_cs'),
+    ('user_cs_001', '客服李四', 'lisi@example.com', 'customer_service', 'dept_cs', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
+    ('user_cs_002', '客服韩梅梅', 'hanmeimei@example.com', 'customer_service', 'dept_cs', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
     -- 财务部(2 人:1 专员 + 1 经理)
-    ('user_fin_001', '财务王五', 'wangwu@example.com', 'finance', 'dept_finance'),
-    ('user_fin_002', '财务经理钱八', 'qianba@example.com', 'manager', 'dept_finance'),
+    ('user_fin_001', '财务王五', 'wangwu@example.com', 'finance', 'dept_finance', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
+    ('user_fin_002', '财务经理钱八', 'qianba@example.com', 'manager', 'dept_finance', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
     -- HR 部(1 人,用 customer_service 角色占位)
-    ('user_hr_001', 'HR孙九', 'sunjiu@example.com', 'customer_service', 'dept_hr'),
+    ('user_hr_001', 'HR孙九', 'sunjiu@example.com', 'customer_service', 'dept_hr', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO'),
     -- 管理员(1 人)
-    ('user_admin_001', '管理员钱七', 'qianqi@example.com', 'admin', 'shared_company')
+    ('user_admin_001', '管理员钱七', 'qianqi@example.com', 'admin', 'shared_company', '$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO')
 ON CONFLICT (user_id) DO NOTHING;
 
 -- ---- 知识库文档元数据(与 sample_docs 对齐) ----

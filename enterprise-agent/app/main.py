@@ -1,13 +1,14 @@
 """FastAPI 主应用入口"""
 
 from contextlib import asynccontextmanager
+import uuid
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from loguru import logger
 
-from app.config import get_settings
+from app.config import get_settings, validate_production_settings
 from app.api import chat, approval, auth, prompts, admin
 from app.core.database import init_db
 from app.core.milvus_client import init_milvus
@@ -20,6 +21,34 @@ async def lifespan(app: FastAPI):
     """应用生命周期:启动时初始化资源, 关闭时清理"""
     settings = get_settings()
     logger.info(f"启动 Hello,小A 服务, env={settings.app_env}")
+
+    # 生产模式配置强校验:默认 JWT 密钥/数据库口令/通配 CORS 一律拒绝启动
+    config_violations = validate_production_settings(settings)
+    if config_violations:
+        for violation in config_violations:
+            logger.error(f"生产配置校验失败: {violation}")
+        if settings.app_env == "prod":
+            raise RuntimeError(
+                "生产环境配置校验未通过,拒绝启动: " + "; ".join(config_violations)
+            )
+
+    # 环境路径自检(非阻断):模型/缓存路径不存在时告警,避免 RAG 静默降级
+    from pathlib import Path
+
+    for model_path_key, model_path_value in (
+        ("EMBEDDING_MODEL", settings.embedding_model),
+        ("RERANKER_MODEL", settings.reranker_model),
+    ):
+        candidate = Path(model_path_value)
+        looks_like_local_path = (
+            ":" in model_path_value
+            or model_path_value.startswith(("/", "D:", "C:"))
+        )
+        if looks_like_local_path and not candidate.exists():
+            logger.warning(
+                f"环境自检: {model_path_key}={model_path_value} 路径不存在,"
+                f"首次向量化/精排将失败或降级(生产请挂载模型或改为 HF repo id)"
+            )
 
     # 初始化 OpenTelemetry tracing(启动早期,捕获后续所有 span)
     from app.observability.tracing import init_tracing, instrument_fastapi
@@ -92,13 +121,40 @@ def create_app() -> FastAPI:
             return RedirectResponse(clean_path, status_code=307)
         return await call_next(request)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"] if settings.is_dev else ["https://your-frontend.com"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    @app.middleware("http")
+    async def trace_request_id(request, call_next):
+        """全链路请求 ID:透传/生成 X-Request-ID,响应头回写
+
+        排障时按 request_id 聚合日志与审计;缺失时生成 uuid4。
+        """
+        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+    cors_origins = [
+        origin.strip()
+        for origin in settings.cors_allow_origins.split(",")
+        if origin.strip()
+    ]
+    if settings.is_dev and "*" in cors_origins:
+        # dev 保留通配兼容;生产由配置校验层拦截
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     # 指标采集中间件
     app.middleware("http")(metrics_middleware)

@@ -60,60 +60,49 @@ async def _try_init_redis(redis_url: str) -> Optional[Checkpointer]:
         # asetup 成功即视为连接 + 模块均可用,不再额外探测
         await saver.asetup()
 
-        logger.info(f"Redis Checkpointer 初始化成功: {redis_url}")
+        logger.info(f"Redis Checkpointer 初始化成功: {_redact_url(redis_url)}")
         return saver
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"Redis Checkpointer 初始化失败,准备降级: {type(e).__name__}: {e}")
+        logger.warning(
+            f"Redis Checkpointer 初始化失败,准备降级: "
+            f"{type(e).__name__}: {_redact_url(redis_url)}"
+        )
         return None
+
+
+def _redact_url(url: str) -> str:
+    """日志脱敏:隐藏 URL 中的密码(redis://:pass@host → redis://:***@host)"""
+    if "@" not in url:
+        return url
+    scheme, _, rest = url.partition("://")
+    auth_part, _, host_part = rest.rpartition("@")
+    if ":" in auth_part:
+        auth_part = auth_part.split(":", 1)[0] + ":***"
+    return f"{scheme}://{auth_part}@{host_part}"
 
 
 # ============ PostgreSQL Checkpointer(降级 1) ============
 
 
 async def _try_init_postgres(pg_dsn: str) -> Optional[Checkpointer]:
-    """尝试初始化 PostgresSaver
+    """尝试初始化 AsyncPostgresSaver(降级 1)
 
-    PostgresSaver 是同步实现,langgraph 1.x 在 async graph 中
-    会自动用 asyncio.to_thread 包装其 sync 方法(put/get_tuple/list)。
+    修复:此前使用同步 PostgresSaver,LangGraph async 执行路径调用
+    aget_tuple 时基类直接抛 NotImplementedError,导致 Redis 不可用时
+    聊天链路 500。改用 AsyncPostgresSaver(原生支持 aget_tuple/aput)。
 
     Returns:
-        PostgresSaver 实例(已 setup),失败返回 None
+        AsyncPostgresSaver 实例(已 asetup),失败返回 None
     """
     try:
-        from langgraph.checkpoint.postgres import PostgresSaver
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-        # PostgresSaver.from_conn_string 返回 context manager,
-        # 但作为长生命周期单例,用构造函数 + 手动 setup
-        # 注意: psycopg Connection 需要在线程中创建(async 上下文外)
-        # 这里用 to_thread 包装整个初始化
-        def _sync_init() -> Checkpointer:
-            # from_conn_string 在新版返回 context manager,
-            # 但 3.x 提供 __init__ 直接接收 conn_string
-            # 兼容写法: 用 from_conn_string 的 context manager 进出
-            import contextlib
+        saver = AsyncPostgresSaver.from_conn_string(pg_dsn)
+        await saver.asetup()
 
-            cm = PostgresSaver.from_conn_string(pg_dsn)
-            # 进入 context manager 获取 saver
-            if hasattr(cm, "__enter__"):
-                saver = cm.__enter__()
-                try:
-                    saver.setup()
-                    return saver
-                except Exception:
-                    cm.__exit__(None, None, None)
-                    raise
-            else:
-                # 旧版直接是 factory
-                saver = cm
-                saver.setup()
-                return saver
-
-        saver = await asyncio.to_thread(_sync_init)
-
-        # 验证连接: 用 to_thread 跑一次 get_tuple(不存在的 thread_id)
+        # 验证连接: 跑一次 aget_tuple(不存在的 thread_id)
         try:
-            await asyncio.to_thread(
-                saver.get_tuple,
+            await saver.aget_tuple(
                 {"configurable": {"thread_id": "__healthcheck__"}},
             )
         except Exception as ping_err:

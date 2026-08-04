@@ -107,6 +107,17 @@ class KeywordRetriever:
                 out.append(t)
         return out[:8]  # 最多 8 个关键词
 
+    @staticmethod
+    def _escape_milvus_expr_str(value: str) -> str:
+        """Milvus 表达式字符串转义(防注入/语法破坏)
+
+        Milvus query() 的 expr 不支持参数绑定,值必须安全转义:
+        反斜杠与双引号转义后包双引号。角色/部门等值来自 JWT/DB,
+        但仍按"不可信输入"处理,防止含引号值破坏表达式或注入过滤条件。
+        """
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+
     def _scan_via_milvus(
         self,
         keywords: list[str],
@@ -128,10 +139,17 @@ class KeywordRetriever:
         # 简化:查所有 active chunks,在 Python 层做关键词匹配
         expr = "is_active == true"
         if user_role:
-            expr += f' and ARRAY_CONTAINS(access_roles, "{user_role}")'
+            expr += (
+                " and ARRAY_CONTAINS(access_roles, "
+                f"{self._escape_milvus_expr_str(user_role)})"
+            )
         if dept_namespace:
             # 命名空间隔离:本部门 + 公司共享(口径与 vector_store.search 一致)
-            expr += f' and dept_namespace in ["{dept_namespace}", "shared_company"]'
+            expr += (
+                " and dept_namespace in ["
+                f"{self._escape_milvus_expr_str(dept_namespace)}, "
+                f"{self._escape_milvus_expr_str('shared_company')}]"
+            )
 
         # query() 拉取一批(限制 500,避免拉全表)
         results = collection.query(

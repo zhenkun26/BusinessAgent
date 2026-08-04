@@ -1,0 +1,19 @@
+# 构建上下文排除(镜像瘦身 + 防敏感文件进镜像)
+.git
+.gitignore
+.venv
+.venv_e2e
+__pycache__
+*.pyc
+.env
+.env.*
+logs
+audit_logs
+eval
+tests
+scripts
+backups
+node_modules
+data
+volumes
+*.log

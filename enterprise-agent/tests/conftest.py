@@ -37,6 +37,10 @@ class FakeResult:
     def fetchone(self) -> Optional[FakeRow]:
         return self._rows[0] if self._rows else None
 
+    def scalar_one_or_none(self) -> Optional[FakeRow]:
+        """兼容 SQLAlchemy 的 scalar_one_or_none 语义"""
+        return self._rows[0] if len(self._rows) == 1 else None
+
     def scalar(self) -> Any:
         if not self._rows:
             return 0

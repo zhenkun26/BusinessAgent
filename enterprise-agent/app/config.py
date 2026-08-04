@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import Optional
 
+from loguru import logger
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -81,6 +82,14 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 480
 
+    # ---- 认证与安全(生产加固) ----
+    # 开启后登录必须校验 bcrypt 密码(演示环境保持 False 兼容"密码任意")
+    auth_require_password: bool = False
+    # 开启后每个受保护请求回查 users 表(禁用用户/角色变更即时生效;DB 故障降级 JWT)
+    auth_check_db: bool = True
+    # CORS 白名单(逗号分隔);dev 默认本机来源;生产禁止通配+credentials
+    cors_allow_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
+
     # ---- Cohere Reranker(可选,留空时用 LLM 距离排序降级) ----
     cohere_api_key: str = ""
     cohere_rerank_model: str = "rerank-multilingual-v3.0"
@@ -122,6 +131,46 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.app_env == "dev"
+
+
+# 生产环境必须覆盖的默认凭证(防止"默认值上线"事故)
+_DEFAULT_SECRETS: dict[str, str] = {
+    "jwt_secret_key": "change-me-in-production",
+    "postgres_password": "wJ6pbV5eBkzMT2AYDT9w2i8V",
+    "redis_password": "V5lOkygYvgaD6ZZ8rmqJAcO7",
+    "milvus_password": "Milvus123",
+}
+
+
+def validate_production_settings(settings: Optional[Settings] = None) -> list[str]:
+    """生产模式配置强校验(启动时调用)
+
+    检查 JWT 密钥与数据库口令是否为代码默认值。生产环境使用默认凭证
+    意味着任何知情者都能伪造 token 或直连数据库——必须显式覆盖。
+
+    Args:
+        settings: 配置实例;None 时使用全局单例
+
+    Returns:
+        违反项列表;为空表示通过
+    """
+    settings = settings or get_settings()
+    if settings.is_dev:
+        return []
+
+    violations: list[str] = []
+    for field_name, default_value in _DEFAULT_SECRETS.items():
+        actual = getattr(settings, field_name)
+        if actual == default_value:
+            violations.append(
+                f"{field_name} 仍为代码默认值({default_value[:6]}...),"
+                f"生产环境必须通过环境变量覆盖"
+            )
+    if not settings.jwt_secret_key or len(settings.jwt_secret_key) < 32:
+        violations.append("jwt_secret_key 长度必须 >= 32(使用 openssl rand -base64 32 生成)")
+    if settings.cors_allow_origins.strip() == "*":
+        violations.append("生产环境禁止 CORS 通配来源(cors_allow_origins='*')")
+    return violations
 
 
 @lru_cache
