@@ -20,7 +20,7 @@ BusinessAgent/
 │   │   └── assets/                     # 方案配图（模型应用场景图）
 │   ├── 20-product/                     # 产品文档层：产品权威现状文档
 │   │   ├── README.md                   # 产品文档层索引
-│   │   ├── 产品文档.md                  # 产品权威现状文档 v1.3（架构/流程/API/backlog）
+│   │   ├── 产品文档.md                  # 产品权威现状文档 v1.4（架构/流程/API/backlog）
 │   │   └── assets/                     # 文档配图（业务流程图）
 │   ├── 30-guides/                      # 操作手册层：使用与运维手册
 │   │   ├── README.md                   # 操作手册层索引
@@ -72,6 +72,7 @@ BusinessAgent/
     │   ├── progress-issue-records/     # 进度与问题记录规格
     │   └── openspec-normalization/     # openspec 规范化规格
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── documentation-baseline/     # 文档基线 change（本轮实施中）
-        └── complete-business-processes/ # 业务闭环补齐 change（0/41 任务）
+        └── archive/                    # 已归档变更（全部完成）
+            ├── 2026-08-04-documentation-baseline/       # 文档基线（归档）
+            └── 2026-08-04-complete-business-processes/  # 业务闭环补齐 41/41（归档）
 ```

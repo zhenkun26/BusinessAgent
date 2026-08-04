@@ -205,15 +205,12 @@ enterprise-agent/
 
 ### 剩余工作(技术债务)
 
+> 2026-08-04 更新:以下 P2 项与 needs_replan 复查已完成(见 v1.1.0/v1.2.0 CHANGELOG),仅保留 P3 挂起项。
+
 | 优先级 | 任务 |
 |--------|------|
-| P2 | Prompt 版本管理(A/B 测试) |
-| P2 | 用户取消机制(cancellation token) |
-| P2 | 部门级测试数据入库,验证命名空间隔离 |
-| P2 | sessions 表与 checkpointer 关系梳理 |
 | P3 | 压测(vegeta/k6) |
 | P3 | UAT + 安全测试 |
-| P3 | needs_replan 标志语义复查(知识问答误报 true) |
 | P3 | pymilvus 3.1 将移除 ORM 风格 API,`milvus_client.py`/`degradation.py` 需迁移到 MilvusClient(已在依赖清单钉 `<3.1` 防误升级) |
 | P3 | 开发环境 uvicorn reload 在 Windows 卡住 |
 
