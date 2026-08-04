@@ -18,11 +18,11 @@
 
 ## 3. Agent 重规划闭环
 
-- [ ] 3.1 在 `AgentState` 增加 `replan_count` 与 `replan_history`，初始化为 0/空，断点恢复时正确继承
-- [ ] 3.2 图结构增加回边：`aggregator` 后条件边，`needs_replan && replan_count < 2` 时回到 `planner`
-- [ ] 3.3 `planner` 消费 `replan_reason` 与 `replan_hint`：覆盖不足时只重排知识子任务，失败路径带上下文请求澄清
-- [ ] 3.4 达到 2 轮上限时强制进入 `END`，响应包含 `needs_replan` 与 `replan_reason`
-- [ ] 3.5 修正 `needs_replan` 语义：知识无结果、部分覆盖、分析无数据按规格统一传播
+- [x] 3.1 在 `AgentState` 增加 `replan_count` 与 `replan_history`，初始化为 0/空，断点恢复时正确继承
+- [x] 3.2 图结构增加回边：`aggregator` 后条件边，`needs_replan && replan_count < 2` 时回到 `planner`
+- [x] 3.3 `planner` 消费 `replan_reason` 与 `replan_hint`：覆盖不足时只重排知识子任务，失败路径带上下文请求澄清
+- [x] 3.4 达到 2 轮上限时强制进入 `END`，响应包含 `needs_replan` 与 `replan_reason`
+- [x] 3.5 修正 `needs_replan` 语义：知识无结果、部分覆盖、分析无数据按规格统一传播
 - [ ] 3.6 补充重规划成功、耗尽、跨轮不残留的单元测试与端到端验证
 
 ## 4. 用户生命周期闭环

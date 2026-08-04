@@ -51,6 +51,11 @@ RULE_KEYWORDS = {
 def planner_node(state: AgentState) -> AgentState:
     """Planner 节点:意图分类 + 任务分解
 
+    重规划模式:当 state 携带 replan_reason(来自 aggregator 的 needs_replan)时,
+    不再做闲聊/意图分类/任务分解,直接针对知识子任务重新规划——
+    用重规划提示(replan_hint.query)或原消息重建检索目标,并把本轮原因记入
+    replan_history,供重规划轮次护栏与审计追溯。
+
     流程(三层模型分层):
     1. [local 本地小模型] 闲聊快速判断(是闲聊直接返回,节省云端调用)
     2. [lite 云端轻量] 意图分类(非闲聊场景,5 类选 1)
@@ -64,6 +69,36 @@ def planner_node(state: AgentState) -> AgentState:
     history = state.get("history") or []
 
     logger.info(f"Planner 开始: user={user_input.username}, message={message[:80]!r}")
+
+    # ===== 重规划模式(agent-replan):跳过分类直接重建知识子任务 =====
+    replan_reason = state.get("replan_reason")
+    if replan_reason:
+        replan_hint = state.get("replan_hint") or {}
+        replan_query = (
+            replan_hint.get("query")
+            if isinstance(replan_hint, dict)
+            else None
+        ) or message
+        subtasks = [
+            SubTask(
+                task_id="t1",
+                task_type=TaskType.KNOWLEDGE,
+                description=replan_query,
+                priority=10,
+            )
+        ]
+        replan_history = list(state.get("replan_history") or [])
+        replan_history.append(replan_reason)
+        logger.info(
+            f"Planner 重规划: reason={replan_reason}, "
+            f"query={replan_query[:80]!r}, rounds={len(replan_history)}"
+        )
+        return AgentState(
+            intent=Intent.KNOWLEDGE_QA,
+            subtasks=subtasks,
+            plan_reasoning=f"重规划第 {len(replan_history)} 轮: {replan_reason}",
+            replan_history=replan_history,
+        )
 
     intent: Optional[Intent] = None
     subtasks: list[SubTask] = []

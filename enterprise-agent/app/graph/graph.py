@@ -36,6 +36,9 @@ from app.graph.executor import agent_executor_node
 from app.graph.planner import planner_node
 from app.graph.state import AgentState, UserInput, make_initial_state
 
+# 单次对话重规划轮次上限(agent-replan 护栏;超出强制进入 END)
+MAX_REPLAN_ROUNDS = 2
+
 # 编译后的图缓存:按 checkpointer backend 区分
 # {"none": graph(无checkpointer), "redis": graph(redis), "memory": graph(memory), ...}
 _compiled_graphs: dict[str, object] = {}
@@ -76,13 +79,48 @@ def build_graph(checkpointer: Optional[object] = None, backend_tag: str = "none"
     # agent_executor → aggregator
     g.add_edge("agent_executor", "aggregator")
 
-    # aggregator → END
-    g.add_edge("aggregator", END)
+    # aggregator → (条件)planner(重规划回边) 或 END
+    # 重规划:needs_replan && 轮次 < 上限 → 回 planner(并重置 agent_results,
+    # 防止上一轮结果经 reducer 混入新一轮汇总);否则 END
+    g.add_conditional_edges(
+        "aggregator",
+        route_after_aggregator,
+        ["planner", END],
+    )
 
     compiled = g.compile(checkpointer=checkpointer) if checkpointer else g.compile()
     _compiled_graphs[backend_tag] = compiled
     logger.info(f"LangGraph 主图编译完成(backend={backend_tag}, checkpointer={'on' if checkpointer else 'off'})")
     return compiled
+
+
+def route_after_aggregator(state: AgentState):
+    """Aggregator 后的条件边函数(agent-replan 回边)
+
+    返回值:
+    - ("planner", updates): needs_replan 且轮次未达上限,回 planner 重规划
+      (updates 递增 replan_count、追加 replan_history、重置 agent_results)
+    - END: 无需重规划或已耗尽轮次
+    """
+    needs_replan = state.get("needs_replan", False)
+    replan_count = state.get("replan_count", 0)
+    if needs_replan and replan_count < MAX_REPLAN_ROUNDS:
+        replan_history = list(state.get("replan_history") or [])
+        replan_history.append(state.get("replan_reason") or "unknown")
+        logger.info(
+            f"重规划回边: round={replan_count + 1}/{MAX_REPLAN_ROUNDS}, "
+            f"reason={state.get('replan_reason')}"
+        )
+        return (
+            "planner",
+            {
+                "replan_count": replan_count + 1,
+                "replan_history": replan_history,
+                # 空列表触发 _resettable_add 重置,防止上一轮结果混入新一轮
+                "agent_results": [],
+            },
+        )
+    return END
 
 
 async def run_graph(

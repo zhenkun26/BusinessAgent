@@ -110,6 +110,10 @@ class AgentState(TypedDict, total=False):
     confidence: float
     needs_replan: bool
     replan_reason: Optional[str]
+    replan_hint: Optional[dict]
+    # 重规划闭环(agent-replan):轮次计数与历史,单次对话内累计
+    replan_count: int
+    replan_history: list[str]
 
     # ===== 异常区 =====
     error: Optional[str]
@@ -132,6 +136,9 @@ def make_initial_state(user_input: UserInput) -> AgentState:
         approval_required=False,
         approval_status=None,
         needs_replan=False,
+        replan_hint=None,
+        replan_count=0,
+        replan_history=[],
         fallback_triggered=False,
         started_at=now,
         tokens_used=0,

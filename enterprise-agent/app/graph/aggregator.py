@@ -89,6 +89,7 @@ async def aggregator_node(state: AgentState) -> AgentState:
             confidence=r.confidence,
             needs_replan=r.needs_replan,
             replan_reason=r.replan_reason,
+            replan_hint=r.replan_hint,
             tokens_used=r.tokens_used,
             error=r.error,
             finished_at=datetime.now(),
@@ -135,6 +136,9 @@ async def aggregator_node(state: AgentState) -> AgentState:
     replan_reason = next(
         (r.replan_reason for r in results if r.needs_replan), None
     )
+    replan_hint = next(
+        (r.replan_hint for r in results if r.needs_replan and r.replan_hint), None
+    )
 
     # tokens 汇总
     total_tokens = sum(r.tokens_used for r in results)
@@ -152,6 +156,7 @@ async def aggregator_node(state: AgentState) -> AgentState:
         confidence=combined_conf,
         needs_replan=needs_replan,
         replan_reason=replan_reason,
+        replan_hint=replan_hint,
         tokens_used=total_tokens,
         finished_at=datetime.now(),
         total_latency_ms=latency_ms,
