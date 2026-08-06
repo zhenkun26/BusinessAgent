@@ -251,7 +251,18 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 感谢所有参与者的贡献 / Thanks to everyone who contributes:
 
-- [zhenkun26](https://github.com/zhenkun26) — 合作者 / Collaborator · 负责 IMG_5043 / IMG_5044 两张图片所涉及的工作 / Owns the work behind IMG_5043 & IMG_5044
+- [zhenkun26](https://github.com/zhenkun26) — 项目发起与主工程 / Founder & Lead Engineer
+- [kingoftaro（Taro）](https://github.com/kingoftaro/) — 合作者 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
+- yuzheng — 合作者 / Collaborator · 生产就绪评审与上线规划（差距分析 · 真实系统集成规划 · 上线排期与验收门槛定义）
+
+---
+
+## 十三、维护入口 / Maintenance
+
+
+感谢所有参与者的贡献 / Thanks to everyone who contributes:
+
+- [zhenkun26](https://github.com/zhenkun26) — 合作者 / 
 - [kingoftaro（Taro）](https://github.com/kingoftaro/) — 合作者 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
 
 ---
