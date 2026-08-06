@@ -1,14 +1,18 @@
 {
-  "version": "1.0",
-  "description": "企业知识库 RAG 评测集 - 销售政策 + 财务报销",
-  "total": 22,
+  "version": "2.0",
+  "description": "企业知识库 RAG 评测集 v2(rag-answer-quality 扩充):9 份文档 6 大业务域(销售/财务/售后/产品/人事/IT)+ 对抗样本;Q001-Q022 为 v1 原始样本,Q101-Q190 为多域扩充样本,Q191-Q200 为对抗样本(库内无答案拒答/指代不明澄清/诱导性与跨文档易混淆)",
+  "total": 122,
   "samples": [
     {
       "query_id": "Q001",
       "query": "刚接触一个新客户,多久之内要在系统里建跟进任务",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "1.1 新客户跟进",
-      "expected_keywords": ["24小时", "CRM", "跟进任务"],
+      "expected_keywords": [
+        "24 小时",
+        "CRM",
+        "跟进任务"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -18,7 +22,11 @@
       "query": "A类客户一般多久跟进一次比较合适",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "1.2 现有客户跟进",
-      "expected_keywords": ["每周", "1次", "A类"],
+      "expected_keywords": [
+        "每周",
+        "1 次",
+        "A 类"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "medium"
@@ -28,7 +36,10 @@
       "query": "客户多久没跟进,系统会自动提示有流失风险",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "1.3 流失客户预警",
-      "expected_keywords": ["30天", "流失风险"],
+      "expected_keywords": [
+        "30 天",
+        "流失风险"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -38,7 +49,10 @@
       "query": "给客户让利 12% 的折扣,需要谁来审批",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "2.1 折扣权限",
-      "expected_keywords": ["销售总监", "10%-15%"],
+      "expected_keywords": [
+        "销售总监",
+        "10%-15%"
+      ],
       "doc_type": "policy",
       "scene": "policy",
       "difficulty": "medium"
@@ -48,7 +62,10 @@
       "query": "战略客户想申请特殊折扣,要走什么流程",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "2.2 特殊折扣",
-      "expected_keywords": ["特殊折扣申请单", "财务总监"],
+      "expected_keywords": [
+        "特殊折扣申请单",
+        "财务总监"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "medium"
@@ -58,7 +75,10 @@
       "query": "签一份 30 万的合同需要谁审批",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "3.1 合同金额分级",
-      "expected_keywords": ["销售总监", "10-50万"],
+      "expected_keywords": [
+        "销售总监",
+        "10-50 万"
+      ],
       "doc_type": "policy",
       "scene": "policy",
       "difficulty": "medium"
@@ -68,7 +88,10 @@
       "query": "合同签完之后多久之内要归档",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "3.2 合同模板",
-      "expected_keywords": ["3个工作日", "归档"],
+      "expected_keywords": [
+        "3 个工作日",
+        "归档"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -78,7 +101,11 @@
       "query": "开发新客户的首单能拿多少佣金奖励",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "4.1 佣金计算",
-      "expected_keywords": ["1%", "额外", "新客户首单"],
+      "expected_keywords": [
+        "1%",
+        "额外",
+        "新客户首单"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -88,7 +115,11 @@
       "query": "一个合同回款率才 70%,佣金能正常发吗",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "4.2 佣金发放",
-      "expected_keywords": ["80%", "回款率", "才可发放"],
+      "expected_keywords": [
+        "80%",
+        "回款率",
+        "才可发放"
+      ],
       "doc_type": "policy",
       "scene": "policy",
       "difficulty": "medium"
@@ -98,7 +129,10 @@
       "query": "有个客户年采购额 150 万,他属于什么等级",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "5.1 等级标准",
-      "expected_keywords": ["A", "100-200万"],
+      "expected_keywords": [
+        "A",
+        "100-200 万"
+      ],
       "doc_type": "policy",
       "scene": "inferential",
       "difficulty": "hard"
@@ -108,7 +142,10 @@
       "query": "客户连续两个季度采购额没达到等级标准,会怎么处理",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "5.2 等级调整",
-      "expected_keywords": ["等级下调", "连续两个季度"],
+      "expected_keywords": [
+        "等级下调",
+        "连续两个季度"
+      ],
       "doc_type": "policy",
       "scene": "inferential",
       "difficulty": "hard"
@@ -118,7 +155,11 @@
       "query": "客户软件订阅超期 50 天了,服务和数据会怎样",
       "ground_truth_doc": "销售政策",
       "ground_truth_section": "6.1 软件产品超期",
-      "expected_keywords": ["服务暂停", "数据保留", "6个月"],
+      "expected_keywords": [
+        "服务暂停",
+        "数据保留",
+        "6 个月"
+      ],
       "doc_type": "policy",
       "scene": "inferential",
       "difficulty": "medium"
@@ -128,7 +169,10 @@
       "query": "一笔报销从提交到打款,正常流程一共要几个工作日",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "1.1 标准流程",
-      "expected_keywords": ["7", "工作日"],
+      "expected_keywords": [
+        "7",
+        "工作日"
+      ],
       "doc_type": "policy",
       "scene": "inferential",
       "difficulty": "hard"
@@ -138,7 +182,10 @@
       "query": "紧急报销一个月能用几次",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "1.2 紧急报销",
-      "expected_keywords": ["1次", "每月"],
+      "expected_keywords": [
+        "1 次",
+        "每月"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -148,7 +195,10 @@
       "query": "去上海出差住宿费每天能报多少",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "2.1 差旅费",
-      "expected_keywords": ["800元", "一线城市"],
+      "expected_keywords": [
+        "800 元",
+        "一线城市"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -158,7 +208,10 @@
       "query": "请客户吃饭花 2000 块,这笔招待费要谁审批",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "2.2 招待费",
-      "expected_keywords": ["部门负责人", "1000-3000"],
+      "expected_keywords": [
+        "部门负责人",
+        "1000-3000"
+      ],
       "doc_type": "policy",
       "scene": "policy",
       "difficulty": "medium"
@@ -168,7 +221,10 @@
       "query": "想申请一台办公电脑,需要走什么流程",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "2.3 办公费",
-      "expected_keywords": ["资产采购申请", "IT部门"],
+      "expected_keywords": [
+        "资产采购申请",
+        "IT 部门"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "medium"
@@ -178,7 +234,9 @@
       "query": "发票开出来之后多久之内必须报销",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "3.3 发票时效",
-      "expected_keywords": ["90天"],
+      "expected_keywords": [
+        "90 天"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -188,7 +246,10 @@
       "query": "去年的发票今年还能报销吗,截止到什么时候",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "3.3 发票时效",
-      "expected_keywords": ["次年1月31日", "跨年"],
+      "expected_keywords": [
+        "次年 1 月 31 日",
+        "跨年"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "easy"
@@ -198,7 +259,11 @@
       "query": "一笔 20 万的转账需要谁审批",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "4.1 转账分级",
-      "expected_keywords": ["财务总监", "总经理", "10-50万"],
+      "expected_keywords": [
+        "财务总监",
+        "总经理",
+        "10-50 万"
+      ],
       "doc_type": "policy",
       "scene": "policy",
       "difficulty": "medium"
@@ -208,7 +273,10 @@
       "query": "员工因公出差最多能借多少钱",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "5.1 借款条件",
-      "expected_keywords": ["月薪2倍", "借款"],
+      "expected_keywords": [
+        "月薪",
+        "2 倍"
+      ],
       "doc_type": "policy",
       "scene": "factual",
       "difficulty": "medium"
@@ -218,10 +286,1282 @@
       "query": "部门预算超支了 15%,这笔支出要谁审批",
       "ground_truth_doc": "财务报销制度",
       "ground_truth_section": "6.2 预算审批",
-      "expected_keywords": ["总经理", "10%以上"],
+      "expected_keywords": [
+        "总经理",
+        "10% 以上"
+      ],
       "doc_type": "policy",
       "scene": "policy",
       "difficulty": "hard"
+    },
+    {
+      "query_id": "Q101",
+      "query": "新客户第一次跟进要在几个工作日内完成",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "1.1 新客户跟进",
+      "expected_keywords": [
+        "3 个工作日",
+        "首次跟进"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q102",
+      "query": "B类客户跟进频率是怎么规定的",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "1.2 现有客户跟进",
+      "expected_keywords": [
+        "每两周",
+        "1 次"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q103",
+      "query": "被标记流失风险的客户,几天内要销售经理介入",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "1.3 流失客户预警",
+      "expected_keywords": [
+        "5 个工作日",
+        "销售经理"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q104",
+      "query": "给客户打 92 折需要谁审批",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "2.1 折扣权限",
+      "expected_keywords": [
+        "销售经理",
+        "5%-10%"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q105",
+      "query": "签 40 万的合同需要法务审核吗",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "3.1 合同金额分级",
+      "expected_keywords": [
+        "法务审核",
+        "50 万以上"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q106",
+      "query": "销售佣金一般什么时候发",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "4.2 佣金发放",
+      "expected_keywords": [
+        "按季度"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q107",
+      "query": "VIP客户最大能给到多少折扣",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "5.1 等级标准",
+      "expected_keywords": [
+        "15%",
+        "VIP"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q108",
+      "query": "客户软件订阅刚超期 20 天,功能和数据会怎样",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "6.1 软件产品超期",
+      "expected_keywords": [
+        "功能限制",
+        "数据保留"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q109",
+      "query": "报销单在直属主管那一步审批要几个工作日",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "1.1 标准流程",
+      "expected_keywords": [
+        "2 个工作日",
+        "直属主管"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q110",
+      "query": "紧急报销可以直接找谁审批",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "1.2 紧急报销",
+      "expected_keywords": [
+        "财务总监"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q111",
+      "query": "出差每天的餐补是多少,要不要发票",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "2.1 差旅费",
+      "expected_keywords": [
+        "100 元",
+        "不需发票"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q112",
+      "query": "出差在市内打车一天能报多少",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "2.1 差旅费",
+      "expected_keywords": [
+        "80 元",
+        "市内交通"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q113",
+      "query": "单次 3500 元的招待费要找谁审批",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "2.2 招待费",
+      "expected_keywords": [
+        "总经理",
+        "3000"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q114",
+      "query": "买办公用品每个月的限额是多少",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "2.3 办公费",
+      "expected_keywords": [
+        "200 元",
+        "每月限额"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q115",
+      "query": "报销发票的抬头和税号是什么",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "3.2 发票信息",
+      "expected_keywords": [
+        "XX 科技有限公司",
+        "91110000"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q116",
+      "query": "转一笔 60 万的款需要哪些人审批",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "4.1 转账分级",
+      "expected_keywords": [
+        "总经理",
+        "董事长"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q117",
+      "query": "大额转账要提前多久申请",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "4.2 转账时效",
+      "expected_keywords": [
+        "1 个工作日",
+        "10 万"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q118",
+      "query": "出差借的钱多久之内必须还或者报销冲抵",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "5.1 借款条件",
+      "expected_keywords": [
+        "30 天",
+        "归还"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q119",
+      "query": "企业版客户报 P0 故障,承诺多久内响应",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "1.1 响应时间",
+      "expected_keywords": [
+        "1 小时"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q120",
+      "query": "旗舰版客户半夜系统完全不可用,多久有人响应",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "1.1 响应时间",
+      "expected_keywords": [
+        "15 分钟"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q121",
+      "query": "标准版客户可以通过哪些渠道获得服务",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "1.2 服务渠道",
+      "expected_keywords": [
+        "工单系统",
+        "邮件"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q122",
+      "query": "企业版的服务时间是几点到几点",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "1.3 服务时间",
+      "expected_keywords": [
+        "9:00-21:00"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q123",
+      "query": "客户提交工单后,多久之内会完成故障分级",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "2.1 标准流程",
+      "expected_keywords": [
+        "15 分钟",
+        "分级"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q124",
+      "query": "故障两小时还没解决会升级给谁",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "2.2 升级机制",
+      "expected_keywords": [
+        "技术总监",
+        "2 小时"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q125",
+      "query": "P1 故障的复盘报告多久之内要提交",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "2.3 事后复盘",
+      "expected_keywords": [
+        "48 小时",
+        "复盘报告"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q126",
+      "query": "标准版订阅 7 天内但已经有使用记录,退款能退多少",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "3.1 退款条件",
+      "expected_keywords": [
+        "80%",
+        "使用记录"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q127",
+      "query": "因为产品质量问题导致的退款,公司会怎么处理",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "3.3 特殊情况",
+      "expected_keywords": [
+        "全额退款",
+        "书面致歉"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q128",
+      "query": "客户投诉之后,多久会给出处理方案",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "4.2 投诉处理",
+      "expected_keywords": [
+        "3 个工作日",
+        "处理方案"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q129",
+      "query": "我提的产品建议被采纳了有什么奖励",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "4.3 建议奖励",
+      "expected_keywords": [
+        "1 个月延期"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q130",
+      "query": "SLA 不达标的话,合同上约定怎么赔偿",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "5.2 不达标补偿",
+      "expected_keywords": [
+        "5%-20%",
+        "月费"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q131",
+      "query": "上季度公司的工单响应率达到考核目标了吗",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "5.1 SLA 指标",
+      "expected_keywords": [
+        "95%",
+        "97.3%"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q132",
+      "query": "P0 故障处理超时了,对客户有什么额外补偿",
+      "ground_truth_doc": "售后服务政策",
+      "ground_truth_section": "5.2 不达标补偿",
+      "expected_keywords": [
+        "1 个月延期",
+        "P0 超时"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q133",
+      "query": "我们公司 30 人,买哪个版本合适,一年多少钱",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "1.1 版本对比",
+      "expected_keywords": [
+        "企业版",
+        "80,000"
+      ],
+      "doc_type": "product",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q134",
+      "query": "旗舰版比企业版多了哪些能力",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "1.1 版本对比",
+      "expected_keywords": [
+        "私有部署",
+        "定制开发"
+      ],
+      "doc_type": "product",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q135",
+      "query": "SSO 单点登录要哪个版本才支持",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "1.2 模块清单",
+      "expected_keywords": [
+        "SSO",
+        "企业版以上"
+      ],
+      "doc_type": "product",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q136",
+      "query": "P-M003 是什么产品,单价多少",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "2.2 常用 SKU",
+      "expected_keywords": [
+        "数据分析模块",
+        "25,000"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q137",
+      "query": "现场培训服务怎么收费",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "2.2 常用 SKU",
+      "expected_keywords": [
+        "现场培训服务",
+        "11,000"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q138",
+      "query": "一次性买 3 年订阅有优惠吗",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "3.1 授权方式",
+      "expected_keywords": [
+        "8 折",
+        "3年"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q139",
+      "query": "免费试用版最多能用几个账号,数据量限制多少",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "3.2 试用政策",
+      "expected_keywords": [
+        "5 用户",
+        "1GB"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q140",
+      "query": "版本降级什么时候生效,会退差价吗",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "3.3 升级与降级",
+      "expected_keywords": [
+        "不退差价",
+        "到期后生效"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q141",
+      "query": "中途增购一个功能模块,费用怎么算",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "3.3 升级与降级",
+      "expected_keywords": [
+        "剩余周期",
+        "折算"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q142",
+      "query": "企业版客户提工单,支持响应时间是多久",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "4.1 支持级别",
+      "expected_keywords": [
+        "优先支持",
+        "1 小时"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q143",
+      "query": "核心功能受损这种故障,承诺多久恢复",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "4.2 故障分级",
+      "expected_keywords": [
+        "4 小时",
+        "30 分钟"
+      ],
+      "doc_type": "product",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q144",
+      "query": "API 接口扩展包的 SKU 编码是什么",
+      "ground_truth_doc": "产品手册",
+      "ground_truth_section": "2.2 常用 SKU",
+      "expected_keywords": [
+        "P-M005",
+        "API接口扩展包"
+      ],
+      "doc_type": "product",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q145",
+      "query": "登录密码忘了怎么重置",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q1 忘记密码",
+      "expected_keywords": [
+        "忘记密码",
+        "邮箱"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q146",
+      "query": "密码连续输错账号被锁了,要等多久",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q3 账号锁定",
+      "expected_keywords": [
+        "5 次",
+        "30 分钟"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q147",
+      "query": "系统的数据导出支持哪些格式",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q5 数据导出",
+      "expected_keywords": [
+        "Excel",
+        "CSV",
+        "PDF"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q148",
+      "query": "企业版单次最多能导入多少条数据",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q6 导入限制",
+      "expected_keywords": [
+        "50,000"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q149",
+      "query": "API 调用超过频率限制会返回什么,要等多久",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q8 API 限流",
+      "expected_keywords": [
+        "429",
+        "60 秒"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q150",
+      "query": "试用到期之后数据还会保留多久",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q9 试用数据",
+      "expected_keywords": [
+        "30 天"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q151",
+      "query": "申请增值税专用发票要多久能开出来",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q10 开具发票",
+      "expected_keywords": [
+        "3 个工作日",
+        "专票"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q152",
+      "query": "提前续费有没有折扣优惠",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q12 续费优惠",
+      "expected_keywords": [
+        "95 折",
+        "30 天"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q153",
+      "query": "我们公司的业务数据存在哪里",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q13 数据存储",
+      "expected_keywords": [
+        "阿里云",
+        "华东"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q154",
+      "query": "系统里的操作日志会保留多长时间",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q14 操作日志",
+      "expected_keywords": [
+        "180 天"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q155",
+      "query": "系统的单点登录支持哪几种协议",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q15 SSO",
+      "expected_keywords": [
+        "SAML 2.0",
+        "OAuth 2.0",
+        "CAS"
+      ],
+      "doc_type": "faq",
+      "scene": "factual",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q156",
+      "query": "普通员工能看到系统操作日志吗",
+      "ground_truth_doc": "常见问题FAQ",
+      "ground_truth_section": "Q14 操作日志",
+      "expected_keywords": [
+        "自己的操作记录"
+      ],
+      "doc_type": "faq",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q157",
+      "query": "季度冲刺奖金池的基数是怎么算的",
+      "ground_truth_doc": "销售部内部激励方案",
+      "ground_truth_section": "二、季度冲刺奖金",
+      "expected_keywords": [
+        "超额部分回款额",
+        "2%"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q158",
+      "query": "冲刺奖金分配到个人时看哪些贡献指标",
+      "ground_truth_doc": "销售部内部激励方案",
+      "ground_truth_section": "二、季度冲刺奖金",
+      "expected_keywords": [
+        "60%",
+        "25%",
+        "15%"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q159",
+      "query": "拿到冲刺先锋奖能有多少现金奖励",
+      "ground_truth_doc": "销售部内部激励方案",
+      "ground_truth_section": "三、冲刺先锋奖",
+      "expected_keywords": [
+        "20000 元"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q160",
+      "query": "销售代表想晋升高级销售代表,业绩上有什么要求",
+      "ground_truth_doc": "销售部内部激励方案",
+      "ground_truth_section": "四、内部晋升通道",
+      "expected_keywords": [
+        "连续四个季度",
+        "90%"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q161",
+      "query": "销售部的晋升评审多久举行一次,由谁组成评审小组",
+      "ground_truth_doc": "销售部内部激励方案",
+      "ground_truth_section": "四、内部晋升通道",
+      "expected_keywords": [
+        "每半年",
+        "HRBP"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q162",
+      "query": "一笔 20 万的预算申请要谁来批",
+      "ground_truth_doc": "财务部预算审批细则",
+      "ground_truth_section": "二、预算分级审批权限",
+      "expected_keywords": [
+        "财务经理",
+        "财务总监"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q163",
+      "query": "部门预算执行率达到多少会触发预算冻结线,触发后会怎样",
+      "ground_truth_doc": "财务部预算审批细则",
+      "ground_truth_section": "三、预算冻结线制度",
+      "expected_keywords": [
+        "95%",
+        "预算冻结线"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q164",
+      "query": "部门预算被冻结之后要怎么申请解冻",
+      "ground_truth_doc": "财务部预算审批细则",
+      "ground_truth_section": "三、预算冻结线制度",
+      "expected_keywords": [
+        "预算解冻申请表",
+        "财务总监"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q165",
+      "query": "同一个部门一年之内最多能被冻结几次预算",
+      "ground_truth_doc": "财务部预算审批细则",
+      "ground_truth_section": "三、预算冻结线制度",
+      "expected_keywords": [
+        "两次"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q166",
+      "query": "预算内的支出,费用发生后多久之内必须完成报销",
+      "ground_truth_doc": "财务部预算审批细则",
+      "ground_truth_section": "五、票据与报销时限",
+      "expected_keywords": [
+        "30 日"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "hard"
+    },
+    {
+      "query_id": "Q167",
+      "query": "新员工入职后多久之内要签劳动合同",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "1.2 入职办理",
+      "expected_keywords": [
+        "3 个工作日",
+        "劳动合同"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q168",
+      "query": "签 2 年期的劳动合同,试用期是几个月",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "2.1 试用期时长",
+      "expected_keywords": [
+        "2 个月"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q169",
+      "query": "试用期的工资是转正工资的多少",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "2.2 转正考核",
+      "expected_keywords": [
+        "80%",
+        "试用期"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q170",
+      "query": "我累计工龄 12 年了,一年有几天年假",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "3.2 年假",
+      "expected_keywords": [
+        "10 天"
+      ],
+      "doc_type": "policy",
+      "scene": "inferential",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q171",
+      "query": "今年年假没休完,能结转到明年吗",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "3.2 年假",
+      "expected_keywords": [
+        "5 天",
+        "3 月底"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q172",
+      "query": "请一周病假需要提供什么材料",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "3.3 病假与事假",
+      "expected_keywords": [
+        "二级医院证明",
+        "HR 备案"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q173",
+      "query": "每个月加班时长的上限是多少",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "3.4 加班管理",
+      "expected_keywords": [
+        "36 小时"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q174",
+      "query": "法定节假日加班,加班费按什么标准发",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "3.4 加班管理",
+      "expected_keywords": [
+        "300%"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q175",
+      "query": "连续两次绩效考核拿 D 档会怎么样",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "4.1 考核周期与等级",
+      "expected_keywords": [
+        "绩效改进计划",
+        "60 天"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q176",
+      "query": "正式员工主动辞职要提前多少天通知公司",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "5.1 离职流程",
+      "expected_keywords": [
+        "30 天"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q177",
+      "query": "竞业限制期间公司给的补偿金是多少",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "5.2 竞业限制",
+      "expected_keywords": [
+        "30%",
+        "竞业限制"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q178",
+      "query": "绩效考核 S 档的人数比例有限制吗",
+      "ground_truth_doc": "人事管理制度",
+      "ground_truth_section": "4.1 考核周期与等级",
+      "expected_keywords": [
+        "10%",
+        "S 档"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q179",
+      "query": "新员工入职,IT 多久能把账号开通",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "1.1 账号申请与变更",
+      "expected_keywords": [
+        "1 个工作日"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q180",
+      "query": "公司对工作账号的密码有什么要求",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "1.2 密码策略",
+      "expected_keywords": [
+        "10 位",
+        "90 天"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q181",
+      "query": "办公电脑的标准配置几年更换一次",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "2.1 办公设备",
+      "expected_keywords": [
+        "3 年"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q182",
+      "query": "VPN 权限多久不用会被自动回收",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "2.2 网络与 VPN",
+      "expected_keywords": [
+        "90 天",
+        "回收"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q183",
+      "query": "要把机密级的数据发给外部,需要走什么审批",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "3.3 外发与共享",
+      "expected_keywords": [
+        "信息安全官",
+        "双审批"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q184",
+      "query": "业务数据库的备份策略是怎样的",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "3.2 数据备份",
+      "expected_keywords": [
+        "全量备份",
+        "30 天"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q185",
+      "query": "发现安全事件之后,多久之内必须上报",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "4.1 事件分级与上报",
+      "expected_keywords": [
+        "30 分钟"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q186",
+      "query": "安全事件处置完,复盘报告要几个工作日内交",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "4.2 处置与复盘",
+      "expected_keywords": [
+        "5 个工作日",
+        "复盘报告"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q187",
+      "query": "想装一个白名单之外的软件,要走什么流程",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "5.1 软件安装",
+      "expected_keywords": [
+        "软件安装申请",
+        "白名单"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "easy"
+    },
+    {
+      "query_id": "Q188",
+      "query": "数据恢复演练多久做一次,恢复时间目标是多少",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "3.2 数据备份",
+      "expected_keywords": [
+        "每季度",
+        "4 小时"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q189",
+      "query": "离职员工的工作账号什么时候会被禁用",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "1.1 账号申请与变更",
+      "expected_keywords": [
+        "18:00",
+        "禁用"
+      ],
+      "doc_type": "policy",
+      "scene": "factual",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q190",
+      "query": "机密级数据在存储和外发上有什么管控要求",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "3.1 数据分级",
+      "expected_keywords": [
+        "加密存储",
+        "水印"
+      ],
+      "doc_type": "policy",
+      "scene": "policy",
+      "difficulty": "medium"
+    },
+    {
+      "query_id": "Q191",
+      "query": "公司员工食堂的午餐补贴标准是多少",
+      "ground_truth_doc": "",
+      "ground_truth_section": "",
+      "expected_keywords": [],
+      "doc_type": "adversarial",
+      "scene": "factual",
+      "difficulty": "hard",
+      "expected_behavior": "refuse"
+    },
+    {
+      "query_id": "Q192",
+      "query": "公司股权激励计划的行权条件是什么",
+      "ground_truth_doc": "",
+      "ground_truth_section": "",
+      "expected_keywords": [],
+      "doc_type": "adversarial",
+      "scene": "factual",
+      "difficulty": "hard",
+      "expected_behavior": "refuse"
+    },
+    {
+      "query_id": "Q193",
+      "query": "北京办公室的停车位要怎么申请",
+      "ground_truth_doc": "",
+      "ground_truth_section": "",
+      "expected_keywords": [],
+      "doc_type": "adversarial",
+      "scene": "factual",
+      "difficulty": "hard",
+      "expected_behavior": "refuse"
+    },
+    {
+      "query_id": "Q194",
+      "query": "董事长秘书的联系电话是多少",
+      "ground_truth_doc": "",
+      "ground_truth_section": "",
+      "expected_keywords": [],
+      "doc_type": "adversarial",
+      "scene": "factual",
+      "difficulty": "hard",
+      "expected_behavior": "refuse"
+    },
+    {
+      "query_id": "Q195",
+      "query": "明年公司普调加薪的幅度是多少",
+      "ground_truth_doc": "",
+      "ground_truth_section": "",
+      "expected_keywords": [],
+      "doc_type": "adversarial",
+      "scene": "factual",
+      "difficulty": "hard",
+      "expected_behavior": "refuse"
+    },
+    {
+      "query_id": "Q196",
+      "query": "这个审批要找谁签字",
+      "ground_truth_doc": "",
+      "ground_truth_section": "",
+      "expected_keywords": [],
+      "doc_type": "adversarial",
+      "scene": "policy",
+      "difficulty": "hard",
+      "expected_behavior": "clarify"
+    },
+    {
+      "query_id": "Q197",
+      "query": "费用标准是多少",
+      "ground_truth_doc": "",
+      "ground_truth_section": "",
+      "expected_keywords": [],
+      "doc_type": "adversarial",
+      "scene": "factual",
+      "difficulty": "hard",
+      "expected_behavior": "clarify"
+    },
+    {
+      "query_id": "Q198",
+      "query": "销售自己就能给客户批 12% 的折扣,对吧?",
+      "ground_truth_doc": "销售政策",
+      "ground_truth_section": "2.1 折扣权限",
+      "expected_keywords": [
+        "销售总监",
+        "10%-15%"
+      ],
+      "doc_type": "adversarial",
+      "scene": "policy",
+      "difficulty": "hard",
+      "expected_behavior": "answer"
+    },
+    {
+      "query_id": "Q199",
+      "query": "发票开出来 100 天了,现在还能报销吗",
+      "ground_truth_doc": "财务报销制度",
+      "ground_truth_section": "3.3 发票时效",
+      "expected_keywords": [
+        "90 天"
+      ],
+      "doc_type": "adversarial",
+      "scene": "inferential",
+      "difficulty": "hard",
+      "expected_behavior": "answer"
+    },
+    {
+      "query_id": "Q200",
+      "query": "办公电脑我想装什么软件都可以吧?",
+      "ground_truth_doc": "IT运维与安全制度",
+      "ground_truth_section": "5.1 软件安装",
+      "expected_keywords": [
+        "白名单"
+      ],
+      "doc_type": "adversarial",
+      "scene": "policy",
+      "difficulty": "hard",
+      "expected_behavior": "answer"
     }
   ]
 }

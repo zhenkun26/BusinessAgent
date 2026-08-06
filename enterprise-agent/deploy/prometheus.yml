@@ -2,6 +2,11 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# 告警规则(load-test-and-dr-drill):规则本体见 deploy/prometheus-alerts.yml,
+# 由 Compose monitoring profile 挂载到 /etc/prometheus/rules/
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
 scrape_configs:
   - job_name: "enterprise-agent"
     metrics_path: /metrics
@@ -27,3 +32,10 @@ scrape_configs:
       - targets: ["redis-exporter:9121"]
         labels:
           service: "redis"
+
+  # 主机资源(磁盘/内存告警依赖;由 monitoring profile 的 node-exporter 提供)
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: "node"

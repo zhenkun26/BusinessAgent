@@ -71,6 +71,8 @@ def planner_node(state: AgentState) -> AgentState:
     logger.info(f"Planner 开始: user={user_input.username}, message={message[:80]!r}")
 
     # ===== 重规划模式(agent-replan):跳过分类直接重建知识子任务 =====
+    # 状态更新也在此完成(轮次递增/历史追加/agent_results 重置)——
+    # langgraph 1.2 条件边不支持携带 updates,故集中在重规划分支落地
     replan_reason = state.get("replan_reason")
     if replan_reason:
         replan_hint = state.get("replan_hint") or {}
@@ -87,17 +89,21 @@ def planner_node(state: AgentState) -> AgentState:
                 priority=10,
             )
         ]
+        replan_count = state.get("replan_count", 0) + 1
         replan_history = list(state.get("replan_history") or [])
         replan_history.append(replan_reason)
         logger.info(
             f"Planner 重规划: reason={replan_reason}, "
-            f"query={replan_query[:80]!r}, rounds={len(replan_history)}"
+            f"query={replan_query[:80]!r}, round={replan_count}"
         )
         return AgentState(
             intent=Intent.KNOWLEDGE_QA,
             subtasks=subtasks,
-            plan_reasoning=f"重规划第 {len(replan_history)} 轮: {replan_reason}",
+            plan_reasoning=f"重规划第 {replan_count} 轮: {replan_reason}",
+            replan_count=replan_count,
             replan_history=replan_history,
+            # 空列表触发 _resettable_add 重置,防止上一轮结果混入新一轮
+            agent_results=[],
         )
 
     intent: Optional[Intent] = None

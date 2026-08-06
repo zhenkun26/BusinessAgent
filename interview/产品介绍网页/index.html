@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hello，小A — 企业知识工作流 Agent · 演讲汇报</title>
+<title>Hello，智多星 — 企业知识工作流 Agent · 演讲汇报</title>
 <link href="fonts.css" rel="stylesheet">
 <style>
 /* ===================== 设计令牌 ===================== */
@@ -178,7 +178,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 .cover .lead-chips .c3,.thanks .lead-chips .c3{color:var(--success)}.cover .lead-chips .c3 i,.thanks .lead-chips .c3 i{background:#D1FAE5}
 .cover-deco{position:absolute;right:80px;top:50%;transform:translateY(-50%);width:340px;height:340px;opacity:.9}
 
-/* 封面机器人(同款小A头像放大版) */
+/* 封面机器人(同款智多星头像放大版) */
 .cover-bot{position:relative;flex:none;width:340px;height:340px;
   display:flex;align-items:center;justify-content:center}
 .bot-avatar{position:relative;z-index:2;width:196px;height:196px;border-radius:58px;
@@ -666,7 +666,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 
 <div class="progress-wrap"><div class="progress-bar" id="pbar"></div></div>
 <div class="act-tag" id="actTag"><b>第一幕</b> · 缘起</div>
-<div class="brand-mark">Hello，<span>小A</span></div>
+<div class="brand-mark">Hello，<span>智多星</span></div>
 
 <div class="deck" id="deck">
 
@@ -675,7 +675,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
   <div class="slide-inner cover">
     <div class="cover-main">
       <div class="hello reveal reveal-1">Hello，你好</div>
-      <h1 class="reveal reveal-2">我是<span class="accent">小A</span></h1>
+      <h1 class="reveal reveal-2">我是<span class="accent">智多星</span></h1>
       <div class="tagline reveal reveal-3">企业知识工作流 <em>Agent</em></div>
       <div class="lead reveal reveal-4" style="margin-top:28px;max-width:580px">
         用自然语言一站式完成<b>知识问答</b>、<b>数据分析</b>与<b>业务执行</b>。
@@ -1808,7 +1808,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <section class="slide" data-act="8" data-actname="收尾" data-title="致谢与问答">
   <div class="slide-inner thanks">
     <div class="hello reveal reveal-1" style="font-family:var(--font-display);font-style:italic;color:var(--ink-muted);font-size:24px;margin-bottom:8px">谢谢聆听</div>
-    <h1 class="reveal reveal-2">Hello，<em>小A</em></h1>
+    <h1 class="reveal reveal-2">Hello，<em>智多星</em></h1>
     <div class="sub reveal reveal-3">企业知识工作流 Agent</div>
     <div class="lead reveal reveal-4" style="margin-top:24px;text-align:center;max-width:640px">
       用自然语言一站式完成<b>知识问答</b>、<b>数据分析</b>与<b>业务执行</b>。
@@ -2301,7 +2301,7 @@ const QA_DATA=[
   {cat:"前端",q:"前端为什么做单文件 SPA,不用 React 工程?",a:"阶段匹配的取舍。当前是功能验证期,前端的主要用途是演示和手工测试:单文件 HTML(Vue3+marked 走 CDN)由 FastAPI StaticFiles 托管在 /ui,<b>零 Node 依赖、零构建、与 API 同源无 CORS 问题</b>,一个文件覆盖登录/对话/审批/Prompt 管理全功能。等进入性能优化期再迁 Vite + Vue3 工程化,届时接口契约不变,只换前端壳。"},
   {cat:"展望",q:"QPS 翻 100 倍,哪里先崩?",a:"按顺序崩:① <b>云端 LLM 的 rate limit 和成本</b>(最先,且是外部约束)—— 对策:本地模型承接更多、请求级缓存、prompt 压缩;② uvicorn worker 数(长请求占满 worker)—— 对策:SSE + 水平扩 worker;③ Milvus 单机内存 —— 对策:集群或缩 embedding 维度;④ Redis checkpoint 存储 —— 对策:加 TTL + 集群。PG 和工具层(Mock)反而靠后。要点是<b>先崩的是外部依赖,不是自己的服务</b>。"},
   {cat:"展望",q:"显式状态机 vs ReAct,未来会融合吗?",a:"会,但边界要划清:<b>主图保持显式状态机</b>(权限和审计要求),在 executor 内部对开放式子任务引入受限 ReAct 循环(限步数、限工具白名单、全程 tracing)。原则是'确定性骨架 + 局部自治' —— 自治的范围越大,护栏就要越密(步数上限、token 预算、循环检测),这些护栏我们现在只有多跳 ≤2 轮这一个,是明确的能力边界。"},
-  {cat:"工程",q:"闲聊话术机械 / Markdown 加粗不渲染怎么解决?",a:"两个细节修复,都是'细节决定体验'的典型。<b>闲聊人格化</b>:aggregator._chitchat_reply 从 4 分支固定模板重写为小A 人格六分支 —— 问候含用户称呼(「你好,张三」)、情绪共情、自我介绍、感谢、再见、默认,告别「我是企业知识助手…」机械话术。<b>加粗渲染</b>:折扣政策回答中 <code>**5%-10%**</code> 显示字面星号 —— CommonMark 侧翼规则:闭合 <code>**</code> 前是标点(%)且后紧跟中文时不构成加粗,marked 按规范不渲染(已 node 实测复现)。修复:前端 renderMd 预处理,<code>**x**</code> 统一转 <code>&lt;strong&gt;</code> 再交 marked,绕开侧翼规则。架构再强,话术机械/格式错乱,用户感知就是'不智能'。"},
+  {cat:"工程",q:"闲聊话术机械 / Markdown 加粗不渲染怎么解决?",a:"两个细节修复,都是'细节决定体验'的典型。<b>闲聊人格化</b>:aggregator._chitchat_reply 从 4 分支固定模板重写为智多星 人格六分支 —— 问候含用户称呼(「你好,张三」)、情绪共情、自我介绍、感谢、再见、默认,告别「我是企业知识助手…」机械话术。<b>加粗渲染</b>:折扣政策回答中 <code>**5%-10%**</code> 显示字面星号 —— CommonMark 侧翼规则:闭合 <code>**</code> 前是标点(%)且后紧跟中文时不构成加粗,marked 按规范不渲染(已 node 实测复现)。修复:前端 renderMd 预处理,<code>**x**</code> 统一转 <code>&lt;strong&gt;</code> 再交 marked,绕开侧翼规则。架构再强,话术机械/格式错乱,用户感知就是'不智能'。"},
   {cat:"架构",q:"查询订单被路由到知识问答怎么办?",a:"意图分类 prompt 的 <code>data_operation</code> 定义只写了'创建/更新/删除',没覆盖'查询业务记录',4B 小模型把'查询'动词归到 knowledge_qa —— 回答'知识库未覆盖'。<b>三层修复</b>:① <code>planner_intent_classify</code> 模板补齐 data_operation(查询或变更具体业务记录)/ knowledge_qa(仅政策制度)定义与判定规则,<code>RULE_KEYWORDS</code> 同步加'查询订单/ord-/工单/查客户';② planner 意图分类加<b>运行时回退</b>:本地失败或输出无法解析 → 云端 flash 重试一次 → 仍失败走规则关键词;③ <code>knowledge_rag_answer</code> 模板加引导:问具体业务记录时提示改用查询指令(兜底路由仍漏的场景)。实测订单查询 intent=data_operation 返回真实订单明细。"}
 ];
 

@@ -55,3 +55,6 @@ minio_data/
 
 # 评测结果
 eval/results/
+
+# 本地 HuggingFace 模型缓存(评测用,体量大不提交)
+.hf_cache/

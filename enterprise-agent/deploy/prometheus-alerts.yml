@@ -1,0 +1,167 @@
+# Prometheus 告警规则(load-test-and-dr-drill / tasks 3.1)
+#
+# 口径分层(见 design.md 决策 3):
+#   - SLA 口径(warning):对齐 production-readiness 规格 SLA 初值
+#     (可用性 ≥99.5%、核心接口 p95 ≤2s、p99 ≤5s、错误率 <0.5%),用于趋势观察,防告警疲劳。
+#   - 运维口径(critical):对齐 deploy/DEPLOY.md 第六节关键指标阈值
+#     (P95 >5s、错误率 >5%、连接数 >80、内存/磁盘 >80-85%),用于处置触发。
+# 每条告警 annotations.basis 标注口径来源;值班预案见 docs/30-guides/运维维护手册.md
+# 「值班预案」章节,预案条目与 alert 名一一对应。
+#
+# 依赖的采集目标(deploy/prometheus.yml):
+#   enterprise-agent(api:8000)/ milvus(milvus-standalone:9091)/ postgres(postgres-exporter:9187)/
+#   redis(redis-exporter:9121)/ node(node-exporter:9100)
+# 其中 postgres-exporter / redis-exporter / node-exporter 由 Compose monitoring profile 提供。
+
+groups:
+  # ============ SLA 口径(warning,趋势观察) ============
+  - name: sla-baseline
+    rules:
+      - alert: ApiP95LatencySlaBreached
+        # 核心接口 p95 超过 SLA 初值 2s
+        expr: histogram_quantile(0.95, sum(rate(agent_http_request_latency_seconds_bucket[5m])) by (le)) > 2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 延迟越过 SLA 初值(2s)"
+          basis: "SLA 口径:production-readiness 初值 p95 ≤ 2s(对话类接口以首 token 计,本指标为完整响应,更严)"
+
+      - alert: ApiP99LatencySlaBreached
+        expr: histogram_quantile(0.99, sum(rate(agent_http_request_latency_seconds_bucket[5m])) by (le)) > 5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p99 延迟越过 SLA 初值(5s)"
+          basis: "SLA 口径:production-readiness 初值 p99 ≤ 5s"
+
+      - alert: ApiErrorRateSlaBreached
+        # 5xx 占比超过 SLA 初值 0.5%
+        expr: >-
+          sum(rate(agent_http_request_latency_seconds_count{status=~"5.."}[5m]))
+          / sum(rate(agent_http_request_latency_seconds_count[5m])) > 0.005
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 错误率越过 SLA 初值(0.5%)"
+          basis: "SLA 口径:production-readiness 初值错误率 < 0.5%"
+
+      - alert: ApiAvailabilitySlaRisk
+        # 1 小时窗口错误率,逼近可用性 99.5% 承诺线
+        expr: >-
+          sum(rate(agent_http_request_latency_seconds_count{status=~"5.."}[1h]))
+          / sum(rate(agent_http_request_latency_seconds_count[1h])) > 0.005
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 小时级错误率逼近可用性 SLA(99.5%)"
+          basis: "SLA 口径:production-readiness 初值可用性 ≥ 99.5%"
+
+  # ============ 运维口径(critical,处置触发) ============
+  - name: ops-incident
+    rules:
+      - alert: ApiDown
+        expr: up{job="enterprise-agent"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 服务不可达"
+          basis: "运维口径:服务不可用即处置(DEPLOY.md 健康检查 /health)"
+
+      - alert: ApiP95LatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(agent_http_request_latency_seconds_bucket[5m])) by (le)) > 5
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API p95 延迟超过运维处置线(5s)"
+          basis: "运维口径:DEPLOY.md 六节「API 延迟 P95 > 5s」"
+
+      - alert: ApiErrorRateHigh
+        expr: >-
+          sum(rate(agent_http_request_latency_seconds_count{status=~"5.."}[5m]))
+          / sum(rate(agent_http_request_latency_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 错误率超过运维处置线(5%)"
+          basis: "运维口径:DEPLOY.md 六节「错误率 > 5%」"
+
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL 不可达(postgres-exporter 采集失败)"
+          basis: "运维口径:关键依赖异常即处置;注意区分「PG 宕机」与「exporter 未部署/失联」"
+
+      - alert: PostgresConnectionsHigh
+        expr: sum(pg_stat_activity_count) > 80
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL 连接数超过 80"
+          basis: "运维口径:DEPLOY.md 六节「PostgreSQL 连接数 > 80」"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis 不可达(redis-exporter 采集失败)"
+          basis: "运维口径:关键依赖异常即处置;Redis 故障会触发 checkpointer/限流降级链"
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis 内存使用超过 maxmemory 的 80%"
+          basis: "运维口径:DEPLOY.md 六节「Redis 内存 > 80% maxmemory」"
+
+      - alert: MilvusDown
+        expr: up{job="milvus"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Milvus 不可达(9091 指标端点采集失败)"
+          basis: "运维口径:关键依赖异常即处置;Milvus 故障会触发检索降级链(BM25/关键词兜底)"
+
+      - alert: MilvusMemoryHigh
+        # Milvus 容器内存上限 4G(docker-compose.prod.yml),80% = 3.2G
+        expr: process_resident_memory_bytes{job="milvus"} > 3.2e9
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Milvus 进程内存超过 3.2G(4G 上限的 80%)"
+          basis: "运维口径:DEPLOY.md 六节「Milvus 内存 > 80%」;分母取 prod compose 容器内存上限"
+
+      - alert: DiskUsageHigh
+        expr: >-
+          (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|devfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|devfs|overlay"}) > 0.85
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "磁盘使用率超过 85%(挂载点 {{ $labels.mountpoint }})"
+          basis: "运维口径:DEPLOY.md 六节「磁盘使用率 > 85%」"
+
+      - alert: HostMemoryHigh
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "主机内存使用率超过 90%,临近耗尽"
+          basis: "运维口径:内存耗尽前置处置线(参考 DEPLOY.md 2.1 内存占用构成)"

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: agent-api
-  namespace: hello-xiao-a
+  namespace: hello-zhiduoxing
   labels:
     app: agent-api
 spec:

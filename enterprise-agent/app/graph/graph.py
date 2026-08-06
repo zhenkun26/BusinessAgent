@@ -98,28 +98,22 @@ def route_after_aggregator(state: AgentState):
     """Aggregator 后的条件边函数(agent-replan 回边)
 
     返回值:
-    - ("planner", updates): needs_replan 且轮次未达上限,回 planner 重规划
-      (updates 递增 replan_count、追加 replan_history、重置 agent_results)
+    - "planner": needs_replan 且轮次未达上限,回 planner 重规划
     - END: 无需重规划或已耗尽轮次
+
+    注意:重规划的状态更新(轮次递增/历史追加/agent_results 重置)由
+    planner_node 重规划分支完成——langgraph 1.2 的条件边只支持返回
+    目标节点/Send,不支持 (node, updates) 元组(会抛
+    TypeError: unhashable type: 'dict')。
     """
     needs_replan = state.get("needs_replan", False)
     replan_count = state.get("replan_count", 0)
     if needs_replan and replan_count < MAX_REPLAN_ROUNDS:
-        replan_history = list(state.get("replan_history") or [])
-        replan_history.append(state.get("replan_reason") or "unknown")
         logger.info(
             f"重规划回边: round={replan_count + 1}/{MAX_REPLAN_ROUNDS}, "
             f"reason={state.get('replan_reason')}"
         )
-        return (
-            "planner",
-            {
-                "replan_count": replan_count + 1,
-                "replan_history": replan_history,
-                # 空列表触发 _resettable_add 重置,防止上一轮结果混入新一轮
-                "agent_results": [],
-            },
-        )
+        return "planner"
     return END
 
 
@@ -171,7 +165,11 @@ async def run_graph(
 
     initial_state = make_initial_state(user_input)
     initial_state["history"] = history
-    final_state = await graph.ainvoke(initial_state, config=config)
+    # I-07:请求级 token 采集作用域(contextvar),图内全部 LLM 调用统一计入
+    from app.observability.token_usage import track_token_usage
+
+    with track_token_usage():
+        final_state = await graph.ainvoke(initial_state, config=config)
     return final_state
 
 
@@ -222,21 +220,25 @@ async def run_graph_stream(
     watched_nodes = ("planner", "agent_executor", "aggregator")
     last_progress: Optional[tuple] = None
 
-    async for ev in graph.astream_events(initial_state, config=config, version="v2"):
-        kind = ev.get("event", "")
-        node = ev.get("metadata", {}).get("langgraph_node")
+    # I-07:请求级 token 采集作用域(contextvar),图内全部 LLM 调用统一计入
+    from app.observability.token_usage import track_token_usage
 
-        if kind in ("on_chain_start", "on_chain_end") and node in watched_nodes:
-            phase = "start" if kind.endswith("_start") else "end"
-            # astream_events 对同一节点会发 chain/runnable 两组事件,去重
-            if (node, phase) != last_progress:
-                last_progress = (node, phase)
-                yield {"type": "progress", "node": node, "phase": phase}
-        elif kind == "on_chat_model_stream" and "final_answer" in ev.get("tags", []):
-            chunk = ev.get("data", {}).get("chunk")
-            text = getattr(chunk, "content", None) if chunk is not None else None
-            if text:
-                yield {"type": "token", "data": text}
+    with track_token_usage():
+        async for ev in graph.astream_events(initial_state, config=config, version="v2"):
+            kind = ev.get("event", "")
+            node = ev.get("metadata", {}).get("langgraph_node")
+
+            if kind in ("on_chain_start", "on_chain_end") and node in watched_nodes:
+                phase = "start" if kind.endswith("_start") else "end"
+                # astream_events 对同一节点会发 chain/runnable 两组事件,去重
+                if (node, phase) != last_progress:
+                    last_progress = (node, phase)
+                    yield {"type": "progress", "node": node, "phase": phase}
+            elif kind == "on_chat_model_stream" and "final_answer" in ev.get("tags", []):
+                chunk = ev.get("data", {}).get("chunk")
+                text = getattr(chunk, "content", None) if chunk is not None else None
+                if text:
+                    yield {"type": "token", "data": text}
 
 
 def reset_graph():

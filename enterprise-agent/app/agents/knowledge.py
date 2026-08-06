@@ -162,7 +162,12 @@ class KnowledgeAgent:
                 )
 
             # 2. LLM 生成答案(带多轮历史)
-            answer, llm_self_score, tokens = await self._generate_answer(query, results, history=history)
+            # I-07:token 走统一采集通道(callback 累加器),不再自行提取 usage_metadata
+            from app.observability.token_usage import snapshot_total_tokens
+
+            tokens_before = snapshot_total_tokens()
+            answer, llm_self_score = await self._generate_answer(query, results, history=history)
+            tokens = snapshot_total_tokens() - tokens_before
 
             # 3. 综合置信度(检索分 + LLM 自评 加权)
             top_score = results[0].score
@@ -237,8 +242,12 @@ class KnowledgeAgent:
 
     async def _generate_answer(
         self, query: str, results: list[SearchResult], history: Optional[list[dict]] = None
-    ) -> tuple[str, Optional[float], int]:
-        """调用 LLM 生成答案 + 自评分数(async:P2-2 起 ainvoke，取消可在 LLM 等待期间生效)"""
+    ) -> tuple[str, Optional[float]]:
+        """调用 LLM 生成答案 + 自评分数(async:P2-2 起 ainvoke，取消可在 LLM 等待期间生效)
+
+        I-07:token 用量不再从响应 usage_metadata 逐点提取,改由统一 callback
+        (TokenUsageCallbackHandler)采集,调用方读请求级累加器差值。
+        """
         from langchain_core.prompts import ChatPromptTemplate
 
         # 答案生成用 lite(flash):pro 是推理模型,95% token 消耗在隐藏推理上
@@ -268,11 +277,6 @@ class KnowledgeAgent:
             config={"tags": ["final_answer"]},  # 流式输出标记(仅面向用户的生成)
         )
         answer_text = answer_resp.content if hasattr(answer_resp, "content") else str(answer_resp)
-        # 提取 token 用量(若 LLM 响应带 usage_metadata)
-        tokens = 0
-        usage = getattr(answer_resp, "usage_metadata", None)
-        if isinstance(usage, dict):
-            tokens = int(usage.get("total_tokens", 0))
 
         # LLM 自评(用本地小模型,免费高频;失败不影响主流程)
         # 条件化:检索分明显高(≥0.85,不过自评也稳过)或明显低(≤0.30,自评满分也救不回)
@@ -281,7 +285,7 @@ class KnowledgeAgent:
         top_score = results[0].score if results else 0.0
         if top_score >= 0.85 or top_score <= 0.30:
             logger.debug(f"自评跳过： top_score={top_score:.3f} 在灰色区间外")
-            return answer_text, None, tokens
+            return answer_text, None
         try:
             eval_llm = self._get_eval_llm()
             eval_tpl, _epv = get_prompt("knowledge_llm_self_eval")
@@ -307,7 +311,7 @@ class KnowledgeAgent:
         except Exception as e:  # noqa: BLE001
             logger.warning(f"LLM 自评失败： {e}")
 
-        return answer_text, llm_self_score, tokens
+        return answer_text, llm_self_score
 
     @staticmethod
     def _apply_decision(answer: str, decision) -> tuple[str, Optional[str]]:

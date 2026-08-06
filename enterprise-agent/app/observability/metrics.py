@@ -20,6 +20,13 @@ llm_degradation_count = Counter(
     ["level"],  # primary / lite / local / faq
 )
 
+# ============ LLM token 用量(I-07,经 TokenUsageCallbackHandler 统一采集) ============
+llm_token_usage = Counter(
+    "agent_llm_tokens_total",
+    "LLM token 消耗总量",
+    ["model", "token_type"],  # token_type: prompt / completion / total
+)
+
 # ============ 性能指标 ============
 node_latency = Histogram(
     "agent_node_latency_seconds",

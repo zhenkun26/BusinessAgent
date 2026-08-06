@@ -1,0 +1,27 @@
+title = "BusinessAgent gitleaks 配置(security-hardening-plus)"
+
+# 继承默认规则集,再叠加项目豁免(文档示例串、开发默认凭证)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "项目级豁免:文档示例、测试假密钥、本地环境文件与公开的开发默认凭证"
+paths = [
+  '''(?i)docs/''',                 # 文档示例串(假密钥)
+  '''(?i)interview/''',            # 面试/演示资产
+  '''(?i)openspec/''',             # 规格与提案文档
+  '''(?i)/tests/''',               # 测试用假密钥(monkeypatch 桩值)
+  '''(?i)\.venv''',                # 本地虚拟环境(第三方依赖误报,不入库)
+  '''\.env$''',                    # 本地环境文件(.gitignore 已拦截入库,双保险)
+  '''\.env\.example$''',           # 环境变量模板(占位值)
+  '''(?i)\.gitleaks\.toml$''',     # 本文件(含豁免串自身)
+  '''(?i)CHANGELOG\.md$''',
+]
+regexes = [
+  '''change-me-in-production''',        # JWT 开发默认占位
+  '''wJ6pbV5eBkzMT2AYDT9w2i8V''',       # PG 开发默认口令(docker-compose 公开)
+  '''V5lOkygYvgaD6ZZ8rmqJAcO7''',       # Redis 开发默认密码(同上)
+  '''Milvus123''',                      # Milvus 开发默认密码
+  '''sk-(example|test|xxx|\*+)''',      # 文档中的 API Key 占位
+  '''your[-_][a-z-]*(key|token|secret)''',
+]

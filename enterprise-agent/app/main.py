@@ -21,7 +21,7 @@ from app.observability.metrics import metrics_middleware
 async def lifespan(app: FastAPI):
     """应用生命周期:启动时初始化资源, 关闭时清理"""
     settings = get_settings()
-    logger.info(f"启动 Hello,小A 服务, env={settings.app_env}")
+    logger.info(f"启动 Hello,智多星 服务, env={settings.app_env}")
 
     # 生产模式配置强校验:默认 JWT 密钥/数据库口令/通配 CORS 一律拒绝启动
     config_violations = validate_production_settings(settings)
@@ -100,7 +100,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="Hello，小A——企业知识工作流 Agent",
+        title="Hello，智多星——企业知识工作流 Agent",
         description="基于 LangChain + LangGraph + Milvus 的企业级多 Agent 系统",
         version=__version__,
         lifespan=lifespan,

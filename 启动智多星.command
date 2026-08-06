@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================
-# Hello，小A——macOS 一键启动脚本
-# 对应 Windows 版 启动小A.bat
+# Hello，智多星——macOS 一键启动脚本
+# 对应 Windows 版 启动智多星.bat
 # 功能:自检 Docker → 启动基础设施(PG/Redis,可选 Milvus)→ 启动 API → 打开 /ui
 # 用法:双击本文件(首次需在 系统设置→隐私与安全性 允许运行)
 # ============================================
@@ -13,7 +13,7 @@ API_DIR="$PROJECT_DIR/enterprise-agent"
 VENV_PY="$API_DIR/.venv/bin/python"
 PORT=8000
 
-echo "== Hello，小A macOS 启动器 =="
+echo "== Hello，智多星 macOS 启动器 =="
 
 # 1. Docker 自检(未运行则启动 Docker Desktop 并等待)
 if ! docker info >/dev/null 2>&1; then

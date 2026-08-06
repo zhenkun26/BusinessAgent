@@ -2,7 +2,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: agent-api-pdb
-  namespace: hello-xiao-a
+  namespace: hello-zhiduoxing
 spec:
   minAvailable: 2
   selector:

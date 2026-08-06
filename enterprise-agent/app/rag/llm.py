@@ -24,6 +24,7 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 
 from app.config import get_settings
+from app.observability.token_usage import get_token_usage_handler
 
 
 class LLMRouter:
@@ -56,6 +57,7 @@ class LLMRouter:
                     timeout=60,
                     max_retries=2,
                     streaming=True,  # 支持 astream_events 的 token 级流式输出(行为不变)
+                    callbacks=[get_token_usage_handler()],  # I-07 token 统一采集
                 )
                 logger.info(f"主 LLM(云端): {s.openai_base_url} / {s.primary_llm_model}")
             else:
@@ -132,6 +134,7 @@ class LLMRouter:
                     # 关闭思考模式(实测:默认 210 token 推理/3.9s → 关闭后 0 推理/1.4s;
                     # 分类/选择/grounded 答案均不需要推理;等效已下架的 deepseek-chat)
                     extra_body={"thinking": {"type": "disabled"}},
+                    callbacks=[get_token_usage_handler()],  # I-07 token 统一采集
                 )
                 logger.info(
                     f"云端轻量 LLM: {s.openai_base_url} / {s.lite_llm_model}"
@@ -187,6 +190,7 @@ class LLMRouter:
             validate_model_on_init=True,
             sync_client_kwargs={"trust_env": False, "timeout": timeout},
             async_client_kwargs={"trust_env": False, "timeout": timeout},
+            callbacks=[get_token_usage_handler()],  # I-07 token 统一采集
         )
 
 

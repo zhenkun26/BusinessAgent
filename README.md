@@ -1,4 +1,4 @@
-# Hello，小A——企业知识工作流 Agent
+# Hello，智多星——企业知识工作流 Agent
 
 > 员工用自然语言一站式完成 **知识问答 · 数据分析 · 业务执行**，带权限隔离、审批闭环、全栈降级的企业级多 Agent 系统。
 
@@ -56,8 +56,8 @@ flowchart TD
 
 ### 方式一：一键启动（推荐）
 
-- **macOS**：双击根目录 [启动小A.command](启动小A.command)（自检 Docker → 启动 PG/Redis/Milvus → 初始化数据库 → 启动 API + Worker → 打开页面）
-- **Windows**：双击根目录 `启动小A.bat`
+- **macOS**：双击根目录 [启动智多星.command](启动智多星.command)（自检 Docker → 启动 PG/Redis/Milvus → 初始化数据库 → 启动 API + Worker → 打开页面）
+- **Windows**：双击根目录 `启动智多星.bat`
 
 浏览器打开 **http://localhost:8000/ui**（种子用户密码任意；生产开启 `AUTH_REQUIRE_PASSWORD=true` 后为 `ChangeMe123!`）。
 

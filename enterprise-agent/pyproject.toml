@@ -1,7 +1,7 @@
 [project]
 name = "enterprise-agent"
 version = "1.2.0"
-description = "Hello，小A——企业知识工作流 Agent - 基于 LangChain + LangGraph + Milvus"
+description = "Hello，智多星——企业知识工作流 Agent - 基于 LangChain + LangGraph + Milvus"
 requires-python = ">=3.11"
 dependencies = [
     # LangChain 生态

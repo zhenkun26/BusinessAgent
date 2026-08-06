@@ -1,22 +1,21 @@
-"""Hello，小A 生产级 Docker Compose 配置
-
-与 docker-compose.yml 区别:
-- 资源限制(deploy.resources):CPU/内存上限,防止单容器拖垮整机
-- 日志驱动(logging):json-file + 大小限制,防磁盘写爆
-- 重启策略(restart):unless-stopped,异常自动拉起
-- 健康检查:全部服务必备
-- 端口:仅暴露必要端口(API/监控),内部服务不对外
-- 时区:统一 Asia/Shanghai
-- 只读 App 容器:防止运行时被篡改
-
-使用:
-    docker compose -f docker-compose.prod.yml up -d
-
-依赖:
-    .env.prod (生产环境配置,含强密码)
-
-部署清单见: deploy/DEPLOY.md
-"""
+# Hello，智多星 生产级 Docker Compose 配置
+#
+# 与 docker-compose.yml 区别:
+# - 资源限制(deploy.resources):CPU/内存上限,防止单容器拖垮整机
+# - 日志驱动(logging):json-file + 大小限制,防磁盘写爆
+# - 重启策略(restart):unless-stopped,异常自动拉起
+# - 健康检查:全部服务必备
+# - 端口:仅暴露必要端口(API/监控),内部服务不对外
+# - 时区:统一 Asia/Shanghai
+# - 只读 App 容器:防止运行时被篡改
+#
+# 使用:
+#     docker compose -f docker-compose.prod.yml up -d
+#
+# 依赖:
+#     .env.prod (生产环境配置,含强密码)
+#
+# 部署清单见: deploy/DEPLOY.md
 
 services:
   # ============================================
@@ -313,6 +312,8 @@ services:
       - "9090"
     volumes:
       - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # 告警规则(load-test-and-dr-drill)
+      - ./deploy/prometheus-alerts.yml:/etc/prometheus/rules/prometheus-alerts.yml:ro
       - prometheus_data:/prometheus
     restart: unless-stopped
     logging:
@@ -325,6 +326,34 @@ services:
         limits:
           cpus: "0.5"
           memory: 512M
+    profiles: ["monitoring"]
+
+  # 以下 exporter 为 deploy/prometheus.yml 中 postgres/redis/node 采集目标,
+  # 供 deploy/prometheus-alerts.yml 的依赖异常/资源耗尽告警取数
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-enterprise_agent}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["monitoring"]
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["monitoring"]
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
     profiles: ["monitoring"]
 
   grafana:

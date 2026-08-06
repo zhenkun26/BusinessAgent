@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>小A · 企业知识工作流 Agent</title>
+<title>智多星 · 企业知识工作流 Agent</title>
 <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
@@ -259,7 +259,7 @@
         <div class="login-avatar">🤖<span class="online"></span></div>
         <div>
           <span class="hi">你的企业知识工作流智能助手</span>
-          <h1>Hello，我是小A 👋</h1>
+          <h1>Hello，我是智多星 👋</h1>
         </div>
       </div>
       <div class="picker" :class="{open:pickerOpen}" @click.stop>
@@ -288,7 +288,7 @@
   <!-- ===== 主界面 ===== -->
   <template v-else>
     <div class="topbar">
-      <div class="logo">小A</div>
+      <div class="logo">智多星</div>
       <nav>
         <a :class="{active: tab==='chat'}" @click="tab='chat'">对话</a>
         <a :class="{active: tab==='approval'}" @click="openTab('approval')">审批</a>
@@ -323,7 +323,7 @@
               </div>
             </div>
             <div class="w-bubble">
-              <div class="w-hello">我是小A！你有什么想问我的吗？</div>
+              <div class="w-hello">我是智多星！你有什么想问我的吗？</div>
               <div class="w-sub">{{ roleIntro }}</div>
             </div>
             <div class="sug-list">
@@ -714,7 +714,7 @@ createApp({
         manager: '数据分析、高风险审批、Prompt 版本管理都归我兜底；查客户、建任务、发外部邮件也可以直接吩咐～',
         admin: '数据分析、高风险审批、Prompt 版本和系统配置都归我管；各业务工具也能直接操作，尽管吩咐～',
       };
-      return m[this.role] || '我是小A，你的企业知识工作流助手～问答知识、分析数据、执行工具，样样都行！';
+      return m[this.role] || '我是智多星，你的企业知识工作流助手～问答知识、分析数据、执行工具，样样都行！';
     },
     welcomeSuggestions() {
       // 取当前角色主场景组的前 4 条作为建议卡片(通用组只作寒暄,不展示)

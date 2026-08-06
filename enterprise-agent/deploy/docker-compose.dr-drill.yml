@@ -1,0 +1,31 @@
+# 备份恢复演练专用 Compose 覆盖文件(load-test-and-dr-drill / tasks 2.2)
+#
+# 用途:以独立 project(dr-drill)+ 独立数据卷 + 错开端口,把最近一次备份恢复到
+# 一套与运行中环境隔离的副本实例,全程计时得实测 RTO。
+#
+# 用法(在 enterprise-agent/ 下):
+#   docker compose -p dr-drill \
+#     -f docker-compose.yml -f deploy/docker-compose.dr-drill.yml \
+#     up -d postgres etcd minio milvus-standalone
+#   ... 按 DEPLOY.md 5.3 恢复 ...
+#   docker compose -p dr-drill \
+#     -f docker-compose.yml -f deploy/docker-compose.dr-drill.yml down -v   # 演练完销毁
+#
+# ⚠️ 仅限演练:不得在运行中的生产/开发 project 上执行恢复。
+# 说明:ports 需用 !override 覆盖基础文件的端口映射(compose 默认合并会端口冲突)。
+services:
+  postgres:
+    ports: !override
+      - "15432:5432"   # 错开运行中实例的 5432
+
+  minio:
+    ports: !override
+      - "19000:9000"
+      - "19001:9001"
+
+  milvus-standalone:
+    ports: !override
+      - "19531:19530"  # 演练环境实体数核查入口
+      - "19091:9091"
+
+  # 恢复演练不依赖 redis/api/worker,up 时不要带上它们即可

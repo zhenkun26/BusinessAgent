@@ -9,7 +9,7 @@ BusinessAgent/
 ├── CHANGELOG.md                        # 版本变更日志（按时间倒序，含版本号/日期/摘要）
 ├── AGENTS.md                           # Codex 项目说明：目录结构、常用命令、工程约定
 ├── .gitignore                          # Git 忽略规则：排除 .env/日志/模型/虚拟环境/评测结果
-├── 启动小A.bat                         # Windows 一键启动脚本（自检 Docker/容器/API 并打开 /ui）
+├── 启动智多星.bat                         # Windows 一键启动脚本（自检 Docker/容器/API 并打开 /ui）
 ├── docs/                               # 统一文档体系（六大层 + 归档层）
 │   ├── 00-overview/                    # 元层：项目概览与导航说明（README/contents/CHANGELOG 索引）
 │   │   └── README.md                   # 00-overview 层索引
@@ -35,7 +35,8 @@ BusinessAgent/
 │   │   ├── 模板-阶段性总结.md            # 后续迭代阶段总结模板
 │   │   ├── 阶段性总结_W2-W6.md          # W2-W6 阶段总结（含已修正的历史路径）
 │   │   ├── 阶段性总结_W7-W9_联调.md      # W7-W9 + 整体联调阶段总结
-│   │   └── 临时备忘.md                  # 历史速查备忘（内容已拆入 ROADMAP/ISSUES，保留备查）
+│   │   ├── 临时备忘.md                  # 历史速查备忘（内容已拆入 ROADMAP/ISSUES，保留备查）
+│   │   └── 优化方向分析-生产上线-2026-08-05.md  # explore 阶段产物：差距对照与候选 change 清单
 │   ├── 50-engineering/                 # 工程文档层：索引 enterprise-agent 内部工程文档
 │   │   └── README.md                   # 工程文档层索引（指向后端 README 与部署指南）
 │   ├── 60-knowledge/                   # 知识数据库层：索引 eval/sample_docs 知识数据

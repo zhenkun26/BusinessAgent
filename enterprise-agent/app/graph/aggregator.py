@@ -25,6 +25,7 @@ from loguru import logger
 
 from app.agents.knowledge import AgentResult, RetrievalSource
 from app.graph.state import AgentState, Intent
+from app.observability.token_usage import snapshot_total_tokens
 from app.rag.llm import get_lite_llm, get_primary_llm
 
 
@@ -90,7 +91,8 @@ async def aggregator_node(state: AgentState) -> AgentState:
             needs_replan=r.needs_replan,
             replan_reason=r.replan_reason,
             replan_hint=r.replan_hint,
-            tokens_used=r.tokens_used,
+            # I-07:token 统一口径——读请求级累加器(含 planner + agent 全部 LLM 调用)
+            tokens_used=snapshot_total_tokens(),
             error=r.error,
             finished_at=datetime.now(),
             total_latency_ms=latency_ms,
@@ -140,8 +142,8 @@ async def aggregator_node(state: AgentState) -> AgentState:
         (r.replan_hint for r in results if r.needs_replan and r.replan_hint), None
     )
 
-    # tokens 汇总
-    total_tokens = sum(r.tokens_used for r in results)
+    # tokens 汇总(I-07):统一读请求级累加器,覆盖 planner/全部 agent/汇总 LLM 调用
+    total_tokens = snapshot_total_tokens()
 
     latency_ms = int((time.time() - start) * 1000)
     logger.info(
@@ -198,12 +200,12 @@ async def _llm_aggregate(question: str, agent_answers: str) -> str:
 
 
 async def _chitchat_reply(message: str, username: str = "") -> str:
-    """闲聊场景的人格化回复(小A 话术,按意图/情绪分支;未命中分支用 lite LLM 生成)"""
+    """闲聊场景的人格化回复(智多星 话术,按意图/情绪分支;未命中分支用 lite LLM 生成)"""
     msg = message.strip().lower()
     name = username or "同事"
     if any(kw in msg for kw in ["你是谁", "介绍一下", "who are you", "什么助手"]):
         return (
-            "我是小A，你的企业知识工作流智能助手～查政策制度、查客户订单、"
+            "我是智多星，你的企业知识工作流智能助手～查政策制度、查客户订单、"
             "建跟进任务、发邮件、做数据分析都可以交给我。"
         )
     if any(kw in msg for kw in ["心情", "你好吗", "你还好", "过得怎", "状态怎", "最近怎"]):
@@ -228,31 +230,31 @@ async def _chitchat_reply(message: str, username: str = "") -> str:
         )
     if any(kw in msg for kw in ["你好", "hi", "hello", "您好", "在吗", "在么"]):
         return (
-            f"你好，{name}！我是小A～查公司政策、客户订单、建跟进任务、"
+            f"你好，{name}！我是智多星～查公司政策、客户订单、建跟进任务、"
             "发邮件都可以找我，有什么要帮忙的？"
         )
     if any(kw in msg for kw in ["谢谢", "感谢", "thanks"]):
         return "不客气～还有其他事随时叫我。"
     if any(kw in msg for kw in ["再见", "bye", "拜拜", "下班"]):
-        return "好的，回见！有需要随时找小A。"
-    # 未命中分支:用 lite LLM(本地 qwen)按小A 人格即兴生成
+        return "好的，回见！有需要随时找智多星。"
+    # 未命中分支:用 lite LLM(本地 qwen)按智多星 人格即兴生成
     generated = await _chitchat_llm_generate(message, name)
     if generated:
         return generated
     return (
-        "我在～我是小A，可以帮你查政策、查客户订单、建任务、发邮件、做分析。"
+        "我在～我是智多星，可以帮你查政策、查客户订单、建任务、发邮件、做分析。"
         "直接说要做什么就行，比如「查一下客户 C001」。"
     )
 
 
 async def _chitchat_llm_generate(message: str, name: str) -> str:
-    """闲聊兜底:lite LLM 按小A 人格生成回复;失败返回空串(调用方走固定模板)"""
+    """闲聊兜底:lite LLM 按智多星 人格生成回复;失败返回空串(调用方走固定模板)"""
     prompt = (
-        "你是小A，企业员工的工作搭子(企业知识工作流智能助手)，性格亲切、干练。"
+        "你是智多星，企业员工的工作搭子(企业知识工作流智能助手)，性格亲切、干练。"
         f"现在员工{name}在和你闲聊。\n"
         "要求:\n"
         "1. 像同事一样自然回应，口语化，1-2 句话，不超过 60 字\n"
-        "2. 自称小A，可自然带出对方称呼\n"
+        "2. 自称智多星，可自然带出对方称呼\n"
         "3. 中文标点一律用全角\n"
         "4. 结尾可顺势引导到工作上(查政策、查客户订单、建任务、发邮件)，但不要生硬\n\n"
         f"员工说:{message}\n"

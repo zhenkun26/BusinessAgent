@@ -174,7 +174,34 @@ services:
       - "9090:9090"
     volumes:
       - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # 告警规则(load-test-and-dr-drill)
+      - ./deploy/prometheus-alerts.yml:/etc/prometheus/rules/prometheus-alerts.yml:ro
       - prometheus_data:/prometheus
+    profiles: ["monitoring"]
+
+  # 以下 exporter 为 deploy/prometheus.yml 中 postgres/redis/node 采集目标,
+  # 供 deploy/prometheus-alerts.yml 的依赖异常/资源耗尽告警取数
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://agent:wJ6pbV5eBkzMT2AYDT9w2i8V@postgres:5432/enterprise_agent?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["monitoring"]
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: "V5lOkygYvgaD6ZZ8rmqJAcO7"
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles: ["monitoring"]
+
+  node-exporter:
+    image: prom/node-exporter:latest
     profiles: ["monitoring"]
 
   grafana:

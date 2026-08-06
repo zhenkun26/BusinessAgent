@@ -25,7 +25,17 @@
 
 ## 二、进行中
 
-当前无进行中 change；新需求按 openspec 生命周期（propose → apply → archive）重新开启。
+生产上线导向优化（2026-08-05 启动，openspec propose 阶段完成，候选依据见 `优化方向分析-生产上线-2026-08-05.md`）：
+
+| openspec change | 优先级 | 状态 | 范围 |
+| --- | --- | --- | --- |
+| production-readiness-baseline | P0 | 已提案 | 系统边界 / SLA / 风险操作清单落规格（新能力 production-readiness） |
+| rag-answer-quality | P0 | 已提案 | 评测集扩充 ≥100 条、答案覆盖率目标 ≥0.85（改 knowledge-operations） |
+| load-test-and-dr-drill | P1 | 已提案 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
+| security-hardening-plus | P1 | 已提案 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
+| ticket-system-integration | P2 | 已提案 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
+| crm-mail-sso-integration | P2 | 已提案 | CRM/邮件/SSO 真实接入（改 external-system-integration + user-lifecycle） |
+| uat-and-ga-rollout | P3 | 已提案 | UAT、灰度、上线门槛检查单（新能力 release-management） |
 
 ## 三、挂起事项（P3，暂不上线）
 

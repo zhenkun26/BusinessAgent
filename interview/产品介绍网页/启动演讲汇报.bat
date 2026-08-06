@@ -1,9 +1,9 @@
 @echo off
-title XiaoA Presentation
+title ZhiDuoXing Presentation
 cd /d "%~dp0"
 
 echo ============================================
-echo   Hello, XiaoA - Presentation Launcher
+echo   Hello, ZhiDuoXing - Presentation Launcher
 echo ============================================
 echo.
 
@@ -24,11 +24,11 @@ echo [Python] %PY%
 
 echo.
 echo [1/3] Starting HTTP server on http://localhost:8765 ...
-tasklist /fi "WINDOWTITLE eq XiaoAPresentation" 2>nul | find /i "XiaoAPresentation" >nul
+tasklist /fi "WINDOWTITLE eq ZhiDuoXingPresentation" 2>nul | find /i "ZhiDuoXingPresentation" >nul
 if not errorlevel 1 (
   echo       Server already running
 ) else (
-  start "XiaoAPresentation" /min "%PY%" -m http.server 8765
+  start "ZhiDuoXingPresentation" /min "%PY%" -m http.server 8765
   echo       Started in background
 )
 

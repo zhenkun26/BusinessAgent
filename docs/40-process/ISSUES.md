@@ -5,12 +5,25 @@
 
 ## 一、待办与开放问题
 
+### I-12 备份恢复演练：MinIO 备份缺口发现与收口（2026-08-05 发现，2026-08-06 复演关闭）
+
+- 状态：fixed（2026-08-06 复演验证通过）· 优先级 P1
+- 现象：change load-test-and-dr-drill 首次真实恢复演练（隔离 Compose project `dr-drill`，独立端口/数据卷，未触碰运行中实例）发现：原备份（每日 pg_dump + etcd snapshot）能完整恢复 PG 与 Milvus 元数据，但 MinIO 对象存储（Milvus 向量数据本体）无备份，集合元数据恢复后 load 挂起（loadSegmentCount=0），知识问答数据层不可恢复。
+- 第一轮演练记录（2026-08-05，全程计时，环境演练后销毁）：
+  - 备份产出：`scripts/backup.sh` 生成 `pg_20260805_183342.sql.gz`（15K）+ `etcd_20260805_183342.db`（404K）。
+  - PG 恢复：清库回放零错误；5 张关键表行数与备份时点一致（users 10 / sessions 19 / documents 7 / audit_logs 204 / approval_requests 4）。实测 RTO ≈ 2.5 分钟。
+  - etcd 恢复：DEPLOY.md 原文流程（运行中 etcd 上 restore）实测必失败（`data-dir not empty`）；修正流程（停 milvus → 停 etcd → 清数据卷 → 临时容器 restore → 启 etcd → 启 milvus）成功，294 键恢复；净耗时 ≈ 2 分钟。
+  - Milvus：元数据恢复后 stats row_count=28 但 segment 缺失、load 挂起 → 发现备份缺口（本条根因）。
+- 修复（2026-08-06）：`scripts/backup.sh` 补齐 MinIO + milvus 本地卷整卷 tar 备份（可选 `STOP_MILVUS=1` 严格一致快照）；DEPLOY.md 5.1/5.3 同步三件套口径与完整恢复步骤。
+- 第二轮复演验证（2026-08-06，备份 `*_20260806_075802.*` 四件套）：PG 清库回放零错误、行数一致（users 10 / sessions 19 / audit_logs 204）；etcd snapshot 恢复成功；MinIO/milvus 卷解包恢复；**集合 `enterprise_knowledge` load 成功、row_count=28 与备份时点一致、真实 query 返回数据**。**全栈实测 RTO ≈ 194 秒（3.2 分钟，达标线 1h）**；备份时点与演练时点同刻，RPO 实测无数据丢失（日常 RPO≤24h 依赖 crontab 落实，DEPLOY.md 5.2）。
+- 验证：两轮演练均用 `deploy/docker-compose.dr-drill.yml` 隔离副本，运行中实例数据零触碰；演练环境均已 `down -v` 销毁。
+
 ### I-09 跨机器迁移后本地启动环境缺失（2026-08-04）
 
 - 状态：fixed（已恢复）· 优先级 P2
 - 现象：项目从 Windows 拷贝到 macOS 后，登录页/全站请求 Failed to fetch、网站打不开。
 - 根因：① 后端未运行（8000 无监听、Docker daemon 未启动）；② 无项目 Python 环境与数据库初始化；③ 旧 uvicorn 仅绑定 127.0.0.1，IPv6 localhost(::1) 与局域网不可达；④ 从加粗文案复制的 URL 带 `**` 后缀导致 404（日志 `GET /ui%2A%2A 404`）。
-- 修复：启动 Docker（PG/Redis）→ uv 建 venv 装依赖 → init.sql + 迁移 001/002 → 按 .env `APP_HOST=0.0.0.0` 启动 API；前端 file:// 直开给出明确指引；main.py 增加 URL 尾部 `**` 清洗重定向；新增 macOS 一键启动脚本 `启动小A.command`。
+- 修复：启动 Docker（PG/Redis）→ uv 建 venv 装依赖 → init.sql + 迁移 001/002 → 按 .env `APP_HOST=0.0.0.0` 启动 API；前端 file:// 直开给出明确指引；main.py 增加 URL 尾部 `**` 清洗重定向；新增 macOS 一键启动脚本 `启动智多星.command`。
 - 验证：`/health` healthy、登录 200、`/ui` 200、`/ui**` 自动重定向 200。
 - 注意：知识问答仍需 Milvus + 本地模型（bge-m3/reranker），`.env` 模型路径为 Windows 路径，本机未配置。
 
@@ -19,7 +32,7 @@
 - 状态：fixed · 优先级 P2
 - 现象：限流器报「AUTH called without any password configured」降级内存；checkpointer 降级 PG 后报 NotImplementedError，聊天全部失败。
 - 根因：macOS 原生 Homebrew Redis（`homebrew.mxcl.redis`，无密码）监听 127.0.0.1:6379，把 Docker Redis（带 requirepass）在 IPv4 回环上遮蔽；应用连 localhost 时命中原生 Redis，认证必然失败。
-- 修复：`brew services stop redis` 解除占用（可逆：`brew services start redis` 恢复）；启动脚本 `启动小A.command` 增加 6379 冲突自检。
+- 修复：`brew services stop redis` 解除占用（可逆：`brew services start redis` 恢复）；启动脚本 `启动智多星.command` 增加 6379 冲突自检。
 - 验证：限流器「Redis(生产模式)」、Redis Checkpointer 初始化成功、聊天 66ms 返回、`/ready` db/milvus healthy。
 
 ### I-11 最终对抗性生产级审查（2026-08-04）
@@ -31,9 +44,13 @@
 
 ### I-01 压测未做
 
-- 状态：open · 优先级 P3
+- 状态：fixed（2026-08-06 正式阶梯压测达标）· 优先级 P3
 - 现象：功能验证充分，并发承载未知。
 - 计划：vegeta/k6 阶梯加压，盯 P95 与 worker 占用；预期瓶颈：云端 LLM rate limit > uvicorn worker > Milvus 内存。
+- 落地（2026-08-05，change load-test-and-dr-drill）：工具定 k6（本机无 k6 时 docker `grafana/k6` 兜底）；阶梯脚本 `enterprise-agent/eval/load_test_k6.js` + 入口 `eval/run_load_test.sh` + 报告渲染 `eval/render_load_report.py`，thresholds 对齐 SLA 初值（p95≤2s/p99≤5s/错误率<0.5%，按接口分组），未达标即非零退出。
+- 正式压测（2026-08-06，formal 档，9.5 分钟阶梯）：394,463 请求、峰值 675 req/s、checks 100%、整体错误率 0.000%；`/health`（200 VU）p95=190ms/p99=208ms，`/chat/message`（10 VU，完整响应口径）p95=1,431ms/p99=1,651ms，**全部阈值通过（k6 退出码 0）**。报告：`eval/results/loadtest_report_20260806_100427.md`（含瓶颈分析与压测脚本 7 轮迭代史）。
+- SLA 校准结论（供 production-readiness-baseline 归档消化）：**初值 p95≤2s/p99≤5s/错误率<0.5% 实测达标，无需调整**；适用前提（单机 dev 形态、单 worker、云端 DeepSeek 供应）与复测方式见报告第 6 节。
+- 预期瓶颈复盘：云端 LLM rate limit 本轮并发包线内未触顶；实际第一约束是应用层限流（30 req/min/用户，对话接口的设计上限）；单 worker 在 675 req/s 下仍有大量余量。
 
 ### I-02 UAT + 安全测试未做
 
@@ -60,15 +77,18 @@
 
 ### I-06 checkpoint 无 TTL / 清理策略
 
-- 状态：open · 优先级 P3
+- 状态：fixed（2026-08-05，change security-hardening-plus）· 优先级 P3
 - 现象：Redis 快照随会话数持续增长。
-- 计划：按 thread 最近活跃时间滑动过期；sessions 表已可独立支撑元信息查询。
+- 修复：`checkpointer.py` 初始化 AsyncRedisSaver 时传入滑动 TTL 配置（`default_ttl` + `refresh_on_read`），每次会话活跃（写入/读取）刷新对应 thread 键过期时间；TTL 走配置项 `CHECKPOINT_TTL_DAYS`（初值 7 天，<=0 关闭）；PG/Memory 降级后端不设 TTL。
+- 验证：`tests/test_checkpoint_ttl.py` 2 例断言构造参数；实跑 Redis 冒烟——aput 后 `checkpoint:` 与 `checkpoint_latest:` 键 TTL=604800s；`eval/run_w6_checkpoint` 回归（Redis 主路径初始化成功、TTL 启用日志可见；state_persistence 用例因本机缺 bge-m3 模型未过，与本次改动无关）。
 
 ### I-07 token usage 部分采集
 
-- 状态：open · 优先级 P3
+- 状态：fixed（2026-08-05，change security-hardening-plus）· 优先级 P3
 - 现象：仅 knowledge 提取 tokens_used 落 AgentState，未持久化 sessions.token_count；analysis/execution/aggregator 自身调用未采集。
-- 计划：LangChain callback 统一采集，落 audit payload + Prometheus counter，回写 sessions.token_count。
+- 修复：新增 `app/observability/token_usage.py`（LangChain AsyncCallbackHandler + contextvar 请求级累加器），统一 chat model 封装（`app/rag/llm.py` 三处构造点）挂接 callback，覆盖 planner/analysis/execution/aggregator/knowledge 全部调用方；Prometheus counter `agent_llm_tokens_total`（model/token_type）每次调用递增；aggregator 汇总读累加器总量落 `AgentState.tokens_used`；API 层（`/message` 与 `/stream`）写审计 payload 并 fire-and-forget 回写 `sessions.token_count`（失败仅记日志）；knowledge 原有 `usage_metadata` 独立提取口径已移除（改读累加器差值）。
+- 验证：`tests/test_token_usage.py` 8 例（双口径提取/Prometheus 递增/aggregator 汇总/回写与失败容错）全绿；W5 对话回归实跑——多任务场景 tokens_used=2514（覆盖 planner+execution+aggregator 调用），全量 89 用例无回归。
+- 附带修复：W5 回归暴露重规划回边在 langgraph 1.2.10 下崩溃（`TypeError: unhashable type: 'dict'`）——条件边不支持 `(node, updates)` 元组返回；状态更新（轮次递增/历史追加/agent_results 重置）移至 `planner_node` 重规划分支，`route_after_aggregator` 只返回目标节点；`tests/test_agent_replan.py` 同步更新，W5 实测 2 轮重规划正常结束。
 
 ### I-08 长期记忆 user_memories 未接
 

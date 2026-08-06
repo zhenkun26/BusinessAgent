@@ -1,0 +1,12 @@
+# 漏洞扫描豁免清单(pip-audit / Trivy 共用,security-hardening-plus 3.3)
+#
+# 每行一条: <VULN-ID> | <复评日期 YYYY-MM-DD> | <理由>
+#
+# 规则:
+# - 仅 Medium 及以下可豁免;High/Critical 必须修复或升级依赖,不得豁免
+# - 复评日期到期前必须复评(升级依赖,或确认豁免仍然适用并顺延日期)
+# - CI 解析方式:取首列 ID,转为 pip-audit --ignore-vuln 与 Trivy .trivyignore
+# - 扫描报告(artifact)中未被豁免的条目会直接阻断流水线
+#
+# 示例:
+# GHSA-xxxx-yyyy-zzzz | 2026-09-01 | 仅测试间接依赖,无可达利用路径

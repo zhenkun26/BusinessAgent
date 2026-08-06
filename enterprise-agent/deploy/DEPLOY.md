@@ -1,6 +1,6 @@
 # 生产部署指南
 
-> 适用：Hello，小A——企业知识工作流 Agent v3
+> 适用：Hello，智多星——企业知识工作流 Agent v3
 > 部署方式：Docker Compose（单机生产部署）
 > 更新日期：2026-07-26
 
@@ -198,37 +198,18 @@ docker compose -f docker-compose.prod.yml exec api \
 
 ### 5.1 自动备份脚本
 
-创建 `scripts/backup.sh`：
+备份脚本已入库：`scripts/backup.sh`（每日 pg_dump + etcd snapshot + MinIO/milvus 数据卷
+整卷 tar，保留 7 天，产出 `backups/pg_<时间戳>.sql.gz`、`etcd_<时间戳>.db`、
+`minio_<时间戳>.tar.gz`、`milvus_<时间戳>.tar.gz`，可用 `BACKUP_DIR` / `RETAIN_DAYS` /
+`COMPOSE_FILES` / `COMPOSE_PROJECT` / `STOP_MILVUS` 环境变量覆盖默认值）：
 
 ```bash
-#!/bin/bash
-# 每日凌晨 2 点备份 PostgreSQL + Milvus 元数据
-set -e
-
-BACKUP_DIR=/opt/enterprise-agent/backups
-DATE=$(date +%Y%m%d_%H%M%S)
-RETAIN_DAYS=7
-
-mkdir -p $BACKUP_DIR
-
-# 1. PostgreSQL 逻辑备份
-docker compose -f /opt/enterprise-agent/docker-compose.prod.yml exec -T postgres \
-  pg_dump -U agent enterprise_agent | gzip > \
-  $BACKUP_DIR/pg_$DATE.sql.gz
-
-# 2. Milvus 元数据(etcd 备份)
-docker compose -f /opt/enterprise-agent/docker-compose.prod.yml exec -T etcd \
-  etcdctl snapshot save /tmp/etcd_backup.db
-docker compose -f /opt/enterprise-agent/docker-compose.prod.yml cp etcd:/tmp/etcd_backup.db \
-  $BACKUP_DIR/etcd_$DATE.db
-
-# 3. 清理过期备份
-find $BACKUP_DIR -name "*.gz" -mtime +$RETAIN_DAYS -delete
-find $BACKUP_DIR -name "*.db" -mtime +$RETAIN_DAYS -delete
-
-echo "[$DATE] 备份完成: $BACKUP_DIR"
-ls -lh $BACKUP_DIR/*_$DATE.*
+scripts/backup.sh
 ```
+
+> 备份覆盖说明（2026-08-05 首次恢复演练发现缺口、2026-08-06 补齐并复演验证，ISSUES I-12）：
+> Milvus 可恢复 = etcd 元数据 + MinIO 对象（向量数据本体）+ milvus 本地卷（rocksmq）三件套，
+> 缺一不可。整卷 tar 是运行中系统的近一致快照，需严格一致时设 `STOP_MILVUS=1`（短暂中断检索）。
 
 ### 5.2 配置定时任务
 
@@ -244,18 +225,36 @@ crontab -e
 
 ### 5.3 恢复流程
 
+> 以下步骤为 2026-08-05 首次恢复演练（ISSUES I-12）实测修正版；
+> 演练用隔离环境可复用 `deploy/docker-compose.dr-drill.yml`（独立 project/端口/数据卷）。
+
 ```bash
-# PostgreSQL 恢复
+# PostgreSQL 恢复(目标库已有 schema 时必须先清库,否则建表冲突)
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U agent enterprise_agent -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 gunzip < backups/pg_20260726_020000.sql.gz | \
   docker compose -f docker-compose.prod.yml exec -T postgres \
   psql -U agent enterprise_agent
 
-# Milvus 恢复(停 Milvus → 恢复 etcd → 启 Milvus)
-docker compose -f docker-compose.prod.yml stop milvus-standalone
-docker compose -f docker-compose.prod.yml cp backups/etcd_20260726_020000.db etcd:/etcd/restore.db
-docker compose -f docker-compose.prod.yml exec etcd etcdctl snapshot restore /etcd/restore.db --data-dir /etcd
-docker compose -f docker-compose.prod.yml start milvus-standalone
+# Milvus 恢复(停 Milvus → 停 etcd/minio → 清数据卷 → 恢复 etcd snapshot 与
+#             MinIO/milvus 卷数据 → 启 etcd/minio → 启 Milvus)
+# ⚠️ 在运行中的 etcd 上直接 snapshot restore 必失败(数据目录非空/被锁);
+#    只恢复 etcd 元数据不恢复 MinIO/milvus 卷,集合会 load 挂起(实测,ISSUES I-12)
+docker compose -f docker-compose.prod.yml stop milvus-standalone etcd minio
+docker run --rm -v <project>_etcd_data:/etcd alpine sh -c 'rm -rf /etcd/* /etcd/.[!.]*'
+docker run --rm -v <project>_etcd_data:/etcd -v "$(pwd)/backups:/b:ro" \
+  quay.io/coreos/etcd:v3.5.5 \
+  etcdctl snapshot restore /b/etcd_20260726_020000.db --data-dir /etcd
+docker run --rm -v <project>_minio_data:/data -v "$(pwd)/backups:/b:ro" alpine \
+  sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/minio_20260726_020000.tar.gz -C /data'
+docker run --rm -v <project>_milvus_data:/data -v "$(pwd)/backups:/b:ro" alpine \
+  sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/milvus_20260726_020000.tar.gz -C /data'
+docker compose -f docker-compose.prod.yml up -d etcd minio milvus-standalone
 ```
+
+> 恢复后一致性核查：`/ready` 全 healthy；PG 关键表行数与备份时点比对；
+> Milvus 集合 `load` 后 `num_entities` 与备份时点比对（仅 `get_collection_stats`
+> 的数字一致不算数——它读的是元数据，segment 缺失时 load 会挂起）。
 
 ---
 
@@ -282,6 +281,11 @@ http://server-ip:3000
 | PostgreSQL 连接数 | pg_stat_activity | > 80 |
 | Redis 内存 | redis-cli info memory | > 80% maxmemory |
 | 磁盘使用率 | df -h | > 85% |
+
+> 告警规则已落成 `deploy/prometheus-alerts.yml`（15 条：SLA 口径 warning / 运维口径 critical，
+> 每条标注口径来源），由 Compose monitoring profile 挂载加载；配套的
+> postgres-exporter / redis-exporter / node-exporter 已在 monitoring profile 中提供。
+> 值班预案（告警分级/响应动作/升级路径）见 `docs/30-guides/运维维护手册.md` 第 10 章。
 
 ### 6.3 日志查看
 

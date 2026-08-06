@@ -53,6 +53,31 @@ async def _update_session_status(
         logger.warning(f"sessions 状态更新失败({session_id} → {status}): {e}")
 
 
+async def _writeback_session_tokens(session_id: str, tokens: int) -> None:
+    """异步回写 sessions.token_count(I-07)
+
+    fire-and-forget:由调用方 create_task 调度;失败仅记日志,不阻断对话。
+    多轮同会话累计(token_count 为会话级累计消耗)。
+    """
+    if tokens <= 0:
+        return
+    try:
+        from app.core.database import get_session_factory
+
+        factory = get_session_factory()
+        async with factory() as s:
+            await s.execute(
+                text(
+                    "UPDATE sessions SET token_count = COALESCE(token_count, 0) + :t "
+                    "WHERE session_id = :sid"
+                ),
+                {"t": tokens, "sid": session_id},
+            )
+            await s.commit()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"sessions.token_count 回写失败({session_id}): {e}")
+
+
 class ChatRequest(BaseModel):
     """对话请求"""
 
@@ -164,15 +189,19 @@ async def send_message(
         for s in final_state.get("sources", []):
             sources.append(s.model_dump() if hasattr(s, "model_dump") else dict(s))
 
-        # 审计:对话响应(成功)
+        # 审计:对话响应(成功);I-07:token 用量统一采集后落审计 payload
+        tokens_used = int(final_state.get("tokens_used", 0) or 0)
         await audit.log(
             event_type="chat_response",
             session_id=session_id,
             user_id=user.user_id,
             success=True,
             latency_ms=latency_ms,
-            payload={"confidence": final_state.get("confidence", 0.0)},
+            payload={"confidence": final_state.get("confidence", 0.0), "tokens_used": tokens_used},
         )
+
+        # I-07:异步回写 sessions.token_count(失败仅记日志)
+        asyncio.create_task(_writeback_session_tokens(session_id, tokens_used))
 
         # sessions 生命周期:成功置 completed
         await _update_session_status(session_id, "completed")
@@ -318,6 +347,8 @@ async def stream_message(
 
             sources = [_unwrap_source(s) for s in state.get("sources", [])]
             intent = state.get("intent", "")
+            # I-07:token 用量统一采集(aggregator 汇总进 AgentState.tokens_used)
+            tokens_used = int(state.get("tokens_used", 0) or 0)
             final = {
                 "session_id": session_id,
                 "answer": state.get("final_answer", ""),
@@ -336,8 +367,14 @@ async def stream_message(
                 user_id=user.user_id,
                 success=True,
                 latency_ms=latency_ms,
-                payload={"confidence": final["confidence"], "stream": True},
+                payload={
+                    "confidence": final["confidence"],
+                    "tokens_used": tokens_used,
+                    "stream": True,
+                },
             )
+            # I-07:异步回写 sessions.token_count(失败仅记日志)
+            asyncio.create_task(_writeback_session_tokens(session_id, tokens_used))
         except asyncio.CancelledError:
             await queue.put({"type": "cancelled"})
             await _update_session_status(session_id, "cancelled")

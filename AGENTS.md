@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-本仓库是「Hello，小A——企业知识工作流 Agent」的学习与演示项目：基于
+本仓库是「Hello，智多星——企业知识工作流 Agent」的学习与演示项目：基于
 LangChain + LangGraph + Milvus 构建的多 Agent 系统。后端代码位于
 `enterprise-agent/`，文档统一存放在 `docs/`（六大层分类），面试与演示资产
 独立存放在 `interview/`。
@@ -17,7 +17,7 @@ LangChain + LangGraph + Milvus 构建的多 Agent 系统。后端代码位于
 - `interview/`：面试与演示资产独立体系（面试备稿 + 产品介绍网页）
 - `openspec/`：openspec 变更与主规格（需求演进规范化）
 - 根目录保留：`README.md`（导航入口）、`contents.md`（目录索引）、
-  `CHANGELOG.md`（版本变更）、`启动小A.bat`（一键启动）
+  `CHANGELOG.md`（版本变更）、`启动智多星.bat`（一键启动）
 
 ## 常用命令
 
@@ -52,6 +52,14 @@ python -m eval.run_w9_tracing
 - 修改后端行为后运行相关 `eval/` 脚本验证；新增公共接口时补充单元测试。
 - 保持根目录中文文档与代码同步，重要变更同步更新 README 或对应手册。
 - 版本管理：项目版本单一事实源为 `enterprise-agent/app/__init__.py` 的 `__version__`（语义化版本）；升级时同步 `pyproject.toml`、`CHANGELOG.md`、核心文档版本头并打 Git tag `vX.Y.Z`。
+
+## openspec 管控
+
+- 需求与文档演进一律走 openspec 生命周期：explore → propose → apply → archive，
+  流程规则单一事实源为 `openspec/specs/openspec-normalization/spec.md`。
+- AI 工具集成：Kimi Code（`.kimi-code/skills/`）与 Codex（`.codex/skills/`）均已
+  由 `openspec init` 生成 6 个工作流 skill；CLI 升级后用 `openspec update` 刷新。
+- 主规格 10 项见 `openspec/specs/`；新需求在 `openspec/changes/` 下开启 change。
 
 ## 关键文档
 

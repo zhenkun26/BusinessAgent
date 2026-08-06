@@ -8,6 +8,12 @@
 > 单一事实源:`enterprise-agent/app/__init__.py` 的 `__version__`;
 > 升级时同步 `pyproject.toml`、本文件、核心文档版本头,并打 Git tag `vX.Y.Z`。
 
+## 未发布（Unreleased）
+
+### 更名
+
+- 产品智能体名称「小A」全量更名为「智多星」（2026-08-05）：代码字符串、prompts、静态页 UI、日志/审计/响应文案、文档、openspec 规格与变更、面试资产统一替换；一键启动脚本 `启动小A.bat`/`启动小A.command` 改名 `启动智多星.bat`/`启动智多星.command`；拼音/英文变体同步更新（`XiaoA` → `ZhiDuoXing`，K8s 命名空间 `hello-xiao-a` → `hello-zhiduoxing`）。无功能行为变更。
+
 ## v1.2.0 · 项目归档完结（2026-08-04）
 
 > Git tag:`v1.2.0`
@@ -23,7 +29,7 @@
 
 ### 变更
 
-- Worker 纳入一键启动(`启动小A.command`),后台运行审批超时扫描/任务队列/审计回写(实测启动即回写 147 条缓存审计)。
+- Worker 纳入一键启动(`启动智多星.command`),后台运行审批超时扫描/任务队列/审计回写(实测启动即回写 147 条缓存审计)。
 - ROADMAP 更新:两 change 移入已完成里程碑,进行中区清空。
 - CI 全绿:main 与 tag 推送的测试(3.11/3.13)+ 镜像构建 3/3 通过。
 
@@ -70,7 +76,7 @@
   - P1：`get_current_user` 回查 users 表（禁用/角色变更即时生效）、CORS 白名单、PG checkpointer 改 AsyncPostgresSaver、Milvus 表达式转义、审计本地缓存回写、`X-Request-ID` 全链路、启动环境自检。
 - **容器化**：`Dockerfile.prod` 多阶段构建（非 root 65534、HEALTHCHECK、pip 缓存挂载、`INSTALL_ML` 可选），实测 742MB。
 - **K8s 清单**：`deploy/k8s/` 8 个清单（Deployment/Service/ConfigMap/Secret/Ingress/HPA/PDB + 双探针）。
-- **运维修复**：网站 URL `**` 容错重定向、本机 Redis 端口冲突处理、macOS 一键启动脚本 `启动小A.command`。
+- **运维修复**：网站 URL `**` 容错重定向、本机 Redis 端口冲突处理、macOS 一键启动脚本 `启动智多星.command`。
 
 ### 兼容性说明
 

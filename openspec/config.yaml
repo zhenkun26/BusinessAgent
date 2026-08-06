@@ -4,7 +4,7 @@ schema: spec-driven
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 context: |
-  「Hello，小A——企业知识工作流 Agent」学习与演示项目：基于 LangChain + LangGraph + Milvus
+  「Hello，智多星——企业知识工作流 Agent」学习与演示项目：基于 LangChain + LangGraph + Milvus
   的企业级多 Agent 系统，员工用自然语言完成知识问答、数据分析、业务执行三类工作。
 
   技术栈：Python 3.11+ / FastAPI / LangGraph 1.2+ / LangChain 1.x / Milvus 2.4 / PostgreSQL 16 /
@@ -23,6 +23,11 @@ context: |
   当前状态：两个 openspec change 已全部归档(2026-08-04)——documentation-baseline(文档基线)与
   complete-business-processes(业务闭环补齐：知识运营/审批超时/重规划/外部系统/用户生命周期/测试闭环)；
   主规格 10 项能力见 openspec/specs/；新需求按 propose → apply → archive 重新开启。
+  工具集成(2026-08-05)：openspec init 已完成 Kimi Code(.kimi-code/skills/)与 Codex(.codex/skills/)
+  双工具集成，各 6 个工作流 skill；当前处于 propose 阶段——按生产上线导向已创建 7 个 change：
+  production-readiness-baseline / rag-answer-quality(P0)、load-test-and-dr-drill /
+  security-hardening-plus(P1)、ticket-system-integration / crm-mail-sso-integration(P2)、
+  uat-and-ga-rollout(P3)，候选依据见 docs/40-process/优化方向分析-生产上线-2026-08-05.md。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

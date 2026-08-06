@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ============================================================
-# Hello，小A 生产镜像(多阶段极致瘦身)
+# Hello，智多星 生产镜像(多阶段极致瘦身)
 # 构建: docker build -f Dockerfile.prod -t enterprise-agent:prod .
 # 说明:
 #   - 默认不装 ML 重型包(torch/sentence-transformers ~2GB),镜像显著瘦身;
@@ -44,7 +44,7 @@ RUN if [ "$INSTALL_ML" = "1" ]; then \
 # ---------- Stage 2: Runner ----------
 FROM python:3.13-slim AS runner
 
-LABEL org.opencontainers.image.title="Hello 小A enterprise agent" \
+LABEL org.opencontainers.image.title="Hello 智多星 enterprise agent" \
       org.opencontainers.image.description="企业知识工作流 Agent 生产镜像(精简)" \
       org.opencontainers.image.version="${APP_VERSION}"
 

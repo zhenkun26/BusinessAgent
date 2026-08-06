@@ -45,6 +45,19 @@ _checkpointer_backend: Optional[str] = None
 # ============ Redis Checkpointer(主路径) ============
 
 
+def _redis_ttl_config() -> Optional[dict[str, Any]]:
+    """构造 AsyncRedisSaver 的滑动 TTL 配置(I-06)
+
+    - checkpoint_ttl_days > 0: 每次会话活跃(aput 写入/aget 读取)刷新
+      对应 thread 键的过期时间,refresh_on_read 开启读路径滑动;
+    - <= 0: 返回 None,不设 TTL(恢复旧行为)。
+    """
+    days = get_settings().checkpoint_ttl_days
+    if days <= 0:
+        return None
+    return {"default_ttl": days * 24 * 60, "refresh_on_read": True}
+
+
 async def _try_init_redis(redis_url: str) -> Optional[Checkpointer]:
     """尝试初始化 AsyncRedisSaver
 
@@ -54,7 +67,12 @@ async def _try_init_redis(redis_url: str) -> Optional[Checkpointer]:
     try:
         from langgraph.checkpoint.redis import AsyncRedisSaver
 
-        saver = AsyncRedisSaver(redis_url=redis_url)
+        ttl_config = _redis_ttl_config()
+        saver = AsyncRedisSaver(redis_url=redis_url, ttl=ttl_config)
+        if ttl_config:
+            logger.info(
+                f"Checkpoint 滑动过期已启用: TTL={get_settings().checkpoint_ttl_days} 天"
+            )
         # asetup 创建 RediSearch 索引/schema
         # 失败原因通常:Redis 不可达 / 无 RediSearch 模块(FT.* 命令)
         # asetup 成功即视为连接 + 模块均可用,不再额外探测

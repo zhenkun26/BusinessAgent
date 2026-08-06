@@ -32,9 +32,10 @@ def _make_state(**overrides) -> AgentState:
     return state
 
 
-def test_should_route_back_to_planner_with_increment_when_replan_needed_and_below_cap():
+def test_should_route_back_to_planner_when_replan_needed_and_below_cap():
     """Given needs_replan=true 且轮次未达上限, When aggregator 路由,
-    Then 回 planner,递增轮次、追加历史、重置 agent_results"""
+    Then 回 planner(langgraph 1.2 条件边只返回目标节点,
+    状态更新由 planner 重规划分支完成——见 planner 重规划用例)"""
     state = _make_state(
         needs_replan=True,
         replan_reason="knowledge_coverage_none",
@@ -43,12 +44,9 @@ def test_should_route_back_to_planner_with_increment_when_replan_needed_and_belo
         agent_results=[{"agent_name": "knowledge"}],
     )
 
-    route, updates = route_after_aggregator(state)
+    route = route_after_aggregator(state)
 
     assert route == "planner"
-    assert updates["replan_count"] == 1
-    assert updates["replan_history"] == ["knowledge_coverage_none"]
-    assert updates["agent_results"] == []  # 触发 reducer 重置,防旧结果混入
 
 
 def test_should_route_to_end_when_replan_rounds_exhausted():
@@ -79,11 +77,14 @@ def test_should_route_to_end_when_no_replan_needed():
 def test_should_build_knowledge_subtask_with_hint_query_when_planner_replans():
     """Given planner 收到 replan_reason 与 replan_hint.query,
     When 执行重规划,
-    Then 只重建知识子任务(用提示中的补检 query),并记录重规划历史"""
+    Then 只重建知识子任务(用提示中的补检 query),
+    并完成重规划状态更新:轮次递增、历史追加、agent_results 重置"""
     state = _make_state(
         replan_reason="knowledge_coverage_none",
         replan_hint={"query": "折扣审批政策 补充检索", "stage": "none"},
-        replan_history=["knowledge_coverage_none"],
+        replan_count=0,
+        replan_history=[],
+        agent_results=[{"agent_name": "knowledge"}],
     )
 
     result = planner_node(state)
@@ -92,7 +93,9 @@ def test_should_build_knowledge_subtask_with_hint_query_when_planner_replans():
     assert len(result["subtasks"]) == 1
     assert result["subtasks"][0].task_type.value == "knowledge"
     assert result["subtasks"][0].description == "折扣审批政策 补充检索"
-    assert result["replan_history"] == ["knowledge_coverage_none", "knowledge_coverage_none"]
+    assert result["replan_count"] == 1
+    assert result["replan_history"] == ["knowledge_coverage_none"]
+    assert result["agent_results"] == []  # 触发 reducer 重置,防旧结果混入
     assert "重规划" in result["plan_reasoning"]
 
 

@@ -17,7 +17,7 @@ PLANNER_CHITCHAT_DETECT = """判断用户消息是否为闲聊(问候、感谢�
 """
 
 # planner:任务分解(primary 大模型)
-PLANNER_TASK_DECOMPOSE = """你是小A(企业知识工作流 Agent)的任务分解器。用户消息被判定为多任务,请分解为独立的子任务。
+PLANNER_TASK_DECOMPOSE = """你是智多星(企业知识工作流 Agent)的任务分解器。用户消息被判定为多任务,请分解为独立的子任务。
 
 输出格式(严格 JSON,不要 markdown 代码块):
 {{"subtasks": [{{"type": "<knowledge|analysis|execution|approval>", "desc": "<子任务描述>"}}]}}
@@ -43,7 +43,7 @@ PLANNER_TASK_DECOMPOSE = """你是小A(企业知识工作流 Agent)的任务分�
 """
 
 # planner:意图分类(lite 轻量模型;JSON 花括号转义为 {{ }})
-PLANNER_INTENT_CLASSIFY = """你是小A(企业知识工作流 Agent)的意图分类器。根据用户消息判断意图类型,并输出 JSON。
+PLANNER_INTENT_CLASSIFY = """你是智多星(企业知识工作流 Agent)的意图分类器。根据用户消息判断意图类型,并输出 JSON。
 
 意图类型:
 - knowledge_qa: 知识问答(查询公司政策、流程、制度、规定等文档类内容;不含具体业务记录查询)
@@ -68,7 +68,7 @@ PLANNER_INTENT_CLASSIFY = """你是小A(企业知识工作流 Agent)的意图分
 """
 
 # knowledge:RAG 答案生成(primary)
-KNOWLEDGE_RAG_ANSWER = """你是小A,企业知识库助手。基于下方检索到的知识片段,回答用户问题。
+KNOWLEDGE_RAG_ANSWER = """你是智多星,企业知识库助手。基于下方检索到的知识片段,回答用户问题。
 
 要求:
 1. 答案必须严格基于【知识片段】,不得编造未在片段中出现的信息
@@ -147,7 +147,7 @@ ANALYSIS_REPORT = """你是企业数据分析师。基于下方【计算结果�
 ANALYSIS_REPORT_HOP_NOTE = "(注意:本轮必须直接输出报告,不能再请求补充数据。)"
 
 # execution:工具选择(lite;{tools} 动态注入本角色可用工具)
-EXECUTION_TOOL_SELECTION = """你是小A,需要从用户消息中提取要执行的工具调用。
+EXECUTION_TOOL_SELECTION = """你是智多星,需要从用户消息中提取要执行的工具调用。
 
 可用工具列表(仅以下工具,不要编造):
 {tools}
@@ -179,7 +179,7 @@ EXECUTION_TOOL_SELECTION = """你是小A,需要从用户消息中提取要执行
 """
 
 # aggregator:多结果汇总(primary)
-AGGREGATOR_AGGREGATE = """你是小A(企业知识工作流 Agent)的汇总器。请基于多个子 Agent 的回答,生成统一回复。
+AGGREGATOR_AGGREGATE = """你是智多星(企业知识工作流 Agent)的汇总器。请基于多个子 Agent 的回答,生成统一回复。
 
 要求:
 1. 合并重复信息,保留各 Agent 的关键内容

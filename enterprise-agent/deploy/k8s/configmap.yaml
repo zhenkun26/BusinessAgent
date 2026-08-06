@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: agent-config
-  namespace: hello-xiao-a
+  namespace: hello-zhiduoxing
 data:
   APP_ENV: "prod"
   LOG_LEVEL: "INFO"

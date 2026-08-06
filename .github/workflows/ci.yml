@@ -49,6 +49,32 @@ jobs:
           path: enterprise-agent/coverage.xml
           if-no-files-found: ignore
 
+      # ---- security-hardening-plus 2.2:密钥扫描兜底(命中疑似密钥即失败) ----
+      - name: 密钥扫描兜底（gitleaks）
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      # ---- security-hardening-plus 3.1:依赖漏洞扫描(未豁免条目阻断) ----
+      - name: 依赖漏洞扫描（pip-audit）
+        working-directory: enterprise-agent
+        run: |
+          pip install pip-audit
+          # 豁免清单:仅 Medium 及以下可豁免(带复评日期),其余条目(High/Critical)阻断
+          EXEMPTIONS=$(grep -vE '^\s*(#|$)' deploy/security-exemptions.txt \
+            | cut -d'|' -f1 | tr -d ' ' | sed 's/^/--ignore-vuln /' | tr '\n' ' ')
+          pip-audit -r deploy/requirements-prod.txt --progress-spinner off $EXEMPTIONS \
+            | tee pip-audit-report.txt
+
+      - name: 上传 pip-audit 报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report-${{ matrix.python-version }}
+          path: enterprise-agent/pip-audit-report.txt
+          if-no-files-found: ignore
+
   docker:
     name: 构建生产镜像（多阶段）
     needs: test
@@ -70,14 +96,41 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 构建镜像（PR 只构建不推送）
+      - name: 构建镜像（PR 只构建不推送；load 本地供 Trivy 扫描）
         uses: docker/build-push-action@v6
         with:
           context: enterprise-agent
           file: enterprise-agent/Dockerfile.prod
           push: ${{ github.event_name == 'push' }}
+          load: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/businessagent:latest
             ghcr.io/${{ github.repository_owner }}/businessagent:${{ github.sha }}
+            businessagent:ci-scan
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # ---- security-hardening-plus 3.2/3.3:镜像漏洞扫描(High/Critical 阻断) ----
+      - name: 生成 Trivy 豁免文件（.trivyignore）
+        run: |
+          grep -vE '^\s*(#|$)' enterprise-agent/deploy/security-exemptions.txt \
+            | cut -d'|' -f1 | tr -d ' ' > .trivyignore || true
+          touch .trivyignore
+
+      - name: 镜像漏洞扫描（Trivy，High/Critical 阻断）
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: businessagent:ci-scan
+          format: table
+          output: trivy-report.txt
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: 上传 Trivy 扫描报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+          if-no-files-found: ignore

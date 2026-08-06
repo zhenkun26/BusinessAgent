@@ -1,5 +1,5 @@
 # ============================================
-# Hello，小A——企业知识工作流 Agent - 依赖清单
+# Hello，智多星——企业知识工作流 Agent - 依赖清单
 # 用法: pip install -r requirements.txt
 # 或仅装最小集跑通 W4 评测: pip install -r requirements.txt --no-deps -e .
 # ============================================
