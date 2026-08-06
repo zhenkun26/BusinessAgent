@@ -251,18 +251,31 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 感谢所有参与者的贡献 / Thanks to everyone who contributes:
 
-- [zhenkun26](https://github.com/zhenkun26) — 合作者 / 
 - [kingoftaro（Taro）](https://github.com/kingoftaro/) — 项目发起与主工程 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
+- [zhenkun26](https://github.com/zhenkun26) — 合作者，负责**生产上线（production-readiness）迭代线** / Collaborator, owning the production-readiness track
 
----
+### zhenkun26：生产上线迭代线 / Production-Readiness Track
 
-## 十三、维护入口 / Maintenance
+以 2026-08-05 上线评审（见根目录 IMG_5043 / IMG_5044 的关键差距与建议排期）为输入，把评审的五个阶段逐一转为 OpenSpec change 并推动落地 / Driving the review's five phases (key gaps & rollout plan in IMG_5043/IMG_5044) into executed OpenSpec changes:
 
+**已完成 / Done**
 
-感谢所有参与者的贡献 / Thanks to everyone who contributes:
+| 评审阶段 / Review phase | 落地成果 / Outcome |
+| --- | --- |
+| 需求冻结 · 架构评审（边界 / SLA / 风险清单） | `production-readiness` 规格归档：系统边界、SLA 初值、8 项风险操作清单 / production-readiness spec archived |
+| RAG 回答准确性（评审指出关键词覆盖率仅约 60.6%） | 评测集扩充 + 答案覆盖率指标与评测脚本（rag-answer-quality 归档）/ expanded eval set + answer-coverage metrics |
+| 工程化与安全补强（评审指出无正式自动化回归套件） | 自动化测试 0 → 101 项全绿；CI 接入 gitleaks / pip-audit / Trivy 三道扫描 + 豁免清单；权限与越权对抗性测试（security-hardening-plus 归档）/ 101-test suite, three CI security gates, privilege-escalation tests |
+| 性能 · 灾备 · 可观测 | k6 阶梯压测与报告、PG/etcd 备份恢复演练（实测 RTO/RPO）、Prometheus 告警规则与值班预案（load-test-and-dr-drill 归档）/ k6 load test, DR drill with measured RTO/RPO, alert rules + on-call playbook |
+| 真实系统集成（阶段二首个试点） | 工单真实接入：幂等键、Saga 补偿真实化、审计回写，stub 沙箱联调验收 7/7（ticket-system-integration 归档）/ ticket pilot: idempotency, real Saga compensation, audit write-back, stub acceptance 7/7 |
 
-- [zhenkun26](https://github.com/zhenkun26) — 合作者 / 
-- [kingoftaro（Taro）](https://github.com/kingoftaro/) — 合作者 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
+并收口发布 v1.3.0（含智能体全量更名「智多星」、CI 修复）/ also shipped v1.3.0 (rename to 智多星, CI fixes).
+
+**未来迭代方向 / What's next**
+
+- **CRM / 邮件 / SSO 真实接入**（`crm-mail-sso-integration`，已提案 0/19）：照抄工单试点验证的幂等 / 补偿 / 审计模式 / replicate the ticket-verified integration pattern
+- **UAT 与灰度上线**（`uat-and-ga-rollout`，已提案 0/15）：真实用户验收、灰度运行、上线门槛检查单——评审排期的最后一阶段 / the final phase of the review plan
+- **stub → 真实工单系统**：真实实例到位后按验收用例集重跑，回写契约偏差结论（DECISIONS 第 15 条改判条件）/ rerun the acceptance suite against a real ticket system
+- **高可用深化**：K8s 多节点、TLS 全量开启、密钥管理深化；挂起项含 pymilvus 3.1 迁移 / HA on K8s, full TLS, deeper secret management
 
 ---
 
