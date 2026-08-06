@@ -106,7 +106,6 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/businessagent:latest
             ghcr.io/${{ github.repository_owner }}/businessagent:${{ github.sha }}
-            businessagent:ci-scan
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -120,7 +119,7 @@ jobs:
       - name: 镜像漏洞扫描（Trivy，High/Critical 阻断）
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: businessagent:ci-scan
+          image-ref: ghcr.io/${{ github.repository_owner }}/businessagent:latest
           format: table
           output: trivy-report.txt
           exit-code: '1'
