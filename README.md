@@ -254,10 +254,6 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 - [kingoftaro（Taro）](https://github.com/kingoftaro/) — 项目发起与主工程 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
 - [zhenkun26](https://github.com/zhenkun26) — 合作者，负责**生产上线（production-readiness）迭代线** / Collaborator, owning the production-readiness track
 
-### zhenkun26：生产上线迭代线 / Production-Readiness Track
-
-以 2026-08-05 上线评审（见根目录 IMG_5043 / IMG_5044 的关键差距与建议排期）为输入，把评审的五个阶段逐一转为 OpenSpec change 并推动落地 / Driving the review's five phases (key gaps & rollout plan in IMG_5043/IMG_5044) into executed OpenSpec changes:
-
 **已完成 / Done**
 
 | 评审阶段 / Review phase | 落地成果 / Outcome |
