@@ -258,9 +258,14 @@ class BaseTool(ABC):
                 # 审计:工具调用结果(AuditLogger 自身容错,失败不阻塞)
                 # payload 透传审批触发标记:审批触发的执行 user_id=发起人,
                 # 但 payload.triggered_by="approval" + approval_id 可区分于主动调用
+                # provider/side_effects 记录真实外部调用结果(幂等键/重试次数等),
+                # 供外部系统接入的审计追溯(规格:调用结果完整入审计)
                 audit_payload: dict = {
                     "role": role_str,
+                    "provider": self._effective_provider(),
                 }
+                if result.side_effects:
+                    audit_payload["side_effects"] = result.side_effects
                 if context.get("triggered_by"):
                     audit_payload["triggered_by"] = context["triggered_by"]
                 if context.get("approval_id"):

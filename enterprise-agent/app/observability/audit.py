@@ -109,8 +109,9 @@ class AuditLogger:
         """本地缓存兜底"""
         try:
             os.makedirs(self.local_cache, exist_ok=True)
+            # 文件名用纳秒时间戳:同秒同 event_type 的多条记录不会互相覆盖
             filename = (
-                f"{self.local_cache}/{int(time.time())}_"
+                f"{self.local_cache}/{time.time_ns()}_"
                 f"{record['event_type']}.json"
             )
             with open(filename, "w", encoding="utf-8") as f:

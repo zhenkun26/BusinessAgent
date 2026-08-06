@@ -92,7 +92,6 @@ BusinessAgent/
     │   ├── performance-resilience/     # 性能与容灾规格（压测/恢复演练/告警值班）
     │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── ticket-system-integration/      # 工单真实接入试点（已提案 0/16）
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（已提案 0/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（已提案 0/15）
         └── archive/                        # 已归档变更（全部完成）
@@ -102,5 +101,6 @@ BusinessAgent/
             ├── 2026-08-05-rag-answer-quality/            # RAG 答案质量 15/15（归档）
             ├── 2026-08-06-rename-agent-to-zhiduoxing/    # 智能体更名「智多星」7/7（归档）
             ├── 2026-08-06-load-test-and-dr-drill/        # 压测与容灾演练 14/14（归档）
-            └── 2026-08-06-security-hardening-plus/       # 安全加固 21/21（归档）
+            ├── 2026-08-06-security-hardening-plus/       # 安全加固 21/21（归档）
+            └── 2026-08-06-ticket-system-integration/     # 工单真实接入试点 16/16（归档，含 stub 验收记录）
 ```

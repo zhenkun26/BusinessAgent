@@ -95,3 +95,11 @@
 - **决策**：维持「密钥只从环境变量读取」的工程约定，补齐运营闭环——密钥清单 + 轮换周期/步骤/验证 + 泄漏应急处置流程落入 `docs/30-guides/运维维护手册.md` 第 9 节；防泄漏采用 pre-commit（gitleaks，`.pre-commit-config.yaml` + `.gitleaks.toml` 豁免文档示例串）+ CI gitleaks 兜底 step 双保险；依赖与镜像漏洞扫描用 pip-audit + Trivy，High/Critical 阻断，豁免走 `deploy/security-exemptions.txt`（带复评日期）。HashiCorp Vault 等在线密钥管理服务**暂缓引入**。
 - **放弃**：直接引入 Vault——单机 Docker Compose 架构下，Vault 自身成为一个需要 HA 与运维的关键依赖，成本远超收益；评审要求的「轮换、应急、防泄漏」能力由规程 + 扫描即可覆盖。Dependabot 替代 pip-audit 亦不采纳（只做 PR 提醒、不阻断流水线，不满足高危阻断门槛，可作为后续增强）。
 - **改判条件**：架构演进为多机/K8s、密钥数量或轮换频率显著上升、出现合规审计硬性要求时，复评 Vault/云厂商密钥管理服务的引入。
+
+## 15. 工单联调选型临时 stub；外部系统幂等键能力结论（2026-08-06，change ticket-system-integration）
+
+- **背景**：真实工单系统未采购到位（自研/Jira/Zendesk 选型未定），但阶段二排期最不确定，需要提前锁定接入契约与验收用例集。
+- **决策**：联调环境采用本地临时 stub（`enterprise-agent/eval/ticket_stub_server.py`，FastAPI 实现 POST/PATCH 契约 + `Idempotency-Key` 去重 + title 标记故障注入），验收用例集 7/7 通过并记录于 `openspec/changes/ticket-system-integration/acceptance.md`；真实系统到位后**必须重跑全量用例**。**幂等键能力结论**：stub 支持 `Idempotency-Key`（同键重复提交返回首次结果、至多一张工单，验收用例 2 实测）；真实系统的幂等键能力**待验证**——联调时优先确认，若不支持则按 design Risks 降级为「重试前查询是否已建单」。
+- **放弃**：等真实工单系统采购到位再联调（阶段二工作量与不确定性最大，契约延后锁定风险更高）；本 change 自建 stub 产品化（临时方案，不进生产路径）。
+- **改判条件**：真实工单系统选型确定并部署联调实例后，以真实实例重跑 acceptance.md 全量用例，字段命名/错误码体系/幂等键能力的契约偏差结论追加回本文件。
+- **备注**：本轮验收环境为「stub + 工具层 harness」（Docker 守护进程不可用，全栈 E2E 未跑）；worker 退避重试与审计 DB 回写路径由单元测试覆盖。验收期间修复审计本地缓存文件名同秒覆盖缺陷（`AuditLogger._write_local_cache` 改纳秒时间戳）。

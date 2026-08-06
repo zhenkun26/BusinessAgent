@@ -28,6 +28,7 @@ async def call_external_api(
     extra_headers: Optional[dict[str, str]] = None,
     timeout_seconds: Optional[float] = None,
     max_retries: Optional[int] = None,
+    meta: Optional[dict[str, Any]] = None,
 ) -> tuple[bool, Any, Optional[str]]:
     """调用外部 HTTP API(统一超时/重试/错误归一化)
 
@@ -39,6 +40,8 @@ async def call_external_api(
         extra_headers: 额外请求头(可选)
         timeout_seconds: 超时秒数,默认读配置
         max_retries: 重试次数(不含首次),默认读配置
+        meta: 可选输出参数,返回时写入 attempts(实际请求次数,含重试),
+            供工具层记入 side_effects/审计(不影响既有调用方)
 
     Returns:
         (success, data, error):
@@ -58,6 +61,8 @@ async def call_external_api(
     attempt = 0
     while True:
         attempt += 1
+        if meta is not None:
+            meta["attempts"] = attempt
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.request(

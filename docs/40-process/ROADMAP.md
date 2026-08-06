@@ -27,6 +27,7 @@
 | 智能体更名 | 2026-08-06 | ✅ | rename-agent-to-zhiduoxing 7/7 归档：「小A」全量更名「智多星」 |
 | 压测与容灾演练 | 2026-08-06 | ✅ | load-test-and-dr-drill 14/14 归档：k6 阶梯压测、备份恢复演练（实测 RTO/RPO）、告警规则与值班预案 |
 | 安全加固 | 2026-08-06 | ✅ | security-hardening-plus 21/21 归档：gitleaks/pip-audit/Trivy 三道 CI 扫描、豁免清单、越权测试，主规格 13 项 |
+| 工单真实接入试点 | 2026-08-06 | ✅ | ticket-system-integration 16/16 归档：幂等键/补偿真实化/审计回写，stub 沙箱验收 7/7（external-system-integration 规格扩展） |
 
 ## 二、进行中
 
@@ -38,7 +39,7 @@
 | ~~rag-answer-quality~~ | P0 | ✅ 已归档 2026-08-05 | 评测集扩充 ≥100 条、答案覆盖率目标 ≥0.85（改 knowledge-operations） |
 | ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
 | ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
-| ticket-system-integration | P2 | 已提案 0/16 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
+| ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
 | crm-mail-sso-integration | P2 | 已提案 0/19 | CRM/邮件/SSO 真实接入（改 external-system-integration + user-lifecycle） |
 | uat-and-ga-rollout | P3 | 已提案 0/15 | UAT、灰度、上线门槛检查单（新能力 release-management） |
 

@@ -28,7 +28,7 @@
 - **多智能体协作，而非单 Agent + 工具**：三个专职子 Agent（Knowledge / Analysis / Execution）+ 集中规划 + 并行 fan-out + 可重规划回边 / Not a single agent with tools: three specialized sub-agents plus centralized planning, parallel fan-out, and a replanning loop.
 - **企业治理是一等公民，而非事后补丁**：权限、审批、降级、审计、可观测、运营闭环构成可上线基线 / Enterprise governance is a first-class citizen: permissions, approvals, degradation, audit, observability, and operations form a production baseline.
 
-**一句话定位 / In one sentence**：让员工用自然语言完成知识问答、数据分析与业务执行，并让每一次回答、计算和操作都可审计、可控权、可降级、可恢复的企业级多智能体平台。
+**定位**：让员工用自然语言完成知识问答、数据分析与业务执行，并让每一次回答、计算和操作都可审计、可控权、可降级、可恢复的企业级多智能体平台。
 
 **目标用户 / Target users**：
 
@@ -210,13 +210,13 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 - ✅ W2-W9 全阶段 + 整体联调 17/17 + P1/P2 迭代 + 前端 v2/v3 与 SSE 流式 / all milestones, E2E integration 17/17
 - ✅ 生产对抗性审查（12 项漏洞修复）+ 业务闭环补全（41/41）/ adversarial review + business-loop completion
 - ✅ 生产就绪基线（边界 / SLA / 8 项风险操作清单）、RAG 答案质量、压测与容灾演练、安全加固落地 / production-readiness baseline, RAG quality, load/DR drill, security hardening
+- ✅ 工单真实接入试点：幂等键 / Saga 补偿真实化 / 审计回写，stub 沙箱验收 7/7 / ticket system pilot with idempotency, real Saga compensation, audit write-back (stub acceptance 7/7)
 - ✅ 13 项 OpenSpec 主规格沉淀 / 13 main OpenSpec specs archived
 
 ### 进行中 / In progress
 
 | Change | 优先级 / Priority | 状态 / Status |
 | --- | --- | --- |
-| ticket-system-integration（工单真实接入试点） | P2 | 已提案 / proposed |
 | crm-mail-sso-integration（CRM / 邮件 / SSO 真实接入） | P2 | 已提案 / proposed |
 | uat-and-ga-rollout（UAT、灰度、上线门槛） | P3 | 已提案 / proposed |
 
