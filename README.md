@@ -251,7 +251,7 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 感谢所有参与者的贡献 / Thanks to everyone who contributes:
 
-- [zhenkun26](https://github.com/zhenkun26) — 作者 / Author
+- [zhenkun26](https://github.com/zhenkun26) — 合作者 / Collaborator · 负责 IMG_5043 / IMG_5044 两张图片所涉及的工作 / Owns the work behind IMG_5043 & IMG_5044
 - [kingoftaro（Taro）](https://github.com/kingoftaro/) — 合作者 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
 
 ---
