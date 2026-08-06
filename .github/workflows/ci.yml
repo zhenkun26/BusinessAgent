@@ -118,7 +118,7 @@ jobs:
           touch .trivyignore
 
       - name: 镜像漏洞扫描（Trivy，High/Critical 阻断）
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: businessagent:ci-scan
           format: table
