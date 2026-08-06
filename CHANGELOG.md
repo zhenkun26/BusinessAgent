@@ -8,6 +8,26 @@
 > 单一事实源:`enterprise-agent/app/__init__.py` 的 `__version__`;
 > 升级时同步 `pyproject.toml`、本文件、核心文档版本头,并打 Git tag `vX.Y.Z`。
 
+## 未发布（Unreleased）
+
+### 新增
+
+- 工单真实接入试点（ticket-system-integration 16/16 归档，2026-08-06）：`CreateTicketTool` 幂等键（`ticket-{request_id}-{uuid8}`，经 `Idempotency-Key` 头传递并写入 `side_effects` 供审计关联）；Create/Update Saga 补偿真实化（http 提供方下 PATCH 关闭工单并标注 `saga_compensation` / 恢复 `old_values`，mock 通道零变更）；审计补齐 `provider`、重试次数与幂等键字段；`http_adapter` 新增 keyword-only `meta` 输出参数（向后兼容）。
+- 联调验收资产：`eval/ticket_stub_server.py`（FastAPI 临时 stub，支持 Bearer 认证、幂等键去重、故障注入）与 `eval/run_ticket_acceptance.py`（验收 harness，7/7 通过）；验收记录见 `openspec/changes/archive/2026-08-06-ticket-system-integration/acceptance.md`，选型结论见 DECISIONS 第 15 条。
+- 规格：`external-system-integration` 主规格扩展 6 条需求（幂等/重试边界/补偿真实化/审计回写/mock 降级/联调验收），`validate --all --strict` 16/16 通过。
+
+### 修复
+
+- 审计本地缓存文件名同秒覆盖缺陷（`time.time()` → `time.time_ns()`）：同秒同事件类型的多条审计曾互相覆盖丢失，验收实测暴露后修复。
+
+### 测试
+
+- 单元测试 89 → 101 项全绿（新增 `test_ticket_external.py` 12 项：幂等键、补偿真实化、worker 重试、审计回写、mock 回归）。
+
+### 兼容性说明
+
+- 无 API 契约变化；`tool_provider=mock` 行为不变；新增配置与参数均有默认值，不开启时行为与 v1.3.0 一致。
+
 ## v1.3.0 · 生产就绪与全量更名（2026-08-06）
 
 > Git tag:`v1.3.0`

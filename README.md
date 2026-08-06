@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/tag/zhenkun26/BusinessAgent?label=版本%2FRelease&color=1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
 [![CI](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-89%20passed-2ea44f)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-101%20passed-2ea44f)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-1.2-1C3C3C)](https://github.com/langchain-ai/langgraph)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688)](https://fastapi.tiangolo.com/)
@@ -88,7 +88,7 @@ flowchart TD
 | --- | --- |
 | 编排框架 / Orchestration | LangGraph 显式状态机，而非 ReAct / AutoGen —— 路由可预测、权限点可审计 / Explicit StateGraph instead of ReAct/AutoGen: predictable routing, auditable permission points |
 | Agent 拆分 / Agent split | 三个专职子 Agent + 统一 `AgentResult` 契约，可独立评测、独立换模型 / Three specialized sub-agents with a unified contract, independently evaluable and swappable |
-| 工具策略 / Tool strategy | Mock-first，但 pydantic 契约与补偿语义对齐真实 API，`_call_external` 预留切换点 / Mock-first with real-API-aligned contracts; `_call_external` is the switch point |
+| 工具策略 / Tool strategy | Mock-first，契约对齐真实 API；工单已率先真实接入（幂等键 + Saga 补偿真实化 + stub 沙箱验收 7/7），CRM / 邮件待跟进 / Mock-first with real-API-aligned contracts; ticket is the first real integration (idempotency + real Saga compensation, stub acceptance 7/7), CRM/mail to follow |
 | 降级原则 / Degradation | 三条降级链（LLM / 检索 / Checkpointer），且**每条降级必须可观测**，不掩盖配置错误 / Three fallback chains, each emitting an explicit "I'm degraded" signal |
 | 审批边界 / Approval boundary | 批准后仍按发起人角色过 RBAC（批准不越权），审计分离记录 `decided_by` 与 `executed_as_*` / Approval never escalates privileges; audit separates decision from execution roles |
 | 模型分层 / Model tiering | 高频简单任务走本地 qwen3.5:4b，推理任务走云端 DeepSeek，实测成本降低 40%+ / Local model for high-frequency simple tasks, cloud for reasoning; measured 40%+ cost reduction |
@@ -196,7 +196,7 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 ## 九、质量与测试 / Quality & Testing
 
-- **单元测试**：89 项全绿（Python 3.11 / 3.13），覆盖工具网关、RBAC、Saga、审批超时、降级、越权与安全加固 / 89 passing unit tests across ToolGateway, RBAC, Saga, approval timeout, degradation, privilege escalation, and hardening.
+- **单元测试**：101 项全绿（Python 3.11 / 3.13），覆盖工具网关、RBAC、Saga、审批超时、降级、越权、安全加固与工单外部调用（幂等 / 补偿 / 审计回写）/ 101 passing unit tests across ToolGateway, RBAC, Saga, approval timeout, degradation, privilege escalation, hardening, and ticket external calls (idempotency / compensation / audit write-back).
 - **CI**：每 push 自动跑测试 + gitleaks / pip-audit / Trivy 三道扫描 + 构建镜像并推送 GHCR / Automated tests, three security scans, and image builds to GHCR on every push.
 - **RAG 评测**：评测集 + 命中率 / 答案覆盖率指标（答案覆盖率目标 ≥0.85）/ Eval harness with hit-rate and answer-coverage metrics (coverage target ≥0.85).
 - **压测与容灾**：k6 阶梯压测 + 备份恢复演练，SLA 基线初值：可用性 ≥99.5%、p95 ≤2s、p99 ≤5s、错误率 <0.5%、RTO ≤1h、RPO ≤24h（单机 Compose 现实初值，K8s 启用后复评）/ k6 load test + DR drill; SLA baseline (single-node Compose initial values, to be revisited on K8s).

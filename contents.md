@@ -66,10 +66,10 @@ BusinessAgent/
 ├── enterprise-agent/                   # 后端主工程（FastAPI + LangGraph + RAG + 工具）
 │   ├── README.md                       # 后端 README：快速开始/项目结构/实施进度/技术栈
 │   ├── app/                            # 应用代码：api/agents/graph/rag/tools/security/observability（含 token_usage）
-│   ├── eval/                           # 验证脚本（W5-W9）+ 评测数据 + 知识库样本 + k6 压测资产（load_test_k6.js 等）
+│   ├── eval/                           # 验证脚本（W5-W9）+ 评测数据 + 知识库样本 + k6 压测资产 + 工单 stub 与联调验收（ticket_stub_server/run_ticket_acceptance）
 │   ├── deploy/                         # 部署配置：init.sql/migrations/DEPLOY.md/nginx/prometheus + 告警规则/漏洞豁免/DR 演练编排
 │   ├── scripts/                        # 运维脚本（fix_seed_approvals.py、backup.sh 备份脚本）
-│   ├── tests/                          # 单元测试（89 项，含越权/checkpoint TTL/token 用量/评测指标）
+│   ├── tests/                          # 单元测试（101 项，含越权/checkpoint TTL/token 用量/评测指标/工单外部调用）
 │   ├── docker-compose.yml              # 开发环境编排（Milvus/PG/Redis/Ollama）
 │   ├── docker-compose.prod.yml         # 生产部署编排（Nginx + 资源限制）
 │   ├── Dockerfile                      # 应用镜像构建
