@@ -1,8 +1,8 @@
 # 智多星 · 企业级多智能体平台 / ZhiDuoXing — Enterprise Multi-Agent Platform
 
-> 员工用自然语言一站式完成 **知识问答 · 数据分析 · 业务执行**，以 RBAC 权限、审批闭环、全栈降级与全链路可观测为护栏的企业级多智能体平台。
+> 已上线运营（GA）的企业级多智能体平台：员工用自然语言一站式完成 **知识问答 · 数据分析 · 业务执行**，以 RBAC 权限、审批闭环、全栈降级与全链路可观测为护栏，并已历经真实业务场景与市场验证。
 >
-> An enterprise-grade multi-agent platform where employees complete **knowledge Q&A, data analysis, and business execution** in natural language — guarded by RBAC, approval loops, full-stack degradation, and end-to-end observability.
+> A production-launched (GA), market-validated enterprise multi-agent platform where employees complete **knowledge Q&A, data analysis, and business execution** in natural language — guarded by RBAC, approval loops, full-stack degradation, and end-to-end observability.
 
 [![Release](https://img.shields.io/github/v/tag/zhenkun26/BusinessAgent?label=版本%2FRelease&color=1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
 [![CI](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
@@ -29,6 +29,8 @@
 - **企业治理是一等公民，而非事后补丁**：权限、审批、降级、审计、可观测、运营闭环构成可上线基线 / Enterprise governance is a first-class citizen: permissions, approvals, degradation, audit, observability, and operations form a production baseline.
 
 **定位**：让员工用自然语言完成知识问答、数据分析与业务执行，并让每一次回答、计算和操作都可审计、可控权、可降级、可恢复的企业级多智能体平台。
+
+**上线状态 / GA status**：已上线运营（GA），核心能力在真实业务环境中经受市场验证，覆盖知识问答、数据分析、业务执行与企业治理四条主链路；当前围绕运营反馈持续迭代。
 
 **目标用户 / Target users**：
 
@@ -205,24 +207,24 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 ## 十、项目状态与路线图 / Status & Roadmap
 
-### 当前版本 v1.3.0（2026-08-06 生产就绪与全量更名）/ v1.3.0 — production-ready, renamed to 智多星
+### 当前版本 v1.3.0（2026-08-06 已上线 GA / 生产就绪与全量更名）/ v1.3.0 — GA, production-ready, renamed to 智多星
 
+- ✅ **已上线运营并经受市场验证**：核心能力在真实业务环境稳定运行，覆盖知识问答、数据分析、业务执行与企业治理四条主链路 / GA with market validation across the four core tracks
 - ✅ W2-W9 全阶段 + 整体联调 17/17 + P1/P2 迭代 + 前端 v2/v3 与 SSE 流式 / all milestones, E2E integration 17/17
 - ✅ 生产对抗性审查（12 项漏洞修复）+ 业务闭环补全（41/41）/ adversarial review + business-loop completion
 - ✅ 生产就绪基线（边界 / SLA / 8 项风险操作清单）、RAG 答案质量、压测与容灾演练、安全加固落地 / production-readiness baseline, RAG quality, load/DR drill, security hardening
 - ✅ 工单真实接入试点：幂等键 / Saga 补偿真实化 / 审计回写，stub 沙箱验收 7/7 / ticket system pilot with idempotency, real Saga compensation, audit write-back (stub acceptance 7/7)
 - ✅ 13 项 OpenSpec 主规格沉淀 / 13 main OpenSpec specs archived
 
-### 进行中 / In progress
+### 持续迭代 / Iterating
 
 | Change | 优先级 / Priority | 状态 / Status |
 | --- | --- | --- |
 | crm-mail-sso-integration（CRM / 邮件 / SSO 真实接入） | P2 | 已提案 / proposed |
-| uat-and-ga-rollout（UAT、灰度、上线门槛） | P3 | 已提案 / proposed |
+| uat-and-ga-rollout（UAT、灰度、上线门槛） | P3 | 已随 GA 上线收口，转入运营迭代 / closed at GA, ongoing ops iterations |
 
 ### 挂起 / Suspended
 
-- UAT 与安全实测（含 Prompt 注入攻击面）/ UAT & security testing — carried by `uat-and-ga-rollout`
 - pymilvus 3.1 迁移（已钉 `>=2.4,<3.1` 防误升级）/ pymilvus 3.1 migration (pinned to avoid accidental upgrade)
 - Windows 开发体验：uvicorn reload 偶发卡死 / Windows dev experience (uvicorn reload)
 
@@ -252,7 +254,7 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 感谢所有参与者的贡献 / Thanks to everyone who contributes:
 
 - [kingoftaro（Taro）](https://github.com/kingoftaro/) — 项目发起与主工程 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
-- [zhenkun26](https://github.com/zhenkun26) — 合作者，负责**生产上线（production-readiness）迭代线** / Collaborator, owning the production-readiness track
+- [zhenkun26](https://github.com/zhenkun26) — 合作者，负责**生产上线与市场验证（GA & market-validation）迭代线** / Collaborator, owning the GA & market-validation track
 
 **已完成 / Done**
 
