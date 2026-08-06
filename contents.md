@@ -77,7 +77,7 @@ BusinessAgent/
 │   └── .env.example                    # 环境变量模板（真实 .env 不入库）
 └── openspec/                           # openspec 需求演进体系
     ├── config.yaml                     # openspec 配置（schema + 项目 context）
-    ├── specs/                          # 主规格 11 项（已归档能力，长期资产）
+    ├── specs/                          # 主规格 13 项（已归档能力，长期资产）
     │   ├── documentation-layout/       # 文档目录布局规格
     │   ├── version-control/            # 版本控制规格
     │   ├── progress-issue-records/     # 进度与问题记录规格
@@ -88,10 +88,10 @@ BusinessAgent/
     │   ├── external-system-integration/# 外部系统接入规格（Mock 契约）
     │   ├── user-lifecycle/             # 用户生命周期规格
     │   ├── quality-testing/            # 质量与测试规格
-    │   └── production-readiness/       # 生产就绪规格（边界/SLA/风险清单）
+    │   ├── production-readiness/       # 生产就绪规格（边界/SLA/风险清单）
+    │   ├── performance-resilience/     # 性能与容灾规格（压测/恢复演练/告警值班）
+    │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── load-test-and-dr-drill/         # 阶梯压测 + 备份恢复演练 + 告警值班（13/14，待归档）
-        ├── security-hardening-plus/        # 密钥管理/CI 漏洞扫描/越权测试（19/21，待归档）
         ├── ticket-system-integration/      # 工单真实接入试点（已提案 0/16）
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（已提案 0/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（已提案 0/15）
@@ -100,5 +100,7 @@ BusinessAgent/
             ├── 2026-08-04-complete-business-processes/   # 业务闭环补齐 41/41（归档）
             ├── 2026-08-05-production-readiness-baseline/ # 生产就绪基线 10/10（归档）
             ├── 2026-08-05-rag-answer-quality/            # RAG 答案质量 15/15（归档）
-            └── 2026-08-06-rename-agent-to-zhiduoxing/    # 智能体更名「智多星」7/7（归档）
+            ├── 2026-08-06-rename-agent-to-zhiduoxing/    # 智能体更名「智多星」7/7（归档）
+            ├── 2026-08-06-load-test-and-dr-drill/        # 压测与容灾演练 14/14（归档）
+            └── 2026-08-06-security-hardening-plus/       # 安全加固 21/21（归档）
 ```

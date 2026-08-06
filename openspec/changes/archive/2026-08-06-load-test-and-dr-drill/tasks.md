@@ -22,4 +22,4 @@
 ## 4. 收尾
 
 - [x] 4.1 汇总压测报告、演练记录、告警规则、预案，核对规格四条需求的验收点全部满足
-- [ ] 4.2 运行 `openspec validate load-test-and-dr-drill --strict` 通过后归档
+- [x] 4.2 运行 `openspec validate load-test-and-dr-drill --strict` 通过后归档

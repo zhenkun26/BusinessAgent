@@ -2,7 +2,7 @@
 
 > 员工用自然语言一站式完成 **知识问答 · 数据分析 · 业务执行**，带权限隔离、审批闭环、全栈降级的企业级多 Agent 系统。
 
-[![版本](https://img.shields.io/badge/版本-v1.2.0-1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
+[![版本](https://img.shields.io/badge/版本-v1.3.0-1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
 [![CI](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![测试](https://img.shields.io/badge/测试-89%20passed-2ea44f)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/)
@@ -13,7 +13,7 @@
 [![Redis](https://img.shields.io/badge/Redis-7-FF4438)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-多阶段%20%2F%20742MB-2496ED)](https://hub.docker.com/)
 [![K8s](https://img.shields.io/badge/Kubernetes-清单就绪-326CE5)](enterprise-agent/deploy/k8s)
-[![OpenSpec](https://img.shields.io/badge/OpenSpec-11%20项主规格-6f42c1)](openspec/specs)
+[![OpenSpec](https://img.shields.io/badge/OpenSpec-13%20项主规格-6f42c1)](openspec/specs)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
@@ -75,7 +75,7 @@ PYTHONIOENCODING=utf-8 python -m app.main
 python -m app.worker
 
 # 3) 验证
-curl http://localhost:8000/health   # {"status":"healthy","version":"1.2.0"}
+curl http://localhost:8000/health   # {"status":"healthy","version":"1.3.0"}
 curl http://localhost:8000/ready    # db/milvus healthy, tools_count=8
 ```
 
@@ -100,15 +100,15 @@ cd enterprise-agent/deploy/k8s && kubectl apply -f .
 | 工程文档层 | 后端 README、部署指南 | [docs/50-engineering/](docs/50-engineering/README.md) |
 | 知识数据库层 | 知识库数据与入库规范 | [docs/60-knowledge/](docs/60-knowledge/README.md) |
 | 面试与演示 | 面试备稿、产品介绍网页 | [interview/](interview/) |
-| 需求演进 | openspec 主规格（11 项能力） | [openspec/specs](openspec/specs) |
+| 需求演进 | openspec 主规格（13 项能力） | [openspec/specs](openspec/specs) |
 
 完整目录树索引见 [contents.md](contents.md)。
 
-## ✅ 项目状态（v1.2.0 归档基线 · 生产上线优化推进中）
+## ✅ 项目状态（v1.3.0 生产就绪与全量更名 · 2026-08-06）
 
-- **已完成**：W2-W9 全阶段 · 整体联调 17/17 · P1/P2 迭代 · 前端 v2/v3 与流式输出 · 生产对抗性审查（12 项漏洞修复）· 业务闭环补全（41/41 任务）· 智能体全量更名「智多星」· 5 个 openspec change 归档、11 项主规格沉淀。
-- **测试与 CI**：89 项单元测试全绿（Python 3.11/3.13）；GitHub Actions 每 push 自动跑测试 + 构建镜像并推送 GHCR。
-- **进行中（生产上线导向）**：生产就绪基线与 RAG 答案质量已落地归档（token 用量统计、备份脚本、评测答案指标等）；压测与容灾演练、安全加固、工单/CRM/SSO 真实接入、UAT 与灰度上线 5 个 change 提案就绪，见 [ROADMAP](docs/40-process/ROADMAP.md)。
+- **已完成**：W2-W9 全阶段 · 整体联调 17/17 · P1/P2 迭代 · 前端 v2/v3 与流式输出 · 生产对抗性审查（12 项漏洞修复）· 业务闭环补全（41/41 任务）· 智能体全量更名「智多星」· 7 个 openspec change 归档、13 项主规格沉淀。
+- **测试与 CI**：89 项单元测试全绿（Python 3.11/3.13）；GitHub Actions 每 push 自动跑测试 + gitleaks/pip-audit 扫描 + 构建镜像（Trivy 扫描）并推送 GHCR。
+- **进行中（生产上线导向）**：生产就绪基线、RAG 答案质量、压测与容灾演练、安全加固已落地归档；工单/CRM/SSO 真实接入、UAT 与灰度上线 3 个 change 提案就绪，见 [ROADMAP](docs/40-process/ROADMAP.md)。
 - **挂起（P3，按决策不上线）**：UAT/安全实测、pymilvus 3.1 迁移等，见 [ROADMAP](docs/40-process/ROADMAP.md)。
 
 ## 🛠️ 维护入口

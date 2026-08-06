@@ -15,7 +15,7 @@
 
 - [x] 3.1 test job 增加 pip-audit 扫描 `deploy/requirements-prod.txt`，High/Critical 阻断、Medium 及以下告警
 - [x] 3.2 docker job 增加 Trivy 镜像扫描 step，High/Critical 时 `exit-code` 失败，报告随 artifact 留存
-- [ ] 3.3 建立豁免清单机制（配置文件 + 复评日期），推送验证 CI 全绿
+- [x] 3.3 建立豁免清单机制（配置文件 + 复评日期），推送验证 CI 全绿
 
 ## 4. 权限与越权测试用例
 
@@ -38,4 +38,4 @@
 ## 7. 收口与归档
 
 - [x] 7.1 更新 `docs/40-process/ISSUES.md`：I-06/I-07 状态改 fixed 并写明修复与验证
-- [ ] 7.2 全量测试套件 + CI 三 job 全绿，运行 `openspec validate security-hardening-plus --strict` 通过后归档
+- [x] 7.2 全量测试套件 + CI 三 job 全绿，运行 `openspec validate security-hardening-plus --strict` 通过后归档

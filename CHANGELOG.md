@@ -8,11 +8,36 @@
 > 单一事实源:`enterprise-agent/app/__init__.py` 的 `__version__`;
 > 升级时同步 `pyproject.toml`、本文件、核心文档版本头,并打 Git tag `vX.Y.Z`。
 
-## 未发布（Unreleased）
+## v1.3.0 · 生产就绪与全量更名（2026-08-06）
+
+> Git tag:`v1.3.0`
+
+### 里程碑说明
+
+生产上线导向优化第一阶段收口：本版本共归档 5 个 openspec change（生产就绪基线、RAG 答案质量、智能体更名、压测与容灾演练、安全加固），主规格由 10 项增至 13 项（新增 production-readiness、performance-resilience、security-operations）；剩余 3 个 change（工单/CRM/SSO 真实接入、UAT 与灰度上线）继续推进。
 
 ### 更名
 
 - 产品智能体名称「小A」全量更名为「智多星」（2026-08-05）：代码字符串、prompts、静态页 UI、日志/审计/响应文案、文档、openspec 规格与变更、面试资产统一替换；一键启动脚本 `启动小A.bat`/`启动小A.command` 改名 `启动智多星.bat`/`启动智多星.command`；拼音/英文变体同步更新（`XiaoA` → `ZhiDuoXing`，K8s 命名空间 `hello-xiao-a` → `hello-zhiduoxing`）。无功能行为变更。
+
+### 新增
+
+- 生产就绪基线：checkpoint 滑动 TTL（`checkpoint_ttl_days`，<=0 恢复旧行为）、token 用量统计（`app/observability/token_usage.py`）、PG/etcd 备份脚本 `scripts/backup.sh`、生产配置校验测试。
+- 压测与容灾：k6 阶梯压测脚本与报告渲染（`eval/load_test_k6.js`、`run_load_test.sh`、`render_load_report.py`）、备份恢复演练编排（`deploy/docker-compose.dr-drill.yml`，实测 RTO/RPO 已记录）、Prometheus 告警规则 `deploy/prometheus-alerts.yml` 与运维手册值班预案章节。
+- RAG 答案质量：评测答案覆盖率指标与评测脚本、知识样本扩充（IT 运维与安全制度、人事管理制度）。
+
+### 安全
+
+- CI 接入三道扫描：gitleaks 密钥扫描（命中即失败）、pip-audit 依赖漏洞扫描、Trivy 镜像扫描（High/Critical 阻断）；豁免清单机制 `deploy/security-exemptions.txt`（仅 Medium 及以下可豁免，带复评日期）。
+- 新增越权（privilege escalation）测试与 pre-commit 钩子（ruff/gitleaks）。
+
+### 修复
+
+- CI：`trivy-action` 版本标签修正并升级 v0.36.0（v0.28.0 依赖的 `setup-trivy@v0.2.1` 已不存在，导致镜像扫描 job 无法启动）。
+
+### 兼容性说明
+
+- 无 API 契约变化；更名为纯文案替换；新增配置项均有安全默认值，不开启时行为与 v1.2.0 一致。
 
 ## v1.2.0 · 项目归档完结（2026-08-04）
 

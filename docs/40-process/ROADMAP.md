@@ -24,7 +24,9 @@
 | 项目归档完结 | 2026-08-04 | ✅ | 两个 change 全部归档、主规格 10 项、v1.2.0 收口 |
 | 生产就绪基线 | 2026-08-05 | ✅ | production-readiness-baseline 10/10 归档：边界/SLA/风险清单落规格、checkpoint TTL、token 用量统计、备份脚本 |
 | RAG 答案质量 | 2026-08-05 | ✅ | rag-answer-quality 15/15 归档：评测集扩充、答案覆盖率指标与评测脚本 |
-| 智能体更名 | 2026-08-06 | ✅ | rename-agent-to-zhiduoxing 7/7 归档：「小A」全量更名「智多星」，主规格 11 项 |
+| 智能体更名 | 2026-08-06 | ✅ | rename-agent-to-zhiduoxing 7/7 归档：「小A」全量更名「智多星」 |
+| 压测与容灾演练 | 2026-08-06 | ✅ | load-test-and-dr-drill 14/14 归档：k6 阶梯压测、备份恢复演练（实测 RTO/RPO）、告警规则与值班预案 |
+| 安全加固 | 2026-08-06 | ✅ | security-hardening-plus 21/21 归档：gitleaks/pip-audit/Trivy 三道 CI 扫描、豁免清单、越权测试，主规格 13 项 |
 
 ## 二、进行中
 
@@ -34,8 +36,8 @@
 | --- | --- | --- | --- |
 | ~~production-readiness-baseline~~ | P0 | ✅ 已归档 2026-08-05 | 系统边界 / SLA / 风险操作清单落规格（新能力 production-readiness） |
 | ~~rag-answer-quality~~ | P0 | ✅ 已归档 2026-08-05 | 评测集扩充 ≥100 条、答案覆盖率目标 ≥0.85（改 knowledge-operations） |
-| load-test-and-dr-drill | P1 | 13/14，待 validate 归档 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
-| security-hardening-plus | P1 | 19/21，待 CI 验证后归档 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
+| ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
+| ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
 | ticket-system-integration | P2 | 已提案 0/16 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
 | crm-mail-sso-integration | P2 | 已提案 0/19 | CRM/邮件/SSO 真实接入（改 external-system-integration + user-lifecycle） |
 | uat-and-ga-rollout | P3 | 已提案 0/15 | UAT、灰度、上线门槛检查单（新能力 release-management） |

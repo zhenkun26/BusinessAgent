@@ -1,6 +1,6 @@
 # Hello，智多星——企业知识工作流 Agent
 
-> 当前版本:v1.2.0(2026-08-04 项目归档完结;版本单一事实源见 `app/__init__.py`,变更记录见根目录 `CHANGELOG.md`)
+> 当前版本:v1.3.0(2026-08-06 生产就绪与全量更名;版本单一事实源见 `app/__init__.py`,变更记录见根目录 `CHANGELOG.md`)
 
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统。
 
