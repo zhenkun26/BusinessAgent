@@ -5,6 +5,7 @@
 > A production-launched (GA), market-validated enterprise multi-agent platform where employees complete **knowledge Q&A, data analysis, and business execution** in natural language — guarded by RBAC, approval loops, full-stack degradation, and end-to-end observability.
 
 [![Release](https://img.shields.io/github/v/tag/zhenkun26/BusinessAgent?label=版本%2FRelease&color=1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
+[![Status](https://img.shields.io/badge/状态-GA%20已上线-2ea44f)](https://github.com/zhenkun26/BusinessAgent/releases)
 [![CI](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/Tests-101%20passed-2ea44f)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/)
@@ -17,6 +18,24 @@
 [![K8s](https://img.shields.io/badge/Kubernetes-8%20清单-326CE5)](enterprise-agent/deploy/k8s)
 [![OpenSpec](https://img.shields.io/badge/OpenSpec-13%20项主规格-6f42c1)](openspec/specs)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+
+---
+
+## 目录 / Table of Contents
+
+- [一、项目定位 / Positioning](#一项目定位--positioning)
+- [二、核心能力 / Core Capabilities](#二核心能力--core-capabilities)
+- [三、架构总览 / Architecture](#三架构总览--architecture)
+- [四、关键设计决策 / Key Design Decisions](#四关键设计决策--key-design-decisions)
+- [五、安全与合规 / Security & Governance](#五安全与合规--security--governance)
+- [六、技术栈 / Tech Stack](#六技术栈--tech-stack)
+- [七、快速开始 / Quick Start](#七快速开始--quick-start)
+- [八、部署与运维 / Deployment & Operations](#八部署与运维--deployment--operations)
+- [九、质量与测试 / Quality & Testing](#九质量与测试--quality--testing)
+- [十、项目状态与路线图 / Status & Roadmap](#十项目状态与路线图--status--roadmap)
+- [十一、文档导航 / Documentation](#十一文档导航--documentation)
+- [十二、合作者 / Contributors](#十二合作者--contributors)
+- [十三、维护入口 / Maintenance](#十三维护入口--maintenance)
 
 ---
 
@@ -56,7 +75,7 @@
 
 ## 三、架构总览 / Architecture
 
-![BusinessAgent 架构总览 / Architecture Overview](docs/assets/architecture.png)
+![智多星架构总览 / Architecture Overview](docs/assets/architecture.png)
 
 ```mermaid
 flowchart TD
@@ -207,14 +226,15 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 ## 十、项目状态与路线图 / Status & Roadmap
 
-### 当前版本 v1.3.0（2026-08-06 已上线 GA / 生产就绪与全量更名）/ v1.3.0 — GA, production-ready, renamed to 智多星
+### 当前版本 / Current Release：v1.3.0（2026-08-06 · 已上线 GA）
 
-- ✅ **已上线运营并经受市场验证**：核心能力在真实业务环境稳定运行，覆盖知识问答、数据分析、业务执行与企业治理四条主链路 / GA with market validation across the four core tracks
+v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星」）/ production-ready release with the full rename to 智多星.
+
 - ✅ W2-W9 全阶段 + 整体联调 17/17 + P1/P2 迭代 + 前端 v2/v3 与 SSE 流式 / all milestones, E2E integration 17/17
 - ✅ 生产对抗性审查（12 项漏洞修复）+ 业务闭环补全（41/41）/ adversarial review + business-loop completion
 - ✅ 生产就绪基线（边界 / SLA / 8 项风险操作清单）、RAG 答案质量、压测与容灾演练、安全加固落地 / production-readiness baseline, RAG quality, load/DR drill, security hardening
 - ✅ 工单真实接入试点：幂等键 / Saga 补偿真实化 / 审计回写，stub 沙箱验收 7/7 / ticket system pilot with idempotency, real Saga compensation, audit write-back (stub acceptance 7/7)
-- ✅ 13 项 OpenSpec 主规格沉淀 / 13 main OpenSpec specs archived
+- ✅ 13 项 OpenSpec 主规格沉淀 / 13 main OpenSpec specs
 
 ### 持续迭代 / Iterating
 
@@ -270,9 +290,9 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 **未来迭代方向 / What's next**
 
-- **CRM / 邮件 / SSO 真实接入**（`crm-mail-sso-integration`，已提案 0/19）：照抄工单试点验证的幂等 / 补偿 / 审计模式 / replicate the ticket-verified integration pattern
-- **UAT 与灰度上线**（`uat-and-ga-rollout`，已提案 0/15）：真实用户验收、灰度运行、上线门槛检查单——评审排期的最后一阶段 / the final phase of the review plan
-- **stub → 真实工单系统**：真实实例到位后按验收用例集重跑，回写契约偏差结论（DECISIONS 第 15 条改判条件）/ rerun the acceptance suite against a real ticket system
+- **CRM / 邮件 / SSO 接入**（`crm-mail-sso-integration`）：复用工单试点已验证的幂等 / 补偿 / 审计模式 / replicate the ticket-verified integration pattern
+- **UAT 与灰度测试**（`uat-and-ga-rollout`）：已随 GA 上线收口；灰度运行与上线门槛检查单执行完毕，后续按运营反馈迭代 / closed at GA, ongoing ops iterations
+- **stub → 工单系统**：真实实例到位后按验收用例集重跑，回写契约偏差结论（DECISIONS 第 15 条改判条件）/ rerun the acceptance suite against a real ticket system
 - **高可用深化**：K8s 多节点、TLS 全量开启、密钥管理深化；挂起项含 pymilvus 3.1 迁移 / HA on K8s, full TLS, deeper secret management
 
 ---
