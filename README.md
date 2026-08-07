@@ -288,7 +288,7 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 
 并收口发布 v1.3.0（含智能体全量更名「智多星」、CI 修复）/ also shipped v1.3.0 (rename to 智多星, CI fixes).
 
-**未来迭代方向 / What's next**
+**迭代方向 / What's next**
 
 - **CRM / 邮件 / SSO 接入**（`crm-mail-sso-integration`）：复用工单试点已验证的幂等 / 补偿 / 审计模式 / replicate the ticket-verified integration pattern
 - **UAT 与灰度测试**（`uat-and-ga-rollout`）：已随 GA 上线收口；灰度运行与上线门槛检查单执行完毕，后续按运营反馈迭代 / closed at GA, ongoing ops iterations
