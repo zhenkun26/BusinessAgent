@@ -6,7 +6,8 @@
 
 - `ROADMAP.md`：里程碑规划（已完成 / 进行中 / 挂起）
 - `DECISIONS.md`：设计决策记录（背景 / 决策 / 放弃 / 改判条件）
-- `ISSUES.md`：问题、坑与 backlog（状态 / 优先级 / 现象 / 根因 / 修复 / 验证 / 日期）
+- `PROBLEM_REVIEWS.md`：精选问题复盘（现象 / 复现 / 调查 / 根因 / 修复 / 验证 / 防复发 / 反思）
+- `ISSUES.md`：问题、坑与 backlog；新增开放事项只放这里。既有历史详情暂保留，后续按复盘 ID 逐条迁移到 `PROBLEM_REVIEWS.md`
 - `阶段性总结_*.md`：每轮迭代总结（W2-W6、W7-W9 已归档，后续按模板追加）
 - `临时备忘.md`：历史速查备忘（内容已拆入 ROADMAP/ISSUES，保留备查）
 - `模板-阶段性总结.md`：后续迭代沿用模板
@@ -14,4 +15,4 @@
 
 ## 约定
 
-规划唯一事实源在 ROADMAP.md，问题唯一事实源在 ISSUES.md，决策唯一事实源在 DECISIONS.md；其他文档只引用不复制。
+规划唯一事实源在 ROADMAP.md，开放问题唯一事实源在 ISSUES.md，设计决策唯一事实源在 DECISIONS.md，精选复盘唯一事实源在 PROBLEM_REVIEWS.md；历史迁移完成前，ISSUES 中的旧详情与复盘文件存在明确的过渡性重复。

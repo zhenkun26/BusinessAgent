@@ -261,7 +261,7 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 | 产品方案层 / Product plan | 现行方案 v3、选型研究 / current plan & research | [docs/10-product-plan/](docs/10-product-plan/README.md) |
 | 产品文档层 / Product doc | 产品权威现状文档 / authoritative product doc | [docs/20-product/产品文档.md](docs/20-product/产品文档.md) |
 | 操作手册层 / Guides | 使用案例 / 前端版 / 运维手册 / cases, frontend, ops | [docs/30-guides/](docs/30-guides/README.md) |
-| 过程记录层 / Process | ROADMAP / DECISIONS / ISSUES / 总结 / roadmap, decisions, issues | [docs/40-process/](docs/40-process/README.md) |
+| 过程记录层 / Process | ROADMAP / DECISIONS / PROBLEM_REVIEWS / ISSUES / 总结 / roadmap, decisions, reviews, issues | [docs/40-process/](docs/40-process/README.md) |
 | 工程文档层 / Engineering | 后端 README、部署指南 / backend README & deploy guide | [docs/50-engineering/](docs/50-engineering/README.md) |
 | 知识数据库层 / Knowledge | 知识库数据与入库规范 / KB data & ingestion spec | [docs/60-knowledge/](docs/60-knowledge/README.md) |
 
@@ -302,7 +302,8 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 - 版本变更 / Releases：[CHANGELOG.md](CHANGELOG.md)
 - 里程碑规划 / Milestones：[ROADMAP.md](docs/40-process/ROADMAP.md)
 - 设计决策 / Decisions：[DECISIONS.md](docs/40-process/DECISIONS.md)
-- 问题与坑 / Issues：[ISSUES.md](docs/40-process/ISSUES.md)
+- 精选问题复盘 / Problem reviews：[PROBLEM_REVIEWS.md](docs/40-process/PROBLEM_REVIEWS.md)
+- 开放问题与 backlog / Open issues：[ISSUES.md](docs/40-process/ISSUES.md)
 - 工程约定 / Engineering conventions：[AGENTS.md](AGENTS.md)
 
 ---
