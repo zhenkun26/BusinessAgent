@@ -2,8 +2,8 @@
 
 ## 项目概览
 
-本仓库是「智多星——企业级多智能体平台」的已上线运营项目：基于
-LangChain + LangGraph + Milvus 构建的多 Agent 系统，核心能力已历经真实业务场景与市场验证。后端代码位于
+本仓库是「智多星——企业级多智能体平台」的内部落地项目：基于
+LangChain + LangGraph + Milvus 构建的多 Agent 系统，核心能力已在内部业务场景中完成验证。后端代码位于
 `enterprise-agent/`，文档统一存放在 `docs/`（六大层分类），面试与演示资产
 独立存放在 `interview/`。
 

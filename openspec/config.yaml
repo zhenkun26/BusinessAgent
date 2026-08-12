@@ -4,9 +4,9 @@ schema: spec-driven
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 context: |
-  「智多星——企业级多智能体平台」已上线运营（GA）项目：基于 LangChain + LangGraph + Milvus
+  「智多星——企业级多智能体平台」内部落地项目：基于 LangChain + LangGraph + Milvus
   的企业级多 Agent 系统，员工用自然语言完成知识问答、数据分析、业务执行三类工作，核心能力
-  已历经真实业务场景与市场验证。
+  已在内部业务场景中完成验证。
 
   技术栈：Python 3.11+ / FastAPI / LangGraph 1.2+ / LangChain 1.x / Milvus 2.4 / PostgreSQL 16 /
   Redis 7(redis-stack-server) / Ollama 本地 qwen3.5:4b / bge-m3 与 bge-reranker 本地模型 /

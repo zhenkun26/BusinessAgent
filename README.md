@@ -1,11 +1,11 @@
 # 智多星 · 企业级多智能体平台 / ZhiDuoXing — Enterprise Multi-Agent Platform
 
-> 已上线运营（GA）的企业级多智能体平台：员工用自然语言一站式完成 **知识问答 · 数据分析 · 业务执行**，以 RBAC 权限、审批闭环、全栈降级与全链路可观测为护栏，并已历经真实业务场景与市场验证。
+> 已内部落地并持续运行的企业级多智能体平台：员工用自然语言一站式完成 **知识问答 · 数据分析 · 业务执行**，以 RBAC 权限、审批闭环、全栈降级与全链路可观测为护栏，核心链路已在内部业务场景中完成验证。
 >
-> A production-launched (GA), market-validated enterprise multi-agent platform where employees complete **knowledge Q&A, data analysis, and business execution** in natural language — guarded by RBAC, approval loops, full-stack degradation, and end-to-end observability.
+> An internally deployed and battle-tested enterprise multi-agent platform where employees complete **knowledge Q&A, data analysis, and business execution** in natural language — guarded by RBAC, approval loops, full-stack degradation, and end-to-end observability.
 
 [![Release](https://img.shields.io/github/v/tag/zhenkun26/BusinessAgent?label=版本%2FRelease&color=1e88e5)](https://github.com/zhenkun26/BusinessAgent/releases)
-[![Status](https://img.shields.io/badge/状态-GA%20已上线-2ea44f)](https://github.com/zhenkun26/BusinessAgent/releases)
+[![Status](https://img.shields.io/badge/状态-内部落地-2ea44f)](https://github.com/zhenkun26/BusinessAgent/releases)
 [![CI](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/Tests-101%20passed-2ea44f)](https://github.com/zhenkun26/BusinessAgent/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/)
@@ -49,7 +49,7 @@
 
 **定位**：让员工用自然语言完成知识问答、数据分析与业务执行，并让每一次回答、计算和操作都可审计、可控权、可降级、可恢复的企业级多智能体平台。
 
-**上线状态 / GA status**：已上线运营（GA），核心能力在真实业务环境中经受市场验证，覆盖知识问答、数据分析、业务执行与企业治理四条主链路；当前围绕运营反馈持续迭代。
+**上线状态 / Deployment status**：已在内部业务环境中落地并持续运行，核心能力覆盖知识问答、数据分析、业务执行与企业治理四条主链路，经内部真实数据与流程验证；当前围绕运行反馈持续迭代。
 
 **目标用户 / Target users**：
 
@@ -226,7 +226,7 @@ curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
 
 ## 十、项目状态与路线图 / Status & Roadmap
 
-### 当前版本 / Current Release：v1.3.0（2026-08-06 · 已上线 GA）
+### 当前版本 / Current Release：v1.3.0（2026-08-06 · 内部落地版本）
 
 v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星」）/ production-ready release with the full rename to 智多星.
 
@@ -241,7 +241,7 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 | Change | 优先级 / Priority | 状态 / Status |
 | --- | --- | --- |
 | crm-mail-sso-integration（CRM / 邮件 / SSO 真实接入） | P2 | 已提案 / proposed |
-| uat-and-ga-rollout（UAT、灰度、上线门槛） | P3 | 已随 GA 上线收口，转入运营迭代 / closed at GA, ongoing ops iterations |
+| uat-and-ga-rollout（UAT、灰度、上线门槛） | P3 | 已随内部落地收口，转入运营迭代 / closed at internal deployment, ongoing ops iterations |
 
 ### 挂起 / Suspended
 
@@ -274,7 +274,7 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 感谢所有参与者的贡献 / Thanks to everyone who contributes:
 
 - [kingoftaro（Taro）](https://github.com/kingoftaro/) — 项目发起与主工程 / Collaborator · AI Engineer（LLM Applications · AI Agents · RAG · LangChain · LangGraph · MCP）
-- [zhenkun26](https://github.com/zhenkun26) — 合作者，负责**生产上线与市场验证（GA & market-validation）迭代线** / Collaborator, owning the GA & market-validation track
+- [zhenkun26](https://github.com/zhenkun26) — 合作者，负责**内部落地与生产验证迭代线** / Collaborator, owning the internal deployment & production-validation track
 
 **已完成 / Done**
 
@@ -291,7 +291,7 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 **迭代方向 / What's next**
 
 - **CRM / 邮件 / SSO 接入**（`crm-mail-sso-integration`）：复用工单试点已验证的幂等 / 补偿 / 审计模式 / replicate the ticket-verified integration pattern
-- **UAT 与灰度测试**（`uat-and-ga-rollout`）：已随 GA 上线收口；灰度运行与上线门槛检查单执行完毕，后续按运营反馈迭代 / closed at GA, ongoing ops iterations
+- **UAT 与灰度测试**（`uat-and-ga-rollout`）：已随内部落地收口；灰度运行与上线门槛检查单执行完毕，后续按运营反馈迭代 / closed at internal deployment, ongoing ops iterations
 - **stub → 工单系统**：真实实例到位后按验收用例集重跑，回写契约偏差结论（DECISIONS 第 15 条改判条件）/ rerun the acceptance suite against a real ticket system
 - **高可用深化**：K8s 多节点、TLS 全量开启、密钥管理深化；挂起项含 pymilvus 3.1 迁移 / HA on K8s, full TLS, deeper secret management
 
