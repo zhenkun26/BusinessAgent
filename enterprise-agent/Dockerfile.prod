@@ -34,6 +34,10 @@ RUN python -m venv /opt/venv
 RUN --mount=type=cache,target=/root/.cache/pip \
     /opt/venv/bin/pip install -r requirements-prod.txt
 
+# 安全加固：强制升级有已知 HIGH 漏洞的传递依赖（Trivy 阻断门禁）
+RUN --mount=type=cache,target=/root/.cache/pip \
+    /opt/venv/bin/pip install --upgrade 'msgpack>=1.2.1' 'setuptools>=78.1.1'
+
 # 可选 ML 栈(默认关闭,开启后镜像显著增大)
 RUN if [ "$INSTALL_ML" = "1" ]; then \
       --mount=type=cache,target=/root/.cache/pip \
