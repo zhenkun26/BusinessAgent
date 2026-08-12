@@ -311,3 +311,5 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 ## License / 许可证
 
 [MIT](LICENSE)
+
+> 本项目由 Vibe Coding 辅助实现落地。Built with Vibe Coding.
