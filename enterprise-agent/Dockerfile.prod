@@ -69,6 +69,9 @@ RUN (apt-get update --fix-missing || true) \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /app/logs /data && chown -R 65534:65534 /app /data
 
+# 安全加固：升级基础镜像系统层旧包（Trivy 全镜像扫描，venv 虽已升级但系统层仍残留旧版本）
+RUN python -m pip install --upgrade --break-system-packages 'msgpack>=1.2.1' 'setuptools>=78.1.1'
+
 # 仅复制 Python 依赖(venv),不复制 builder 工具链
 COPY --from=builder /opt/venv /opt/venv
 
