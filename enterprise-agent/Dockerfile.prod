@@ -69,8 +69,10 @@ RUN (apt-get update --fix-missing || true) \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /app/logs /data && chown -R 65534:65534 /app /data
 
-# 安全加固：升级基础镜像系统层旧包（Trivy 全镜像扫描，venv 虽已升级但系统层仍残留旧版本）
-RUN python -m pip install --upgrade --break-system-packages 'msgpack>=1.2.1' 'setuptools>=78.1.1'
+# 安全加固：移除 pip（运行时不需要），消除其 vendor 的 msgpack/pkg_resources 旧版本漏洞
+# Trivy 阻断的 GHSA-6v7p-g79w-8964 / CVE-2025-47273 均来自 pip 内部捆绑，无法通过升级 pip 修复
+RUN python -m pip uninstall -y pip --break-system-packages; \
+    /opt/venv/bin/pip uninstall -y pip
 
 # 仅复制 Python 依赖(venv),不复制 builder 工具链
 COPY --from=builder /opt/venv /opt/venv
