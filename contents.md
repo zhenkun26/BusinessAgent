@@ -47,6 +47,10 @@ BusinessAgent/
 │   │   ├── 生产对抗性审查与部署验收报告.md  # 12 项漏洞修复与部署验收记录（2026-08-04）
 │   │   ├── 上线评审材料-2026-08-05.md     # 生产上线评审材料（边界/SLA/风险清单）
 │   │   ├── UAT计划评审记录-2026-08-15.md  # UAT 计划与 G0 fixture 结构评审（资源未齐）
+│   │   ├── UAT执行准备核对报告-2026-08-15.md  # UAT 真实执行资源核对（当前 BLOCKED）
+│   │   ├── 下一步执行阻塞清单-2026-08-15.md  # active change 依赖、证据与执行顺序
+│   │   ├── 发布门槛核对报告-2026-08-15.md  # 六项上线门槛程序化核对（当前 BLOCKED）
+│   │   ├── 灰度方案评审记录-2026-08-15.md  # 灰度方案条件评审（最短观察期4周，业务阈值待确认）
 │   │   ├── 优化方向分析-生产上线-2026-08-05.md  # explore 阶段产物：差距对照与候选 change 清单
 │   │   └── 临时备忘.md                  # 历史速查备忘（内容已拆入 ROADMAP/ISSUES，保留备查）
 │   ├── 50-engineering/                 # 工程文档层：索引 enterprise-agent 内部工程文档
@@ -72,10 +76,14 @@ BusinessAgent/
 │   ├── eval/                           # 验证脚本（W5-W9）+ 评测数据 + 知识库样本 + k6 压测资产 + 工单 stub 与联调验收 + UAT 彩排模拟数据
 │   │   ├── generate_uat_simulation.py  # 生成确定性 G0 技术彩排数据（不连接外部系统）
 │   │   ├── run_uat_replay.py           # 只读 fixture 的结构/安全契约回放器
+│   │   ├── validate_uat_plan.py         # UAT 计划与 G0 fixture 结构校验器
+│   │   ├── validate_release_gate.py     # 发布门槛检查单只读核对器
+│   │   ├── validate_grey_release_plan.py # 灰度方案结构与回滚路径核验器
+│   │   ├── validate_uat_execution_readiness.py # UAT 真实执行资源核验器
 │   │   └── uat_simulation/             # fixture.json + 使用说明
 │   ├── deploy/                         # 部署配置：init.sql/migrations/DEPLOY.md/nginx/prometheus + 告警规则/漏洞豁免/DR 演练编排
 │   ├── scripts/                        # 运维脚本（fix_seed_approvals.py、backup.sh 备份脚本）
-│   ├── tests/                          # 单元测试（101 项，含越权/checkpoint TTL/token 用量/评测指标/工单外部调用）
+│   ├── tests/                          # 单元测试（129 项，含越权/checkpoint TTL/token 用量/评测指标/工单外部调用）
 │   ├── docker-compose.yml              # 开发环境编排（Milvus/PG/Redis/Ollama）
 │   ├── docker-compose.prod.yml         # 生产部署编排（Nginx + 资源限制）
 │   ├── Dockerfile                      # 应用镜像构建
@@ -99,7 +107,8 @@ BusinessAgent/
     │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
-        ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 6/15）
+        ├── fix-prod-image-pip-removal/     # 生产镜像 pip 清理顺序修复（实施中 2/4）
+        ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 7/15）
         └── archive/                        # 已归档变更（全部完成）
             ├── 2026-08-04-documentation-baseline/        # 文档基线（归档）
             ├── 2026-08-04-complete-business-processes/   # 业务闭环补齐 41/41（归档）

@@ -41,10 +41,13 @@
 | ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
 | ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
 | ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
-| crm-mail-sso-integration | P2 | 实施中 7/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
-| uat-and-ga-rollout | P3 | 实施中 6/15 | UAT、灰度、上线门槛检查单（计划结构评审通过；真实用户/环境/排期待确认） |
+| crm-mail-sso-integration | P2 | 实施中 9/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
+| uat-and-ga-rollout | P3 | 实施中 8/15 | UAT、灰度、上线门槛检查单（灰度方案条件评审通过，最短观察期 4 周；UAT 资源核验仍 BLOCKED） |
+| fix-prod-image-pip-removal | P1 | 实施中 2/4 | 修复生产镜像 runner 阶段 pip 清理顺序；本地 Docker daemon 未启动，等待 CI 复跑 |
 
 ## 三、挂起事项（P3，暂不上线）
+
+当前下一步执行顺序与外部阻塞见 `下一步执行阻塞清单-2026-08-15.md`；正式 UAT、真实外部接入、真实灰度和全量放行均不得跳过前置证据。
 
 - [x] ~~压测（vegeta/k6）~~（✅ 2026-08-05 随 load-test-and-dr-drill 落地：k6 阶梯压测已执行，报告见 `eval/results/`，SLA 初值已回访，I-01 关闭）
 - [ ] UAT + 安全测试（含 Prompt 注入攻击面实测）——已由 uat-and-ga-rollout 提案承接

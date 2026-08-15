@@ -105,6 +105,25 @@
 
 ## 二、已修复（按日期倒序）
 
+### 2026-08-15 生产镜像 runner 阶段 pip 清理顺序导致 CI 构建失败
+
+- 状态：fixed（代码修复已完成，等待 CI 复跑）· 优先级 P1
+- 现象：CI 的 Python 3.11/3.13 单元测试通过，但生产镜像构建在 `Dockerfile.prod:74-75`
+  返回 exit code 127。
+- 根因：runner 在 `COPY --from=builder /opt/venv /opt/venv` 之前调用
+  `/opt/venv/bin/pip`；该路径尚不存在，且前一个命令已经卸载了基础镜像的 pip。
+- 修复：`enterprise-agent/Dockerfile.prod` 先清理系统 Python 的 pip，再复制 venv，最后用
+  `/opt/venv/bin/python -m pip` 清理 venv 内 pip；新增 `tests/test_dockerfile_prod.py` 固化顺序。
+- 验证：相关 Python 测试 10/10 通过、Ruff 通过、OpenSpec strict 校验通过；本机 Docker daemon
+  未启动，真实 Docker build 尚待 CI 复跑确认。
+
+### 2026-08-15 灰度方案观察期口径统一
+
+- 状态：fixed（方案已修订，真实灰度未执行）· 优先级 P2
+- 现象：原方案 G1/G2 为 1-2 周、G3 为“2 周以上”，与总观察期 2-4 周无法形成可排期的上限。
+- 修复：统一为 G1 1 周、G2 1 周、G3 2 周，最短总观察期 4 周；延长必须在 `DECISIONS.md` 留痕。
+- 验证：灰度方案核验器返回 `overall_status=passed`、`review_conclusion=conditional`；业务观察阈值仍待产品负责人确认。
+
 ### 2026-07-28 回答质量：意图分类路由 + 运行时 flash 回退 / 闲聊人格化 / 加粗渲染
 
 - 现象：①「查询订单 ORD-xxx」被路由到知识问答；② 闲聊话术机械重复无人格；③ `**5%-10%**` 显示字面星号。
