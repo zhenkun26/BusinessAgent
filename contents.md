@@ -107,8 +107,7 @@ BusinessAgent/
     │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
-        ├── fix-prod-image-pip-removal/     # 生产镜像 pip 清理顺序修复（实施中 2/4）
-        ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 7/15）
+        ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）
             ├── 2026-08-04-documentation-baseline/        # 文档基线（归档）
             ├── 2026-08-04-complete-business-processes/   # 业务闭环补齐 41/41（归档）
@@ -117,5 +116,6 @@ BusinessAgent/
             ├── 2026-08-06-rename-agent-to-zhiduoxing/    # 智能体更名「智多星」7/7（归档）
             ├── 2026-08-06-load-test-and-dr-drill/        # 压测与容灾演练 14/14（归档）
             ├── 2026-08-06-security-hardening-plus/       # 安全加固 21/21（归档）
-            └── 2026-08-06-ticket-system-integration/     # 工单真实接入试点 16/16（归档，含 stub 验收记录）
+            ├── 2026-08-06-ticket-system-integration/     # 工单真实接入试点 16/16（归档，含 stub 验收记录）
+            └── 2026-08-15-fix-prod-image-pip-removal/   # 生产镜像 pip 清理顺序修复 4/4（归档）
 ```

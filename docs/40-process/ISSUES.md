@@ -107,15 +107,16 @@
 
 ### 2026-08-15 生产镜像 runner 阶段 pip 清理顺序导致 CI 构建失败
 
-- 状态：fixed（代码修复已完成，等待 CI 复跑）· 优先级 P1
+- 状态：fixed（2026-08-15 CI 验证通过）· 优先级 P1
 - 现象：CI 的 Python 3.11/3.13 单元测试通过，但生产镜像构建在 `Dockerfile.prod:74-75`
   返回 exit code 127。
 - 根因：runner 在 `COPY --from=builder /opt/venv /opt/venv` 之前调用
   `/opt/venv/bin/pip`；该路径尚不存在，且前一个命令已经卸载了基础镜像的 pip。
 - 修复：`enterprise-agent/Dockerfile.prod` 先清理系统 Python 的 pip，再复制 venv，最后用
   `/opt/venv/bin/python -m pip` 清理 venv 内 pip；新增 `tests/test_dockerfile_prod.py` 固化顺序。
-- 验证：相关 Python 测试 10/10 通过、Ruff 通过、OpenSpec strict 校验通过；本机 Docker daemon
-  未启动，真实 Docker build 尚待 CI 复跑确认。
+- 验证：本地聚焦测试 15/15 通过、Ruff 通过、OpenSpec strict 校验通过；GitHub Actions
+  run `31890705614` 的 Python 3.11/3.13 测试、生产 Docker build 与 Trivy HIGH/CRITICAL
+  扫描全部通过。
 
 ### 2026-08-15 灰度方案观察期口径统一
 

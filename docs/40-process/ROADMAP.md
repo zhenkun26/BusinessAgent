@@ -43,7 +43,7 @@
 | ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
 | crm-mail-sso-integration | P2 | 实施中 9/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
 | uat-and-ga-rollout | P3 | 实施中 8/15 | UAT、灰度、上线门槛检查单（灰度方案条件评审通过，最短观察期 4 周；UAT 资源核验仍 BLOCKED） |
-| fix-prod-image-pip-removal | P1 | 实施中 2/4 | 修复生产镜像 runner 阶段 pip 清理顺序；本地 Docker daemon 未启动，等待 CI 复跑 |
+| ~~fix-prod-image-pip-removal~~ | P1 | ✅ 已归档 2026-08-15 | 修复生产镜像 runner 阶段 pip 清理顺序；CI run 31890705614 已通过 Python 3.11/3.13、生产镜像构建与 Trivy 扫描 |
 
 ## 三、挂起事项（P3，暂不上线）
 
