@@ -16,9 +16,9 @@ W7 阶段用 Mock 实现,接口契约对应真实 CRM API:
 from __future__ import annotations
 
 import asyncio
-import time
+import re
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -27,7 +27,6 @@ from app.config import get_settings
 from app.tools.base import BaseTool, ToolCategory, ToolResult
 from app.tools.http_adapter import call_external_api
 
-
 # ============ Schemas ============
 
 
@@ -35,7 +34,7 @@ class QueryCustomerSchema(BaseModel):
     """查询客户入参"""
 
     customer_id: str = Field(description="客户 ID,如 C001")
-    fields: Optional[list[str]] = Field(
+    fields: list[str] | None = Field(
         default=None, description="指定返回字段,如 ['name','contact']"
     )
 
@@ -54,8 +53,8 @@ class CreateCrmTaskSchema(BaseModel):
     title: str = Field(description="任务标题", max_length=200)
     description: str = Field(default="", description="任务描述", max_length=2000)
     # 本地小模型有时输出 assignee=null(不知填谁);允许为空,执行时默认填发起人
-    assignee: Optional[str] = Field(default=None, description="负责人 user_id,不指定则为当前用户")
-    due_date: Optional[str] = Field(default=None, description="截止日期 YYYY-MM-DD")
+    assignee: str | None = Field(default=None, description="负责人 user_id,不指定则为当前用户")
+    due_date: str | None = Field(default=None, description="截止日期 YYYY-MM-DD")
     priority: int = Field(default=1, ge=0, le=5, description="优先级 0-5")
 
 
@@ -264,18 +263,31 @@ class QueryCustomerTool(BaseTool):
     category = ToolCategory.QUERY
     description = "查询客户基本信息、联系人、等级、累计销售额"
     input_schema = QueryCustomerSchema
+    provider_config_attr = "crm_tool_provider"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         """真实 CRM 适配:GET /api/v1/customers/{id}"""
         settings = get_settings()
         url = f"{settings.crm_api_base}/customers/{params['customer_id']}"
+        meta: dict[str, Any] = {}
         ok, data, error = await call_external_api(
-            "GET", url, api_token=settings.crm_api_token
+            "GET", url, api_token=settings.crm_api_token, meta=meta
         )
         if not ok:
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={},
+                error=error,
+                side_effects={"external_attempts": meta.get("attempts", 1)},
+            )
         customer = data.get("customer", data) if isinstance(data, dict) else data
-        return ToolResult(success=True, tool_name=self.name, output={"customer": customer})
+        return ToolResult(
+            success=True,
+            tool_name=self.name,
+            output={"customer": customer},
+            side_effects={"external_attempts": meta.get("attempts", 1)},
+        )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         customer_id = params["customer_id"]
@@ -311,6 +323,7 @@ class QueryOrderTool(BaseTool):
     category = ToolCategory.QUERY
     description = "查询订单详情,含金额、状态、明细"
     input_schema = QueryOrderSchema
+    provider_config_attr = "crm_tool_provider"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         """真实 CRM 适配:GET /api/v1/orders/{id}?include_items=1/0"""
@@ -320,13 +333,25 @@ class QueryOrderTool(BaseTool):
             f"{settings.crm_api_base}/orders/{params['order_id']}"
             f"?include_items={include_items}"
         )
+        meta: dict[str, Any] = {}
         ok, data, error = await call_external_api(
-            "GET", url, api_token=settings.crm_api_token
+            "GET", url, api_token=settings.crm_api_token, meta=meta
         )
         if not ok:
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={},
+                error=error,
+                side_effects={"external_attempts": meta.get("attempts", 1)},
+            )
         order = data.get("order", data) if isinstance(data, dict) else data
-        return ToolResult(success=True, tool_name=self.name, output={"order": order})
+        return ToolResult(
+            success=True,
+            tool_name=self.name,
+            output={"order": order},
+            side_effects={"external_attempts": meta.get("attempts", 1)},
+        )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         order_id = params["order_id"]
@@ -358,28 +383,63 @@ class CreateCrmTaskTool(BaseTool):
     category = ToolCategory.ACTION
     description = "在 CRM 系统创建客户跟进任务(有副作用,Saga 可回滚)"
     input_schema = CreateCrmTaskSchema
+    provider_config_attr = "crm_tool_provider"
+
+    @staticmethod
+    def _build_idempotency_key(context: dict[str, Any]) -> str:
+        """按 Saga 执行 ID 与工具调用序号生成可重放幂等键。"""
+        execution_id = context.get("saga_execution_id") or context.get("request_id")
+        execution_id = execution_id or uuid.uuid4().hex[:12]
+        call_index = context.get("tool_call_index") or context.get("step_id") or "0"
+
+        def _safe(value: Any) -> str:
+            return re.sub(r"[^A-Za-z0-9_.:-]", "-", str(value))[:80]
+
+        return f"crm-task-{_safe(execution_id)}-{_safe(call_index)}"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         """真实 CRM 适配:POST /api/v1/crm_tasks"""
         settings = get_settings()
         if not params.get("assignee"):
             params["assignee"] = context.get("user_id", "system")
+        idempotency_key = self._build_idempotency_key(context)
+        meta: dict[str, Any] = {}
         ok, data, error = await call_external_api(
             "POST",
             f"{settings.crm_api_base}/crm_tasks",
             api_token=settings.crm_api_token,
             json_body=params,
+            extra_headers={"Idempotency-Key": idempotency_key},
+            meta=meta,
         )
         if not ok:
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={},
+                error=error,
+                side_effects={
+                    "idempotency_key": idempotency_key,
+                    "external_attempts": meta.get("attempts", 1),
+                },
+            )
         task = data.get("task", data) if isinstance(data, dict) else data
         task_id = task.get("task_id") if isinstance(task, dict) else None
         return ToolResult(
             success=True,
             tool_name=self.name,
             output={"task": task},
-            side_effects={"created_task_id": task_id},
-            compensation_data={"task_id": task_id, "action": "delete"},
+            side_effects={
+                "created_task_id": task_id,
+                "idempotency_key": idempotency_key,
+                "external_attempts": meta.get("attempts", 1),
+            },
+            compensation_data={
+                "task_id": task_id,
+                "action": "delete",
+                "provider": "http",
+                "idempotency_key": idempotency_key,
+            },
         )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
@@ -411,6 +471,28 @@ class CreateCrmTaskTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:删除已创建的 CRM 任务"""
         task_id = compensation_data.get("task_id")
+        if compensation_data.get("provider") == "http" and task_id:
+            settings = get_settings()
+            meta: dict[str, Any] = {}
+            ok, _, error = await call_external_api(
+                "DELETE",
+                f"{settings.crm_api_base}/crm_tasks/{task_id}",
+                api_token=settings.crm_api_token,
+                meta=meta,
+            )
+            return ToolResult(
+                success=ok,
+                tool_name=self.name,
+                output={
+                    "message": (
+                        f"任务 {task_id} 已调用 CRM 删除接口"
+                        if ok
+                        else f"任务 {task_id} 删除失败"
+                    )
+                },
+                error=error,
+                side_effects={"external_attempts": meta.get("attempts", 1)},
+            )
         if task_id and task_id in _mock_crm_tasks:
             del _mock_crm_tasks[task_id]
             logger.info(f"CRM 任务补偿: 已删除 task_id={task_id}")

@@ -45,6 +45,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(32))
     department: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    sso_issuer: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    sso_subject: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

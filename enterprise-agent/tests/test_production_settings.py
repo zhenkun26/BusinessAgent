@@ -69,3 +69,35 @@ def test_should_skip_validation_in_dev_mode():
     violations = validate_production_settings(settings)
 
     assert violations == []
+
+
+def test_should_reject_invalid_system_provider():
+    settings = Settings(
+        app_env="prod",
+        jwt_secret_key="x" * 64,
+        postgres_password="prod-pg-strong-pass-123456",
+        redis_password="prod-redis-strong-pass-123456",
+        milvus_password="prod-milvus-strong-pass-123456",
+        crm_tool_provider="live",
+        cors_allow_origins="https://agent.example.com",
+    )
+
+    violations = validate_production_settings(settings)
+
+    assert any("crm_tool_provider" in violation for violation in violations)
+
+
+def test_should_require_oidc_settings_before_enabling_sso():
+    settings = Settings(
+        app_env="prod",
+        jwt_secret_key="x" * 64,
+        postgres_password="prod-pg-strong-pass-123456",
+        redis_password="prod-redis-strong-pass-123456",
+        milvus_password="prod-milvus-strong-pass-123456",
+        sso_enabled=True,
+        cors_allow_origins="https://agent.example.com",
+    )
+
+    violations = validate_production_settings(settings)
+
+    assert any("SSO_ENABLED=true" in violation for violation in violations)

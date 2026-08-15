@@ -85,6 +85,8 @@
   .login-card .btn:hover { background: linear-gradient(135deg, #4560f0 0%, #6e50f5 100%); transform: translateY(-1px);
     box-shadow: 0 10px 26px rgba(99,91,255,.34); }
   .login-card .btn:disabled { background: #c3cbf0; box-shadow: none; }
+  .sso-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: #a0a5bb; font-size: 12px; }
+  .sso-divider::before, .sso-divider::after { content: ''; flex: 1; height: 1px; background: #e8eaf2; }
 
   /* ===== 主框架 ===== */
   .topbar { background: #001529; color: #fff; padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 20px;
@@ -281,6 +283,10 @@
       <div class="login-err">{{ loginErr }}</div>
       <button class="btn btn-block" :disabled="logging" @click="doLogin">
         {{ logging ? '登录中…' : '登 录' }}
+      </button>
+      <div class="sso-divider"><span>或</span></div>
+      <button class="btn btn-block btn-ghost" type="button" @click="startSso">
+        企业 SSO 登录
       </button>
     </div>
   </div>
@@ -828,6 +834,14 @@ createApp({
 
     // ===== auth =====
     pickUser(u) { this.loginName = u.username; this.pickerOpen = false; this.loginErr = ''; },
+    startSso() {
+      if (location.protocol === 'file:') {
+        this.loginErr = '请通过 http://localhost:8000/ui 访问本系统';
+        return;
+      }
+      this.loginErr = '';
+      window.location.assign('/api/v1/auth/sso/login');
+    },
     async doLogin() {
       this.loginErr = '';
       if (!this.loginName.trim()) { this.loginErr = '请输入用户名'; return; }

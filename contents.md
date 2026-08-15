@@ -33,7 +33,9 @@ BusinessAgent/
 │   │   ├── README.md                   # 操作手册层索引
 │   │   ├── 使用案例手册.md              # 功能全流程测试用例（curl 脚本 + 预期）
 │   │   ├── 产品使用手册-前端版.md        # 浏览器 /ui 使用与验收手册
-│   │   └── 运维维护手册.md              # 日常启停/数据维护/监控/告警值班预案/故障排查
+│   │   ├── 运维维护手册.md              # 日常启停/数据维护/监控/告警值班预案/故障排查
+│   │   ├── UAT验收计划.md                # 真实用户验收计划、场景矩阵与执行记录模板
+│   │   └── 发布灰度与上线门槛检查单.md    # 灰度策略、回滚路径与全量放行门槛
 │   ├── 40-process/                     # 过程记录层：迭代过程与项目演进档案
 │   │   ├── README.md                   # 过程记录层索引
 │   │   ├── ROADMAP.md                  # 里程碑规划（已完成/进行中/挂起，单一事实源）
@@ -44,6 +46,7 @@ BusinessAgent/
 │   │   ├── 阶段性总结_W7-W9_联调.md      # W7-W9 + 整体联调阶段总结
 │   │   ├── 生产对抗性审查与部署验收报告.md  # 12 项漏洞修复与部署验收记录（2026-08-04）
 │   │   ├── 上线评审材料-2026-08-05.md     # 生产上线评审材料（边界/SLA/风险清单）
+│   │   ├── UAT计划评审记录-2026-08-15.md  # UAT 计划与 G0 fixture 结构评审（资源未齐）
 │   │   ├── 优化方向分析-生产上线-2026-08-05.md  # explore 阶段产物：差距对照与候选 change 清单
 │   │   └── 临时备忘.md                  # 历史速查备忘（内容已拆入 ROADMAP/ISSUES，保留备查）
 │   ├── 50-engineering/                 # 工程文档层：索引 enterprise-agent 内部工程文档
@@ -66,7 +69,10 @@ BusinessAgent/
 ├── enterprise-agent/                   # 后端主工程（FastAPI + LangGraph + RAG + 工具）
 │   ├── README.md                       # 后端 README：快速开始/项目结构/实施进度/技术栈
 │   ├── app/                            # 应用代码：api/agents/graph/rag/tools/security/observability（含 token_usage）
-│   ├── eval/                           # 验证脚本（W5-W9）+ 评测数据 + 知识库样本 + k6 压测资产 + 工单 stub 与联调验收（ticket_stub_server/run_ticket_acceptance）
+│   ├── eval/                           # 验证脚本（W5-W9）+ 评测数据 + 知识库样本 + k6 压测资产 + 工单 stub 与联调验收 + UAT 彩排模拟数据
+│   │   ├── generate_uat_simulation.py  # 生成确定性 G0 技术彩排数据（不连接外部系统）
+│   │   ├── run_uat_replay.py           # 只读 fixture 的结构/安全契约回放器
+│   │   └── uat_simulation/             # fixture.json + 使用说明
 │   ├── deploy/                         # 部署配置：init.sql/migrations/DEPLOY.md/nginx/prometheus + 告警规则/漏洞豁免/DR 演练编排
 │   ├── scripts/                        # 运维脚本（fix_seed_approvals.py、backup.sh 备份脚本）
 │   ├── tests/                          # 单元测试（101 项，含越权/checkpoint TTL/token 用量/评测指标/工单外部调用）
@@ -92,8 +98,8 @@ BusinessAgent/
     │   ├── performance-resilience/     # 性能与容灾规格（压测/恢复演练/告警值班）
     │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（已提案 0/19）
-        ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（已提案 0/15）
+        ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
+        ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 6/15）
         └── archive/                        # 已归档变更（全部完成）
             ├── 2026-08-04-documentation-baseline/        # 文档基线（归档）
             ├── 2026-08-04-complete-business-processes/   # 业务闭环补齐 41/41（归档）

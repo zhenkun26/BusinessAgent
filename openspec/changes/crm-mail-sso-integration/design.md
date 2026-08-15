@@ -33,6 +33,8 @@
 
 新增 `GET /api/v1/auth/sso/login`（重定向 IdP）与 `GET /api/v1/auth/sso/callback`（换码验签）两个端点；验签校验签名（JWKS）、iss、aud、exp，通过后按 `(issuer, sub)` 在 `users` 表新增的唯一映射列（或映射表）查找本地用户，未命中则按默认角色（salesperson）与 IdP 返回的部门声明自动开通，随后复用既有 `jwt_manager` 签发本系统 JWT——下游鉴权零改动。验签库选型在实施时按现有依赖定夺（优先复用已用的 `PyJWT` + JWKS 端点拉取公钥，避免引入新重依赖）。
 
+实施补充：授权请求使用一次性 `state` + `nonce`，并通过 HttpOnly Cookie 校验回调来源；当前单进程实现将短期状态保存在内存，部署到多进程/多副本前须迁移到 Redis。回调只接受带 `id_token` 的标准 OIDC token response，令牌交换、JWKS 拉取和验签失败均返回不泄露细节的 401/503；浏览器请求返回短暂 HTML 页面写入本地会话后回到 `/ui`，API 请求返回 `TokenResponse` JSON。SSO 自动开通用户使用随机不可知 bcrypt 密码占位，兼容现有 `password_hash NOT NULL` schema，避免绕过本地密码策略。
+
 备选：SAML。否决：企业 IdP 普遍支持 OIDC，且授权码流程与现有 JWT 体系衔接最简；SAML 解析引入 XML 安全面，得不偿失。
 备选：用 IdP 令牌直接作为会话令牌。否决：令牌生命周期与吊销不受本系统控制，且无法承载本地角色声明。
 

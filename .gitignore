@@ -45,3 +45,6 @@ build/
 # 本地模型与 IDE 个人配置
 models/
 .idea/
+
+# 外部参考仓库（本地对照，不纳入本仓库提交）
+reference/

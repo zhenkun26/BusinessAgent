@@ -41,6 +41,12 @@ class _FakeMockOnlyTool(BaseTool):
         )
 
 
+class _ScopedHttpTool(_FakeHttpTool):
+    """验证业务系统级 provider 开关优先于全局开关。"""
+
+    provider_config_attr = "crm_tool_provider"
+
+
 @pytest.mark.asyncio
 async def test_should_use_mock_execute_when_provider_is_mock(monkeypatch):
     """Given tool_provider=mock, When 调用工具,
@@ -96,4 +102,34 @@ async def test_should_respect_tool_provider_override(monkeypatch):
 
     result = await tool.invoke({}, {"role": "admin", "user_id": "u1"}, skip_rbac=True)
 
+    assert result.output["source"] == "http"
+
+
+@pytest.mark.asyncio
+async def test_should_use_system_provider_before_global_provider(monkeypatch):
+    """Given CRM_TOOL_PROVIDER=http 且全局仍为 mock, When 调用 CRM 工具,
+    Then 仅 CRM 走 HTTP,其他系统不受影响"""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "tool_provider", "mock")
+    monkeypatch.setattr(settings, "crm_tool_provider", "http")
+    tool = _ScopedHttpTool()
+
+    result = await tool.invoke({}, {"role": "admin", "user_id": "u1"}, skip_rbac=True)
+
+    assert result.success is True
+    assert result.output["source"] == "http"
+
+
+@pytest.mark.asyncio
+async def test_should_fall_back_to_global_provider_when_system_provider_empty(monkeypatch):
+    """Given CRM_TOOL_PROVIDER 留空且全局为 http, When 调用 CRM 工具,
+    Then 保持旧配置兼容并走 HTTP"""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "tool_provider", "http")
+    monkeypatch.setattr(settings, "crm_tool_provider", "")
+    tool = _ScopedHttpTool()
+
+    result = await tool.invoke({}, {"role": "admin", "user_id": "u1"}, skip_rbac=True)
+
+    assert result.success is True
     assert result.output["source"] == "http"

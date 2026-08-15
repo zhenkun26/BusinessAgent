@@ -1,0 +1,1598 @@
+{
+  "fixture_id": "uat-sim-20260815",
+  "fixture_version": "1.0.0",
+  "generated_on": "2026-08-15",
+  "seed": 20260815,
+  "purpose": "G0 technical rehearsal only",
+  "official_uat": false,
+  "external_side_effects_allowed": false,
+  "import_mode": "manual_review_only",
+  "safety": {
+    "all_ids_prefix": "SIM- or sim-",
+    "external_email_domain": "example.invalid",
+    "internal_email_domain": "company.internal",
+    "no_passwords_or_tokens": true,
+    "no_real_customer_data": true,
+    "do_not_use_with_production_credentials": true
+  },
+  "counts": {
+    "users": 11,
+    "customers": 12,
+    "orders": 24,
+    "tickets": 12,
+    "documents": 8,
+    "sessions": 6,
+    "approvals": 8,
+    "scenarios": 12
+  },
+  "users": [
+    {
+      "user_id": "sim_sales_001",
+      "username": "模拟销售一号",
+      "email": "sim_sales_001@example.invalid",
+      "internal_email": "sim_sales_001@company.internal",
+      "role": "salesperson",
+      "department": "dept_sales",
+      "is_active": true,
+      "can_approve": false,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_sales_002",
+      "username": "模拟销售二号",
+      "email": "sim_sales_002@example.invalid",
+      "internal_email": "sim_sales_002@company.internal",
+      "role": "salesperson",
+      "department": "dept_sales",
+      "is_active": true,
+      "can_approve": false,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_sales_mgr",
+      "username": "模拟销售经理",
+      "email": "sim_sales_mgr@example.invalid",
+      "internal_email": "sim_sales_mgr@company.internal",
+      "role": "manager",
+      "department": "dept_sales",
+      "is_active": true,
+      "can_approve": true,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_cs_001",
+      "username": "模拟客服一号",
+      "email": "sim_cs_001@example.invalid",
+      "internal_email": "sim_cs_001@company.internal",
+      "role": "customer_service",
+      "department": "dept_cs",
+      "is_active": true,
+      "can_approve": false,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_cs_002",
+      "username": "模拟客服二号",
+      "email": "sim_cs_002@example.invalid",
+      "internal_email": "sim_cs_002@company.internal",
+      "role": "customer_service",
+      "department": "dept_cs",
+      "is_active": true,
+      "can_approve": false,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_cs_mgr",
+      "username": "模拟客服经理",
+      "email": "sim_cs_mgr@example.invalid",
+      "internal_email": "sim_cs_mgr@company.internal",
+      "role": "manager",
+      "department": "dept_cs",
+      "is_active": true,
+      "can_approve": true,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_fin_001",
+      "username": "模拟财务一号",
+      "email": "sim_fin_001@example.invalid",
+      "internal_email": "sim_fin_001@company.internal",
+      "role": "finance",
+      "department": "dept_finance",
+      "is_active": true,
+      "can_approve": false,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_fin_mgr",
+      "username": "模拟财务经理",
+      "email": "sim_fin_mgr@example.invalid",
+      "internal_email": "sim_fin_mgr@company.internal",
+      "role": "manager",
+      "department": "dept_finance",
+      "is_active": true,
+      "can_approve": true,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_hr_001",
+      "username": "模拟人事一号",
+      "email": "sim_hr_001@example.invalid",
+      "internal_email": "sim_hr_001@company.internal",
+      "role": "customer_service",
+      "department": "dept_hr",
+      "is_active": true,
+      "can_approve": false,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_hr_mgr",
+      "username": "模拟人事经理",
+      "email": "sim_hr_mgr@example.invalid",
+      "internal_email": "sim_hr_mgr@company.internal",
+      "role": "manager",
+      "department": "dept_hr",
+      "is_active": true,
+      "can_approve": false,
+      "auth_mode": "fixture_only_no_password"
+    },
+    {
+      "user_id": "sim_admin",
+      "username": "模拟平台管理员",
+      "email": "sim_admin@example.invalid",
+      "internal_email": "sim_admin@company.internal",
+      "role": "admin",
+      "department": "shared_company",
+      "is_active": true,
+      "can_approve": true,
+      "auth_mode": "fixture_only_no_password"
+    }
+  ],
+  "customers": [
+    {
+      "customer_id": "SIM-C001",
+      "name": "模拟客户01有限公司",
+      "contact": "演练联系人01",
+      "phone": "13376346594",
+      "email": "contact-01@example.invalid",
+      "industry": "软件开发",
+      "level": "VIP",
+      "region": "华北",
+      "owner_user_id": "sim_sales_001",
+      "total_revenue_yuan": 66785,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C002",
+      "name": "模拟客户02有限公司",
+      "contact": "演练联系人02",
+      "phone": "15367387523",
+      "email": "contact-02@example.invalid",
+      "industry": "制造业",
+      "level": "A",
+      "region": "华东",
+      "owner_user_id": "sim_sales_002",
+      "total_revenue_yuan": 77337,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C003",
+      "name": "模拟客户03有限公司",
+      "contact": "演练联系人03",
+      "phone": "16831630044",
+      "email": "contact-03@example.invalid",
+      "industry": "零售连锁",
+      "level": "B",
+      "region": "华南",
+      "owner_user_id": "sim_sales_001",
+      "total_revenue_yuan": 91476,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C004",
+      "name": "模拟客户04有限公司",
+      "contact": "演练联系人04",
+      "phone": "18430236123",
+      "email": "contact-04@example.invalid",
+      "industry": "物流运输",
+      "level": "C",
+      "region": "西南",
+      "owner_user_id": "sim_sales_002",
+      "total_revenue_yuan": 100352,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C005",
+      "name": "模拟客户05有限公司",
+      "contact": "演练联系人05",
+      "phone": "17174165757",
+      "email": "contact-05@example.invalid",
+      "industry": "教育培训",
+      "level": "VIP",
+      "region": "华北",
+      "owner_user_id": "sim_sales_001",
+      "total_revenue_yuan": 115899,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C006",
+      "name": "模拟客户06有限公司",
+      "contact": "演练联系人06",
+      "phone": "13249449348",
+      "email": "contact-06@example.invalid",
+      "industry": "医疗服务",
+      "level": "A",
+      "region": "华东",
+      "owner_user_id": "sim_sales_002",
+      "total_revenue_yuan": 129205,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C007",
+      "name": "模拟客户07有限公司",
+      "contact": "演练联系人07",
+      "phone": "15293791838",
+      "email": "contact-07@example.invalid",
+      "industry": "软件开发",
+      "level": "B",
+      "region": "华南",
+      "owner_user_id": "sim_sales_001",
+      "total_revenue_yuan": 140816,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C008",
+      "name": "模拟客户08有限公司",
+      "contact": "演练联系人08",
+      "phone": "13580160525",
+      "email": "contact-08@example.invalid",
+      "industry": "制造业",
+      "level": "C",
+      "region": "西南",
+      "owner_user_id": "sim_sales_002",
+      "total_revenue_yuan": 150211,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C009",
+      "name": "模拟客户09有限公司",
+      "contact": "演练联系人09",
+      "phone": "13195665456",
+      "email": "contact-09@example.invalid",
+      "industry": "零售连锁",
+      "level": "VIP",
+      "region": "华北",
+      "owner_user_id": "sim_sales_001",
+      "total_revenue_yuan": 166900,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C010",
+      "name": "模拟客户10有限公司",
+      "contact": "演练联系人10",
+      "phone": "14208935981",
+      "email": "contact-10@example.invalid",
+      "industry": "物流运输",
+      "level": "A",
+      "region": "华东",
+      "owner_user_id": "sim_sales_002",
+      "total_revenue_yuan": 179909,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C011",
+      "name": "模拟客户11有限公司",
+      "contact": "演练联系人11",
+      "phone": "17356054049",
+      "email": "contact-11@example.invalid",
+      "industry": "教育培训",
+      "level": "B",
+      "region": "华南",
+      "owner_user_id": "sim_sales_001",
+      "total_revenue_yuan": 189209,
+      "data_classification": "synthetic"
+    },
+    {
+      "customer_id": "SIM-C012",
+      "name": "模拟客户12有限公司",
+      "contact": "演练联系人12",
+      "phone": "14377975557",
+      "email": "contact-12@example.invalid",
+      "industry": "医疗服务",
+      "level": "C",
+      "region": "西南",
+      "owner_user_id": "sim_sales_002",
+      "total_revenue_yuan": 203134,
+      "data_classification": "synthetic"
+    }
+  ],
+  "orders": [
+    {
+      "order_id": "SIM-ORD-2026-001",
+      "customer_id": "SIM-C001",
+      "amount_cents": 10050000,
+      "amount_yuan": "100500.00",
+      "currency": "CNY",
+      "status": "completed",
+      "created_at": "2026-02-02",
+      "items": [
+        {
+          "sku": "P-SIM-A001",
+          "name": "企业版授权",
+          "qty": 1,
+          "price_cents": 10050000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-002",
+      "customer_id": "SIM-C002",
+      "amount_cents": 16950000,
+      "amount_yuan": "169500.00",
+      "currency": "CNY",
+      "status": "pending",
+      "created_at": "2026-03-03",
+      "items": [
+        {
+          "sku": "P-SIM-B010",
+          "name": "标准版授权",
+          "qty": 1,
+          "price_cents": 16950000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-003",
+      "customer_id": "SIM-C003",
+      "amount_cents": 6970000,
+      "amount_yuan": "69700.00",
+      "currency": "CNY",
+      "status": "cancelled",
+      "created_at": "2026-04-04",
+      "items": [
+        {
+          "sku": "P-SIM-M003",
+          "name": "数据分析模块",
+          "qty": 1,
+          "price_cents": 6970000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-004",
+      "customer_id": "SIM-C004",
+      "amount_cents": 14890000,
+      "amount_yuan": "148900.00",
+      "currency": "CNY",
+      "status": "refunded",
+      "created_at": "2026-05-05",
+      "items": [
+        {
+          "sku": "P-SIM-S005",
+          "name": "实施服务",
+          "qty": 1,
+          "price_cents": 14890000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-005",
+      "customer_id": "SIM-C005",
+      "amount_cents": 10450000,
+      "amount_yuan": "104500.00",
+      "currency": "CNY",
+      "status": "completed",
+      "created_at": "2026-06-06",
+      "items": [
+        {
+          "sku": "P-SIM-A001",
+          "name": "企业版授权",
+          "qty": 1,
+          "price_cents": 10450000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-006",
+      "customer_id": "SIM-C006",
+      "amount_cents": 14100000,
+      "amount_yuan": "141000.00",
+      "currency": "CNY",
+      "status": "pending",
+      "created_at": "2026-07-07",
+      "items": [
+        {
+          "sku": "P-SIM-B010",
+          "name": "标准版授权",
+          "qty": 1,
+          "price_cents": 14100000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-007",
+      "customer_id": "SIM-C007",
+      "amount_cents": 1150000,
+      "amount_yuan": "11500.00",
+      "currency": "CNY",
+      "status": "cancelled",
+      "created_at": "2026-01-08",
+      "items": [
+        {
+          "sku": "P-SIM-M003",
+          "name": "数据分析模块",
+          "qty": 1,
+          "price_cents": 1150000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-008",
+      "customer_id": "SIM-C008",
+      "amount_cents": 12230000,
+      "amount_yuan": "122300.00",
+      "currency": "CNY",
+      "status": "refunded",
+      "created_at": "2026-02-09",
+      "items": [
+        {
+          "sku": "P-SIM-S005",
+          "name": "实施服务",
+          "qty": 1,
+          "price_cents": 12230000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-009",
+      "customer_id": "SIM-C009",
+      "amount_cents": 16220000,
+      "amount_yuan": "162200.00",
+      "currency": "CNY",
+      "status": "completed",
+      "created_at": "2026-03-10",
+      "items": [
+        {
+          "sku": "P-SIM-A001",
+          "name": "企业版授权",
+          "qty": 1,
+          "price_cents": 16220000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-010",
+      "customer_id": "SIM-C010",
+      "amount_cents": 9890000,
+      "amount_yuan": "98900.00",
+      "currency": "CNY",
+      "status": "pending",
+      "created_at": "2026-04-11",
+      "items": [
+        {
+          "sku": "P-SIM-B010",
+          "name": "标准版授权",
+          "qty": 1,
+          "price_cents": 9890000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-011",
+      "customer_id": "SIM-C011",
+      "amount_cents": 16500000,
+      "amount_yuan": "165000.00",
+      "currency": "CNY",
+      "status": "cancelled",
+      "created_at": "2026-05-12",
+      "items": [
+        {
+          "sku": "P-SIM-M003",
+          "name": "数据分析模块",
+          "qty": 1,
+          "price_cents": 16500000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-012",
+      "customer_id": "SIM-C012",
+      "amount_cents": 15060000,
+      "amount_yuan": "150600.00",
+      "currency": "CNY",
+      "status": "refunded",
+      "created_at": "2026-06-13",
+      "items": [
+        {
+          "sku": "P-SIM-S005",
+          "name": "实施服务",
+          "qty": 1,
+          "price_cents": 15060000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-013",
+      "customer_id": "SIM-C001",
+      "amount_cents": 11030000,
+      "amount_yuan": "110300.00",
+      "currency": "CNY",
+      "status": "completed",
+      "created_at": "2026-07-14",
+      "items": [
+        {
+          "sku": "P-SIM-A001",
+          "name": "企业版授权",
+          "qty": 1,
+          "price_cents": 11030000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-014",
+      "customer_id": "SIM-C002",
+      "amount_cents": 12680000,
+      "amount_yuan": "126800.00",
+      "currency": "CNY",
+      "status": "pending",
+      "created_at": "2026-01-15",
+      "items": [
+        {
+          "sku": "P-SIM-B010",
+          "name": "标准版授权",
+          "qty": 1,
+          "price_cents": 12680000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-015",
+      "customer_id": "SIM-C003",
+      "amount_cents": 18360000,
+      "amount_yuan": "183600.00",
+      "currency": "CNY",
+      "status": "cancelled",
+      "created_at": "2026-02-16",
+      "items": [
+        {
+          "sku": "P-SIM-M003",
+          "name": "数据分析模块",
+          "qty": 1,
+          "price_cents": 18360000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-016",
+      "customer_id": "SIM-C004",
+      "amount_cents": 9710000,
+      "amount_yuan": "97100.00",
+      "currency": "CNY",
+      "status": "refunded",
+      "created_at": "2026-03-17",
+      "items": [
+        {
+          "sku": "P-SIM-S005",
+          "name": "实施服务",
+          "qty": 1,
+          "price_cents": 9710000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-017",
+      "customer_id": "SIM-C005",
+      "amount_cents": 15450000,
+      "amount_yuan": "154500.00",
+      "currency": "CNY",
+      "status": "completed",
+      "created_at": "2026-04-18",
+      "items": [
+        {
+          "sku": "P-SIM-A001",
+          "name": "企业版授权",
+          "qty": 1,
+          "price_cents": 15450000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-018",
+      "customer_id": "SIM-C006",
+      "amount_cents": 14270000,
+      "amount_yuan": "142700.00",
+      "currency": "CNY",
+      "status": "pending",
+      "created_at": "2026-05-19",
+      "items": [
+        {
+          "sku": "P-SIM-B010",
+          "name": "标准版授权",
+          "qty": 1,
+          "price_cents": 14270000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-019",
+      "customer_id": "SIM-C007",
+      "amount_cents": 1590000,
+      "amount_yuan": "15900.00",
+      "currency": "CNY",
+      "status": "cancelled",
+      "created_at": "2026-06-20",
+      "items": [
+        {
+          "sku": "P-SIM-M003",
+          "name": "数据分析模块",
+          "qty": 1,
+          "price_cents": 1590000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-020",
+      "customer_id": "SIM-C008",
+      "amount_cents": 2550000,
+      "amount_yuan": "25500.00",
+      "currency": "CNY",
+      "status": "refunded",
+      "created_at": "2026-07-21",
+      "items": [
+        {
+          "sku": "P-SIM-S005",
+          "name": "实施服务",
+          "qty": 1,
+          "price_cents": 2550000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-021",
+      "customer_id": "SIM-C009",
+      "amount_cents": 10520000,
+      "amount_yuan": "105200.00",
+      "currency": "CNY",
+      "status": "completed",
+      "created_at": "2026-01-22",
+      "items": [
+        {
+          "sku": "P-SIM-A001",
+          "name": "企业版授权",
+          "qty": 1,
+          "price_cents": 10520000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-022",
+      "customer_id": "SIM-C010",
+      "amount_cents": 8440000,
+      "amount_yuan": "84400.00",
+      "currency": "CNY",
+      "status": "pending",
+      "created_at": "2026-02-23",
+      "items": [
+        {
+          "sku": "P-SIM-B010",
+          "name": "标准版授权",
+          "qty": 1,
+          "price_cents": 8440000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-023",
+      "customer_id": "SIM-C011",
+      "amount_cents": 13300000,
+      "amount_yuan": "133000.00",
+      "currency": "CNY",
+      "status": "cancelled",
+      "created_at": "2026-03-24",
+      "items": [
+        {
+          "sku": "P-SIM-M003",
+          "name": "数据分析模块",
+          "qty": 1,
+          "price_cents": 13300000
+        }
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "order_id": "SIM-ORD-2026-024",
+      "customer_id": "SIM-C012",
+      "amount_cents": 9370000,
+      "amount_yuan": "93700.00",
+      "currency": "CNY",
+      "status": "refunded",
+      "created_at": "2026-04-25",
+      "items": [
+        {
+          "sku": "P-SIM-S005",
+          "name": "实施服务",
+          "qty": 1,
+          "price_cents": 9370000
+        }
+      ],
+      "data_classification": "synthetic"
+    }
+  ],
+  "tickets": [
+    {
+      "ticket_id": "SIM-TK-001",
+      "title": "SIM-C002 模拟服务事项01",
+      "description": "技术彩排工单：验证 consultation 流程。",
+      "customer_id": "SIM-C002",
+      "priority": "low",
+      "category": "consultation",
+      "status": "open",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_002",
+      "created_at": "2026-08-02",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-002",
+      "title": "SIM-C004 模拟服务事项02",
+      "description": "技术彩排工单：验证 bug_report 流程。",
+      "customer_id": "SIM-C004",
+      "priority": "normal",
+      "category": "bug_report",
+      "status": "in_progress",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_mgr",
+      "created_at": "2026-08-03",
+      "simulated_failure_mode": "timeout",
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-003",
+      "title": "SIM-C006 模拟服务事项03",
+      "description": "技术彩排工单：验证 refund 流程。",
+      "customer_id": "SIM-C006",
+      "priority": "high",
+      "category": "refund",
+      "status": "resolved",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_002",
+      "created_at": "2026-08-04",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-004",
+      "title": "SIM-C008 模拟服务事项04",
+      "description": "技术彩排工单：验证 renewal 流程。",
+      "customer_id": "SIM-C008",
+      "priority": "urgent",
+      "category": "renewal",
+      "status": "closed",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_mgr",
+      "created_at": "2026-08-05",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-005",
+      "title": "SIM-C010 模拟服务事项05",
+      "description": "技术彩排工单：验证 incident 流程。",
+      "customer_id": "SIM-C010",
+      "priority": "low",
+      "category": "incident",
+      "status": "open",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_002",
+      "created_at": "2026-08-06",
+      "simulated_failure_mode": "timeout",
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-006",
+      "title": "SIM-C012 模拟服务事项06",
+      "description": "技术彩排工单：验证 consultation 流程。",
+      "customer_id": "SIM-C012",
+      "priority": "normal",
+      "category": "consultation",
+      "status": "in_progress",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_mgr",
+      "created_at": "2026-08-07",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-007",
+      "title": "SIM-C002 模拟服务事项07",
+      "description": "技术彩排工单：验证 bug_report 流程。",
+      "customer_id": "SIM-C002",
+      "priority": "high",
+      "category": "bug_report",
+      "status": "resolved",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_002",
+      "created_at": "2026-08-08",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-008",
+      "title": "SIM-C004 模拟服务事项08",
+      "description": "技术彩排工单：验证 refund 流程。",
+      "customer_id": "SIM-C004",
+      "priority": "urgent",
+      "category": "refund",
+      "status": "closed",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_mgr",
+      "created_at": "2026-08-09",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-009",
+      "title": "SIM-C006 模拟服务事项09",
+      "description": "技术彩排工单：验证 renewal 流程。",
+      "customer_id": "SIM-C006",
+      "priority": "low",
+      "category": "renewal",
+      "status": "open",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_002",
+      "created_at": "2026-08-10",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-010",
+      "title": "SIM-C008 模拟服务事项10",
+      "description": "技术彩排工单：验证 incident 流程。",
+      "customer_id": "SIM-C008",
+      "priority": "normal",
+      "category": "incident",
+      "status": "in_progress",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_mgr",
+      "created_at": "2026-08-11",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-011",
+      "title": "SIM-C010 模拟服务事项11",
+      "description": "技术彩排工单：验证 consultation 流程。",
+      "customer_id": "SIM-C010",
+      "priority": "high",
+      "category": "consultation",
+      "status": "resolved",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_002",
+      "created_at": "2026-08-12",
+      "simulated_failure_mode": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "ticket_id": "SIM-TK-012",
+      "title": "SIM-C012 模拟服务事项12",
+      "description": "技术彩排工单：验证 bug_report 流程。",
+      "customer_id": "SIM-C012",
+      "priority": "urgent",
+      "category": "bug_report",
+      "status": "closed",
+      "created_by": "sim_cs_001",
+      "assignee": "sim_cs_mgr",
+      "created_at": "2026-08-13",
+      "simulated_failure_mode": "timeout",
+      "data_classification": "synthetic"
+    }
+  ],
+  "documents": [
+    {
+      "document_id": "SIM-DOC-001",
+      "title": "销售政策",
+      "source_url": "/fixtures/uat/001.md",
+      "doc_type": "policy",
+      "dept_namespace": "shared_company",
+      "status": "active",
+      "access_roles": [
+        "salesperson",
+        "customer_service",
+        "finance",
+        "manager",
+        "admin"
+      ],
+      "content": "销售折扣和续签规则仅以本文件为准。",
+      "data_classification": "synthetic"
+    },
+    {
+      "document_id": "SIM-DOC-002",
+      "title": "产品手册",
+      "source_url": "/fixtures/uat/002.md",
+      "doc_type": "manual",
+      "dept_namespace": "shared_company",
+      "status": "active",
+      "access_roles": [
+        "salesperson",
+        "customer_service",
+        "finance",
+        "manager",
+        "admin"
+      ],
+      "content": "企业版支持知识问答、审批和审计能力。",
+      "data_classification": "synthetic"
+    },
+    {
+      "document_id": "SIM-DOC-003",
+      "title": "销售部报价指南",
+      "source_url": "/fixtures/uat/003.md",
+      "doc_type": "policy",
+      "dept_namespace": "dept_sales",
+      "status": "active",
+      "access_roles": [
+        "salesperson",
+        "manager",
+        "admin"
+      ],
+      "content": "销售部专属报价演练规则。",
+      "data_classification": "synthetic"
+    },
+    {
+      "document_id": "SIM-DOC-004",
+      "title": "客服部升级规范",
+      "source_url": "/fixtures/uat/004.md",
+      "doc_type": "policy",
+      "dept_namespace": "dept_cs",
+      "status": "active",
+      "access_roles": [
+        "customer_service",
+        "manager",
+        "admin"
+      ],
+      "content": "紧急工单升级和响应时限演练规则。",
+      "data_classification": "synthetic"
+    },
+    {
+      "document_id": "SIM-DOC-005",
+      "title": "财务部退款制度",
+      "source_url": "/fixtures/uat/005.md",
+      "doc_type": "policy",
+      "dept_namespace": "dept_finance",
+      "status": "active",
+      "access_roles": [
+        "finance",
+        "manager",
+        "admin"
+      ],
+      "content": "退款核对、审批和留痕演练规则。",
+      "data_classification": "synthetic"
+    },
+    {
+      "document_id": "SIM-DOC-006",
+      "title": "人事部假勤手册",
+      "source_url": "/fixtures/uat/006.md",
+      "doc_type": "manual",
+      "dept_namespace": "dept_hr",
+      "status": "active",
+      "access_roles": [
+        "customer_service",
+        "manager",
+        "admin"
+      ],
+      "content": "人事命名空间隔离演练规则。",
+      "data_classification": "synthetic"
+    },
+    {
+      "document_id": "SIM-DOC-007",
+      "title": "跨部门协作手册",
+      "source_url": "/fixtures/uat/007.md",
+      "doc_type": "manual",
+      "dept_namespace": "shared_company",
+      "status": "active",
+      "access_roles": [
+        "salesperson",
+        "customer_service",
+        "finance",
+        "manager",
+        "admin"
+      ],
+      "content": "客户跟进、工单、审批和通知的协作边界。",
+      "data_classification": "synthetic"
+    },
+    {
+      "document_id": "SIM-DOC-008",
+      "title": "安全红线清单",
+      "source_url": "/fixtures/uat/008.md",
+      "doc_type": "policy",
+      "dept_namespace": "shared_company",
+      "status": "active",
+      "access_roles": [
+        "manager",
+        "admin"
+      ],
+      "content": "外部邮件必须审批，测试数据不得发送到真实地址。",
+      "data_classification": "synthetic"
+    }
+  ],
+  "sessions": [
+    {
+      "session_id": "sim-sess-001",
+      "user_id": "sim_sales_001",
+      "original_query": "查询 SIM-C001 的累计采购额",
+      "status": "completed",
+      "started_at": "2026-08-02T09:00:00+08:00",
+      "token_count": 217,
+      "data_classification": "synthetic"
+    },
+    {
+      "session_id": "sim-sess-002",
+      "user_id": "sim_cs_001",
+      "original_query": "查询客服部升级规范",
+      "status": "completed",
+      "started_at": "2026-08-03T09:00:00+08:00",
+      "token_count": 254,
+      "data_classification": "synthetic"
+    },
+    {
+      "session_id": "sim-sess-003",
+      "user_id": "sim_fin_001",
+      "original_query": "比较 SIM-C002 和 SIM-C004 的订单情况",
+      "status": "completed",
+      "started_at": "2026-08-04T09:00:00+08:00",
+      "token_count": 291,
+      "data_classification": "synthetic"
+    },
+    {
+      "session_id": "sim-sess-004",
+      "user_id": "sim_sales_mgr",
+      "original_query": "为 SIM-C003 创建紧急工单",
+      "status": "completed",
+      "started_at": "2026-08-05T09:00:00+08:00",
+      "token_count": 328,
+      "data_classification": "synthetic"
+    },
+    {
+      "session_id": "sim-sess-005",
+      "user_id": "sim_admin",
+      "original_query": "申请发送外部通知邮件",
+      "status": "completed",
+      "started_at": "2026-08-06T09:00:00+08:00",
+      "token_count": 365,
+      "data_classification": "synthetic"
+    },
+    {
+      "session_id": "sim-sess-006",
+      "user_id": "sim_sales_001",
+      "original_query": "查询 SIM-C001 的累计采购额",
+      "status": "pending",
+      "started_at": "2026-08-07T09:00:00+08:00",
+      "token_count": 402,
+      "data_classification": "synthetic"
+    }
+  ],
+  "approvals": [
+    {
+      "approval_id": "SIM-APR-001",
+      "session_id": "sim-sess-001",
+      "requester_id": "sim_sales_001",
+      "approver_id": null,
+      "operation_type": "send_email_external",
+      "risk_level": "high",
+      "summary": "技术彩排审批：send_email_external / 01",
+      "prefill_payload": {
+        "customer_id": "SIM-C001",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "pending",
+      "comment": null,
+      "requester_token": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "approval_id": "SIM-APR-002",
+      "session_id": "sim-sess-002",
+      "requester_id": "sim_sales_002",
+      "approver_id": "sim_sales_mgr",
+      "operation_type": "send_email_external",
+      "risk_level": "high",
+      "summary": "技术彩排审批：send_email_external / 02",
+      "prefill_payload": {
+        "customer_id": "SIM-C002",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "rejected",
+      "comment": "模拟拒绝：缺少业务依据",
+      "requester_token": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "approval_id": "SIM-APR-003",
+      "session_id": "sim-sess-003",
+      "requester_id": "sim_cs_001",
+      "approver_id": "sim_cs_mgr",
+      "operation_type": "create_ticket",
+      "risk_level": "medium",
+      "summary": "技术彩排审批：create_ticket / 03",
+      "prefill_payload": {
+        "customer_id": "SIM-C003",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "approved_pending_reauth",
+      "comment": null,
+      "requester_token": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "approval_id": "SIM-APR-004",
+      "session_id": "sim-sess-004",
+      "requester_id": "sim_fin_001",
+      "approver_id": "sim_fin_mgr",
+      "operation_type": "update_ticket",
+      "risk_level": "medium",
+      "summary": "技术彩排审批：update_ticket / 04",
+      "prefill_payload": {
+        "customer_id": "SIM-C004",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "executed",
+      "comment": null,
+      "requester_token": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "approval_id": "SIM-APR-005",
+      "session_id": "sim-sess-005",
+      "requester_id": "sim_sales_001",
+      "approver_id": null,
+      "operation_type": "create_crm_task",
+      "risk_level": "medium",
+      "summary": "技术彩排审批：create_crm_task / 05",
+      "prefill_payload": {
+        "customer_id": "SIM-C005",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "timeout",
+      "comment": null,
+      "requester_token": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "approval_id": "SIM-APR-006",
+      "session_id": "sim-sess-006",
+      "requester_id": "sim_cs_002",
+      "approver_id": null,
+      "operation_type": "send_email_internal",
+      "risk_level": "low",
+      "summary": "技术彩排审批：send_email_internal / 06",
+      "prefill_payload": {
+        "customer_id": "SIM-C006",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "pending",
+      "comment": null,
+      "requester_token": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "approval_id": "SIM-APR-007",
+      "session_id": "sim-sess-001",
+      "requester_id": "sim_fin_001",
+      "approver_id": null,
+      "operation_type": "refund_order",
+      "risk_level": "high",
+      "summary": "技术彩排审批：refund_order / 07",
+      "prefill_payload": {
+        "customer_id": "SIM-C007",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "pending",
+      "comment": null,
+      "requester_token": null,
+      "data_classification": "synthetic"
+    },
+    {
+      "approval_id": "SIM-APR-008",
+      "session_id": "sim-sess-002",
+      "requester_id": "sim_hr_001",
+      "approver_id": "sim_hr_mgr",
+      "operation_type": "send_email_external",
+      "risk_level": "high",
+      "summary": "技术彩排审批：send_email_external / 08",
+      "prefill_payload": {
+        "customer_id": "SIM-C008",
+        "to": [
+          "recipient@example.invalid"
+        ],
+        "subject": "[SIMULATION] 技术彩排通知",
+        "external_side_effects_allowed": false
+      },
+      "approver_roles": [
+        "manager",
+        "admin"
+      ],
+      "status": "rejected",
+      "comment": "模拟拒绝：缺少业务依据",
+      "requester_token": null,
+      "data_classification": "synthetic"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "UAT-K01",
+      "title": "共享知识问答",
+      "actor_user_id": "sim_sales_001",
+      "prompt": "销售政策中，模拟客户的标准折扣规则是什么？",
+      "data_refs": [
+        "SIM-DOC-001",
+        "SIM-DOC-002"
+      ],
+      "expected_assertions": [
+        "回答包含来源文档",
+        "不编造文档未覆盖的折扣规则"
+      ],
+      "replay_contract": {
+        "namespace_access": [
+          {
+            "document_id": "SIM-DOC-001",
+            "expected": "allow"
+          },
+          {
+            "document_id": "SIM-DOC-002",
+            "expected": "allow"
+          }
+        ],
+        "approval_checks": [],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-K02",
+      "title": "部门命名空间隔离",
+      "actor_user_id": "sim_sales_001",
+      "prompt": "请读取财务部退款制度和销售部报价指南。",
+      "data_refs": [
+        "SIM-DOC-003",
+        "SIM-DOC-005"
+      ],
+      "expected_assertions": [
+        "销售角色可读取销售文档",
+        "销售角色不得读取财务专属文档"
+      ],
+      "replay_contract": {
+        "namespace_access": [
+          {
+            "document_id": "SIM-DOC-003",
+            "expected": "allow"
+          },
+          {
+            "document_id": "SIM-DOC-005",
+            "expected": "deny"
+          }
+        ],
+        "approval_checks": [],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-A01",
+      "title": "数据对比分析",
+      "actor_user_id": "sim_fin_001",
+      "prompt": "比较 SIM-C002 与 SIM-C004 的订单金额、状态和累计收入。",
+      "data_refs": [
+        "SIM-C002",
+        "SIM-C004",
+        "SIM-ORD-2026-002",
+        "SIM-ORD-2026-004"
+      ],
+      "expected_assertions": [
+        "金额使用统一 CNY 口径",
+        "聚合结果可回溯到订单记录"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-A02",
+      "title": "权限限制下的数据请求",
+      "actor_user_id": "sim_cs_001",
+      "prompt": "请导出所有财务退款记录和财务部专属制度。",
+      "data_refs": [
+        "SIM-DOC-005",
+        "SIM-APR-007"
+      ],
+      "expected_assertions": [
+        "友好拒绝",
+        "不返回越权数据",
+        "不产生 500"
+      ],
+      "replay_contract": {
+        "namespace_access": [
+          {
+            "document_id": "SIM-DOC-005",
+            "expected": "deny"
+          }
+        ],
+        "approval_checks": [
+          {
+            "approval_id": "SIM-APR-007",
+            "expected_status": "pending"
+          }
+        ],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-E01",
+      "title": "查询业务记录",
+      "actor_user_id": "sim_sales_001",
+      "prompt": "查询 SIM-C001 的客户信息和最近订单。",
+      "data_refs": [
+        "SIM-C001",
+        "SIM-ORD-2026-001"
+      ],
+      "expected_assertions": [
+        "客户和订单 ID 可关联",
+        "返回数据标明为模拟数据"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-E02",
+      "title": "多步骤工具执行",
+      "actor_user_id": "sim_cs_mgr",
+      "prompt": "查询 SIM-C003，创建紧急工单，并准备内部通知。",
+      "data_refs": [
+        "SIM-C003",
+        "SIM-TK-003"
+      ],
+      "expected_assertions": [
+        "步骤顺序可追踪",
+        "失败时有补偿信息",
+        "不调用真实外部系统"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-P01",
+      "title": "高风险操作审批",
+      "actor_user_id": "sim_sales_001",
+      "prompt": "向客户发送外部通知邮件，请先走审批。",
+      "data_refs": [
+        "SIM-APR-001"
+      ],
+      "expected_assertions": [
+        "审批前不执行",
+        "审批负载不含真实凭证",
+        "外部副作用保持关闭"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [
+          {
+            "approval_id": "SIM-APR-001",
+            "expected_status": "pending",
+            "actor_can_approve": false
+          }
+        ],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-P02",
+      "title": "越权审批与拒绝",
+      "actor_user_id": "sim_cs_001",
+      "prompt": "尝试批准 SIM-APR-002，并记录拒绝结果。",
+      "data_refs": [
+        "SIM-APR-002",
+        "sim_sales_mgr"
+      ],
+      "expected_assertions": [
+        "非审批角色返回 403 或等价拒绝",
+        "拒绝决策可审计"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [
+          {
+            "approval_id": "SIM-APR-002",
+            "expected_status": "rejected",
+            "actor_can_approve": false
+          }
+        ],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-C01",
+      "title": "VIP 客户跨部门协作",
+      "actor_user_id": "sim_sales_mgr",
+      "prompt": "围绕 SIM-C001 完成跟进、审批和客服查询协作。",
+      "data_refs": [
+        "SIM-C001",
+        "SIM-APR-003",
+        "SIM-TK-001"
+      ],
+      "expected_assertions": [
+        "各角色按最小权限访问",
+        "协作链路可追踪"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [
+          {
+            "approval_id": "SIM-APR-003",
+            "expected_status": "approved_pending_reauth"
+          }
+        ],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-C02",
+      "title": "退款争议协作",
+      "actor_user_id": "sim_fin_mgr",
+      "prompt": "核对 SIM-C002 的退款工单、订单和审批状态。",
+      "data_refs": [
+        "SIM-C002",
+        "SIM-ORD-2026-002",
+        "SIM-TK-002",
+        "SIM-APR-007"
+      ],
+      "expected_assertions": [
+        "订单、工单、审批客户 ID 一致",
+        "责任边界明确"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [
+          {
+            "approval_id": "SIM-APR-007",
+            "expected_status": "pending"
+          }
+        ],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-C03",
+      "title": "紧急问题升级",
+      "actor_user_id": "sim_cs_001",
+      "prompt": "查询 SIM-C003，升级紧急工单并准备经理通知。",
+      "data_refs": [
+        "SIM-C003",
+        "SIM-TK-003"
+      ],
+      "expected_assertions": [
+        "urgent 优先级保持",
+        "通知失败可定位",
+        "补偿状态可追踪"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [],
+        "required_session_status": null,
+        "require_no_external_side_effects": true
+      }
+    },
+    {
+      "scenario_id": "UAT-O01",
+      "title": "取消、恢复与反馈",
+      "actor_user_id": "sim_admin",
+      "prompt": "取消一个长请求、恢复会话，并提交负向反馈。",
+      "data_refs": [
+        "sim-sess-006"
+      ],
+      "expected_assertions": [
+        "会话终态正确",
+        "审计链完整",
+        "反馈不写入真实知识库"
+      ],
+      "replay_contract": {
+        "namespace_access": [],
+        "approval_checks": [],
+        "required_session_status": "pending",
+        "require_no_external_side_effects": true
+      }
+    }
+  ]
+}

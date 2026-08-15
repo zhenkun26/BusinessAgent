@@ -1,7 +1,7 @@
 # ROADMAP · 里程碑规划
 
 > 进度规划的单一事实源。与 README、openspec change 状态保持一致。
-> 更新日期:2026-08-06
+> 更新日期:2026-08-15
 
 ## 一、已完成阶段（历史里程碑）
 
@@ -28,6 +28,7 @@
 | 压测与容灾演练 | 2026-08-06 | ✅ | load-test-and-dr-drill 14/14 归档：k6 阶梯压测、备份恢复演练（实测 RTO/RPO）、告警规则与值班预案 |
 | 安全加固 | 2026-08-06 | ✅ | security-hardening-plus 21/21 归档：gitleaks/pip-audit/Trivy 三道 CI 扫描、豁免清单、越权测试，主规格 13 项 |
 | 工单真实接入试点 | 2026-08-06 | ✅ | ticket-system-integration 16/16 归档：幂等键/补偿真实化/审计回写，stub 沙箱验收 7/7（external-system-integration 规格扩展） |
+| G0 UAT 技术彩排回放 | 2026-08-15 | ✅ | uat-replay-harness 9/9 归档：合成 fixture、结构/安全回放器、JSON/Markdown 证据报告 |
 
 ## 二、进行中
 
@@ -40,8 +41,8 @@
 | ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
 | ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
 | ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
-| crm-mail-sso-integration | P2 | 已提案 0/19 | CRM/邮件/SSO 真实接入（改 external-system-integration + user-lifecycle） |
-| uat-and-ga-rollout | P3 | 已提案 0/15 | UAT、灰度、上线门槛检查单（新能力 release-management） |
+| crm-mail-sso-integration | P2 | 实施中 7/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
+| uat-and-ga-rollout | P3 | 实施中 6/15 | UAT、灰度、上线门槛检查单（计划结构评审通过；真实用户/环境/排期待确认） |
 
 ## 三、挂起事项（P3，暂不上线）
 

@@ -241,7 +241,7 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 | Change | 优先级 / Priority | 状态 / Status |
 | --- | --- | --- |
 | crm-mail-sso-integration（CRM / 邮件 / SSO 真实接入） | P2 | 已提案 / proposed |
-| uat-and-ga-rollout（UAT、灰度、上线门槛） | P3 | 已随内部落地收口，转入运营迭代 / closed at internal deployment, ongoing ops iterations |
+| uat-and-ga-rollout（UAT、灰度、上线门槛） | P3 | 已形成计划，真实 UAT/安全测试/灰度证据待执行 / plan ready; real UAT, security testing, and rollout evidence pending |
 
 ### 挂起 / Suspended
 
@@ -291,7 +291,7 @@ v1.3.0 为生产就绪与全量更名版本（智能体统一更名「智多星�
 **迭代方向 / What's next**
 
 - **CRM / 邮件 / SSO 接入**（`crm-mail-sso-integration`）：复用工单试点已验证的幂等 / 补偿 / 审计模式 / replicate the ticket-verified integration pattern
-- **UAT 与灰度测试**（`uat-and-ga-rollout`）：已随内部落地收口；灰度运行与上线门槛检查单执行完毕，后续按运营反馈迭代 / closed at internal deployment, ongoing ops iterations
+- **UAT 与灰度测试**（`uat-and-ga-rollout`）：已形成验收计划与门槛检查单；真实用户验收、安全攻击面测试和灰度观察完成前，不宣称全量放行 / plan and gate checklist prepared; no GA claim before evidence is complete
 - **stub → 工单系统**：真实实例到位后按验收用例集重跑，回写契约偏差结论（DECISIONS 第 15 条改判条件）/ rerun the acceptance suite against a real ticket system
 - **高可用深化**：K8s 多节点、TLS 全量开启、密钥管理深化；挂起项含 pymilvus 3.1 迁移 / HA on K8s, full TLS, deeper secret management
 

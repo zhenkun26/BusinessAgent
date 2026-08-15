@@ -84,6 +84,8 @@ class BaseTool(ABC):
     # 提供方开关:mock(默认,进程内数据)/ http(真实业务系统适配器)
     # 全局开关见 config.tool_provider;单个工具可用 provider_override 覆盖
     provider_override: Optional[str] = None
+    # 系统级开关名(如 crm_tool_provider);为空时使用全局 tool_provider
+    provider_config_attr: Optional[str] = None
 
     @abstractmethod
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
@@ -140,7 +142,12 @@ class BaseTool(ABC):
             return self.provider_override
         from app.config import get_settings
 
-        return get_settings().tool_provider
+        settings = get_settings()
+        if self.provider_config_attr:
+            provider = getattr(settings, self.provider_config_attr, "")
+            if provider:
+                return provider
+        return settings.tool_provider
 
     # ============ 公共入口(业务层调用)============
 

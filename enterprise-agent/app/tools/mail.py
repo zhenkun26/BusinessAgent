@@ -90,25 +90,37 @@ class SendEmailInternalTool(BaseTool):
     category = ToolCategory.ACTION
     description = "发送内部邮件给同事(仅内部域名,如 @company.internal)"
     input_schema = SendEmailSchema
+    provider_config_attr = "mail_tool_provider"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         """真实邮件系统适配:POST /send(scope=internal)"""
         settings = get_settings()
+        meta: dict[str, Any] = {}
         ok, data, error = await call_external_api(
             "POST",
             f"{settings.mail_api_base}/send",
             api_token=settings.mail_api_token,
             json_body={**params, "scope": "internal"},
+            meta=meta,
         )
         if not ok:
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={},
+                error=error,
+                side_effects={"external_attempts": meta.get("attempts", 1)},
+            )
         message_id = data.get("message_id") if isinstance(data, dict) else None
         return ToolResult(
             success=True,
             tool_name=self.name,
             output={"message_id": message_id, "recipients": len(params["to"])},
-            side_effects={"sent_message_id": message_id},
-            compensation_data={"message_id": message_id, "action": "recall"},
+            side_effects={
+                "sent_message_id": message_id,
+                "external_attempts": meta.get("attempts", 1),
+            },
+            compensation_data={"message_id": message_id, "action": "recall", "provider": "http"},
         )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
@@ -152,6 +164,13 @@ class SendEmailInternalTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:撤回邮件(Mock:标记为 recalled)"""
         message_id = compensation_data.get("message_id")
+        if compensation_data.get("provider") == "http":
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={"message": f"邮件 {message_id} 未执行真实撤回"},
+                error="真实邮件撤回接口尚未完成契约确认，不能伪造已撤回结果",
+            )
         if message_id and message_id in _mock_sent_emails:
             _mock_sent_emails[message_id]["status"] = "recalled"
             logger.info(f"邮件补偿: 已撤回 message_id={message_id}")
@@ -174,6 +193,7 @@ class SendEmailExternalTool(BaseTool):
     category = ToolCategory.ACTION
     description = "发送外部邮件(对外客户/合作伙伴,需 manager/admin 权限)"
     input_schema = SendEmailSchema
+    provider_config_attr = "mail_tool_provider"
     # 高风险操作:执行前需经理审批(审批通过后服务端自动执行)
     requires_approval = True
     risk_level = "high"
@@ -181,21 +201,32 @@ class SendEmailExternalTool(BaseTool):
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         """真实邮件系统适配:POST /send(scope=external)"""
         settings = get_settings()
+        meta: dict[str, Any] = {}
         ok, data, error = await call_external_api(
             "POST",
             f"{settings.mail_api_base}/send",
             api_token=settings.mail_api_token,
             json_body={**params, "scope": "external"},
+            meta=meta,
         )
         if not ok:
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={},
+                error=error,
+                side_effects={"external_attempts": meta.get("attempts", 1)},
+            )
         message_id = data.get("message_id") if isinstance(data, dict) else None
         return ToolResult(
             success=True,
             tool_name=self.name,
             output={"message_id": message_id, "recipients": len(params["to"])},
-            side_effects={"sent_message_id": message_id},
-            compensation_data={"message_id": message_id, "action": "recall"},
+            side_effects={
+                "sent_message_id": message_id,
+                "external_attempts": meta.get("attempts", 1),
+            },
+            compensation_data={"message_id": message_id, "action": "recall", "provider": "http"},
         )
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
@@ -229,6 +260,13 @@ class SendEmailExternalTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:撤回外部邮件(实际场景可能无法撤回,标记为审计事件)"""
         message_id = compensation_data.get("message_id")
+        if compensation_data.get("provider") == "http":
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={"message": f"外部邮件 {message_id} 未执行撤回请求"},
+                error="真实邮件撤回语义尚未完成契约确认，不能伪造撤回请求已提交",
+            )
         if message_id and message_id in _mock_sent_emails:
             _mock_sent_emails[message_id]["status"] = "recall_requested"
             logger.warning(

@@ -110,9 +110,28 @@ class Settings(BaseSettings):
     ticket_api_token: str = ""
     # 工具提供方: mock(默认,进程内数据)/ http(真实业务系统适配)
     tool_provider: str = "mock"
+    # 逐系统提供方开关:留空时继承 TOOL_PROVIDER,便于平滑兼容旧配置
+    crm_tool_provider: str = ""
+    mail_tool_provider: str = ""
+    ticket_tool_provider: str = ""
     # 外部 HTTP 调用超时与重试(mock 提供方不生效)
     external_timeout_seconds: float = 10.0
     external_max_retries: int = 2
+
+    # ---- 企业 IdP/OIDC(仅配置占位,默认关闭) ----
+    # SSO_ENABLED=true 前必须完成 IdP 契约确认并填入以下环境变量
+    sso_enabled: bool = False
+    sso_issuer: str = ""
+    sso_client_id: str = ""
+    sso_client_secret: str = ""
+    sso_authorize_url: str = ""
+    sso_token_url: str = ""
+    sso_jwks_url: str = ""
+    sso_redirect_uri: str = ""
+    sso_scopes: str = "openid profile email"
+    sso_department_claim: str = "department"
+    sso_default_role: str = "salesperson"
+    sso_default_department: str = ""
 
     # ---- 限流 ----
     rate_limit_per_minute: int = 60
@@ -184,6 +203,23 @@ def validate_production_settings(settings: Optional[Settings] = None) -> list[st
         violations.append("jwt_secret_key 长度必须 >= 32(使用 openssl rand -base64 32 生成)")
     if settings.cors_allow_origins.strip() == "*":
         violations.append("生产环境禁止 CORS 通配来源(cors_allow_origins='*')")
+    for field_name in ("crm_tool_provider", "mail_tool_provider", "ticket_tool_provider"):
+        provider = getattr(settings, field_name)
+        if provider and provider not in {"mock", "http"}:
+            violations.append(f"{field_name} 必须是 mock 或 http")
+    if settings.sso_enabled:
+        required_sso_fields = (
+            "sso_issuer",
+            "sso_client_id",
+            "sso_client_secret",
+            "sso_authorize_url",
+            "sso_token_url",
+            "sso_jwks_url",
+            "sso_redirect_uri",
+        )
+        for field_name in required_sso_fields:
+            if not getattr(settings, field_name).strip():
+                violations.append(f"SSO_ENABLED=true 时必须配置 {field_name}")
     return violations
 
 

@@ -33,7 +33,7 @@ async def call_external_api(
     """调用外部 HTTP API(统一超时/重试/错误归一化)
 
     Args:
-        method: HTTP 方法(GET/POST/PATCH)
+        method: HTTP 方法(GET/POST/PATCH/DELETE)
         url: 完整请求 URL
         api_token: Bearer 凭证(仅请求头发送,绝不入日志)
         json_body: JSON 请求体(可选)
