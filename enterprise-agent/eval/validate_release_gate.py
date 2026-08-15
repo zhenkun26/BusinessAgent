@@ -20,6 +20,10 @@ EXPECTED_GATE_IDS = (
 _GATE_ROW_RE = re.compile(r"^\|\s*(GATE-\d{2})\s*\|")
 _BACKTICK_RE = re.compile(r"`([^`]+)`")
 _REPO_PATH_PREFIXES = ("docs/", "enterprise-agent/", "openspec/", "interview/")
+_NON_VERSIONED_EVIDENCE_PREFIXES = (
+    "eval/results/",
+    "enterprise-agent/eval/results/",
+)
 
 
 @dataclass(frozen=True)
@@ -64,6 +68,12 @@ def _referenced_paths(evidence: str) -> list[str]:
     ]
 
 
+def _is_non_versioned_evidence_path(path: str) -> bool:
+    """运行时评测产物按版本控制规范被忽略，不要求出现在 CI checkout。"""
+
+    return path.startswith(_NON_VERSIONED_EVIDENCE_PREFIXES)
+
+
 def validate_release_gate(checklist_path: Path, project_root: Path) -> dict[str, Any]:
     markdown = checklist_path.read_text(encoding="utf-8")
     rows = _rows(_section(markdown, "## 5. 全量上线门槛检查单", "## 6. 灰度记录模板"))
@@ -76,7 +86,12 @@ def validate_release_gate(checklist_path: Path, project_root: Path) -> dict[str,
         evidence = row[2] if len(row) >= 3 else ""
         status = row[3] if len(row) >= 4 else ""
         paths = _referenced_paths(evidence)
-        missing_paths = [path for path in paths if not (project_root / path).exists()]
+        missing_paths = [
+            path
+            for path in paths
+            if not _is_non_versioned_evidence_path(path)
+            and not (project_root / path).exists()
+        ]
         gate_results.append(
             {
                 "gate_id": gate_id,

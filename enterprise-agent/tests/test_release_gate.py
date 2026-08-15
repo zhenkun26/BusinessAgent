@@ -32,3 +32,17 @@ def test_should_reject_checklist_with_duplicate_gate_id(tmp_path):
     assert report["overall_status"] == "invalid"
     failed = {check["name"] for check in report["checks"] if not check["passed"]}
     assert "gate_ids_complete" in failed
+
+
+def test_should_not_require_ignored_runtime_evidence_in_ci_checkout(tmp_path):
+    content = CHECKLIST_PATH.read_text(encoding="utf-8").replace(
+        "enterprise-agent/eval/results/loadtest_report_20260806_100427.md",
+        "enterprise-agent/eval/results/missing-runtime-report.md",
+    )
+    checklist_path = tmp_path / "checklist.md"
+    checklist_path.write_text(content, encoding="utf-8")
+
+    report = validate_release_gate(checklist_path, PROJECT_ROOT)
+
+    assert report["overall_status"] == "blocked"
+    assert all(check["passed"] for check in report["checks"])
