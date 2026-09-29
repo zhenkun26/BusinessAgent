@@ -8,7 +8,6 @@
 切换后端只需改 .env:VECTOR_STORE_PROVIDER=memory | milvus
 """
 
-import asyncio
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -107,7 +106,6 @@ class InMemoryVectorStore:
         self._dim = dim
         self._chunks: list[ChunkData] = []
         self._embeddings: Optional[np.ndarray] = None  # [N, dim]
-        self._lock = asyncio.Lock()
 
     def add_documents(self, chunks: list[ChunkData], partition: str = "shared_company") -> int:
         if not chunks:

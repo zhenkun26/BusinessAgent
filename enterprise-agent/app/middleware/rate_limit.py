@@ -143,9 +143,9 @@ async def _get_limiter():
 
     # 已检测过,直接返回
     if _use_redis is True and _redis_limiter is not None:
-        return _redis_limiter, True
+        return _redis_limiter
     if _use_redis is False and _memory_limiter is not None:
-        return _memory_limiter, False
+        return _memory_limiter
 
     # 首次初始化
     settings = get_settings()
@@ -158,12 +158,12 @@ async def _get_limiter():
         await redis.ping()
         _use_redis = True
         logger.info("限流器: Redis(生产模式)")
-        return _redis_limiter, True
+        return _redis_limiter
     except Exception as e:
         logger.warning(f"Redis 限流器初始化失败,降级内存: {e}")
         _use_redis = False
         _memory_limiter = InMemoryRateLimiter()
-        return _memory_limiter, False
+        return _memory_limiter
 
 
 # ============ FastAPI 中间件 ============
@@ -208,7 +208,7 @@ async def rate_limit_middleware(request: Request, call_next):
         key = f"ip:{client_ip}"
 
     # 检查限流
-    limiter, is_redis = await _get_limiter()
+    limiter = await _get_limiter()
     try:
         allowed, remaining = await limiter.is_allowed(key, limit, window_seconds=60)
     except Exception:
