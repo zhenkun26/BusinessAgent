@@ -1,0 +1,15 @@
+{
+  "phase": "ci-baseline",
+  "workflow_sha256": "79c524b841459a98c0302eb3ac5c44a2c57fc64a7caf4e08bef8f9637a43e1ce",
+  "checks": {
+    "build_never_publishes": false,
+    "scan_uses_loaded_commit_image_only": false,
+    "scan_blocks_failures": true,
+    "authentication_follows_scan_on_successful_push_only": false,
+    "publication_follows_scan_on_successful_push_only": false,
+    "failed_scan_report_retained": true
+  },
+  "shell_runs": [],
+  "passed": false,
+  "limits": "Offline structure and fake-Docker shell checks only; Actions/Docker not executed."
+}

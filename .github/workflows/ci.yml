@@ -25,6 +25,8 @@ jobs:
         python-version: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 安装 Python
         uses: actions/setup-python@v5
@@ -88,20 +90,12 @@ jobs:
       - name: 初始化 Buildx（容器驱动,支持 gha 缓存）
         uses: docker/setup-buildx-action@v3
 
-      - name: 登录 GHCR（仅 push 事件）
-        if: github.event_name == 'push'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 构建镜像（PR 只构建不推送；load 本地供 Trivy 扫描）
+      - name: 构建镜像（仅加载到本地，扫描通过后才发布）
         uses: docker/build-push-action@v6
         with:
           context: enterprise-agent
           file: enterprise-agent/Dockerfile.prod
-          push: ${{ github.event_name == 'push' }}
+          push: false
           load: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/businessagent:latest
@@ -118,13 +112,32 @@ jobs:
 
       - name: 镜像漏洞扫描（Trivy，High/Critical 阻断）
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_IMAGE_SRC: docker
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/businessagent:latest
+          image-ref: ghcr.io/${{ github.repository_owner }}/businessagent:${{ github.sha }}
           format: table
           output: trivy-report.txt
           exit-code: '1'
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+
+      - name: 登录 GHCR（扫描通过后，仅 push 事件）
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 发布已扫描镜像（不重新构建）
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/businessagent
+        run: |
+          docker push "$IMAGE:$GITHUB_SHA"
+          docker push "$IMAGE:latest"
 
       - name: 上传 Trivy 扫描报告
         if: always()

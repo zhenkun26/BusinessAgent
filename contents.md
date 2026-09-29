@@ -39,6 +39,7 @@ BusinessAgent/
 │   ├── 40-process/                     # 过程记录层：迭代过程与项目演进档案
 │   │   ├── README.md                   # 过程记录层索引
 │   │   ├── ROADMAP.md                  # 里程碑规划（已完成/进行中/挂起，单一事实源）
+│   │   ├── code-simplification/20260928-backend/ # FGR-01/FAT-01 审计、交付报告、验证脚本与 JSON 证据
 │   │   ├── DECISIONS.md                # 设计决策记录（背景/决策/放弃/改判条件）
 │   │   ├── ISSUES.md                   # 问题/坑/backlog（状态/优先级/根因/修复/验证）
 │   │   ├── 模板-阶段性总结.md            # 后续迭代阶段总结模板
@@ -84,6 +85,7 @@ BusinessAgent/
 │   ├── deploy/                         # 部署配置：init.sql/migrations/DEPLOY.md/nginx/prometheus + 告警规则/漏洞豁免/DR 演练编排
 │   ├── scripts/                        # 运维脚本（fix_seed_approvals.py、backup.sh 备份脚本）
 │   ├── tests/                          # 单元测试（129 项，含越权/checkpoint TTL/token 用量/评测指标/工单外部调用）
+│   │   └── test_rate_limit.py          # 限流工厂选择、降级与响应行为的离线回归测试
 │   ├── docker-compose.yml              # 开发环境编排（Milvus/PG/Redis/Ollama）
 │   ├── docker-compose.prod.yml         # 生产部署编排（Nginx + 资源限制）
 │   ├── Dockerfile                      # 应用镜像构建
@@ -117,5 +119,7 @@ BusinessAgent/
             ├── 2026-08-06-load-test-and-dr-drill/        # 压测与容灾演练 14/14（归档）
             ├── 2026-08-06-security-hardening-plus/       # 安全加固 21/21（归档）
             ├── 2026-08-06-ticket-system-integration/     # 工单真实接入试点 16/16（归档，含 stub 验收记录）
-            └── 2026-08-15-fix-prod-image-pip-removal/   # 生产镜像 pip 清理顺序修复 4/4（归档）
+            ├── 2026-08-15-fix-prod-image-pip-removal/   # 生产镜像 pip 清理顺序修复 4/4（归档）
+            ├── 2026-09-28-simplify-backend-internals/  # FGR-01/FAT-01 内部简化与定向验证（本地交付）
+            └── 2026-09-28-scan-image-before-publish/  # CI 先扫描后发布（本地验证，待 PR 集成）
 ```

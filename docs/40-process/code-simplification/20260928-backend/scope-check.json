@@ -1,0 +1,7 @@
+{
+  "production_boundaries": "exactly matched",
+  "existing_test_files_unchanged": 31,
+  "retained_missing_line_sets": "unchanged after line mapping",
+  "mode_changes_preserved": 556,
+  "validation_type": "static scope and coverage comparison; not OpenSpec CLI validation"
+}
