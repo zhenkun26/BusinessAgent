@@ -69,10 +69,21 @@ all 11 checks passing. Both earlier JSON files remain unchanged. A new cloud run
 required; successful local verification does not replace it. Independent follow-up review
 confirmed this fixes the missing history without changing scanner policy or publication gates.
 
-## Delivery status
+## Delivery status (updated 2026-09-29)
 
-Implementation verified on `codex/simplify-backend-internals`; PR #1 is open. Complete cloud
-checks, protected merge and publication are pending. OpenSpec implementation artifacts are archived at
-`openspec/changes/archive/2026-09-28-scan-image-before-publish/` after local verification
-and review. GitHub integration status is tracked on the PR rather
-than claimed complete in this local verification report.
+PR #1 merged as `2d4bfc17a34e45907404fdde38857e4cf96ad550` after the owner explicitly
+authorized an administrator exception for that PR only. The exception did not change
+branch protection and does not authorize bypasses on later PRs.
+
+[Main CI 36522224892](https://github.com/zhenkun26/BusinessAgent/actions/runs/36522224892)
+passed 143 tests on each Python version, gitleaks, pip-audit, image build, Trivy and
+publication. Trivy completed at 04:37:55 UTC before publication, which completed at
+04:38:14 UTC on 2026-09-29. Both Docker push logs and
+[GHCR metadata](https://github.com/users/zhenkun26/packages/container/businessagent/1308617299)
+confirm that the merge-commit tag and `latest` reference
+`sha256:9bcc1e277b43897907e2a2a341b9b42631909d58c9614fe63e55a42bda8302c8`.
+
+Both OpenSpec implementation changes are archived and present on GitHub. Local main was
+synchronized to the merge commit with all 556 pre-existing mode changes and the feature
+branch preserved. No local filesystem deletion or production deployment occurred.
+The initial offline and failed-cloud attempts above remain historical evidence.

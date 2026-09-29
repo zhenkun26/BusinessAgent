@@ -3,6 +3,17 @@
 This report records the initial local delivery. The subsequently authorized CI repair
 and GitHub integration are tracked in [ci-publication-report.md](ci-publication-report.md).
 
+## Integration completion (2026-09-29)
+
+[PR #1](https://github.com/zhenkun26/BusinessAgent/pull/1) merged as
+`2d4bfc17a34e45907404fdde38857e4cf96ad550` with the owner's one-time administrator
+exception. [Main CI](https://github.com/zhenkun26/BusinessAgent/actions/runs/36522224892)
+passed 143 tests on each Python version, gitleaks, pip-audit, image build and Trivy.
+GHCR commit and `latest` tags share digest
+`sha256:9bcc1e277b43897907e2a2a341b9b42631909d58c9614fe63e55a42bda8302c8`.
+The source and OpenSpec archives are on GitHub. No production deployment occurred.
+The sections below preserve the initial local-delivery snapshot and its limitations.
+
 ## Progress and deliverables
 
 Base: `5446a70cd60cf4e0729cb21bbc82b45aa6ec43c1`.

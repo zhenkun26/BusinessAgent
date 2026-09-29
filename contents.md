@@ -40,6 +40,9 @@ BusinessAgent/
 │   │   ├── README.md                   # 过程记录层索引
 │   │   ├── ROADMAP.md                  # 里程碑规划（已完成/进行中/挂起，单一事实源）
 │   │   ├── code-simplification/20260928-backend/ # FGR-01/FAT-01 审计、交付报告、验证脚本与 JSON 证据
+│   │   ├── delivery-followup/20260929/          # CI 保护设置快照与离线核验 JSON
+│   │   ├── 交付与离线推进记录-2026-09-29.md
+│   │   ├── 下一步执行阻塞清单-2026-09-29.md       # 当前待办导航
 │   │   ├── DECISIONS.md                # 设计决策记录（背景/决策/放弃/改判条件）
 │   │   ├── ISSUES.md                   # 问题/坑/backlog（状态/优先级/根因/修复/验证）
 │   │   ├── 模板-阶段性总结.md            # 后续迭代阶段总结模板
@@ -120,6 +123,7 @@ BusinessAgent/
             ├── 2026-08-06-security-hardening-plus/       # 安全加固 21/21（归档）
             ├── 2026-08-06-ticket-system-integration/     # 工单真实接入试点 16/16（归档，含 stub 验收记录）
             ├── 2026-08-15-fix-prod-image-pip-removal/   # 生产镜像 pip 清理顺序修复 4/4（归档）
-            ├── 2026-09-28-simplify-backend-internals/  # FGR-01/FAT-01 内部简化与定向验证（本地交付）
-            └── 2026-09-28-scan-image-before-publish/  # CI 先扫描后发布（本地验证，待 PR 集成）
+            ├── 2026-09-28-simplify-backend-internals/  # FGR-01/FAT-01 内部简化与验证（已合并归档）
+            ├── 2026-09-28-scan-image-before-publish/  # CI 先扫描后发布（已合并并发布镜像）
+            └── 2026-09-29-close-delivery-and-require-ci/ # 交付收尾、CI 必需检查与离线推进
 ```
