@@ -46,10 +46,33 @@ Actions execution or a Docker/Trivy pass. Cloud PR CI must pass before merge; th
 main run must succeed to confirm image publication. The required approving GitHub review
 cannot be supplied by an agent review or bypassed with administrator privileges.
 
+## Cloud PR validation and history repair
+
+[PR #1](https://github.com/zhenkun26/BusinessAgent/pull/1) was created with commit `7feb94a`.
+[Run 36516997345](https://github.com/zhenkun26/BusinessAgent/actions/runs/36516997345)
+passed 143 tests on both Python 3.11 and 3.13. Both jobs then failed gitleaks before any
+meaningful scan: the default shallow checkout lacked the requested `e8512e9^..7feb94a`
+history (`unknown revision`). Docker and Trivy were skipped. This was a scanner setup
+failure, not a clean secret-scan result and not an image-build result.
+
+The test job now uses `fetch-depth: 0`, matching the upstream gitleaks-action example,
+so the PR range is available. Scanner policies and permissions remain unchanged.
+The same verifier now accepts numbered attempts and checks complete scanner history:
+
+```sh
+PYTHONPATH=enterprise-agent/.venv/lib/python3.13/site-packages python -B docs/40-process/code-simplification/20260928-backend/verify_ci.py ci-baseline-02
+PYTHONPATH=enterprise-agent/.venv/lib/python3.13/site-packages python -B docs/40-process/code-simplification/20260928-backend/verify_ci.py ci-final-02
+```
+
+The new baseline exits 1 solely for missing history; the repaired workflow exits 0 with
+all 11 checks passing. Both earlier JSON files remain unchanged. A new cloud run is still
+required; successful local verification does not replace it. Independent follow-up review
+confirmed this fixes the missing history without changing scanner policy or publication gates.
+
 ## Delivery status
 
-Implementation verified on `codex/simplify-backend-internals`; PR, cloud checks, protected
-merge and publication are pending. OpenSpec implementation artifacts are archived at
+Implementation verified on `codex/simplify-backend-internals`; PR #1 is open. Complete cloud
+checks, protected merge and publication are pending. OpenSpec implementation artifacts are archived at
 `openspec/changes/archive/2026-09-28-scan-image-before-publish/` after local verification
 and review. GitHub integration status is tracked on the PR rather
 than claimed complete in this local verification report.

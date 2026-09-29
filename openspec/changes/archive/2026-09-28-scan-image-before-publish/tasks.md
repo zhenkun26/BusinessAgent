@@ -5,6 +5,8 @@
 - [x] 3. Verify workflow safety and publication-script failure behavior; resolve independent review.
 - [x] 4. Update delivery tracking and prepare reviewed artifacts for archive and the accompanying commit.
 
+- [x] 5. Repair the PR scanner history failure, retain cloud evidence, reverify and rearchive.
+
 GitHub integration follows implementation: create the authorized PR, require passing CI
 and the repository's approval, then merge and verify main CI/image publication. Report
 any external approval blocker without bypassing protection.

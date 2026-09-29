@@ -3,6 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -12,8 +13,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[4]
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 phase = sys.argv[1]
-if phase not in ("ci-baseline", "ci-final"):
-    raise SystemExit("Choose ci-baseline or ci-final")
+if not re.fullmatch(r"ci-(baseline|final)(-\d+)?", phase):
+    raise SystemExit("Choose ci-baseline or ci-final, optionally with a numbered retry")
 source = WORKFLOW.read_text()
 workflow = yaml.load(source, Loader=yaml.BaseLoader)
 job = workflow["jobs"]["docker"]
@@ -33,6 +34,11 @@ login_i, login = next(
 publish_steps = [(i, s) for i, s in enumerate(steps) if "docker push" in s.get("run", "")]
 commit_tag = "ghcr.io/${{ github.repository_owner }}/businessagent:${{ github.sha }}"
 checks = {
+    "secret_scan_has_complete_commit_history": any(
+        s.get("uses", "").startswith("actions/checkout@")
+        and s.get("with", {}).get("fetch-depth") == "0"
+        for s in workflow["jobs"]["test"]["steps"]
+    ),
     "build_never_publishes": build["with"].get("push") == "false",
     "scan_uses_loaded_commit_image_only": (
         build["with"].get("load") == "true"

@@ -18,6 +18,11 @@ locally; existing PyYAML can support offline workflow checks without installatio
 5. Validate structural safety properties and execute the publication shell with a fake
    Docker function, including first-push failure. Real builds/scans run on the PR.
 
+6. PR run 36516997345 passed 143 tests on each Python version but failed gitleaks
+   before scanning: the default shallow checkout lacks the requested commit range.
+   Set fetch-depth to 0 for the test checkout, as in the upstream gitleaks-action
+   example. Preserve scanner policy and permissions.
+
 ## Limits
 
 Offline checks do not execute GitHub Actions or Docker. Cloud PR checks are required

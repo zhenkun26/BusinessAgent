@@ -1,0 +1,36 @@
+{
+  "phase": "ci-final-02",
+  "workflow_sha256": "8859e9ead75f98687812a2aea71a1da11f73cc8e78e6ea46bbc4979f2af8c224",
+  "checks": {
+    "secret_scan_has_complete_commit_history": true,
+    "build_never_publishes": true,
+    "scan_uses_loaded_commit_image_only": true,
+    "scan_blocks_failures": true,
+    "authentication_follows_scan_on_successful_push_only": true,
+    "publication_follows_scan_on_successful_push_only": true,
+    "failed_scan_report_retained": true,
+    "publish_environment_matches_built_image": true,
+    "publish_only_pushes_existing_tags": true,
+    "both_tags_pushed": true,
+    "first_push_failure_stops_latest": true
+  },
+  "shell_runs": [
+    {
+      "fail_first": false,
+      "exit_code": 0,
+      "commands": [
+        "push ghcr.io/example/businessagent:test-sha",
+        "push ghcr.io/example/businessagent:latest"
+      ]
+    },
+    {
+      "fail_first": true,
+      "exit_code": 23,
+      "commands": [
+        "push ghcr.io/example/businessagent:test-sha"
+      ]
+    }
+  ],
+  "passed": true,
+  "limits": "Offline structure and fake-Docker shell checks only; Actions/Docker not executed."
+}

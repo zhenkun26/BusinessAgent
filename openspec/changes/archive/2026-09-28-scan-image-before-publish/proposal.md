@@ -11,6 +11,8 @@ violates the existing security-operations requirement that scans block publicati
 - Only after a successful scan, authenticate and push that same image under its commit
   tag and `latest`, without rebuilding it. PRs continue to build and scan only.
 - Retain the scan report on failure and preserve the current vulnerability policy.
+- Fetch complete history in the test job so gitleaks can scan the PR commit range;
+  the first cloud run exposed the existing shallow-checkout failure.
 
 ## Capabilities
 
