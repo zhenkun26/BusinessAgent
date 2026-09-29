@@ -1,7 +1,7 @@
 # ROADMAP · 里程碑规划
 
 > 进度规划的单一事实源。与 README、openspec change 状态保持一致。
-> 更新日期:2026-09-28
+> 更新日期:2026-09-29
 
 ## 一、已完成阶段（历史里程碑）
 
@@ -29,8 +29,9 @@
 | 安全加固 | 2026-08-06 | ✅ | security-hardening-plus 21/21 归档：gitleaks/pip-audit/Trivy 三道 CI 扫描、豁免清单、越权测试，主规格 13 项 |
 | 工单真实接入试点 | 2026-08-06 | ✅ | ticket-system-integration 16/16 归档：幂等键/补偿真实化/审计回写，stub 沙箱验收 7/7（external-system-integration 规格扩展） |
 | G0 UAT 技术彩排回放 | 2026-08-15 | ✅ | uat-replay-harness 9/9 归档：合成 fixture、结构/安全回放器、JSON/Markdown 证据报告 |
-| 后端内部简化 | 2026-09-28 | ✅ 本地验证 | simplify-backend-internals：仅 FGR-01/FAT-01；基线与最终均 13/13 定向测试、8 组内存检查通过，独立复审无阻塞；未跑完整 CI，OpenSpec CLI 不可用；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
-| CI 镜像发布门禁修复 | 2026-09-28 | PR #1 检查中 | scan-image-before-publish：先扫描后发布同一镜像；11 项离线条件通过；首次云端 Python 3.11/3.13 均 143 测试通过，gitleaks 因浅克隆失败，已补完整历史配置待复验；GitHub 批准及合并发布待完成；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
+| 后端内部简化 | 2026-09-29 | ✅ 已合并并发布 | PR #1 合并为 `2d4bfc1`；Python 3.11/3.13 各 143 项测试通过；仅 FGR-01/FAT-01，OpenSpec 已归档；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
+| CI 镜像发布门禁修复 | 2026-09-29 | ✅ 已合并并发布 | 先扫描后发布同一镜像；主分支 CI `36522224892` 全部通过，GHCR 提交标签与 latest 摘要一致；OpenSpec 已归档，未部署生产；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
+| 交付收尾与 CI 必需检查 | 2026-09-29 | ✅ 必需检查生效，离线核验完成 | strict 模式绑定三个 GitHub Actions 检查；G0 16/16 通过、GATE-01 自动回归证据就绪；保持真实 UAT/联调/灰度阻塞；[推进记录](交付与离线推进记录-2026-09-29.md) |
 
 ## 二、进行中
 
@@ -49,7 +50,7 @@
 
 ## 三、挂起事项（P3，暂不上线）
 
-当前下一步执行顺序与外部阻塞见 `下一步执行阻塞清单-2026-08-15.md`；正式 UAT、真实外部接入、真实灰度和全量放行均不得跳过前置证据。
+当前下一步执行顺序与外部阻塞见 `下一步执行阻塞清单-2026-09-29.md`；正式 UAT、真实外部接入、真实灰度和全量放行均不得跳过前置证据。
 
 - [x] ~~压测（vegeta/k6）~~（✅ 2026-08-05 随 load-test-and-dr-drill 落地：k6 阶梯压测已执行，报告见 `eval/results/`，SLA 初值已回访，I-01 关闭）
 - [ ] UAT + 安全测试（含 Prompt 注入攻击面实测）——已由 uat-and-ga-rollout 提案承接
