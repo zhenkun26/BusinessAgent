@@ -6,6 +6,7 @@
 
 - `ROADMAP.md`：里程碑规划（已完成 / 进行中 / 挂起）
 - [code-simplification/20260928-backend/cleanup-report.md](code-simplification/20260928-backend/cleanup-report.md)：FGR-01/FAT-01 简化交付、独立复审、基线与最终验证及限制；审计与 JSON 证据同目录
+- [code-simplification/20260928-backend/ci-publication-report.md](code-simplification/20260928-backend/ci-publication-report.md)：后续 CI 修复：镜像扫描通过后才发布；授权范围、离线验证与 GitHub 集成限制
 - `DECISIONS.md`：设计决策记录（背景 / 决策 / 放弃 / 改判条件）
 - `PROBLEM_REVIEWS.md`：精选问题复盘（现象 / 复现 / 调查 / 根因 / 修复 / 验证 / 防复发 / 反思）
 - `ISSUES.md`：问题、坑与 backlog；新增开放事项只放这里。既有历史详情暂保留，后续按复盘 ID 逐条迁移到 `PROBLEM_REVIEWS.md`

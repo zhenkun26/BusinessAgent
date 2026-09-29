@@ -1,5 +1,8 @@
 # Backend simplification delivery
 
+This report records the initial local delivery. The subsequently authorized CI repair
+and GitHub integration are tracked in [ci-publication-report.md](ci-publication-report.md).
+
 ## Progress and deliverables
 
 Base: `5446a70cd60cf4e0729cb21bbc82b45aa6ec43c1`.

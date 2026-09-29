@@ -30,6 +30,7 @@
 | 工单真实接入试点 | 2026-08-06 | ✅ | ticket-system-integration 16/16 归档：幂等键/补偿真实化/审计回写，stub 沙箱验收 7/7（external-system-integration 规格扩展） |
 | G0 UAT 技术彩排回放 | 2026-08-15 | ✅ | uat-replay-harness 9/9 归档：合成 fixture、结构/安全回放器、JSON/Markdown 证据报告 |
 | 后端内部简化 | 2026-09-28 | ✅ 本地验证 | simplify-backend-internals：仅 FGR-01/FAT-01；基线与最终均 13/13 定向测试、8 组内存检查通过，独立复审无阻塞；未跑完整 CI，OpenSpec CLI 不可用；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
+| CI 镜像发布门禁修复 | 2026-09-28 | 本地验证，待 PR 集成 | scan-image-before-publish：先扫描本地提交镜像，成功后发布同一镜像；10 项离线条件及两条模拟发布路径通过；云端 CI、GitHub 批准及合并发布待完成；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
 
 ## 二、进行中
 
