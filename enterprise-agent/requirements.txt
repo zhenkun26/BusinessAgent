@@ -78,3 +78,8 @@ tenacity>=8.2
 # pytest-cov>=5.0
 # ruff>=0.6
 # mypy>=1.10
+
+# PostgreSQL checkpoint fallback (already present in production requirements).
+langgraph-checkpoint-postgres>=3.1.1
+psycopg>=3.3.4
+psycopg-pool>=3.3.1

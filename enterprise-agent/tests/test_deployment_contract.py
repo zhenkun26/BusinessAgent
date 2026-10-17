@@ -44,7 +44,7 @@ class DeploymentContractTests(unittest.TestCase):
         self.assertEqual(api["image"], worker["image"])
         for service in (api, worker):
             self.assertNotIn("build", service)
-            self.assertEqual(service["volumes"], ["hf_cache:/data/hf_cache"])
+            self.assertFalse(service.get("volumes"))  # C02 remote profile has no model mounts.
             self.assertFalse(service.get("ports"))
         self.assertIs(worker["healthcheck"]["disable"], True)
 

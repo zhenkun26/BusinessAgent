@@ -203,10 +203,10 @@ services:
       - .env.prod
     environment:
       APP_ENV: prod
+      MODEL_PROFILE: ${MODEL_PROFILE:?Set MODEL_PROFILE to bailian-deepseek-v1}
       MILVUS_HOST: milvus-standalone
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
-      HF_HOME: /data/hf_cache
       TZ: Asia/Shanghai
     depends_on:
       milvus-standalone:
@@ -215,9 +215,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - hf_cache:/data/hf_cache
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --no-access-log
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --no-access-log
     restart: unless-stopped
     logging:
       driver: json-file
@@ -228,7 +226,7 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 4G
+          memory: 2G
         reservations:
           memory: 2G
 
@@ -238,10 +236,10 @@ services:
       - .env.prod
     environment:
       APP_ENV: prod
+      MODEL_PROFILE: ${MODEL_PROFILE:?Set MODEL_PROFILE to bailian-deepseek-v1}
       MILVUS_HOST: milvus-standalone
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
-      HF_HOME: /data/hf_cache
       TZ: Asia/Shanghai
     depends_on:
       milvus-standalone:
@@ -250,8 +248,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - hf_cache:/data/hf_cache
     command: python -m app.worker
     # Dockerfile.prod checks API HTTP; the worker has no HTTP listener.
     # A dedicated worker readiness signal is tracked by C14/C21.
@@ -269,7 +265,7 @@ services:
           cpus: "1.0"
           memory: 2G
         reservations:
-          memory: 1G
+          memory: 2G
 
   # ============================================
   # 反向代理层(生产必备)

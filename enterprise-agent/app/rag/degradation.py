@@ -324,6 +324,12 @@ class DegradationChain:
             # 结果为空,不一定是故障,可能是知识库真没数据。继续尝试关键词检索
             logger.info("向量检索结果为空,尝试关键词降级")
         except Exception as e:  # noqa: BLE001
+            from app.rag.model_profile import uses_remote_profile
+            from app.rag.remote_models import RemoteModelError
+
+            if (uses_remote_profile(self.keyword_retriever._settings)
+                    and isinstance(e, RemoteModelError)):
+                raise
             logger.error(f"向量检索异常,降级到关键词: {e}")
 
         # 2. 降级 1:BM25 / 关键词

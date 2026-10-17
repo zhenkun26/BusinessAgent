@@ -95,6 +95,8 @@ jobs:
         with:
           context: enterprise-agent
           file: enterprise-agent/Dockerfile.prod
+          build-args: |
+            INSTALL_ML=0
           push: false
           load: true
           tags: |

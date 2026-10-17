@@ -1,4 +1,7 @@
-"""LLM 工厂(支持 DeepSeek / OpenAI / 智谱 / 通义 / Ollama 等 OpenAI 兼容协议)
+"""Selected remote profile: Flash by default, Pro for complex tasks; no Ollama fallback.
+
+Legacy development mode only (empty MODEL_PROFILE):
+LLM 工厂(支持 DeepSeek / OpenAI / 智谱 / 通义 / Ollama 等 OpenAI 兼容协议)
 
 模型路由策略:
 - primary: 复杂任务(任务分解/多结果汇总/分析报告)→ DeepSeek 云端 v4-pro
@@ -24,6 +27,7 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 
 from app.config import get_settings
+from app.rag.model_profile import uses_remote_profile, validate_model_profile
 from app.observability.token_usage import get_token_usage_handler
 
 
@@ -32,6 +36,8 @@ class LLMRouter:
 
     def __init__(self):
         self._settings = get_settings()
+        if uses_remote_profile(self._settings) and validate_model_profile(self._settings):
+            raise RuntimeError("MODEL_PROFILE_INVALID")
         self._primary: Optional[BaseChatModel] = None
         self._lite: Optional[BaseChatModel] = None
         self._local: Optional[BaseChatModel] = None
@@ -46,6 +52,8 @@ class LLMRouter:
         """
         if self._primary is None:
             s = self._settings
+            if uses_remote_profile(s) and not s.openai_api_key:
+                raise RuntimeError("MODEL_LLM_KEY_MISSING")
             if s.openai_api_key:
                 # 云端 DeepSeek
                 self._primary = ChatOpenAI(
@@ -54,6 +62,10 @@ class LLMRouter:
                     base_url=s.openai_base_url,
                     temperature=s.primary_llm_temperature,
                     max_tokens=s.primary_llm_max_tokens,
+                    # The existing LangChain tool loop does not preserve reasoning_content.
+                    # Keep Pro non-thinking until that protocol is explicitly validated.
+                    extra_body=({"thinking": {"type": "disabled"}}
+                                if uses_remote_profile(s) else None),
                     timeout=60,
                     max_retries=2,
                     streaming=True,  # 支持 astream_events 的 token 级流式输出(行为不变)
@@ -85,6 +97,11 @@ class LLMRouter:
         """
         if self._lite is None:
             s = self._settings
+            if uses_remote_profile(s):
+                self._lite = self.get_cloud_lite()
+                if self._lite is None:
+                    raise RuntimeError("MODEL_LITE_MISSING")
+                return self._lite
             # 1. 优先本地 Ollama(validate_model_on_init 在初始化时探测连通性,
             #    Ollama 未启动/模型不存在会抛异常,落入下一级)
             try:
@@ -100,7 +117,7 @@ class LLMRouter:
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"本地 Ollama 不可用,轻量 LLM 降级云端: {e}")
 
-            # 2. 降级云端轻量模型(如 deepseek-v4-flash)
+            # 2. 降级云端轻量模型(如 deepseek-flash)
             cloud = self.get_cloud_lite()
             if cloud is not None:
                 self._lite = cloud
@@ -120,6 +137,8 @@ class LLMRouter:
         if self._cloud_lite is None:
             s = self._settings
             if not (s.openai_api_key and s.lite_llm_model):
+                if uses_remote_profile(s):
+                    raise RuntimeError("MODEL_LITE_CONFIG_MISSING")
                 return None
             try:
                 self._cloud_lite = ChatOpenAI(
@@ -133,19 +152,28 @@ class LLMRouter:
                     streaming=True,  # 支持 token 级流式(knowledge 答案生成用 lite)
                     # 关闭思考模式(实测:默认 210 token 推理/3.9s → 关闭后 0 推理/1.4s;
                     # 分类/选择/grounded 答案均不需要推理;等效已下架的 deepseek-chat)
-                    extra_body={"thinking": {"type": "disabled"}},
+                    extra_body=(
+                        {"thinking": {"type": "disabled"}}
+                        if uses_remote_profile(s) or s.openai_base_url.rstrip("/") in (
+                            "https://api.deepseek.com", "https://api.deepseek.com/v1"
+                        ) else None
+                    ),
                     callbacks=[get_token_usage_handler()],  # I-07 token 统一采集
                 )
                 logger.info(
                     f"云端轻量 LLM: {s.openai_base_url} / {s.lite_llm_model}"
                 )
             except Exception as e:  # noqa: BLE001
+                if uses_remote_profile(s):
+                    raise RuntimeError("MODEL_LITE_LOAD_FAILED") from None
                 logger.warning(f"云端轻量 LLM 初始化失败: {e}")
                 return None
         return self._cloud_lite
 
     def get_local(self) -> Optional[BaseChatModel]:
         """本地模型(Ollama qwen3.5:4b,闲聊判断/答案自评/Reranker 评分 + 云端兜底)"""
+        if uses_remote_profile(self._settings):
+            return self.get_lite()
         if self._local is None:
             self._local = self._get_local_chat_model(
                 temperature=0.2,

@@ -242,3 +242,5 @@ enterprise-agent/
 | OpenTelemetry | 1.x | 全链路追踪 |
 | Jaeger | 1.60 | Trace 可视化 |
 | Prometheus | latest | 指标采集 |
+
+当前已选择并实现 [`bailian-deepseek-v1`](deploy/MODEL_PROFILE.md)：百炼北京 `text-embedding-v4`（1024 维）与 `qwen3-rerank`、DeepSeek Flash 默认与 Pro 复杂任务。CI/default 镜像不含本地 ML 依赖；真实 API 与 Linux 部署验收仍 **BLOCKED**。本机用于开发，付费启动探针默认关闭，C02 整项尚未验收。

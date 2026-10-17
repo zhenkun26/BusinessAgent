@@ -20,3 +20,20 @@ def test_runner_copies_venv_before_removing_venv_pip():
 
     assert system_cleanup < venv_copy < venv_cleanup
     assert "/opt/venv/bin/pip uninstall" not in runner
+
+
+def test_runner_installs_libpq_without_ignoring_apt_failure() -> None:
+    content = DOCKERFILE_PATH.read_text(encoding="utf-8")
+    runner = content.split("FROM python:3.13-slim AS runner", maxsplit=1)[1]
+    install = runner.split("RUN apt-get update", maxsplit=1)[1].split("\n\n", maxsplit=1)[0]
+    assert "apt-get install -y --no-install-recommends ca-certificates tzdata libpq5" in install
+    assert "|| true" not in install
+
+
+def test_checkpoint_import_probe_runs_in_final_non_root_runtime() -> None:
+    content = DOCKERFILE_PATH.read_text(encoding="utf-8")
+    runner = content.split("FROM python:3.13-slim AS runner", maxsplit=1)[1]
+    probe = runner.index('RUN python -c "import psycopg;')
+    assert runner.index("COPY --from=builder /opt/venv /opt/venv") < probe
+    assert runner.index("USER 65534:65534") < probe
+    assert "from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver" in runner

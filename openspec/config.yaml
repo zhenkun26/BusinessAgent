@@ -9,8 +9,8 @@ context: |
   当前没有真实企业使用；自动化、模拟与参考环境证据必须与企业现场验证分开。
 
   技术栈：Python 3.11+ / FastAPI / LangGraph 1.2+ / LangChain 1.x / Milvus 2.4 / PostgreSQL 16 /
-  Redis 7(redis-stack-server) / Ollama 本地 qwen3.5:4b / bge-m3 与 bge-reranker 本地模型 /
-  DeepSeek v4-pro(primary) 与 v4-flash(lite 降级)。
+  Redis 7(redis-stack-server) / 百炼北京 text-embedding-v4 (1024 维) 与 qwen3-rerank /
+  DeepSeek Flash (默认) 与 v4-pro (复杂任务)。旧本地模型仅作开发可选项。
 
   工程约定：PEP 8、行宽 100、全量类型注解、异步代码优先、类在 __init__ 初始化全部属性；
   密钥只从环境变量读取(.env 永不提交)；SQL 一律参数化；外部 API 调用设置超时与重试；
@@ -23,8 +23,8 @@ context: |
 
   当前状态(2026-10-17)：主规格 15 项、已归档 change 15 项；active change 为
   crm-mail-sso-integration、uat-and-ga-rollout 与 engineering-delivery-closeout。
-  engineering-delivery-closeout 的 S0/C24 前置已推送，C01 配置修复已完成但目标运行验收 BLOCKED，
-  用户已授权配置独立提交/推送并推进 C02，C03 及后续尚未授权。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
+  engineering-delivery-closeout 的 S0/C24/C01 配置增量已推送，C01 运行验收 BLOCKED；
+  C02 模型契约与离线实现已完成，libpq5 已获批并补入配方；外部模型方案已确认，真实 API/Linux 验收 BLOCKED，C03 及后续尚未授权。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
   C01-C25 的现状/缺口/验收以 ISSUES 为准，S0-S7 顺序以 ROADMAP 为准。
   真实企业联调、UAT、灰度与全量放行仍缺资源，不用参考服务成功替代这些任务。
   OpenSpec CLI 本机不可用；结构检查不能替代严格校验，归档前须补齐。

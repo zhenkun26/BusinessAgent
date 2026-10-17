@@ -33,6 +33,10 @@ async def lifespan(app: FastAPI):
                 "生产环境配置校验未通过,拒绝启动: " + "; ".join(config_violations)
             )
 
+    from app.rag.model_profile import verify_model_startup
+
+    await verify_model_startup(settings)
+
     # 环境路径自检(非阻断):模型/缓存路径不存在时告警,避免 RAG 静默降级
     from pathlib import Path
 

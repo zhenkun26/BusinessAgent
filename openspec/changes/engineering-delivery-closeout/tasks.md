@@ -7,13 +7,16 @@
 
 S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条需求结构通过；仅文档与 OpenSpec context 改动。OpenSpec CLI 严格校验 BLOCKED，不计为通过；完整记录见 `docs/40-process/阶段性总结_S0工程交付基线.md`（仓库相对路径）。
 
-## 1. S1：可复现环境（1.1 完成；1.2 配置独立交付、运行验收阻塞；1.3 已授权）
+## 1. S1：可复现环境（1.1 完成；1.2 配置独立交付、运行验收阻塞；1.3 外部模型方案已确认，离线增量完成、真实 API/Linux 验收阻塞）
 
 - [x] 1.1 C24 前置部分：安全验证入口与证据模板；本项只完成前置，C24 最终状态仍 open。<!-- evidence: enterprise-agent/scripts/safe_validate.py; docs/40-process/阶段性总结_C24安全验证前置.md; 12 stdlib regression tests PASS; offline execution PASS, UAT/release BLOCKED -->
 - [ ] 1.2 C01 部署产物与入口一致。<!-- configuration implemented; target-runtime acceptance BLOCKED; do not close based on static checks -->
   - [x] 1.2.1 冻结 deployment-artifacts delta，统一镜像/入口配置，补契约检查和部署说明；离线 8 项通过，PyYAML 测试 1 项跳过，另用系统 Ruby 标准库完成真实 YAML 解析与模型契约检查。
   - [ ] 1.2.2 在隔离 Linux 环境完成 Compose 渲染、Nginx 校验、候选镜像身份、UI/登录/SSE/健康/就绪/指标边界验收并记录证据。<!-- BLOCKED: no Docker/Nginx here; model/bootstrap dependencies remain C02/C03; see docs/40-process/阶段性总结_C01部署产物与入口.md -->
 - [ ] 1.3 C02 模型与依赖 profile 匹配。
+  - [x] 1.3.1 Implement the approved Beijing Bailian / DeepSeek profile, remote adapters, slim build, configuration/startup gates, documentation and offline regressions. 27 offline model/transport tests PASS; real API and Linux acceptance remain BLOCKED.
+  - [x] 1.3.2 用户已批准 libpq5；补齐 runner 安装、失败即停止及最终非 root runtime 导入探针，2 项新增静态回归 PASS。实际镜像构建/导入仍由 1.3.3 验收。
+  - [ ] 1.3.3 隔离候选真实构建/扫描、模型推理与 LLM 问答、资源测量及缺失配置负例验收。<!-- BLOCKED; see docs/40-process/阶段性总结_C02模型依赖.md -->
 - [ ] 1.4 C03 数据库迁移与初始化。
 
 ## 2. S2：权限与敏感信息（待逐项授权）

@@ -51,6 +51,10 @@ async def main():
     settings = get_settings()
     logger.info(f"Worker 启动, env={settings.app_env}")
 
+    from app.rag.model_profile import verify_model_startup
+
+    await verify_model_startup(settings)
+
     await init_db()
 
     # 审计本地缓存回写(数据库故障期间积压的审计,恢复后补录)

@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from loguru import logger
+from app.config import get_settings
+from app.rag.model_profile import uses_remote_profile
 
 from app.observability.tracing import (
     record_span_attributes,
@@ -170,6 +172,10 @@ class EnterpriseRAGRetriever:
                         "rag.rerank.top_score": ranked[0].score if ranked else 0.0,
                     })
             except Exception as e:  # noqa: BLE001
+                if uses_remote_profile(get_settings()):
+                    from app.rag.remote_models import RemoteModelError
+
+                    raise RemoteModelError("MODEL_RERANK_FAILED") from None
                 logger.warning(f"Rerank 失败,降级使用粗排结果: {e}")
                 ranked = coarse_results[: self.rerank_top_n]
                 stage = "vector"

@@ -17,6 +17,9 @@ dependencies = [
     "langgraph>=1.2",
     "langgraph-sdk>=0.4.4",
     "langgraph-checkpoint-redis>=0.5",
+    "langgraph-checkpoint-postgres>=3.1.1",
+    "psycopg>=3.3.4",
+    "psycopg-pool>=3.3.1",
     "langsmith>=0.1.100",
     # 向量库
     "pymilvus>=2.4.0,<3.1",

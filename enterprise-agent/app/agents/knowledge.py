@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 
 from app.rag.confidence import ConfidenceDecider, Coverage
 from app.rag.degradation import DegradationChain
-from app.rag.llm import get_lite_llm, get_local_llm, get_primary_llm
+from app.rag.llm import get_lite_llm, get_local_llm
 from app.rag.retriever import EnterpriseRAGRetriever
 from app.rag.vector_store import SearchResult
 from app.security.rbac import AgentRole
@@ -96,7 +96,7 @@ class KnowledgeAgent:
 
     def _get_llm(self):
         if self.llm is None:
-            self.llm = get_primary_llm()
+            self.llm = get_lite_llm()
         return self.llm
 
     def _get_eval_llm(self):

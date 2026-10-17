@@ -2,7 +2,7 @@
 
 > 适用：智多星 v1.3.0；候选提交与镜像摘要必须另行记录。
 > 部署方式：Linux 单机 Docker Compose；工程候选配置，不代表已完成生产验收。
-> 更新日期：2026-10-17（C01 配置修复；目标环境验收 BLOCKED）
+> 更新日期：2026-10-17（C01 配置已交付；C02 外部模型离线增量已实现，真实 API/Linux 验收 BLOCKED）
 >
 > C01 已统一镜像引用和访问入口；模型 profile、数据库初始化、多进程状态分别由 C02/C03/C09 验收。当前不能仅凭本指南宣称完整系统可交付。历史备份/恢复/清理章节含破坏性操作，**不属于本轮可执行验收步骤**；先遵守仓库非删除要求与 C22 复审。
 
@@ -17,7 +17,7 @@
                     └──────┬──────┘
                            │
                     ┌──────▼──────┐
-                    │  API (×4)   │  uvicorn --workers 4
+                    │  API (×1)   │  uvicorn --workers 1
                     │  FastAPI    │
                     └──┬──┬──┬────┘
                        │  │  │
@@ -53,7 +53,7 @@
 | 磁盘 | 100 GB SSD | 500 GB SSD |
 | 系统 | Linux (Ubuntu 22.04+) | Linux |
 
-> 内存主要被 Milvus(4G) + API(4G) + Redis(2G) + MinIO(2G) + bge-m3 Embedding 模型(2G) 占用。
+> 上表为历史参考，不是当前模型 profile 的实测下限。C02 外部模型候选为单 API 进程与独立 worker，各 2 GiB 预算，不再加载本地 BGE 权重；数据库等基础设施仍需独立资源。实际容量、峰值与时延尚未测量，见 [模型 profile](MODEL_PROFILE.md)。
 
 ### 2.2 软件依赖
 
@@ -68,20 +68,9 @@ git --version
 
 ### 2.3 模型文件准备
 
-将本地模型文件上传到服务器：
+生产候选为 `bailian-deepseek-v1`：百炼北京向量与重排、DeepSeek Flash 默认与 Pro 复杂任务。账号、独立密钥、接口、计费与验收边界见 [MODEL_PROFILE.md](MODEL_PROFILE.md)。无需准备本地模型快照；保留旧卷与 BGE 集合。新向量必须写入独立集合，本轮不执行索引或迁移。
 
-```bash
-# 服务器创建目录
-mkdir -p /data/models
-
-# 上传(从开发机)
-scp -r D:/models/bge-m3 user@server:/data/models/
-scp -r D:/models/bge-reranker-large user@server:/data/models/
-
-# 或用 HuggingFace 直接下载(服务器可联网时)
-huggingface-cli download BAAI/bge-m3 --local-dir /data/models/bge-m3
-huggingface-cli download BAAI/bge-reranker-large --local-dir /data/models/bge-reranker-large
-```
+仅复制到宿主 `/data/models` 不会自动出现在容器中。生产加载只读已有本地模型，不自动下载；未准备模型或使用占位值时必须拒绝启动。
 
 ---
 
@@ -108,9 +97,22 @@ GRAFANA_ADMIN_PASSWORD=<生成新密码>
 # DeepSeek API Key
 OPENAI_API_KEY=<生产 Key>
 
-# 模型路径(服务器路径)
-EMBEDDING_MODEL=/data/models/bge-m3
-RERANKER_MODEL=/data/models/bge-reranker-large
+# Selected external model profile; keep probes disabled pending authorization.
+MODEL_PROFILE=bailian-deepseek-v1
+MODEL_STARTUP_PROBES_ENABLED=false
+EMBEDDING_PROVIDER=bailian
+EMBEDDING_MODEL=text-embedding-v4
+EMBEDDING_DIM=1024
+EMBEDDING_API_KEY=<private-beijing-key>
+EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+RERANKER_PROVIDER=bailian
+RERANKER_MODEL=qwen3-rerank
+RERANKER_API_KEY=<private-beijing-key>
+RERANKER_BASE_URL=https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+LITE_LLM_MODEL=deepseek-flash
+PRIMARY_LLM_MODEL=deepseek-v4-pro
+MILVUS_COLLECTION=enterprise_knowledge_bailian_v4_1024_v1
 
 # Milvus 切换为真实后端
 VECTOR_STORE_PROVIDER=milvus
@@ -166,6 +168,8 @@ cd enterprise-agent
 以下命令全部从 `enterprise-agent/` 执行。隔离验收时使用独立主机、端口和数据卷，不能覆盖已有实例。CI 使用 `Dockerfile.prod` 构建、扫描并按既有发布授权流程提供镜像；本 Compose **没有 build 路径**，API/worker 都使用 `.env.prod` 中的同一摘要。
 
 ### 4.2 验证配置与启动条件
+
+C02 已实现外部模型方案与获批的 `libpq5` 配方；真实 API 与 Linux 构建/运行验收仍 BLOCKED，见 [模型 profile](MODEL_PROFILE.md)。以下命令未执行，需后续单独授权。生产默认因未授权付费探针而拒绝启动；获准后设置 `MODEL_STARTUP_PROBES_ENABLED=true`，每进程执行 5 次合成模型调用，重试与重启会增加费用。
 
 ```bash
 # bash/zsh 中保留管道上游失败；只输出安全摘要，不打印渲染后的密码

@@ -20,6 +20,12 @@ class Settings(BaseSettings):
 
     # ---- 应用 ----
     app_env: str = "dev"
+    # Production requires an explicit, validated model profile.
+    model_profile: str = ""
+    # Opt in only after authorization for real, billable startup acceptance.
+    model_startup_probes_enabled: bool = False
+    model_http_timeout_seconds: float = Field(default=30.0, gt=0, le=60)
+    model_http_max_retries: int = Field(default=2, ge=0, le=2)
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     log_level: str = "INFO"
@@ -30,7 +36,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.deepseek.com/v1"  # DeepSeek 默认
     primary_llm_model: str = "deepseek-v4-pro"  # 复杂任务:规划/策略/报告
-    lite_llm_model: str = "deepseek-v4-flash"  # 轻量任务:意图分类/简单问答
+    lite_llm_model: str = "deepseek-flash"  # Default remote model; Pro is for complex tasks.
     primary_llm_temperature: float = 0.2
     primary_llm_max_tokens: int = 2048  # 推理模型大部分 token 消耗在隐藏推理上,调低会截断答案,勿轻易改小
 
@@ -41,9 +47,12 @@ class Settings(BaseSettings):
 
     # ---- Embedding(默认本地 bge-m3,1024 维) ----
     # EMBEDDING_MODEL 支持 HuggingFace repo id(自动下载)或本地路径(如 D:/models/bge-m3)
-    embedding_provider: str = "local"  # openai | local
+    embedding_provider: str = "local"  # bailian | openai | local | mock
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024
+    # Independent credentials: never fall back to the LLM key for Bailian.
+    embedding_api_key: str = ""
+    embedding_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     # 本地 embedding/reranker 运行设备:auto(自动) | cuda | cpu
     # 模拟生产/显存紧张时设 cpu,把 GPU 让给 Ollama LLM(实测:12G 卡上
     # bge 两模型占 ~5G,会把 qwen 挤到 CPU 计算,单次 3s→50s 波动)
@@ -95,10 +104,12 @@ class Settings(BaseSettings):
     cohere_rerank_model: str = "rerank-multilingual-v3.0"
 
     # ---- Reranker 后端选择 ----
-    # local_bge: 本地 bge-reranker-large(免费,推荐);cohere;llm;passthrough
+    # bailian: selected remote profile; local_bge/cohere/llm/passthrough: legacy dev
     # RERANKER_MODEL 支持 HuggingFace repo id(自动下载)或本地路径(如 D:/models/bge-reranker-large)
     reranker_provider: str = "local_bge"
     reranker_model: str = "BAAI/bge-reranker-large"
+    reranker_api_key: str = ""
+    reranker_base_url: str = "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank"
 
     # ---- 业务系统 ----
     crm_api_base: str = "https://crm.internal/api/v1"
