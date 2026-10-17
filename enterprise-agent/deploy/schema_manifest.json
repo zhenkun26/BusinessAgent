@@ -1,0 +1,695 @@
+{
+  "format": 1,
+  "migrations": [
+    {
+      "version": 1,
+      "name": "core_schema",
+      "file": "init.sql",
+      "sha256": "3652c4b0fc3421b369f643566d3b89451ed82cb35d46d6050ca5d87230a26212"
+    }
+  ],
+  "columns": {
+    "users": {
+      "id": {
+        "type": "int4"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "username": {
+        "type": "varchar",
+        "length": 128
+      },
+      "email": {
+        "type": "varchar",
+        "length": 255
+      },
+      "role": {
+        "type": "varchar",
+        "length": 32
+      },
+      "department": {
+        "type": "varchar",
+        "length": 64
+      },
+      "password_hash": {
+        "type": "varchar",
+        "length": 255
+      },
+      "sso_issuer": {
+        "type": "varchar",
+        "length": 512
+      },
+      "sso_subject": {
+        "type": "varchar",
+        "length": 255
+      },
+      "is_active": {
+        "type": "bool"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      }
+    },
+    "sessions": {
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "original_query": {
+        "type": "text"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "started_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      },
+      "token_count": {
+        "type": "int4"
+      },
+      "error": {
+        "type": "text"
+      }
+    },
+    "approval_requests": {
+      "approval_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "requester_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "operation_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "risk_level": {
+        "type": "varchar",
+        "length": 16
+      },
+      "summary": {
+        "type": "text"
+      },
+      "prefill_payload": {
+        "type": "jsonb"
+      },
+      "approver_roles": {
+        "type": "jsonb"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "approver_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "comment": {
+        "type": "text"
+      },
+      "requester_token": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "decided_at": {
+        "type": "timestamp"
+      },
+      "expires_at": {
+        "type": "timestamp"
+      }
+    },
+    "audit_logs": {
+      "id": {
+        "type": "int8"
+      },
+      "event_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "tool_name": {
+        "type": "varchar",
+        "length": 64
+      },
+      "input_summary": {
+        "type": "text"
+      },
+      "output_summary": {
+        "type": "text"
+      },
+      "success": {
+        "type": "bool"
+      },
+      "latency_ms": {
+        "type": "int4"
+      },
+      "payload": {
+        "type": "jsonb"
+      },
+      "created_at": {
+        "type": "timestamp"
+      }
+    },
+    "user_memories": {
+      "id": {
+        "type": "int8"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "memory": {
+        "type": "jsonb"
+      },
+      "memory_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "last_accessed_at": {
+        "type": "timestamp"
+      }
+    },
+    "saga_transactions": {
+      "saga_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "actions": {
+        "type": "jsonb"
+      },
+      "executed_actions": {
+        "type": "jsonb"
+      },
+      "compensation_results": {
+        "type": "jsonb"
+      },
+      "error": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      }
+    },
+    "user_feedback": {
+      "id": {
+        "type": "int8"
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "message_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "feedback_type": {
+        "type": "varchar",
+        "length": 16
+      },
+      "comment": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      }
+    },
+    "documents": {
+      "document_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "title": {
+        "type": "varchar",
+        "length": 512
+      },
+      "source_url": {
+        "type": "varchar",
+        "length": 1024
+      },
+      "doc_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "dept_namespace": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "access_roles": {
+        "type": "jsonb"
+      },
+      "content_hash": {
+        "type": "varchar",
+        "length": 64
+      },
+      "content": {
+        "type": "text"
+      },
+      "source_session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "ingest_error": {
+        "type": "text"
+      },
+      "search_vector": {
+        "type": "tsvector"
+      },
+      "reviewed_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "reviewed_at": {
+        "type": "timestamp"
+      },
+      "reject_reason": {
+        "type": "text"
+      },
+      "uploaded_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      }
+    },
+    "prompt_versions": {
+      "id": {
+        "type": "int4"
+      },
+      "name": {
+        "type": "varchar",
+        "length": 64
+      },
+      "version": {
+        "type": "int4"
+      },
+      "content": {
+        "type": "text"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 16
+      },
+      "traffic_weight": {
+        "type": "int4"
+      },
+      "created_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "activated_at": {
+        "type": "timestamp"
+      }
+    }
+  },
+  "indexes": {
+    "idx_users_user_id": false,
+    "idx_users_role": false,
+    "idx_users_is_active": false,
+    "idx_users_username": false,
+    "idx_users_username_unique": true,
+    "idx_users_sso_identity": true,
+    "idx_sessions_user_id": false,
+    "idx_sessions_status": false,
+    "idx_approvals_session_id": false,
+    "idx_approvals_status": false,
+    "idx_approvals_approver": false,
+    "idx_audit_session": false,
+    "idx_audit_user": false,
+    "idx_audit_event_type": false,
+    "idx_audit_created_at": false,
+    "idx_memories_user_id": false,
+    "idx_memories_last_accessed": false,
+    "idx_saga_session": false,
+    "idx_saga_status": false,
+    "idx_feedback_session": false,
+    "idx_documents_namespace": false,
+    "idx_documents_status": false,
+    "idx_documents_search": false,
+    "idx_documents_review_status": false,
+    "idx_documents_content_hash": false,
+    "idx_prompt_versions_name": false,
+    "idx_prompt_versions_status": false
+  },
+  "legacy_columns": {
+    "users": {
+      "id": {
+        "type": "int4"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "username": {
+        "type": "varchar",
+        "length": 128
+      },
+      "email": {
+        "type": "varchar",
+        "length": 255
+      },
+      "role": {
+        "type": "varchar",
+        "length": 32
+      },
+      "department": {
+        "type": "varchar",
+        "length": 64
+      },
+      "password_hash": {
+        "type": "varchar",
+        "length": 255
+      },
+      "is_active": {
+        "type": "bool"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      }
+    },
+    "sessions": {
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "original_query": {
+        "type": "text"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "started_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      },
+      "token_count": {
+        "type": "int4"
+      },
+      "error": {
+        "type": "text"
+      }
+    },
+    "approval_requests": {
+      "approval_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "requester_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "operation_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "risk_level": {
+        "type": "varchar",
+        "length": 16
+      },
+      "summary": {
+        "type": "text"
+      },
+      "prefill_payload": {
+        "type": "jsonb"
+      },
+      "approver_roles": {
+        "type": "jsonb"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "approver_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "comment": {
+        "type": "text"
+      },
+      "requester_token": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "decided_at": {
+        "type": "timestamp"
+      },
+      "expires_at": {
+        "type": "timestamp"
+      }
+    },
+    "audit_logs": {
+      "id": {
+        "type": "int8"
+      },
+      "event_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "tool_name": {
+        "type": "varchar",
+        "length": 64
+      },
+      "input_summary": {
+        "type": "text"
+      },
+      "output_summary": {
+        "type": "text"
+      },
+      "success": {
+        "type": "bool"
+      },
+      "latency_ms": {
+        "type": "int4"
+      },
+      "payload": {
+        "type": "jsonb"
+      },
+      "created_at": {
+        "type": "timestamp"
+      }
+    },
+    "user_memories": {
+      "id": {
+        "type": "int8"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "memory": {
+        "type": "jsonb"
+      },
+      "memory_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "last_accessed_at": {
+        "type": "timestamp"
+      }
+    },
+    "saga_transactions": {
+      "saga_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "actions": {
+        "type": "jsonb"
+      },
+      "executed_actions": {
+        "type": "jsonb"
+      },
+      "compensation_results": {
+        "type": "jsonb"
+      },
+      "error": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      }
+    },
+    "user_feedback": {
+      "id": {
+        "type": "int8"
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "message_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "feedback_type": {
+        "type": "varchar",
+        "length": 16
+      },
+      "comment": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      }
+    },
+    "documents": {
+      "document_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "title": {
+        "type": "varchar",
+        "length": 512
+      },
+      "source_url": {
+        "type": "varchar",
+        "length": 1024
+      },
+      "doc_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "dept_namespace": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "access_roles": {
+        "type": "jsonb"
+      },
+      "content_hash": {
+        "type": "varchar",
+        "length": 64
+      },
+      "uploaded_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      }
+    }
+  },
+  "demo_seed": {
+    "file": "demo_seed.sql",
+    "sha256": "01f43a2f96b7d2017625cd668a6fb4dfe891cc91fd832d29d807a54ef2da030e"
+  }
+}

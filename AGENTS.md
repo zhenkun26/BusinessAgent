@@ -60,7 +60,7 @@ python -m eval.run_w9_tracing
 - AI 工具集成：Kimi Code（`.kimi-code/skills/`）与 Codex（`.codex/skills/`）均已
   由 `openspec init` 生成 6 个工作流 skill；CLI 升级后用 `openspec update` 刷新。
 - 主规格 15 项见 `openspec/specs/`（2026-10-17）；新需求在 `openspec/changes/` 下开启 change。
-- 当前工程收尾 change 为 `engineering-delivery-closeout`：S0/C24 前置已完成并推送；C01 配置独立提交 `2a9c364` 已推送，运行验收 BLOCKED；C02 模型契约与离线实现已完成，libpq5 已获批并补入配方；外部模型方案已确认，真实 API/Linux 验收 BLOCKED；C03 及后续尚未授权。顺序以 ROADMAP 为准，验收以 ISSUES C01–C25 为准。真实企业接入与 UAT/灰度两个 change 保持独立，不以参考环境通过替代。
+- 当前工程收尾 change 为 `engineering-delivery-closeout`：S0/C24 前置已完成并推送；C01 配置独立提交 `2a9c364` 已推送，运行验收 BLOCKED；C02 外部模型增量 `42bfc7f` 已推送，真实 API/Linux 验收 BLOCKED；C03 迁移/bootstrap 与离线验证已实现，真实 PostgreSQL/Linux 验收 BLOCKED；C03 本地交付后暂停，C04 及后续未授权。顺序以 ROADMAP 为准，验收以 ISSUES C01–C25 为准。真实企业接入与 UAT/灰度两个 change 保持独立，不以参考环境通过替代。
 - 离线前置核验使用 `python3 -I -B enterprise-agent/scripts/safe_validate.py`（仓库根目录）；默认只输出摘要，exit 2 可表示真实 UAT/发布仍阻塞，不等于入口失败。副作用范围见 `docs/50-engineering/safe-validation.md`；其他脚本不得自动视为已通过安全审查。
 
 ## 关键文档

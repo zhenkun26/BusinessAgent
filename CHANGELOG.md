@@ -12,6 +12,8 @@
 
 ### 工程收尾规划（2026-10-17）
 
+- C03 离线增量：schema/演示种子分离、版本与校验和迁移、事务锁、显式管理员与开发种子、启动/健康 schema 检查；C02 `42bfc7f` 已推送。真实 PostgreSQL/API/Linux 验收仍 BLOCKED，C03 整项 open，未推进 C04。[实施记录](docs/40-process/阶段性总结_C03数据库迁移与初始化.md)。
+
 - C02 外部模型离线增量：百炼北京 embedding/reranker 与 DeepSeek Flash/Pro，独立密钥、超时重试、严格响应校验、失败闭合与付费启动探针授权开关；slim 构建保留获批 libpq5/import 检查。真实 API/Linux 验收 BLOCKED，C02 整项 open。[实施记录](docs/40-process/阶段性总结_C02模型依赖.md)。
 - C01 配置修复：生产 Compose 的 API/worker 使用同一必填镜像引用，部署前契约检查要求 registry digest；不再本地 build 或挂载源码。Nginx 补齐 UI/文档 schema/ready 路由、SSE 关闭缓冲、metrics 保持内部访问；修正 worker 继承 API 探针和部署命令。离线检查通过，但目标环境镜像/登录/SSE 验收 BLOCKED，C01 尚未完成。[实施记录](docs/40-process/阶段性总结_C01部署产物与入口.md)。
 - C24 前置：新增标准库离线安全入口、12 项入口回归、副作用盘点和证据模板；只运行五个已审查核验函数，验证期间阻止文件修改/网络/进程，证据只新建且不保存原始敏感细节。当前五函数执行通过，真实 UAT/发布仍 BLOCKED；不代表 C24 整项完成。[交付记录](docs/40-process/阶段性总结_C24安全验证前置.md)。

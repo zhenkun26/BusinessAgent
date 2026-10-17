@@ -20,6 +20,8 @@
 
 - `model-profile`: C02 生产模型方案、依赖契约、启动推理探针与失败闭合。
 
+- `database-bootstrap`: C03 explicit migrations, schema readiness and isolated administrator/demo bootstrap.
+
 ### Modified Capabilities
 
 无现有能力主规格修改。当前增加交付治理与 C01 部署产物契约；后续 C 项若改变既有能力要求，必须先补充对应 delta 与设计再实现。
@@ -33,6 +35,8 @@
 - 交付契约：[工程交付基线](../../../docs/50-engineering/engineering-delivery-baseline.md)。
 - S0 文档提交 `05d8d0c` 已按用户单独授权推送到同名远端分支；该授权不延伸为 C24 新提交的推送。合并、发布、部署或外部消息/业务写入不在本轮范围；不新增依赖、不执行删除。
 
-2026-10-17 后续授权：C24 提交 `a329603` 已推送到同名远端；本轮推进 C01，修改生产 Compose、Nginx、部署契约检查及文档，不扩展到 C02 模型、C03 迁移或 C09 多进程一致性。用户随后授权 C01 配置修复独立提交并推送到同名远端分支，再推进 C02；C03 仍未授权。真实运行验收缺少 Docker/Nginx 时保留 BLOCKED，不提前勾选整项。
+2026-10-17 后续授权：C24 提交 `a329603` 已推送到同名远端；本轮推进 C01，修改生产 Compose、Nginx、部署契约检查及文档，不扩展到 C02 模型、C03 迁移或 C09 多进程一致性。用户随后授权 C01 配置修复独立提交并推送到同名远端分支，再推进 C02；当时 C03 尚未授权（后续授权见下文）。真实运行验收缺少 Docker/Nginx 时保留 BLOCKED，不提前勾选整项。
 
-C02 scope (confirmed 2026-10-17): replace the provisional local candidate with Beijing Bailian embedding/reranking and official DeepSeek Flash/Pro services. Implement separate credentials, bounded remote adapters, profile/startup validation, isolated vector collection configuration and slim-image alignment; retain approved libpq5/checkpoint checks. This increment includes documentation and offline verification only. Real API calls and isolated Linux acceptance remain BLOCKED; C02 remains open and C03 is not authorized.
+C02 scope (confirmed 2026-10-17): replace the provisional local candidate with Beijing Bailian embedding/reranking and official DeepSeek Flash/Pro services. Implement separate credentials, bounded remote adapters, profile/startup validation, isolated vector collection configuration and slim-image alignment; retain approved libpq5/checkpoint checks. This increment includes documentation and offline verification only. Real API calls and isolated Linux acceptance remain BLOCKED; C02 remains open; the then-pending C03 authorization is recorded separately below.
+
+C03 authorization (2026-10-17): C02 commit `42bfc7f6f3033c5eb5e06fb6d497a92dad86a039` was pushed and the remote branch hash verified. Implement C03 without touching the current database; real API/Linux acceptance remains BLOCKED. C04 and C03 push are not authorized.

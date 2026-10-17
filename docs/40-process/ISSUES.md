@@ -8,7 +8,7 @@
 <a id="engineering-closeout"></a>
 ### 工程交付收尾差距 C01–C25（2026-10-17）
 
-本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，C01 配置已独立提交推送但运行验收 BLOCKED；C02 已有模型契约与离线实现，libpq5 已获批并补入配方，外部模型方案已确认，真实 API/Linux 验收仍 BLOCKED；其余未实施。现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
+本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，C01 配置已独立提交推送但运行验收 BLOCKED；C02 已有模型契约与离线实现，libpq5 已获批并补入配方，外部模型方案已确认，真实 API/Linux 验收仍 BLOCKED；C03 迁移/bootstrap 离线增量已实现，真实 PostgreSQL/Linux 验收 BLOCKED；其余未实施。现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
 
 每项日期均为 2026-10-17，计划修复按对应缺口执行，修复与验证记录待逐项实施后补充。源码链接相对本文件；工程验收遵守[交付基线](../50-engineering/engineering-delivery-baseline.md)的证据等级与记录模板，执行依赖以 [ROADMAP](ROADMAP.md#engineering-closeout-stages) 为准。历史 fixed 条目保留当时证据，不自动覆盖本轮新发现。
 
@@ -26,7 +26,7 @@
 - **现状/证据**：[Dockerfile.prod](../../enterprise-agent/Dockerfile.prod) 默认不安装 ML，而[配置](../../enterprise-agent/app/config.py)默认使用本地 embedding/reranker；可选 ML 分支的 `--mount` 位于 shell 条件内部，尚无该分支构建通过证据。
 - **缺口/原因**：默认配置与镜像能力不匹配；开发/生产依赖集合也需按 checkpoint 等实际路径核对。
 - **验收**：选择并记录一套完整模型 profile，包含精确模型标识、依赖、资源与网络条件；候选镜像真实构建、加载 embedding/reranker、完成 LLM 问答；缺失模型/配置时启动或就绪明确失败；文档中的可选配置若未测必须标明不支持或未验收。新增依赖须先确认。
-- **实施与限制（2026-10-17）**：用户确认 `bailian-deepseek-v1`，百炼北京向量/重排与 DeepSeek Flash/Pro；独立配置、严格响应校验、受限重试、生产拒绝降级、独立向量集合名、默认关闭的付费启动探针、slim/CI 与获批 libpq5 配方已实现。离线检查仅覆盖模拟适配器与配置契约，真实 API、Linux 构建/扫描/导入/问答保持 **BLOCKED**。C02 整项 open；本地增量交付后等待确认，C03 未推进。见[阶段记录](阶段性总结_C02模型依赖.md)。
+- **实施与限制（2026-10-17）**：用户确认 `bailian-deepseek-v1`，百炼北京向量/重排与 DeepSeek Flash/Pro；独立配置、严格响应校验、受限重试、生产拒绝降级、独立向量集合名、默认关闭的付费启动探针、slim/CI 与获批 libpq5 配方已实现。离线检查仅覆盖模拟适配器与配置契约，真实 API、Linux 构建/扫描/导入/问答保持 **BLOCKED**。C02 整项 open；增量 `42bfc7f` 已按后续授权推送同名远端分支，C03 按单独授权推进。见[阶段记录](阶段性总结_C02模型依赖.md)。
 
 <a id="c03"></a>
 #### C03 · P0 · 数据库迁移与初始化
@@ -34,6 +34,7 @@
 - **现状/证据**：[init.sql](../../enterprise-agent/deploy/init.sql) 混合 schema 与演示账户/业务数据；[database.py](../../enterprise-agent/app/core/database.py) 初始化主要检查连接；已有[迁移目录](../../enterprise-agent/deploy/migrations)但缺少统一版本执行约束。
 - **缺口/原因**：空库、已有库升级、重复启动和生产 bootstrap 缺少统一可复现路径。
 - **验收**：隔离空库初始化及已有版本副本升级均通过，迁移有版本记录并可重复安全执行；迁移失败不进入 ready；默认交付不自动生成演示账户/默认口令，演示种子显式启用；记录管理员 bootstrap 与回退方法，已有业务数据保留。不对当前库执行迁移。
+- **实施与限制（2026-10-17）**：schema 与演示数据已分离，Compose 不再自动挂载初始化 SQL；版本/校验和/事务锁、显式旧库接管、管理员与开发种子、API/worker schema 启动检查已实现。22 项模拟编排/失败边界测试 PASS；不连接当前库、不创建默认账户、不回填历史口令。真实 PostgreSQL 空库/升级/并发/回滚/登录和 Linux 部署仍 **BLOCKED**，C03 整项 open，C04 未推进。见[初始化手册](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)与[阶段记录](阶段性总结_C03数据库迁移与初始化.md)。
 
 <a id="c04"></a>
 #### C04 · P0 · 会话归属校验

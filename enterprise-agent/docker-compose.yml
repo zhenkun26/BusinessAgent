@@ -73,7 +73,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # Run the explicit schema/bootstrap commands after PostgreSQL is available.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agent -d enterprise_agent"]
       interval: 10s

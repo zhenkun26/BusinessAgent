@@ -18,6 +18,8 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 1.3.2 用户已批准 libpq5；补齐 runner 安装、失败即停止及最终非 root runtime 导入探针，2 项新增静态回归 PASS。实际镜像构建/导入仍由 1.3.3 验收。
   - [ ] 1.3.3 隔离候选真实构建/扫描、模型推理与 LLM 问答、资源测量及缺失配置负例验收。<!-- BLOCKED; see docs/40-process/阶段性总结_C02模型依赖.md -->
 - [ ] 1.4 C03 数据库迁移与初始化。
+  - [x] 1.4.1 Implement the version/checksum runner, schema-only baseline, explicit admin/demo bootstrap, startup guards, documentation and offline checks. 22 fake orchestration/startup tests PASS; real PostgreSQL/Linux acceptance remains BLOCKED.
+  - [ ] 1.4.2 Verify empty PostgreSQL initialization, legacy-copy upgrades, repeated/concurrent runs, rollback and login in isolated Linux. <!-- BLOCKED: no local Docker/PostgreSQL; never migrate the current database -->
 
 ## 2. S2：权限与敏感信息（待逐项授权）
 

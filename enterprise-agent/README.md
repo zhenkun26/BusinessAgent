@@ -13,14 +13,21 @@
 cp .env.example .env
 
 # 编辑 .env, 填入实际的 API Key 与连接配置
-# 必填: OPENAI_API_KEY(DeepSeek) / LOCAL_LLM_BASE_URL(Ollama) / EMBEDDING_MODEL(bge-m3路径)
+# C02 已选外部模型方案，按 deploy/MODEL_PROFILE.md 填写独立密钥与模型配置
 ```
 
 ### 2. 启动服务
 
 ```bash
-# 启动全部服务(Milvus + PostgreSQL + Redis + Ollama)
+# 仅在获准的隔离环境启动依赖(Milvus + PostgreSQL + Redis)
 docker compose up -d etcd minio milvus-standalone postgres redis
+
+# C03 不再自动初始化 SQL；先审阅 deploy/DATABASE_BOOTSTRAP.md。
+# 空库显式迁移，现有库仅允许对获准副本使用 --adopt-legacy：
+python -B -m app.core.db_bootstrap apply --execute
+python -B -m app.core.db_bootstrap status
+# 安全导出 BOOTSTRAP_ADMIN_ID/USERNAME/PASSWORD 后创建首个管理员：
+python -B -m app.core.db_bootstrap admin --execute
 
 # API 在宿主机直接跑(开发模式,.env 默认已指向 localhost + milvus)
 python -m app.main
@@ -33,6 +40,8 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 ```
 
 生产候选使用独立的 `docker-compose.prod.yml`：API/worker 绑定同一镜像摘要且不挂载源码，必须按[生产部署指南](deploy/DEPLOY.md)设置 `BUSINESSAGENT_IMAGE`、显式传入 `.env.prod` 并通过契约检查。C01 的真实镜像/入口验收尚未完成，开发入口能运行不代表生产候选通过。
+
+上述运行步骤仍待隔离环境验收，不能对当前数据库直接执行。C03 的离线预览为 `python -B -m app.core.db_bootstrap plan`，不会连接数据库。[数据库初始化手册](deploy/DATABASE_BOOTSTRAP.md)区分空库、旧库副本、管理员与显式开发演示种子；任一步失败应停止，不继续启动 API/worker。
 
 ### 3. 验证服务
 
@@ -53,10 +62,10 @@ open http://localhost:8000/ui
 ### 4. 登录获取 Token
 
 ```bash
-# 使用种子用户登录(密码任意)
+# 使用显式 bootstrap 的账户与实际口令；以下是占位示例，不保存真实凭证到历史或日志。
 curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "销售员张三"}'
+  -d '{"username": "<bootstrap-username>", "password": "<private-password>"}'
 
 # 刷新 Token
 curl -X POST http://localhost:8000/api/v1/auth/refresh \

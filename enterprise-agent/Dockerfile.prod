@@ -82,6 +82,7 @@ RUN /opt/venv/bin/python -m pip uninstall -y pip
 # 应用代码
 COPY app ./app
 COPY deploy/init.sql ./deploy/init.sql
+COPY deploy/schema_manifest.json deploy/demo_seed.sql ./deploy/
 COPY deploy/migrations ./deploy/migrations
 
 USER 65534:65534

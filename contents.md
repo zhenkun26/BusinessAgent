@@ -43,6 +43,7 @@ BusinessAgent/
 │   │   ├── 阶段性总结_S0工程交付基线.md # S0 文档交付与验证；运行时收尾尚未实施
 │   │   ├── 阶段性总结_C24安全验证前置.md # 安全入口前置交付与回归；整项尚未完成
 │   │   ├── 阶段性总结_C02模型依赖.md # 模型契约与离线检查；真实 API/Linux 验收阻塞
+│   │   ├── 阶段性总结_C03数据库迁移与初始化.md # 迁移/bootstrap 离线增量；真实数据库验收阻塞
 │   │   ├── 阶段性总结_C01部署产物与入口.md # 部署配置修复；目标运行验收阻塞
 │   │   ├── 模板-工程验收证据.md         # 版本、环境、命令/人工步骤、证据等级与结果模板
 │   │   ├── code-simplification/20260928-backend/ # FGR-01/FAT-01 审计、交付报告、验证脚本与 JSON 证据
@@ -125,7 +126,7 @@ BusinessAgent/
     │   ├── release-management/         # UAT、灰度与正式放行契约
     │   └── uat-replay/                 # G0 技术彩排与证据边界
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── engineering-delivery-closeout/ # S0/C24/C01 配置已交付；C01/C02 运行验收阻塞
+        ├── engineering-delivery-closeout/ # S0/C24/C01 配置已交付；C01/C02/C03 运行验收阻塞
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）
@@ -147,3 +148,5 @@ BusinessAgent/
 ```
 
 C02 候选详情：[模型 profile](enterprise-agent/deploy/MODEL_PROFILE.md)、[可选本地实验依赖（生产未采用）](enterprise-agent/deploy/requirements-ml.txt)、[启动校验](enterprise-agent/app/rag/model_profile.py)、[离线回归](enterprise-agent/tests/test_model_profile.py)、[外部适配器回归](enterprise-agent/tests/test_remote_models.py)。
+
+C03 候选详情：[数据库初始化手册](enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)、[版本清单](enterprise-agent/deploy/schema_manifest.json)、[显式迁移入口](enterprise-agent/app/core/db_bootstrap.py)、[schema 契约](enterprise-agent/app/core/schema_contract.py)、[演示种子](enterprise-agent/deploy/demo_seed.sql)、[离线回归](enterprise-agent/tests/test_db_bootstrap.py)。

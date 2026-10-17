@@ -2,7 +2,7 @@
 
 > 适用：智多星 v1.3.0；候选提交与镜像摘要必须另行记录。
 > 部署方式：Linux 单机 Docker Compose；工程候选配置，不代表已完成生产验收。
-> 更新日期：2026-10-17（C01 配置已交付；C02 外部模型离线增量已实现，真实 API/Linux 验收 BLOCKED）
+> 更新日期：2026-10-17（C01 配置、C02/C03 离线增量已实现；真实 API/PostgreSQL/Linux 验收 BLOCKED）
 >
 > C01 已统一镜像引用和访问入口；模型 profile、数据库初始化、多进程状态分别由 C02/C03/C09 验收。当前不能仅凭本指南宣称完整系统可交付。历史备份/恢复/清理章节含破坏性操作，**不属于本轮可执行验收步骤**；先遵守仓库非删除要求与 C22 复审。
 
@@ -70,7 +70,7 @@ git --version
 
 生产候选为 `bailian-deepseek-v1`：百炼北京向量与重排、DeepSeek Flash 默认与 Pro 复杂任务。账号、独立密钥、接口、计费与验收边界见 [MODEL_PROFILE.md](MODEL_PROFILE.md)。无需准备本地模型快照；保留旧卷与 BGE 集合。新向量必须写入独立集合，本轮不执行索引或迁移。
 
-仅复制到宿主 `/data/models` 不会自动出现在容器中。生产加载只读已有本地模型，不自动下载；未准备模型或使用占位值时必须拒绝启动。
+生产候选不加载本地权重；凭证、模型配置或付费探针授权未就绪时拒绝启动。
 
 ---
 
@@ -84,6 +84,7 @@ git --version
 
 ```env
 APP_ENV=prod
+AUTH_REQUIRE_PASSWORD=true
 
 # 必须取自经审查的 CI 候选及镜像仓库，不使用 latest 或可变 tag
 BUSINESSAGENT_IMAGE=ghcr.io/<owner>/businessagent@sha256:<64位实际摘要>
@@ -177,8 +178,10 @@ set -o pipefail
 docker compose --env-file .env.prod -f docker-compose.prod.yml config --format json \
   | python3 -I -B scripts/check_deployment_contract.py
 
-# 只有契约检查 PASS、模型/数据库配置确认且允许启动隔离实例后，才运行：
+# 只有契约检查 PASS 且允许启动隔离实例后，才拉取候选：
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull api worker
+# 先按 DATABASE_BOOTSTRAP.md 启动 PostgreSQL、显式迁移/status/admin；逐步检查退出码。
+# 数据库验收通过且 C02 付费探针另获授权后，才启动完整服务：
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-build
 
 # 监控可选；指标走 Compose 网络中的 api:8000/metrics
@@ -186,6 +189,8 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml --profile monitor
 ```
 
 契约检查失败必须停止，不继续执行启动行；它拒绝可变 tag、API/worker 不同镜像、应用 build、源码覆盖、宿主端口和 worker 误用 API 探针，但**不验证镜像是否存在、模型是否可用或业务启动成功**。缺失 Docker/Nginx 的环境不能执行后续验收。现有镜像构建与应用路径还需按 C24 的副作用规则复审；本次没有执行含删除的构建/清理命令。
+
+C03 已移除两套 Compose 的自动 SQL 初始化挂载。空库必须使用同一候选镜像的显式迁移入口；旧库只能在获准的隔离副本上显式接管，不能直接运行历史 SQL 或对当前库迁移。管理员、演示种子、版本漂移及恢复步骤见 [数据库初始化手册](DATABASE_BOOTSTRAP.md)。默认没有账户或通用口令；真实 PostgreSQL 执行与登录仍 BLOCKED。
 
 ### 4.3 验证部署
 
