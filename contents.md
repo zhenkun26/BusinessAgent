@@ -40,10 +40,11 @@ BusinessAgent/
 │   ├── 40-process/                     # 过程记录层：迭代过程与项目演进档案
 │   │   ├── README.md                   # 过程记录层索引
 │   │   ├── ROADMAP.md                  # 里程碑规划（已完成/进行中/挂起，单一事实源）
+│   │   ├── 阶段性总结_S0工程交付基线.md # S0 文档交付与验证；运行时收尾尚未实施
 │   │   ├── code-simplification/20260928-backend/ # FGR-01/FAT-01 审计、交付报告、验证脚本与 JSON 证据
 │   │   ├── delivery-followup/20260929/          # CI 保护设置快照与离线核验 JSON
 │   │   ├── 交付与离线推进记录-2026-09-29.md
-│   │   ├── 下一步执行阻塞清单-2026-09-29.md       # 当前待办导航
+│   │   ├── 下一步执行阻塞清单-2026-09-29.md       # 企业现场输入清单；工程顺序见 ROADMAP
 │   │   ├── DECISIONS.md                # 设计决策记录（背景/决策/放弃/改判条件）
 │   │   ├── ISSUES.md                   # 问题/坑/backlog（状态/优先级/根因/修复/验证）
 │   │   ├── 模板-阶段性总结.md            # 后续迭代阶段总结模板
@@ -58,7 +59,8 @@ BusinessAgent/
 │   │   ├── 灰度方案评审记录-2026-08-15.md  # 灰度方案条件评审（最短观察期4周，业务阈值待确认）
 │   │   ├── 优化方向分析-生产上线-2026-08-05.md  # explore 阶段产物：差距对照与候选 change 清单
 │   │   └── 临时备忘.md                  # 历史速查备忘（内容已拆入 ROADMAP/ISSUES，保留备查）
-│   ├── 50-engineering/                 # 工程文档层：索引 enterprise-agent 内部工程文档
+│   ├── 50-engineering/                 # 工程文档层：跨模块交付契约与实现文档索引
+│   │   ├── engineering-delivery-baseline.md # 工程交付边界、参考服务与验收证据契约
 │   │   └── README.md                   # 工程文档层索引（指向后端 README 与部署指南）
 │   ├── 60-knowledge/                   # 知识数据库层：索引 eval/sample_docs 知识数据
 │   │   └── README.md                   # 知识数据库层索引（知识文档 + 入库规范摘要）
@@ -97,7 +99,7 @@ BusinessAgent/
 │   └── .env.example                    # 环境变量模板（真实 .env 不入库）
 └── openspec/                           # openspec 需求演进体系
     ├── config.yaml                     # openspec 配置（schema + 项目 context）
-    ├── specs/                          # 主规格 13 项（已归档能力，长期资产）
+    ├── specs/                          # 主规格 15 项（既有规格；不代表企业现场已验收）
     │   ├── documentation-layout/       # 文档目录布局规格
     │   ├── version-control/            # 版本控制规格
     │   ├── progress-issue-records/     # 进度与问题记录规格
@@ -110,8 +112,11 @@ BusinessAgent/
     │   ├── quality-testing/            # 质量与测试规格
     │   ├── production-readiness/       # 生产就绪规格（边界/SLA/风险清单）
     │   ├── performance-resilience/     # 性能与容灾规格（压测/恢复演练/告警值班）
-    │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
+    │   ├── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
+    │   ├── release-management/         # UAT、灰度与正式放行契约
+    │   └── uat-replay/                 # G0 技术彩排与证据边界
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
+        ├── engineering-delivery-closeout/ # S0 文档完成；C01–C25 等待逐项授权与验收
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）
@@ -124,6 +129,7 @@ BusinessAgent/
             ├── 2026-08-06-security-hardening-plus/       # 安全加固 21/21（归档）
             ├── 2026-08-06-ticket-system-integration/     # 工单真实接入试点 16/16（归档，含 stub 验收记录）
             ├── 2026-08-15-fix-prod-image-pip-removal/   # 生产镜像 pip 清理顺序修复 4/4（归档）
+            ├── 2026-08-15-uat-replay-harness/          # G0 fixture 与只读回放器（归档）
             ├── 2026-09-28-simplify-backend-internals/  # FGR-01/FAT-01 内部简化与验证（已合并归档）
             ├── 2026-09-28-scan-image-before-publish/  # CI 先扫描后发布（已合并并发布镜像）
             ├── 2026-09-29-close-delivery-and-require-ci/ # 交付收尾、CI 必需检查与离线推进

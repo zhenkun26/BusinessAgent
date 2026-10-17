@@ -5,6 +5,188 @@
 
 ## 一、待办与开放问题
 
+<a id="engineering-closeout"></a>
+### 工程交付收尾差距 C01–C25（2026-10-17）
+
+本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下均为 **open，未修复、未按新标准验收**；现状来自 E0 静态调查，不能视为本轮运行时复现。P0/P1 均属于本次工程交付必须处理的范围。
+
+每项日期均为 2026-10-17，计划修复按对应缺口执行，修复与验证记录待逐项实施后补充。源码链接相对本文件；工程验收遵守[交付基线](../50-engineering/engineering-delivery-baseline.md)的证据等级与记录模板，执行依赖以 [ROADMAP](ROADMAP.md#engineering-closeout-stages) 为准。历史 fixed 条目保留当时证据，不自动覆盖本轮新发现。
+
+<a id="c01"></a>
+#### C01 · P1 · 部署产物与入口一致
+
+- **现状/证据**：[生产 Compose](../../enterprise-agent/docker-compose.prod.yml) 使用 `Dockerfile` 并挂载源码；CI 构建 `Dockerfile.prod`；[Nginx](../../enterprise-agent/deploy/nginx.conf) 根路径返回文本，未接通 `/ui` 等交付入口。
+- **缺口/原因**：构建、验收、运行产物不一致；不能按生产入口复现完整产品。
+- **验收**：从文档在隔离 Linux 主机启动同摘要 API/worker 镜像，无源码挂载；从声明的入口完成 UI、登录、SSE、API 文档与健康/就绪访问；内部指标端点采用明确访问边界；记录镜像摘要、入口与启动检查，不以容器 running 代替功能通过。
+
+<a id="c02"></a>
+#### C02 · P1 · 模型与依赖 profile 匹配
+
+- **现状/证据**：[Dockerfile.prod](../../enterprise-agent/Dockerfile.prod) 默认不安装 ML，而[配置](../../enterprise-agent/app/config.py)默认使用本地 embedding/reranker；可选 ML 分支的 `--mount` 位于 shell 条件内部，尚无该分支构建通过证据。
+- **缺口/原因**：默认配置与镜像能力不匹配；开发/生产依赖集合也需按 checkpoint 等实际路径核对。
+- **验收**：选择并记录一套完整模型 profile，包含精确模型标识、依赖、资源与网络条件；候选镜像真实构建、加载 embedding/reranker、完成 LLM 问答；缺失模型/配置时启动或就绪明确失败；文档中的可选配置若未测必须标明不支持或未验收。新增依赖须先确认。
+
+<a id="c03"></a>
+#### C03 · P0 · 数据库迁移与初始化
+
+- **现状/证据**：[init.sql](../../enterprise-agent/deploy/init.sql) 混合 schema 与演示账户/业务数据；[database.py](../../enterprise-agent/app/core/database.py) 初始化主要检查连接；已有[迁移目录](../../enterprise-agent/deploy/migrations)但缺少统一版本执行约束。
+- **缺口/原因**：空库、已有库升级、重复启动和生产 bootstrap 缺少统一可复现路径。
+- **验收**：隔离空库初始化及已有版本副本升级均通过，迁移有版本记录并可重复安全执行；迁移失败不进入 ready；默认交付不自动生成演示账户/默认口令，演示种子显式启用；记录管理员 bootstrap 与回退方法，已有业务数据保留。不对当前库执行迁移。
+
+<a id="c04"></a>
+#### C04 · P0 · 会话归属校验
+
+- **现状/证据**：[chat.py](../../enterprise-agent/app/api/chat.py) 普通/流式请求接受 session_id，历史和反馈缺少一致归属校验；取消路径已有 owner/admin 检查。
+- **缺口/原因**：会话读写入口未统一按身份授权，存在跨用户读取或修改的静态风险。
+- **验收**：A/B 两用户针对普通对话、SSE、历史、反馈、取消交叉访问；未授权请求全部拒绝且不改变 session/checkpoint/反馈数据；合法本人流程通过；管理员例外逐接口定义并测试；不存在与无权访问的响应不泄漏敏感信息。
+
+<a id="c05"></a>
+#### C05 · P0 · 认证失败闭合与运行时授权
+
+- **现状/证据**：[rbac.py](../../enterprise-agent/app/security/rbac.py) DB 查询异常时回退 JWT 身份；[config.py](../../enterprise-agent/app/config.py) 生产检查未强制全部认证开关；[approval.py](../../enterprise-agent/app/api/approval.py) 执行阶段的账户有效性检查不足。
+- **缺口/原因**：身份存储故障、禁用/降权或等待审批期间权限变化可能继续获得授权。
+- **验收**：数据库不可用、账户删除/禁用/降权、token 过期/伪造、危险生产配置分别覆盖；需要最新身份的操作拒绝且不触发业务副作用；审批执行时重新核验发起人及批准人权限；恢复后合法请求通过；不以旧 JWT 身份兜底绕过校验。
+
+<a id="c06"></a>
+#### C06 · P0 · 凭证生命周期、脱敏与 HTML 失败安全
+
+- **现状/证据**：[execution.py](../../enterprise-agent/app/agents/execution.py) 将 JWT 写入审批记录，图状态也携带 JWT；[审计](../../enterprise-agent/app/observability/audit.py)与[HTTP 适配](../../enterprise-agent/app/tools/http_adapter.py)存在原文记录路径；[UI](../../enterprise-agent/app/static/index.html)正常路径有 DOMPurify，但渲染异常回退原始内容并交给 v-html。
+- **缺口/原因**：持久化凭证与不统一的输出脱敏扩大暴露面；渲染失败路径不安全。
+- **验收**：定义可审计的执行授权机制，审批/checkpoint 不持久化可复用明文 JWT；用标记凭证验证 DB、日志、错误响应和审计无泄漏；渲染器/净化器缺失或抛错时只显示安全文本；注入样例不执行脚本；明确浏览器 token 存储与退出/过期行为。
+
+<a id="c07"></a>
+#### C07 · P0 · 检索权限与表达式编码
+
+- **现状/证据**：[vector_store.py](../../enterprise-agent/app/rag/vector_store.py) 多处直接拼接角色/部门/类型/文档 ID 表达式；[degradation.py](../../enterprise-agent/app/rag/degradation.py) 部分路径已有转义；ROLE_NAMESPACES 未统一进入主检索。
+- **缺口/原因**：各检索/降级路径隔离语义不一致，输入编码不足。
+- **验收**：固定角色 × 部门 × 共享区矩阵，向量、关键词和 PG 降级全部遵守；引号、转义、运算符等输入不能扩大权限；结果正文、引用与来源元数据均无越权；manager 跨部门策略明确，声明不支持时必须拒绝，不能仅依赖未接入的常量。
+
+<a id="c08"></a>
+#### C08 · P0 · 请求上下文、历史与子任务依赖
+
+- **现状/证据**：[executor.py](../../enterprise-agent/app/graph/executor.py) 缓存 ExecutionAgent 的键不包含会话/token，而实例保存两者；[dispatcher.py](../../enterprise-agent/app/graph/dispatcher.py) Send 子状态不含历史，且未消费 depends_on。
+- **缺口/原因**：请求级状态被实例缓存；历史与依赖字段未贯通调度语义。
+- **验收**：同用户不同会话、刷新 token 及并发请求不串上下文；多轮知识问答收到正确历史；需要前置结果的任务按依赖执行，或在未支持时明确拒绝；不能静默并行执行有依赖的副作用。完整通用 DAG 可延期。
+
+<a id="c09"></a>
+#### C09 · P1 · 跨进程运行状态
+
+- **现状/证据**：[cancellation.py](../../enterprise-agent/app/core/cancellation.py)、[auth.py](../../enterprise-agent/app/api/auth.py) 的 SSO state、[registry.py](../../enterprise-agent/app/prompts/registry.py) 缓存均为进程内；生产 Compose 配置多个 API worker。
+- **缺口/原因**：负载分配后取消、SSO 回调与 Prompt 激活可能由另一进程处理。
+- **验收**：至少两个 API 进程下，跨进程取消、SSO state 单次消费与 Prompt 新版本可见性通过；重启/过期行为明确。若选择只支持单 API 进程，先确认收窄范围，并同步部署、入口和文档，不能保留多进程支持声明。
+
+<a id="c10"></a>
+#### C10 · P1 · checkpoint 持久化与故障语义
+
+- **现状/证据**：[checkpointer.py](../../enterprise-agent/app/graph/checkpointer.py) 缓存初始化时选定的后端；存在 Redis/PG/Memory 路径，Memory 不持久，运行时故障切换与同会话并发一致性尚缺完整证据。
+- **缺口/原因**：初始化回退不能证明运行中无损切换，状态留存和并发边界未验收。
+- **验收**：真实后端跨进程/重启恢复、TTL、同会话并发写入和后端断连分别验证；记录是否允许切换及如何处理旧状态；持久化不可用必须显式报错/降级且不声称已恢复；支持的 PG 路径按实际安装版本测试。
+
+<a id="c11"></a>
+#### C11 · P0 · 审批原子领取、过期与执行状态
+
+- **现状/证据**：[approval.py](../../enterprise-agent/app/api/approval.py) 先读 pending 再执行/更新，缺少原子领取与一致过期判定；失败可能仍记 executed；空工具分支返回二元组而调用方解包三元组。
+- **缺口/原因**：重复审批/超时任务竞争可能重复执行，批准和执行成功语义混用。
+- **验收**：并发批准、重复请求、拒绝与超时竞争只产生合法的一次状态转换及至多一次业务动作；已过期不能执行；空工具、部分失败、重试/补偿失败均有明确状态；UI/API/审计一致，失败不得显示成功。复用 C12–C14 的恢复证据。
+
+<a id="c12"></a>
+#### C12 · P0 · 工具幂等与安全重试
+
+- **现状/证据**：[execution.py](../../enterprise-agent/app/agents/execution.py) request_id 具有秒级碰撞风险；[crm.py](../../enterprise-agent/app/tools/crm.py) 动作索引可能默认 0；[Saga](../../enterprise-agent/app/tools/saga.py)复用 context；[HTTP 适配](../../enterprise-agent/app/tools/http_adapter.py)对写请求也重试；[mail.py](../../enterprise-agent/app/tools/mail.py)缺少充分的回执与幂等保证。
+- **缺口/原因**：同一动作重放与不同动作隔离缺少持久身份；网络失败无法区分未执行和已执行未收到响应。
+- **验收**：每个逻辑动作有持久唯一 ID；同动作重试复用键，不同动作不共享键；响应丢失/5xx/重启重放至多产生一次外部动作；缺少幂等或查询契约时禁止盲目重试非幂等写入；缺回执不能显示成功；工具网关校验所需角色和审批执行授权。
+
+<a id="c13"></a>
+#### C13 · P1 · Saga 持久化与故障恢复
+
+- **现状/证据**：[saga.py](../../enterprise-agent/app/tools/saga.py)主要在内存顺序执行和逆向补偿；[saga_retry.py](../../enterprise-agent/app/core/saga_retry.py)读取 saga_transactions，但应用未发现对应生产写入；重试补偿顺序也需统一。
+- **缺口/原因**：恢复消费者与实际执行记录未接通，进程崩溃后无法依靠内存恢复。
+- **验收**：真实执行写入事务/步骤/操作 ID/结果与补偿状态；每个关键崩溃点重启后可恢复；按依赖逆序补偿且重试不重复副作用；无法撤回或补偿失败保持人工处理状态，不能报告回滚成功；审计可关联原始执行。
+
+<a id="c14"></a>
+#### C14 · P1 · 队列可靠性与 worker 初始化
+
+- **现状/证据**：[task_queue.py](../../enterprise-agent/app/core/task_queue.py) BRPOP 后处理，缺少 ack/in-flight 恢复和死信；应用生产路径未连接 enqueue_task；[worker.py](../../enterprise-agent/app/worker.py)未完整初始化工具注册与 Milvus。
+- **缺口/原因**：取出后崩溃可能丢任务，Redis 断连可能终止消费者，空 worker 无法执行其承诺任务。
+- **验收**：实际业务生产任务并由独立 worker 消费；取出前后/执行中崩溃、Redis 断连重连、超限失败均可追踪恢复或进入可查询失败队列；结合幂等避免重复副作用；干净启动能执行文档入库与 Saga 恢复，消费者失活可被探测。
+
+<a id="c15"></a>
+#### C15 · P1 · 知识发布与索引一致性
+
+- **现状/证据**：[ingest.py](../../enterprise-agent/app/rag/ingest.py)先向量再 PG 记录；[admin.py](../../enterprise-agent/app/api/admin.py)审批/拒绝缺少一致前置状态约束；向量 insert 与内容 hash 未形成完整幂等发布。
+- **缺口/原因**：重复审批、拒绝已发布文档、部分入库失败可能留下重复或越权可见内容。
+- **验收**：重复/并发发布只产生一个有效版本；更新后旧版本不被检索；拒绝/停用文档不可见；PG 或向量写入任一失败可追踪、重试且不暴露半成品；权限过滤及 ledger/vector 一致性验证通过。采用版本/状态控制，不在验收中自动删除文件或数据卷。
+
+<a id="c16"></a>
+#### C16 · P1 · 分析数据适配一致
+
+- **现状/证据**：[analysis.py](../../enterprise-agent/app/agents/analysis.py)调用 get_all_orders/customers；[crm.py](../../enterprise-agent/app/tools/crm.py)这些函数仍返回内置样例，切 HTTP provider 不切换分析来源。
+- **缺口/原因**：工具查询与分析报表的数据提供方不一致。
+- **验收**：替换参考 CRM 数据后，查询与 Python 聚合数字一致变化；空数据、分页、字段异常、权限和服务故障有明确结果；LLM 不能替造数值；输出注明数据来源和时间范围，Mock 模式显式标识。
+
+<a id="c17"></a>
+#### C17 · P1 · RAG 质量与指标口径
+
+- **现状/证据**：[run_eval.py](../../enterprise-agent/eval/run_eval.py)保留 122 条评测，生成失败单独计数但不进入覆盖率分母；[degradation.py](../../enterprise-agent/app/rag/degradation.py)部分名为 BM25 的路径实际为关键词匹配。
+- **缺口/原因**：质量指标容易被误读为全样本事实正确率，检索命名与行为不完全一致。
+- **验收**：保留全部样本和来源，明确分母、失败/跳过与逐样本归因；关键词覆盖 ≥0.85，同时核对引用正确性、无答案拒答和跨部门负例；不能靠排除失败样本或改宽预期制造通过；按实际算法命名；在 C02 已验收 profile 上复测。
+
+<a id="c18"></a>
+#### C18 · P1 · 完整参考 HTTP 业务集成
+
+- **现状/证据**：[CRM/邮件契约测试](../../enterprise-agent/tests/test_crm_mail_external.py)主要用 MockTransport；已有[工单 stub](../../enterprise-agent/eval/ticket_stub_server.py)与工具层 harness；缺完整应用与独立参考服务链路证据。
+- **缺口/原因**：工具层契约不能证明登录、规划、审批、外部写入、审计和恢复接通。
+- **验收**：先冻结工程基线 §3 契约；通过应用入口在独立参考 HTTP 服务完成查询、创建、更新、审批邮件及失败/补偿；核对服务端持久记录、幂等键和审计；真实网络超时/鉴权失败被正确处理；邮件只到受控收件器，撤回未支持时明确失败。不得勾选真实企业提供方确认任务。
+
+<a id="c19"></a>
+#### C19 · P1 · 受控 IdP 的 SSO 完整链路
+
+- **现状/证据**：[auth.py](../../enterprise-agent/app/api/auth.py)已有 OIDC callback/验签/账户映射和[单测](../../enterprise-agent/tests/test_sso_auth.py)，尚缺浏览器与独立 IdP 的完整验收。
+- **缺口/原因**：重定向、claims、密钥变化和跨进程状态未形成一体化证据。
+- **验收**：受控 IdP 真实签发 token，浏览器完成登录/回调/本地身份映射；错误签名、issuer/audience/nonce/state、过期、重放、轮换和禁用账户分别验证；首次登录最小权限且无映射串号；IdP 故障不削弱本地登录安全；记录为参考环境，非企业 SSO 验收。
+
+<a id="c20"></a>
+#### C20 · P1 · UI 角色流程与前端交付
+
+- **现状/证据**：[index.html](../../enterprise-agent/app/static/index.html)使用 CDN 库和 localStorage token；功能已有但当前镜像/入口的完整人工验收缺失。
+- **缺口/原因**：依赖版本和可达性、各角色实际操作、错误恢复尚未在目标环境确认。
+- **验收**：固定/可托管前端依赖；从交付入口按角色执行登录/退出、流式对话/取消/历史、审批批准/拒绝/失败、适用知识/用户/Prompt 操作；越权按钮及 API 均受保护；断网/过期/重复点击不显示假成功；记录浏览器版本、步骤与实际证据。无 UI 的管理功能可明确文档化 API，不默认新增页面。
+
+<a id="c21"></a>
+#### C21 · P1 · 就绪、审计、指标与告警
+
+- **现状/证据**：[main.py](../../enterprise-agent/app/main.py) ready 未按依赖失败返回 503；[metrics.py](../../enterprise-agent/app/observability/metrics.py)存在原始路径标签与进程内统计；[audit.py](../../enterprise-agent/app/observability/audit.py)本地缓存消费有文件删除，API/worker 缓存未形成共享持久恢复；告警接收闭环缺证据。
+- **缺口/原因**：进程存活与能服务混淆，审计积压/消费者故障可能不可见，多进程指标可能不完整。
+- **验收**：必需依赖失败 ready=503、恢复后 200；worker 故障可见；指标使用稳定路由标签并覆盖支持进程数，SSE 完整耗时口径明确；请求/审批/工具/worker trace 与审计可关联；DB 故障后审计可恢复且不重复/丢失；在不删除文件的路径下运行；受控告警接收器实际收到故障及恢复通知。
+
+<a id="c22"></a>
+#### C22 · P1 · 当前版本备份恢复与回退
+
+- **现状/证据**：[backup.sh](../../enterprise-agent/scripts/backup.sh)存在自动删除和暂停后异常未必恢复的路径；已有 2026-08-06 演练记录，但不等于当前候选验收。
+- **缺口/原因**：安全执行、失败恢复和当前版本数据一致性需重新验证。
+- **验收**：先审查并提供不删除的备份/恢复入口；隔离副本恢复 PG、Milvus 元数据/对象及必要状态，核对记录数、内容和真实检索；失败不会让原服务永久暂停；实测 RTO ≤1h、RPO ≤24h 并明确备份周期；验证应用/迁移回退边界，资产保留交用户处理，不触碰当前业务库。
+
+<a id="c23"></a>
+#### C23 · P1 · 规定负载下的性能与容量
+
+- **现状/证据**：[load_test_k6.js](../../enterprise-agent/eval/load_test_k6.js)业务请求主要为问答，断言偏响应结构；历史流量含大量 health，不覆盖完整业务工作负载。
+- **缺口/原因**：未形成目标镜像/模型下可重复的业务容量与长链路稳定性证据。
+- **验收**：执行前冻结硬件、模型、数据量、角色、并发、业务比例和阈值；至少 30 分钟混合链路运行且校验业务结果；按接口记录 p95/p99/错误率，分开 TTFT、完整响应和队列延迟；记录资源与积压恢复；遵守工程基线 §5，未达标如实 FAIL，不以 health 总吞吐代表业务容量。
+
+<a id="c24"></a>
+#### C24 · P1 · 安全验证入口与最终证据分层
+
+- **现状/证据**：既有单测、[eval](../../enterprise-agent/eval)与 CI；[run_ticket_acceptance.py](../../enterprise-agent/eval/run_ticket_acceptance.py)包含 rmtree，备份/临时目录清理也需审查；历史 CI 不覆盖新收尾项完整验收。
+- **缺口/原因**：缺少当前最终候选的单元/契约、完整参考环境、人工交互三层证据，部分脚本不能直接按当前安全规则运行。
+- **验收**：S1 先建立可安全执行、不删除的验证入口与脱敏记录模板；逐项补针对真实缺陷的回归；S7 对最终候选运行 E1/E2 并完成适用 E3，逐条关联验收标准、提交/镜像与证据；未跑部分明确 BLOCKED；不能只追覆盖率或以 Mock 代替完整链路。前置完成不等于 C24 完成。
+
+<a id="c25"></a>
+#### C25 · P1 · Git、文档、OpenSpec 与交付结论
+
+- **现状/证据**：本地为 `codex/delivery-ci-gates` / `153f786`；存在 556 项历史权限差异；部分导航/上下文仍用旧阶段计数，历史归档与当前验收边界需区分。
+- **缺口/原因**：提交、PR、文档声明、规格与最终可执行产物尚未形成一个收尾候选。
+- **验收**：S0 登记本清单及边界；S7 复核最终 Git/PR 与 CI，完成 C01–C24 证据映射、支持面/版本/迁移/操作文档一致性和 OpenSpec 严格校验；所有本轮变更审阅提交且不夹带历史权限差异；发布版本与归档按实际完成状态处理，推送/合并/发布分别获得授权；工程完成与企业未验证同时写明。S0 文档完成不关闭 C25。
+
 ### I-12 备份恢复演练：MinIO 备份缺口发现与收口（2026-08-05 发现，2026-08-06 复演关闭）
 
 - 状态：fixed（2026-08-06 复演验证通过）· 优先级 P1

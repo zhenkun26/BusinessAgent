@@ -4,9 +4,9 @@ schema: spec-driven
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 context: |
-  「智多星——企业级多智能体平台」内部落地项目：基于 LangChain + LangGraph + Milvus
-  的企业级多 Agent 系统，员工用自然语言完成知识问答、数据分析、业务执行三类工作，核心能力
-  已在内部业务场景中完成验证。
+  「智多星——企业级多智能体平台」工程实践项目：基于 LangChain + LangGraph + Milvus
+  的多 Agent 系统，以自然语言完成知识问答、数据分析、业务执行三类工作。
+  当前没有真实企业使用；自动化、模拟与参考环境证据必须与企业现场验证分开。
 
   技术栈：Python 3.11+ / FastAPI / LangGraph 1.2+ / LangChain 1.x / Milvus 2.4 / PostgreSQL 16 /
   Redis 7(redis-stack-server) / Ollama 本地 qwen3.5:4b / bge-m3 与 bge-reranker 本地模型 /
@@ -21,14 +21,15 @@ context: |
   + 90-archive 归档)；面试与演示资产在 interview/；根目录 contents.md 为目录树索引、
   CHANGELOG.md 为版本变更、README.md 为唯一导航入口；ROADMAP/DECISIONS/ISSUES 各为单一事实源。
 
-  当前状态：两个 openspec change 已全部归档(2026-08-04)——documentation-baseline(文档基线)与
-  complete-business-processes(业务闭环补齐：知识运营/审批超时/重规划/外部系统/用户生命周期/测试闭环)；
-  主规格 10 项能力见 openspec/specs/；新需求按 propose → apply → archive 重新开启。
-  工具集成(2026-08-05)：openspec init 已完成 Kimi Code(.kimi-code/skills/)与 Codex(.codex/skills/)
-  双工具集成，各 6 个工作流 skill；当前处于 propose 阶段——按生产上线导向已创建 7 个 change：
-  production-readiness-baseline / rag-answer-quality(P0)、load-test-and-dr-drill /
-  security-hardening-plus(P1)、ticket-system-integration / crm-mail-sso-integration(P2)、
-  uat-and-ga-rollout(P3)，候选依据见 docs/40-process/优化方向分析-生产上线-2026-08-05.md。
+  当前状态(2026-10-17)：主规格 15 项、已归档 change 15 项；active change 为
+  crm-mail-sso-integration、uat-and-ga-rollout 与 engineering-delivery-closeout。
+  本轮仅完成 engineering-delivery-closeout 的 S0 文档与规划，之后等待用户逐项确认，
+  不自动改代码或启动后续阶段。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
+  C01-C25 的现状/缺口/验收以 ISSUES 为准，S0-S7 顺序以 ROADMAP 为准。
+  真实企业联调、UAT、灰度与全量放行仍缺资源，不用参考服务成功替代这些任务。
+  OpenSpec CLI 本机不可用；结构检查不能替代严格校验，归档前须补齐。
+  Kimi Code(.kimi-code/skills/)与 Codex(.codex/skills/)各有 6 个工作流 skill；
+  新需求遵守 explore → propose → apply → archive，运行时契约变更先补对应 delta。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

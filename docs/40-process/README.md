@@ -5,6 +5,8 @@
 ## 内容
 
 - `ROADMAP.md`：里程碑规划（已完成 / 进行中 / 挂起）
+- [工程交付基线](../50-engineering/engineering-delivery-baseline.md)：本轮交付边界、证据分层与完成条件；逐项差距见 [ISSUES C01–C25](ISSUES.md#engineering-closeout)，阶段顺序见 [ROADMAP S0–S7](ROADMAP.md#engineering-closeout-stages)
+- [阶段性总结_S0工程交付基线.md](阶段性总结_S0工程交付基线.md)：S0 文档交付、验证与限制；完成后等待用户确认
 - [code-simplification/20260928-backend/cleanup-report.md](code-simplification/20260928-backend/cleanup-report.md)：FGR-01/FAT-01 简化交付、独立复审、基线与最终验证及限制；审计与 JSON 证据同目录
 - [code-simplification/20260928-backend/ci-publication-report.md](code-simplification/20260928-backend/ci-publication-report.md)：后续 CI 修复：镜像扫描通过后才发布；授权范围、离线验证与 GitHub 集成限制
 - `DECISIONS.md`：设计决策记录（背景 / 决策 / 放弃 / 改判条件）
@@ -21,7 +23,7 @@
 - `优化方向分析-生产上线-2026-08-05.md`：explore 阶段产物——评审差距 vs 当前进度对照与候选 change 清单
 
 - [交付与离线推进记录-2026-09-29.md](交付与离线推进记录-2026-09-29.md)：PR #1 最终交付、GitHub 必需检查和离线准备度证据
-- [下一步执行阻塞清单-2026-09-29.md](下一步执行阻塞清单-2026-09-29.md)：当前待办输入、负责角色、完成标准和接入顺序
+- [下一步执行阻塞清单-2026-09-29.md](下一步执行阻塞清单-2026-09-29.md)：企业现场待办输入与负责角色；工程收尾当前顺序以 ROADMAP S0–S7 为准
 
 ## 约定
 

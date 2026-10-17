@@ -2,8 +2,8 @@
 
 ## 项目概览
 
-本仓库是「智多星——企业级多智能体平台」的内部落地项目：基于
-LangChain + LangGraph + Milvus 构建的多 Agent 系统，核心能力已在内部业务场景中完成验证。后端代码位于
+本仓库是「智多星——企业级多智能体平台」的工程实践项目：基于
+LangChain + LangGraph + Milvus 构建的多 Agent 系统。当前没有真实企业使用，工程验证与企业现场生产验证须分开记录；交付边界见 `docs/50-engineering/engineering-delivery-baseline.md`。后端代码位于
 `enterprise-agent/`，文档统一存放在 `docs/`（六大层分类），面试与演示资产
 独立存放在 `interview/`。
 
@@ -59,7 +59,8 @@ python -m eval.run_w9_tracing
   流程规则单一事实源为 `openspec/specs/openspec-normalization/spec.md`。
 - AI 工具集成：Kimi Code（`.kimi-code/skills/`）与 Codex（`.codex/skills/`）均已
   由 `openspec init` 生成 6 个工作流 skill；CLI 升级后用 `openspec update` 刷新。
-- 主规格 10 项见 `openspec/specs/`；新需求在 `openspec/changes/` 下开启 change。
+- 主规格 15 项见 `openspec/specs/`（2026-10-17）；新需求在 `openspec/changes/` 下开启 change。
+- 当前工程收尾 change 为 `engineering-delivery-closeout`：S0 仅文档与规划，完成后等待用户确认，再逐个 C 项推进；顺序以 ROADMAP 为准，验收以 ISSUES C01–C25 为准。真实企业接入与 UAT/灰度两个 change 保持独立，不以参考环境通过替代。
 
 ## 关键文档
 

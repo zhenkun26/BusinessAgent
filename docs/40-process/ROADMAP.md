@@ -1,7 +1,30 @@
 # ROADMAP · 里程碑规划
 
 > 进度规划的单一事实源。与 README、openspec change 状态保持一致。
-> 更新日期:2026-09-29
+> 更新日期:2026-10-17
+> 当前主线：S0 工程交付计划已落盘，等待用户确认下一项；历史完成记录不代表按新基线验收通过。
+
+<a id="engineering-closeout-stages"></a>
+## 当前工程收尾：S0–S7
+
+范围依据：[工程交付基线](../50-engineering/engineering-delivery-baseline.md)。逐项现状与验收唯一记录在 [ISSUES C01–C25](ISSUES.md#engineering-closeout)，任务勾选见 [OpenSpec tasks](../../openspec/changes/engineering-delivery-closeout/tasks.md)。
+
+| 阶段 | 执行顺序 / 依赖 | 阶段出口 | 当前状态 |
+| --- | --- | --- | --- |
+| S0 冻结范围 | 交付基线、C01–C25、规格、决策与索引 | 文档结构/链接/范围检查；明确验证限制；暂停等待用户确认 | 文档完成；CLI 严格校验 BLOCKED；待用户确认 |
+| S1 可复现环境 | C24 安全验证入口前置 → C01 → C02 → C03 | 隔离环境能按文档启动同一候选产物、模型与数据库 | 未开始 |
+| S2 权限与敏感信息 | S1 后，C04 → C05 → C06 → C07 | 会话、身份、凭证、检索边界验收通过后，才进入受控业务写入 | 未开始 |
+| S3 会话与运行状态 | S2 后，C08 → C09 → C10 | 上下文不串用，支持进程数与状态持久化声明符合实测 | 未开始 |
+| S4 执行一致性与恢复 | S3 后，先 C18 参考契约前置，再 C12 → C14 → C13 → C11 | 幂等、队列、Saga 和审批竞争/崩溃验证通过 | 未开始 |
+| S5 数据与参考集成 | S4 后，C15 → C16 → C17 → C18 完整链路 → C19 | 数据来源一致，质量指标透明，参考 HTTP/IdP 经应用入口通过 | 未开始 |
+| S6 用户与运维 | S5 后，C20 → C21 → C22 → C23 | 人工流程、监控/审计、恢复、规定负载测试形成证据 | 未开始 |
+| S7 最终候选 | C24 最终回归 → C25 记录收口 → 规格同步/归档检查 | 最终提交/镜像与证据一致，无范围内 P0/P1；严格校验通过 | 未开始 |
+
+**执行规则**：阶段只是分组，每次仅推进用户确认的一个 C 项；完成后交付范围、检查、人工验收与限制，等待下一项确认。C24/C18/C25 的前置部分不计整项完成。若运行时契约变化，先补对应 delta/design 再实施。S0 授权不延伸为 S1 实施、安装依赖、推送、合并或部署授权。
+
+真实企业集成、UAT、安全验收、四周灰度与签署继续由既有两个 active change 管理，不是 S0 的完成项，也不以参考服务替代。下一步仅在用户确认后进入 **C24 安全验证入口前置部分**。
+
+本轮验证、限制与交付状态见 [S0 阶段总结](阶段性总结_S0工程交付基线.md)。
 
 ## 一、已完成阶段（历史里程碑）
 
@@ -32,7 +55,7 @@
 | 后端内部简化 | 2026-09-29 | ✅ 已合并并发布 | PR #1 合并为 `2d4bfc1`；Python 3.11/3.13 各 143 项测试通过；仅 FGR-01/FAT-01，OpenSpec 已归档；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
 | CI 镜像发布门禁修复 | 2026-09-29 | ✅ 已合并并发布 | 先扫描后发布同一镜像；主分支 CI `36522224892` 全部通过，GHCR 提交标签与 latest 摘要一致；OpenSpec 已归档，未部署生产；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
 | 交付收尾与 CI 必需检查 | 2026-09-29 | ✅ 必需检查生效，离线核验完成 | strict 模式绑定三个 GitHub Actions 检查；G0 16/16 通过、GATE-01 自动回归证据就绪；保持真实 UAT/联调/灰度阻塞；[推进记录](交付与离线推进记录-2026-09-29.md) |
-| 中英文 README | 2026-10-17 | ✅ 本地文档检查；待 PR 集成 | 中文 README 与完整英文翻译、互链及目录索引；各 21 个仓库链接/3 个锚点有效，11 组代码块与配置/链接目标一致，16 段 Shell 语法检查通过；未安装依赖或启动服务，OpenSpec CLI 不可用；[变更与验证记录](../../openspec/changes/archive/2026-10-17-refresh-bilingual-readmes/tasks.md) |
+| 中英文 README | 2026-10-17 | ✅ PR #3 已合并 | 合并提交 `065bdf7`；中文 README 与完整英文翻译、互链及目录索引；原文档检查见[变更与验证记录](../../openspec/changes/archive/2026-10-17-refresh-bilingual-readmes/tasks.md)，不代表运行验收 |
 
 ## 二、进行中
 
@@ -45,14 +68,15 @@
 | ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
 | ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
 | ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
-| ~~fix-vulnerable-runtime-dependencies~~ | P1 | ✅ 已归档 2026-10-17；待 PR 集成 | `492882c` 修复 4 个既有依赖；CI 39012279790 的 Python 3.11/3.13 各 143 测试、gitleaks、pip-audit、生产镜像构建及 Trivy 全部通过；最终记录提交与批准审核仍需核验；[记录](../../openspec/changes/archive/2026-10-17-fix-vulnerable-runtime-dependencies/tasks.md) |
+| ~~fix-vulnerable-runtime-dependencies~~ | P1 | ✅ 已归档，PR #3 已合并 | `492882c` 修复 4 个既有依赖，随 `065bdf7` 合入；既有 CI 证据及限制见[记录](../../openspec/changes/archive/2026-10-17-fix-vulnerable-runtime-dependencies/tasks.md)，不是新收尾基线的验收 |
+| engineering-delivery-closeout | P0/P1 | S0 文档完成，后续未实施 | 见本文件顶部 S0–S7；25 项工程验收全部保持 open，等待逐项确认 |
 | crm-mail-sso-integration | P2 | 实施中 9/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
 | uat-and-ga-rollout | P3 | 实施中 8/15 | UAT、灰度、上线门槛检查单（灰度方案条件评审通过，最短观察期 4 周；UAT 资源核验仍 BLOCKED） |
 | ~~fix-prod-image-pip-removal~~ | P1 | ✅ 已归档 2026-08-15 | 修复生产镜像 runner 阶段 pip 清理顺序；CI run 31890705614 已通过 Python 3.11/3.13、生产镜像构建与 Trivy 扫描 |
 
 ## 三、挂起事项（P3，暂不上线）
 
-当前下一步执行顺序与外部阻塞见 `下一步执行阻塞清单-2026-09-29.md`；正式 UAT、真实外部接入、真实灰度和全量放行均不得跳过前置证据。
+工程收尾的当前执行顺序见本文件顶部 S0–S7；企业现场所需外部输入继续参考 `下一步执行阻塞清单-2026-09-29.md`。正式 UAT、真实外部接入、真实灰度和全量放行均不得跳过前置证据。
 
 - [x] ~~压测（vegeta/k6）~~（✅ 2026-08-05 随 load-test-and-dr-drill 落地：k6 阶梯压测已执行，报告见 `eval/results/`，SLA 初值已回访，I-01 关闭）
 - [ ] UAT + 安全测试（含 Prompt 注入攻击面实测）——已由 uat-and-ga-rollout 提案承接

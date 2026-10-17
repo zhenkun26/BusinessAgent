@@ -10,6 +10,10 @@
 
 ## 未发布（Unreleased）
 
+### 工程收尾规划（2026-10-17）
+
+- 完成 S0 文档增量：交付基线、ISSUES C01–C25 差距与验收、ROADMAP S0–S7 顺序及 `engineering-delivery-closeout` OpenSpec 变更。仅文档与规格，应用版本仍为 1.3.0；所有运行时收尾项尚未实施，真实企业验收与上线门槛仍阻塞。验证与限制见 [S0 阶段总结](docs/40-process/阶段性总结_S0工程交付基线.md)。
+
 ### 新增
 
 - 工单真实接入试点（ticket-system-integration 16/16 归档，2026-08-06）：`CreateTicketTool` 幂等键（`ticket-{request_id}-{uuid8}`，经 `Idempotency-Key` 头传递并写入 `side_effects` 供审计关联）；Create/Update Saga 补偿真实化（http 提供方下 PATCH 关闭工单并标注 `saga_compensation` / 恢复 `old_values`，mock 通道零变更）；审计补齐 `provider`、重试次数与幂等键字段；`http_adapter` 新增 keyword-only `meta` 输出参数（向后兼容）。
