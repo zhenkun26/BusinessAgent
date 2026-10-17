@@ -78,7 +78,7 @@ async def test_should_return_draft_candidates_when_querying_candidate_list():
 async def test_should_reject_candidate_with_reason_when_admin_rejects():
     """Given draft 候选, When 管理员拒绝并填写原因,
     Then 状态置 rejected,记录审核人/时间/原因,且 SQL 参数化"""
-    candidate = FakeRow(document_id="doc_fb_abc")
+    candidate = FakeRow(document_id="doc_fb_abc", status="draft")
     # execute 顺序:查存在性 → 更新状态 → 审计(审计走独立 session,此处补一个空响应)
     session = FakeSession(responses=[FakeResult([candidate]), FakeResult()])
     app = _build_test_app(session)
@@ -158,51 +158,31 @@ async def test_should_return_paginated_ledger_when_querying_documents():
 
 
 @pytest.mark.asyncio
-async def test_should_approve_candidate_and_ingest_to_vector_store_when_admin_approves(
-    monkeypatch,
-):
-    """Given draft 候选带内容与角色, When 管理员审核通过,
-    Then 内容进入向量库、状态置 active、记录审核人,并落审计"""
-    candidate = FakeRow(
-        document_id="doc_fb_abc",
-        title="提成比例 2026 年已调整为 8%",
-        content="提成比例 2026 年已调整为 8%,季度阶梯计算。",
-        doc_type="faq",
-        dept_namespace="shared_company",
-        access_roles=["salesperson", "manager", "admin"],
-        uploaded_by="user_sales_001",
-    )
-    # execute 顺序:查候选 → 更新状态(审计走独立 session,补空响应)
-    session = FakeSession(responses=[FakeResult([candidate]), FakeResult()])
-    app = _build_test_app(session)
-    client = TestClient(app)
+async def test_should_accept_durable_job_without_inline_ingestion(monkeypatch):
+    """The HTTP boundary returns 202 and the stable job, not publication success."""
+    from unittest.mock import AsyncMock
 
-    ingested: list[dict] = []
-
-    class FakeIngestService:
-        """整体打桩:避免实例化真实服务触发 pymilvus/embedding 导入"""
-
-        def __init__(self, *args, **kwargs) -> None:
-            pass
-
-        async def ingest_text(self, **kwargs) -> int:
-            ingested.append(kwargs)
-            return 2
-
-    monkeypatch.setattr("app.rag.ingest.MilvusIngestService", FakeIngestService)
-
+    session = FakeSession(responses=[])
+    queued = AsyncMock(return_value={"task_id": "00000000-0000-4000-8000-000000000001",
+                                    "state": "pending"})
+    monkeypatch.setattr("app.core.knowledge_jobs.queue_knowledge_approval", queued)
+    client = TestClient(_build_test_app(session))
     resp = client.post(
         "/api/v1/admin/knowledge-candidates/doc_fb_abc/approve",
         json={"doc_type": "faq", "dept_namespace": "shared_company"},
     )
+    assert resp.status_code == 202
+    assert resp.json()["data"]["status"] == "pending"
+    assert "chunks" not in resp.json()["data"]
+    queued.assert_awaited_once_with(session, "doc_fb_abc", "user_admin_001", "faq", "shared_company")
+    assert session.commits == 1
 
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["data"]["status"] == "active"
-    assert body["data"]["chunks"] == 2
-    assert len(ingested) == 1
-    assert ingested[0]["document_id"] == "doc_fb_abc"
-    assert ingested[0]["access_roles"] == ["salesperson", "manager", "admin"]
-    update_sql = session.executed_sql[1]
-    assert "status = 'active'" in update_sql
-    assert "reviewed_by" in update_sql
+
+@pytest.mark.asyncio
+async def test_queued_document_cannot_be_rejected():
+    session = FakeSession(responses=[FakeResult([FakeRow(document_id="doc1", status="queued")])])
+    client = TestClient(_build_test_app(session))
+    response = client.post("/api/v1/admin/knowledge-candidates/doc1/reject",
+                           json={"reject_reason": "Synthetic reason"})
+    assert response.status_code == 409
+    assert session.commits == 0

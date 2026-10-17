@@ -30,11 +30,14 @@
 - `cross-process-state`: C09 shared cancellation leases, single-use SSO state and request-scoped prompt snapshots.
 - `checkpoint-durability`: C10 explicit backend selection, managed saver lifetime and fail-closed persistence semantics.
 - `tool-operation-safety`: C12 durable action identity, one-way dispatch, receipt validation and runtime gateway authorization.
+- `durable-task-queue`: C14 transactional PostgreSQL jobs, ownership, retained failures and fail-closed worker initialization.
 - `reference-business-contract`: C18 prework defining the controlled CRM/ticket/mail contract, failure evidence and handoff to C12-C14/C11 and S5.
 
 ### Modified Capabilities
 
-无现有能力主规格修改。当前增加交付治理与 C01 部署产物契约；后续 C 项若改变既有能力要求，必须先补充对应 delta 与设计再实现。
+C14 adds modified deltas for `knowledge-operations` (asynchronous approval) and
+`external-system-integration` (worker recovery boundaries). Main specs remain
+unchanged until the complete change is accepted and synced.
 
 ## Impact
 
@@ -115,3 +118,10 @@ C12 implementation, documentation and offline verification only. Add capability
 receipts, read-only reconciliation and gateway authorization. Do not run services,
 install dependencies, migrate current stores or start C14/C13/C11. C10 remains open.
 C12 push requires separate confirmation.
+
+## C14 authorization update (2026-10-17)
+
+C12 `21b5287` was pushed and its same-name remote branch verified. Implement C14
+offline only, using existing PostgreSQL dependencies and an additive migration.
+Keep live acceptance BLOCKED, C10 fencing open and HTTP compensation deferred to C13.
+Stop after local delivery; C14 push and subsequent work require confirmation.

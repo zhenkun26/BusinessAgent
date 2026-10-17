@@ -2,7 +2,7 @@
 
 提供:
 - GET  /admin/knowledge-candidates            待审核知识候选列表(draft)
-- POST /admin/knowledge-candidates/{id}/approve  审核通过 → 向量入库 + 置 active
+- POST /admin/knowledge-candidates/{id}/approve  审核通过 → 持久入队，202 后查询任务状态
 - POST /admin/knowledge-candidates/{id}/reject   审核拒绝 → 置 rejected + 拒绝原因
 - GET  /admin/documents                      文档台账列表(分页,支持状态过滤)
 - GET  /admin/users                          用户列表(分页,角色/状态过滤)
@@ -13,7 +13,7 @@
 """
 
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -100,70 +100,78 @@ async def list_knowledge_candidates(
     return _envelope(candidates)
 
 
-@router.post("/knowledge-candidates/{document_id}/approve")
+@router.post("/knowledge-candidates/{document_id}/approve", status_code=202)
 async def approve_knowledge_candidate(
     document_id: str,
     req: ApproveRequest,
     user: User = Depends(require_roles(AgentRole.ADMIN)),
-    db=Depends(get_db),
-):
-    """审核通过:内容进入向量库并将候选置为 active"""
-    row = (
-        await db.execute(
-            text(
-                "SELECT document_id, title, content, doc_type, dept_namespace, "
-                "access_roles, uploaded_by FROM documents "
-                "WHERE document_id = :did"
-            ),
-            {"did": document_id},
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Atomically accept a publication job; this is not publication success."""
+    from app.core.knowledge_jobs import queue_knowledge_approval
+    from app.core.task_queue import TaskRejected
+
+    try:
+        job = await queue_knowledge_approval(
+            db, document_id, user.user_id, req.doc_type, req.dept_namespace,
         )
-    ).fetchone()
+        await db.commit()
+    except TaskRejected as exc:
+        await db.rollback()
+        raise HTTPException(409, str(exc)) from None
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "TASK_STORE_UNAVAILABLE") from None
+    return _envelope({"document_id": document_id, "task_id": str(job["task_id"]),
+                      "status": job["state"]}, message="任务已记录，请查询任务状态")
+
+
+@router.get("/task-jobs")
+async def list_task_jobs(
+    state: Optional[str] = Query(default=None, pattern="^(pending|leased|running|done|dead)$"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Retained completion/failure metadata; never expose payloads or owner tokens."""
+    from app.core.task_queue import task_metadata
+    rows = (await db.execute(text("""SELECT task_id, queue_name, state, attempts,
+        error_code, created_at, updated_at FROM task_jobs
+        WHERE (CAST(:state AS VARCHAR) IS NULL OR state = :state)
+        ORDER BY created_at DESC, task_id LIMIT :limit OFFSET :offset"""),
+        {"state": state, "limit": limit, "offset": offset})).mappings().all()
+    return _envelope({"items": [task_metadata(row) for row in rows],
+                      "limit": limit, "offset": offset})
+
+
+@router.get("/task-jobs/{task_id}")
+async def get_task_job(
+    task_id: uuid.UUID,
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    from app.core.task_queue import task_metadata
+    row = (await db.execute(text("""SELECT task_id, queue_name, state, attempts,
+        error_code, created_at, updated_at FROM task_jobs WHERE task_id = :tid"""),
+        {"tid": str(task_id)})).mappings().first()
     if row is None:
-        raise HTTPException(404, f"知识候选不存在: {document_id}")
-    if row.access_roles is None:
-        raise HTTPException(409, "知识候选缺少 access_roles,无法入库")
+        raise HTTPException(404, "TASK_NOT_FOUND")
+    return _envelope(task_metadata(row))
 
-    # 向量入库(复用 ingest 服务;失败抛 502 由全局异常兜底)
-    from app.rag.ingest import MilvusIngestService
 
-    service = MilvusIngestService()
-    count = await service.ingest_text(
-        document_id=document_id,
-        title=row.title,
-        content=row.content or row.title,
-        doc_type=req.doc_type or row.doc_type or "faq",
-        dept_namespace=req.dept_namespace or row.dept_namespace or "shared_company",
-        access_roles=row.access_roles,
-        uploaded_by=row.uploaded_by or user.user_id,
-    )
-
-    # 台账置 active + 审核信息
-    await db.execute(
-        text(
-            "UPDATE documents SET status = 'active', reviewed_by = :reviewer, "
-            "reviewed_at = CURRENT_TIMESTAMP, ingest_error = NULL, "
-            "updated_at = CURRENT_TIMESTAMP WHERE document_id = :did"
-        ),
-        {"reviewer": user.user_id, "did": document_id},
-    )
-    await db.commit()
-
-    await get_audit_logger().log(
-        event_type="knowledge_approved",
-        user_id=user.user_id,
-        input_summary=f"审核通过知识候选 {document_id}",
-        output_summary=f"已入库 {count} chunks",
-        success=True,
-        payload={"document_id": document_id, "chunks": count},
-    )
-    return _envelope(
-        {
-            "document_id": document_id,
-            "status": "active",
-            "chunks": count,
-        },
-        message="审核通过,已入库",
-    )
+@router.get("/task-consumers")
+async def list_task_consumers(
+    limit: int = Query(default=100, ge=1, le=200),
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Per-consumer freshness is progress evidence, not complete system readiness."""
+    rows = (await db.execute(text("""SELECT worker_id, queue_name, last_seen,
+        last_seen > clock_timestamp() - interval '45 seconds' AS fresh
+        FROM task_consumers ORDER BY last_seen DESC LIMIT :limit"""),
+        {"limit": limit})).mappings().all()
+    return _envelope({"items": [dict(row) for row in rows]})
 
 
 @router.post("/knowledge-candidates/{document_id}/reject")
@@ -176,12 +184,15 @@ async def reject_knowledge_candidate(
     """审核拒绝:记录拒绝原因并置为 rejected,内容不进入向量库"""
     row = (
         await db.execute(
-            text("SELECT document_id FROM documents WHERE document_id = :did"),
+            text("SELECT document_id, status FROM documents WHERE document_id = :did FOR UPDATE"),
             {"did": document_id},
         )
     ).fetchone()
     if row is None:
         raise HTTPException(404, f"知识候选不存在: {document_id}")
+
+    if row.status != "draft":
+        raise HTTPException(409, "KNOWLEDGE_STATE_CONFLICT")
 
     await db.execute(
         text(
@@ -209,7 +220,7 @@ async def reject_knowledge_candidate(
 
 @router.get("/documents")
 async def list_documents(
-    status: Optional[str] = Query(default=None, description="状态过滤:draft/active/rejected"),
+    status: Optional[str] = Query(default=None, description="状态过滤:draft/queued/active/rejected"),
     limit: int = Query(default=20, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User = Depends(require_roles(AgentRole.ADMIN)),

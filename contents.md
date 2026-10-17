@@ -176,4 +176,6 @@ C10 候选详情：[持久化契约](docs/50-engineering/checkpoint-durability.m
 
 C18 前置详情：[参考契约](docs/50-engineering/reference-business-contract.md)、[交付记录](docs/40-process/阶段性总结_C18参考契约前置.md)；仅契约冻结，完整参考 HTTP 验收仍 BLOCKED。
 
-C12 离线增量：[操作契约](docs/50-engineering/tool-operation-safety.md)、[交付记录](docs/40-process/阶段性总结_C12工具幂等与安全重试.md)；真实运行 BLOCKED，C14 等待确认。
+C12 离线增量：[操作契约](docs/50-engineering/tool-operation-safety.md)、[交付记录](docs/40-process/阶段性总结_C12工具幂等与安全重试.md)；真实运行 BLOCKED；C12 已推送，C14 离线候选见下文。
+
+C14 离线增量：[队列契约](docs/50-engineering/queue-reliability.md)、[交付记录](docs/40-process/阶段性总结_C14队列可靠性与Worker初始化.md)；真实运行与 Saga 恢复 BLOCKED，C13 等待确认。

@@ -21,6 +21,11 @@ files are historical references and are never discovered or executed by this run
 In particular, their historical shared-password backfills are not part of C03.
 Do not run SQL files manually or mix the old scripts with the managed entry point.
 
+Managed v2 adds retained tool executions/operations; v3 adds `task_jobs` and
+`task_consumers` for transactional publication and worker progress. API/worker startup
+requires all three versions. No migration is applied implicitly; C14 real migration
+acceptance is still BLOCKED. Do not run a v2 application against v3 history.
+
 `schema_migrations` records version, name, checksum and application time.
 `schema_bootstrap` records one-time demo seeding. Applied migrations are immutable:
 add a new ordered manifest entry and reviewed SQL file for later schema changes,

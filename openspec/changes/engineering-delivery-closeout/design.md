@@ -328,3 +328,35 @@ persistent linked compensation intents; missing evidence must fail, not succeed.
 Stop downstream work and automatic inverse writes on unknown outcomes. Mock remains
 a development demonstration and cannot establish external durability. Runtime
 PostgreSQL/HTTP/LangGraph/Linux and OpenSpec CLI validation remain BLOCKED.
+
+## C14 design: transactional jobs and conservative recovery
+
+Replace the unused Redis List transport with PostgreSQL jobs in the same database
+as business state. Knowledge approval locks a draft document and atomically records
+a stable job plus queued status; repeated identical approval returns the same job,
+changed parameters conflict. The response is 202 queued, never ingestion success.
+Store only document identity, snapshot hash, reviewer and explicit publication options,
+not file paths, tokens or raw content. Expose admin-only metadata/status queries.
+
+Use SKIP LOCKED claims, database clock deadlines and random ownership tokens. Retain
+all jobs; no destructive ack, TTL or cleanup. A lease before dispatch can be reclaimed
+with bounded delayed attempts. Persist running before invoking any handler. Expired
+running tasks, handler exceptions/timeouts and ambiguous results become retained dead
+jobs for reconciliation, never blind replay. Ownership/deadline CAS fences queue state
+only, not external writes. This is not exactly-once delivery or C10 fencing.
+
+Worker verifies models/schema, initializes audit/tools and the configured vector backend
+before consuming. Consumers reconnect to PostgreSQL with bounded backoff, heartbeat their
+own progress in the database, and are supervised for unexpected return. Cancel children
+and close resources on partial startup, failure and shutdown. Do not replay audit cache
+files in this worker until C21 supplies an approved non-deleting recovery path.
+
+Knowledge jobs revalidate the reviewer and frozen document before ingestion, and reject
+zero chunks. Existing vector/ledger publication gaps remain C15, so dispatched jobs cannot
+be automatically retried. Saga jobs fail closed with C13_REQUIRED until durable inverse
+identities and a real producer exist; initialization is delivered, full Saga recovery is
+explicitly blocked. Legacy Redis Lists are neither drained nor deleted; inspection and
+import require a separate authorized plan. Redis remains for checkpoint/cancellation/SSO.
+
+Offline tests exercise actual orchestration with injected SQL/handlers/services. Real SQL
+locking, process death, PostgreSQL/Redis outages, Milvus and Linux acceptance remain BLOCKED.

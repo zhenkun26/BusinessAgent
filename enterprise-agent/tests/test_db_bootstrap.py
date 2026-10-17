@@ -336,17 +336,20 @@ class DatabaseStartupTests(unittest.IsolatedAsyncioTestCase):
             database = AsyncMock(side_effect=contract.SchemaError('DB_SCHEMA_STARTUP_FAILED'))
             namespace = dict(asynccontextmanager=asynccontextmanager, FastAPI=object,
                              get_settings=lambda: settings, logger=Mock(), init_db=database,
+                             asyncio=__import__("asyncio"), close_db=AsyncMock(),
                              validate_production_settings=lambda config: [])
             exec(compile(ast.Module(body=[fn], type_ignores=[]), source, 'exec'), namespace)
             audit = Mock(side_effect=AssertionError('Audit must not start'))
             deps = {'app.rag.model_profile': module('app.rag.model_profile',
                                                    verify_model_startup=AsyncMock()),
+                    'app.tools.base': module('app.tools.base', init_all_tools=Mock()),
                     'app.observability.tracing': module('app.observability.tracing',
                         init_tracing=lambda **kw: False, instrument_fastapi=Mock()),
                     'app.observability.audit': module('app.observability.audit',
                         init_audit_logger=audit, get_audit_logger=audit)}
             with patch.dict(sys.modules, deps):
-                with self.assertRaisesRegex(contract.SchemaError, '^DB_SCHEMA_STARTUP_FAILED$'):
+                with self.assertRaisesRegex(RuntimeError,
+                        '^DB_SCHEMA_STARTUP_FAILED$' if name == 'lifespan' else '^WORKER_FAILED$'):
                     if name == 'lifespan':
                         async with namespace[name](object()):
                             self.fail('API must not become ready')
@@ -354,6 +357,8 @@ class DatabaseStartupTests(unittest.IsolatedAsyncioTestCase):
                         await namespace[name]()
             database.assert_awaited_once()
             audit.assert_not_called()
+            if name == "main":
+                namespace["close_db"].assert_awaited_once()
 
     async def test_failed_schema_check_does_not_publish_pool_and_health_is_safe(self):
         engine = Mock()

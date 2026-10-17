@@ -53,7 +53,7 @@ class _RecordingAuditLogger:
         self.events.append(kwargs)
 
 
-# ============ 2.3 补偿失败由 worker 退避重试(工单场景)============
+# ============ 2.3 Legacy Saga routine fails closed; queue dispatch is blocked pending C13============
 
 
 @pytest.mark.asyncio
@@ -62,7 +62,7 @@ async def test_should_raise_for_worker_retry_when_ticket_compensation_fails(
     fake_session_factory,
 ):
     """Given 失败 Saga 含 create_ticket 补偿动作且外部系统 5xx,
-    When worker 重试补偿, Then 抛异常(任务队列按退避重排)且状态保持 failed"""
+    When the legacy routine is invoked directly, Then it raises and retains failed; C14 does not dispatch it"""
     saga_row = FakeRow(
         saga_id="saga_ticket_001",
         status="failed",

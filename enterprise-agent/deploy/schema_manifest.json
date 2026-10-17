@@ -12,6 +12,12 @@
       "name": "tool_operations",
       "file": "002_tool_operations.sql",
       "sha256": "eaad50d8ab534afac91138a8e2f9e0924e5731be52c5883ef9ab96c2066bf1e7"
+    },
+    {
+      "version": 3,
+      "name": "task_jobs",
+      "file": "003_task_jobs.sql",
+      "sha256": "509c51e084a35a657491cae09709d4f930a6c958ff1d54fdbeb06571bcd0b8a2"
     }
   ],
   "columns": {
@@ -418,6 +424,58 @@
       "updated_at": {
         "type": "timestamptz"
       }
+    },
+    "task_jobs": {
+      "task_id": {
+        "type": "uuid"
+      },
+      "queue_name": {
+        "type": "varchar"
+      },
+      "scope_key": {
+        "type": "varchar"
+      },
+      "payload": {
+        "type": "jsonb"
+      },
+      "payload_hash": {
+        "type": "varchar"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "attempts": {
+        "type": "int4"
+      },
+      "owner_token": {
+        "type": "uuid"
+      },
+      "lease_until": {
+        "type": "timestamptz"
+      },
+      "available_at": {
+        "type": "timestamptz"
+      },
+      "error_code": {
+        "type": "varchar"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      },
+      "updated_at": {
+        "type": "timestamptz"
+      }
+    },
+    "task_consumers": {
+      "worker_id": {
+        "type": "uuid"
+      },
+      "queue_name": {
+        "type": "varchar"
+      },
+      "last_seen": {
+        "type": "timestamptz"
+      }
     }
   },
   "indexes": {
@@ -449,7 +507,10 @@
     "idx_prompt_versions_name": false,
     "idx_prompt_versions_status": false,
     "idx_tool_executions_scope": true,
-    "idx_tool_operations_slot": true
+    "idx_tool_operations_slot": true,
+    "idx_task_jobs_scope": true,
+    "idx_task_jobs_poll": false,
+    "idx_task_jobs_expired": false
   },
   "legacy_columns": {
     "users": {

@@ -165,3 +165,10 @@ async def check_milvus_health() -> dict:
         }
     except Exception as e:
         return {"status": "unhealthy", "reason": str(e)}
+
+
+async def close_milvus() -> None:
+    """Close this process's connection without releasing or deleting shared data."""
+    global _collection
+    _collection = None
+    connections.disconnect("default")

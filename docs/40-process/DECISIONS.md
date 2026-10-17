@@ -273,3 +273,21 @@
 - **Evidence**: [C12 record](阶段性总结_C12工具幂等与安全重试.md), 41 focused and
   94 related offline tests PASS. C18 `317aa7f` pushed; C12 remains local. Real services,
   OpenSpec strict CLI, C10 fencing, enterprise UAT and release remain BLOCKED.
+
+## 29. Transactional jobs and conservative worker recovery (2026-10-17)
+
+- **Decision**: Use existing PostgreSQL for retained jobs, committing enqueue together
+  with document approval. Redis Lists were unused by application producers and cannot
+  give an atomic business/enqueue commit; no new broker dependency is introduced.
+- **Recovery**: Exclusive owner/deadline claims, bounded pre-dispatch retry, durable
+  dispatch before invocation and retained unknown/dead outcomes. Never blindly replay
+  ingestion or compensation after an uncertain effect. Dead is not rollback/fencing.
+- **Contract**: Knowledge approval returns 202 plus task ID, with admin status and
+  consumer-progress queries. Reject only drafts. Initialize worker dependencies before
+  consuming and supervise lifetime; stop legacy deleting audit replay pending C21.
+- **Dependencies**: C13 supplies Saga producer/inverse identity before enabling recovery;
+  C15 owns vector/ledger publication. C10 checkpoint fencing stays open. Legacy Redis
+  data is preserved and any migration requires a separate reviewed plan.
+- **Evidence**: [C14 record](阶段性总结_C14队列可靠性与Worker初始化.md), 43 focused and
+  112 related tests PASS. C12 `21b5287` pushed; C14 local only. Runtime, strict CLI,
+  enterprise UAT/release remain BLOCKED. Stop before C13 until user confirmation.
