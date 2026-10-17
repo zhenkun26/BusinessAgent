@@ -4,6 +4,8 @@
 
 ## 内容
 
+- [C10 检查点持久化与故障语义](阶段性总结_C10检查点持久化与故障语义.md)：固定后端、生命周期、失败处理与真实验收阻塞
+
 - `ROADMAP.md`：里程碑规划（已完成 / 进行中 / 挂起）
 - [工程交付基线](../50-engineering/engineering-delivery-baseline.md)：本轮交付边界、证据分层与完成条件；逐项差距见 [ISSUES C01–C25](ISSUES.md#engineering-closeout)，阶段顺序见 [ROADMAP S0–S7](ROADMAP.md#engineering-closeout-stages)
 - [阶段性总结_S0工程交付基线.md](阶段性总结_S0工程交付基线.md)：S0 文档交付、验证与限制；完成后等待用户确认

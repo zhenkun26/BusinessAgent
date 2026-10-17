@@ -130,7 +130,7 @@ async def run_graph(
     Args:
         user_input: 用户输入
         thread_id: 断点恢复线程 ID;None 时用 conversation_id(同一会话可恢复)
-        use_checkpointer: 是否启用 checkpointer(True 走三级降级链;False 纯内存执行,用于测试)
+        use_checkpointer: 是否启用 checkpointer(True 使用配置的固定后端;False 纯内存执行,用于测试)
 
     Returns:
         最终状态(含 final_answer, sources, confidence 等)

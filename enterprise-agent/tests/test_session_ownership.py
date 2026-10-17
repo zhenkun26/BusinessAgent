@@ -182,6 +182,10 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 get_checkpointer=self.get_checkpointer, get_checkpointer_backend=lambda: 'fake'),
         }
         self.stack.enter_context(patch.dict(sys.modules, deps))
+        self.checkpoint_access = load('c04_checkpoint_access', 'app/graph/checkpoint_access.py')
+        self.stack.enter_context(patch.dict(sys.modules, {
+            'app.graph.checkpoint_access': self.checkpoint_access,
+        }))
         self.access = load('c04_access', 'app/security/session_access.py')
         self.runtime = load('c04_runtime', 'app/core/runtime_state.py')
         self.stack.enter_context(patch.dict(sys.modules, {'app.core.runtime_state': self.runtime}))
@@ -225,7 +229,8 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
     async def run_graph_stream(self, user_input: Any, *, thread_id: str) -> Any:
         self.stream_calls.append(thread_id)
-        self.checkpoints[thread_id] = {'final_answer': 'authorized stream answer'}
+        self.checkpoints[thread_id] = {'final_answer': 'authorized stream answer',
+            'request_id': user_input.request_id, 'user_input': vars(user_input)}
         yield {'type': 'token', 'data': 'authorized stream answer'}
 
     def response(self, events: Any, **kwargs: Any) -> Any:

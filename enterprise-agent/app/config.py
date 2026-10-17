@@ -147,9 +147,12 @@ class Settings(BaseSettings):
     # ---- 限流 ----
     rate_limit_per_minute: int = 60
 
+    # ---- Explicit checkpoint persistence ----
+    checkpoint_backend: str = "redis"  # redis / postgres / memory (dev only)
+
     # ---- Checkpoint 滑动过期(I-06) ----
     # Redis checkpointer 的 thread 键 TTL(天);每次会话活跃(写入/读取)滑动刷新。
-    # <=0 表示不设 TTL(恢复旧行为);仅 Redis 主路径生效,PG/Memory 降级后端不设。
+    # <=0 表示不设 TTL(恢复旧行为);仅 Redis 生效,PG/Memory 不设。
     checkpoint_ttl_days: int = 7
 
     # ---- 知识库反馈循环 ----

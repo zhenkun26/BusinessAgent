@@ -51,6 +51,8 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 任务上下文：每个子任务使用独立 Agent 与历史副本；历史仅纳入同一用户/会话/当前角色部门且能验证请求归属的回答，旧无标记快照不进入模型上下文。仅支持独立子任务并行；含 `depends_on` 的计划整体拒绝，请按顺序分别提交。通用 DAG、模型依赖识别和真实并发验收仍未完成，详见[请求上下文契约](../docs/50-engineering/request-context.md)。
 
+Checkpoint：C10 采用显式固定后端，默认 Redis；PostgreSQL 为显式替代，memory 仅限 dev 主动启用。存储不可用不再自动回退，API 启动会核验 saver，历史读取失败停止图执行，SSE 最终快照校验当前请求。详见[持久化与故障契约](../docs/50-engineering/checkpoint-durability.md)；真实恢复、TTL 与写入竞态验收 BLOCKED。
+
 运行状态：聊天入口和 SSO 现在要求可用的共享 Redis，不会退回进程内状态。已有任务占用同一会话时返回 409，协调存储故障返回 503；取消成功仅表示信号受理。每次持久化图请求从 PostgreSQL 固定 Prompt 快照，读取失败则终止。真实双进程验收尚未完成，现有单 worker 配置仍为候选，详见[跨进程状态契约](../docs/50-engineering/cross-process-state.md)。
 
 ### 3. 验证服务
@@ -183,7 +185,7 @@ enterprise-agent/
 ### 阶段二: 多 Agent 协同(W5-W8) ✅
 
 - [x] **W5** LangGraph StateGraph + Planner + Aggregator + Send API 并行 fan-out + 本地小模型闲聊判断优化
-- [x] **W6** Redis Checkpointer 三级降级链(Redis→PG→Memory) + interrupt 人工介入 + 跨进程状态恢复
+- [x] **W6（历史阶段）** Redis Checkpointer 三级降级链与 interrupt/恢复验证；当前 C10 改为固定后端，当前候选恢复验收仍 BLOCKED
 - [x] **W7** ExecutionAgent + ToolGateway(8 工具:CRM/邮件/工单/审批进度) + RBAC 角色权限 + Prompt 注入防护 + Saga 补偿回滚
 - [x] **W8** API 层(chat/auth refresh/approval) + 批量审批 batch_id 追踪（原子领取与外部效果一致性待 C11 验收） + JWT 刷新 + 限流中间件(Redis 滑动窗口→内存降级)
 
@@ -215,7 +217,7 @@ enterprise-agent/
 | 能力 | 实现 |
 |------|------|
 | RAG 两阶段检索 | 向量粗排(1024×n) + BGE Reranker 精排(top=5) |
-| 三级降级链 | LLM(primary: v4-pro→qwen3.5:4b;lite: qwen3.5:4b→v4-flash,初始化降级 + 工具选择/意图分类输出不可用时运行时回退) / 检索(向量→BM25→PG LIKE) / Redis Checkpointer(Redis→PG→Memory) |
+| 三级降级链 | LLM(primary: v4-pro→qwen3.5:4b;lite: qwen3.5:4b→v4-flash,初始化降级 + 工具选择/意图分类输出不可用时运行时回退) / 检索(向量→BM25→PG LIKE) / Checkpointer 按 C10 固定后端、故障不回退 |
 | 模型分层 | DeepSeek v4-pro(推理) / qwen3.5:4b 本地(轻量任务主路径:分类/抽取/grounded 生成) / v4-flash(云端降级) |
 | 多 Agent 并行 | LangGraph Send API fan-out + planner/dispatcher 动态路由 |
 | 数据分析 | AnalysisAgent:LLM 计划解析 + Python 真实聚合 + 对比/多跳,RBAC 按角色取数 |

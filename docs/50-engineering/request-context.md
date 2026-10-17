@@ -33,8 +33,8 @@ are cached by backend and saver identity to avoid reading history from a replace
 saver while invoking a graph bound to its predecessor.
 
 Read at most 100 newest snapshots and return at most five matching answered turns,
-oldest first. The async wait is limited to five seconds; failure returns empty
-history. A synchronous saver read already running in a worker thread may finish
+oldest first. The async wait is limited to five seconds; C10 now aborts on read
+failure instead of returning empty history. A synchronous saver read already running in a worker thread may finish
 later, and driver timeouts still require C10 runtime validation. Async iterators
 are closed after bounded scans. More than 100 intervening snapshots can omit older
 turns. **Legacy answers without the ownership marker are excluded from model
@@ -87,9 +87,12 @@ LangGraph, JWT, SQLAlchemy or model providers. No service starts or dependency i
 | Independent fan-out and replan | Real LangGraph merges results once, carries history and honors existing replan cap | BLOCKED |
 | Dependent and malformed plans | Lookup/write, missing/self/cyclic dependency cases return fixed HTTP/SSE refusal with zero agent/tool/approval effects | BLOCKED |
 | Real model intent/dependency representation | Ordered natural-language requests preserve dependencies or safely refuse; active prompt versions included | BLOCKED |
-| Saver failure/replacement and API/SSE behavior | Bounded empty-history fallback; graph/history use the same saver; no stale final answer exposed | BLOCKED |
+| Saver failure/replacement and API/SSE behavior | C10 bounded read failure; graph/history use the same saver; no stale final answer exposed | BLOCKED |
 
 Record candidate commit/image, isolated configuration, redacted requests/events and
 zero-effect assertions. C01–C07 Milvus/JWT/PG/API/SSE/Linux/browser/SSO and historical
 credential blockers remain. C09/C10, general DAG, live data cleanup, merge/deploy/
 release are outside this increment. See the [C08 record](../40-process/阶段性总结_C08请求上下文与子任务依赖.md).
+
+C10 supersedes the original read-failure fallback with fail-closed history access; see
+[checkpoint contract](checkpoint-durability.md). Its real acceptance remains blocked.

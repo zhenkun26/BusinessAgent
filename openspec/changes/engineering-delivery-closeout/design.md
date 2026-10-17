@@ -231,3 +231,38 @@ unchanged pending real two-process acceptance, without deciding to narrow the C0
 target. No HA, full checkpoint consistency, queue/Saga recovery or capacity claims.
 Offline tests use separate module instances over shared in-memory doubles; real
 Redis Lua/TTL/GETDEL, SQL, context propagation and HTTP/SSE/SSO remain BLOCKED.
+
+## C10 design: explicit persistence and failure boundaries
+
+Select exactly one configured checkpoint backend (`redis` default, `postgres`, or
+explicit `memory` only in development). No initialization/runtime failover, automatic
+state copying, retries of graph execution or claims of recovery on an empty store.
+All API workers must use the same backend/store/TTL; changing it requires stopped
+traffic, a separate migration decision and isolated acceptance. Unknown backend or
+memory outside development fails closed.
+
+Serialize singleton initialization with an async lock and publish only after a
+bounded read probe succeeds. Own saver resources through an AsyncExitStack; close
+on failed initialization, cancellation and shutdown, and invalidate graph caches.
+Redis retains the existing index setup and sliding TTL contract (days -> minutes).
+Postgres uses its async context manager and `setup()` API; provisioning is a separate
+explicit `setup-postgres --execute` command, never implicit relational DDL at API
+startup. Its regular path probes pre-provisioned tables without suppressing errors.
+Connection/setup/read bounds and fixed errors must not expose DSNs or exceptions.
+No dependency additions, current-store access or setup execution in this increment.
+
+Initialize the selected saver before API startup yields. History read errors stop
+graph execution rather than masquerading as an empty history. Missing/expired
+history stays distinct from a transport failure; no retroactive migration/deletion.
+An SSE final snapshot must exist and match the current request and identity before
+success is emitted; tokens remain provisional until final. Message/history return
+fixed persistence failures; streamed failures emit an error. Graph write exceptions
+propagate as failures with no automatic retry/switch or rollback claim.
+
+C09 leases are still the API admission mechanism. They are not fencing tokens for
+checkpoint writes: expiry, event-loop stalls and direct graph invocations do not
+establish unconditional same-session serialization. Keep real two-process concurrent
+write, crash, TTL, backend-loss, restart and actual installed saver-version tests
+BLOCKED. Preserve checkpoint/business history; no arbitrary recovery/replay endpoint,
+queue/Saga/approval work, backend switch or deployment worker-count change. A cached
+backend label is not a continuous health probe; full readiness remains C21.

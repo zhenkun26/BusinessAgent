@@ -71,38 +71,44 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("数据库连接池已就绪")
 
-    # 初始化审计日志器(写 PG,失败本地兜底;需在 init_db 之后)
-    from app.observability.audit import init_audit_logger
-    init_audit_logger()
-    logger.info("审计日志器已初始化")
-
-    # 初始化 Milvus(集合不存在则创建;memory 后端跳过)
-    try:
-        await init_milvus()
-        logger.info("Milvus 已就绪")
-    except Exception as e:
-        logger.warning(f"Milvus 初始化失败(可能用 memory 后端): {e}")
-
-    # 初始化工具注册表(W7 ExecutionAgent 用)
-    try:
-        from app.tools.base import init_all_tools
-        init_all_tools()
-        logger.info("工具注册表已初始化")
-    except Exception as e:
-        logger.warning(f"工具初始化失败: {e}")
-
-    # Prompt 版本管理(P2-1):同步代码默认版本 + 加载 active 缓存
-    # 表不存在(未跑 migration)时降级代码默认,不影响启动
-    from app.prompts import refresh_prompt_cache, sync_prompt_defaults
-    await sync_prompt_defaults()
-    await refresh_prompt_cache()
-
-    yield
-
-    # 清理资源
+    from app.graph.checkpointer import get_checkpointer, reset_checkpointer
     from app.core.database import close_db
-    await close_db()
-    logger.info("应用已关闭")
+
+    try:
+        await get_checkpointer()
+        # 初始化审计日志器(写 PG,失败本地兜底;需在 init_db 之后)
+        from app.observability.audit import init_audit_logger
+        init_audit_logger()
+        logger.info("审计日志器已初始化")
+
+        # 初始化 Milvus(集合不存在则创建;memory 后端跳过)
+        try:
+            await init_milvus()
+            logger.info("Milvus 已就绪")
+        except Exception as e:
+            logger.warning(f"Milvus 初始化失败(可能用 memory 后端): {e}")
+
+        # 初始化工具注册表(W7 ExecutionAgent 用)
+        try:
+            from app.tools.base import init_all_tools
+            init_all_tools()
+            logger.info("工具注册表已初始化")
+        except Exception as e:
+            logger.warning(f"工具初始化失败: {e}")
+
+        # Prompt 版本管理(P2-1):同步代码默认版本 + 加载 active 缓存
+        # 表不存在(未跑 migration)时降级代码默认,不影响启动
+        from app.prompts import refresh_prompt_cache, sync_prompt_defaults
+        await sync_prompt_defaults()
+        await refresh_prompt_cache()
+
+        yield
+    finally:
+        try:
+            await reset_checkpointer()
+        finally:
+            await close_db()
+        logger.info("应用已关闭")
 
 
 def create_app() -> FastAPI:

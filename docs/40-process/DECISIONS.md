@@ -226,3 +226,18 @@
 - **Evidence**: [C09 record](阶段性总结_C09跨进程运行状态.md), 28 focused and 111
   related offline tests PASS. Real multi-process/Redis/SQL/SSO acceptance BLOCKED;
   C10 and C09 push await confirmation.
+
+## 26. Explicit checkpoint backend and failure semantics (2026-10-17)
+
+- **Decision**: Select one backend for each process; no automatic Redis/PG/memory
+  fallback. Memory requires explicit development mode. Own saver resources, serialize
+  initialization and probe before publication. PostgreSQL provisioning is explicit.
+- **Failure behavior**: History read failure stops graph work. Streamed final state
+  must match current request/identity; tokens are provisional. No retry/replay or
+  rollback claim after uncertain writes, no migration or cleanup of existing state.
+- **Limit**: C09 leases do not fence writes after expiry; C10 cannot close without
+  resolving/accepting the real concurrency boundary. Actual driver/schema/TTL/restart
+  and prior live acceptance stay BLOCKED. Compose worker count is unchanged.
+- **Evidence**: [C10 record](阶段性总结_C10检查点持久化与故障语义.md), 27 focused and 139
+  related offline tests PASS. C09 push was authorized and verified; C10 stays local
+  and the next C18 contract prework is not started.

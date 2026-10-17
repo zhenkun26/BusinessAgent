@@ -44,6 +44,7 @@ BusinessAgent/
 │   │   ├── 阶段性总结_C24安全验证前置.md # 安全入口前置交付与回归；整项尚未完成
 │   │   ├── 阶段性总结_C02模型依赖.md # 模型契约与离线检查；真实 API/Linux 验收阻塞
 │   │   ├── 阶段性总结_C03数据库迁移与初始化.md # 迁移/bootstrap 离线增量；真实数据库验收阻塞
+│   │   ├── 阶段性总结_C10检查点持久化与故障语义.md # 固定 checkpoint 后端与失败契约
 │   │   ├── 阶段性总结_C09跨进程运行状态.md # 共享运行状态与 Prompt 请求快照
 │   │   ├── 阶段性总结_C08请求上下文与子任务依赖.md # 请求隔离、历史归属与依赖拒绝
 │   │   ├── 阶段性总结_C07检索权限与表达式编码.md # 检索矩阵、编码与离线验证
@@ -132,7 +133,7 @@ BusinessAgent/
     │   ├── release-management/         # UAT、灰度与正式放行契约
     │   └── uat-replay/                 # G0 技术彩排与证据边界
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── engineering-delivery-closeout/ # S0/C24/C01 配置已交付；C01/C02/C03/C04/C05/C06/C07/C08/C09 运行验收阻塞
+        ├── engineering-delivery-closeout/ # S0/C24/C01 配置已交付；C01/C02/C03/C04/C05/C06/C07/C08/C09/C10 运行验收阻塞
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）
@@ -168,3 +169,5 @@ C07 候选详情：[检索权限契约](docs/50-engineering/retrieval-authorizat
 C08 候选详情：[请求上下文契约](docs/50-engineering/request-context.md)、[离线验证](enterprise-agent/eval/run_c08_request_context.py)、[交付记录](docs/40-process/阶段性总结_C08请求上下文与子任务依赖.md)。
 
 C09 候选详情：[跨进程状态契约](docs/50-engineering/cross-process-state.md)、[离线验证](enterprise-agent/eval/run_c09_cross_process_state.py)、[交付记录](docs/40-process/阶段性总结_C09跨进程运行状态.md)。
+
+C10 候选详情：[持久化契约](docs/50-engineering/checkpoint-durability.md)、[离线验证](enterprise-agent/eval/run_c10_checkpoint_durability.py)、[交付记录](docs/40-process/阶段性总结_C10检查点持久化与故障语义.md)。

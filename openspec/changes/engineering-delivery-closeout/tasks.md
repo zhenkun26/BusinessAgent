@@ -36,7 +36,7 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 2.4.1 Implement shared scope, encoded expressions, ACL result guards, offline matrix tests and documentation. 21 C07 tests PASS; live acceptance remains BLOCKED.
   - [ ] 2.4.2 Verify real Milvus/PostgreSQL filtering and API/SSE output/citations in isolated Linux. <!-- BLOCKED; no current store access -->
 
-## 3. S3：会话与运行状态（C08/C09 离线增量完成、运行验收阻塞；C10 待确认）
+## 3. S3：会话与运行状态（C08/C09 离线增量完成、运行验收阻塞；C10 离线增量完成、运行与写入竞态验收阻塞）
 
 - [ ] 3.1 C08 请求上下文、历史和依赖语义。
   - [x] 3.1.1 Implement per-dispatch context, request-bound history, dependency rejection, offline tests and documentation. 23 C08 and 88 related tests PASS; real runtime acceptance remains BLOCKED.
@@ -45,6 +45,8 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 3.2.1 Implement shared cancellation/SSO state and request prompt snapshots, offline failure/race checks and documentation. 28 focused and 111 related tests PASS; live two-process acceptance remains BLOCKED.
   - [ ] 3.2.2 Verify at least two API processes, Redis atomicity/expiry/restart/failure, PostgreSQL prompt visibility and real HTTP/SSE/SSO flows in isolated Linux. <!-- BLOCKED; no live service authorization -->
 - [ ] 3.3 C10 checkpoint 持久化和故障语义。
+  - [x] 3.3.1 Implement explicit backend policy, lifecycle/provisioning, failure semantics, offline tests and documentation. 27 focused and 139 related tests PASS; this does not solve lease-expiry write fencing.
+  - [ ] 3.3.2 Verify actual saver versions, two-process/restart durability, TTL, same-session writes and outages on isolated Linux. <!-- BLOCKED; no real services or current-store operations -->
 
 ## 4. S4：执行一致性与恢复（待逐项授权）
 

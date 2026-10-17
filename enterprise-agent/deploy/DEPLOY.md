@@ -444,12 +444,14 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml exec api \
 
 ### 9.3 Redis Checkpointer 失效
 
+C10：`CHECKPOINT_BACKEND=redis` 为默认；所有 API 进程必须一致。后端故障拒绝启动/请求，不自动切到 PG 或 memory。PG 路径需在单独获批的隔离目标先运行显式 schema setup；`memory` 只允许 `APP_ENV=dev`。配置、步骤、TTL、并发与恢复验收见[checkpoint 契约](../../docs/50-engineering/checkpoint-durability.md)。本轮未执行 setup 或调整 worker 数。
+
 ```bash
 # 检查 RediSearch 模块
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD MODULE LIST
 
 # 应包含: search + ReJSON
-# 不包含则自动降级 PostgreSQL(三级降级链)
+# 不包含则初始化失败；修复目标服务，禁止用切后端冒充状态恢复
 ```
 
 ### 9.4 磁盘满

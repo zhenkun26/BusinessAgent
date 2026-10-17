@@ -23,6 +23,7 @@ from app.config import get_settings
 from app.core.cancellation import CancellationLease, SessionBusy, reserve_session, request_cancel
 from app.core.runtime_state import RuntimeStateUnavailable
 from app.core.database import get_db
+from app.graph.checkpoint_access import CheckpointUnavailable, completed_state, read_checkpoint
 from app.observability.audit import get_audit_logger
 from app.prompts import reset_prompt_user, set_prompt_user
 from app.security.rbac import User, get_current_user, AgentRole, security_scheme
@@ -187,7 +188,7 @@ async def send_message(
     task = asyncio.create_task(run_owned())
 
     try:
-        # 调用 LangGraph 工作流(自动接入 Checkpointer 三级降级链)
+        # 调用 LangGraph 工作流(使用显式配置的 Checkpointer 后端)
         final_state = await task
 
         latency_ms = int((time.time() - start) * 1000)
@@ -254,6 +255,13 @@ async def send_message(
             intent="cancelled",
             latency_ms=latency_ms,
         )
+
+    except CheckpointUnavailable:
+        await _update_session_status(session_id, "failed", error="CHECKPOINT_UNAVAILABLE")
+        await audit.log(event_type="chat_response", session_id=session_id,
+                        user_id=user.user_id, success=False,
+                        payload={"error": "CHECKPOINT_UNAVAILABLE"})
+        raise HTTPException(503, "CHECKPOINT_UNAVAILABLE") from None
 
     except RuntimeStateUnavailable:
         await _update_session_status(session_id, "failed", error="RUNTIME_STATE_UNAVAILABLE")
@@ -345,8 +353,8 @@ async def stream_message(
 
                 # 流结束:从 checkpointer 取最终状态,组装 final 事件
                 cp, backend = await get_checkpointer()
-                tup = await cp.aget_tuple({"configurable": {"thread_id": session_id}})
-                state = tup.checkpoint.get("channel_values", {}) if tup else {}
+                tup = await read_checkpoint(cp, {"configurable": {"thread_id": session_id}})
+                state = completed_state(tup, user_input)
                 latency_ms = int((time.time() - start) * 1000)
 
                 def _unwrap_source(s):
@@ -399,6 +407,12 @@ async def stream_message(
                 latency_ms=int((time.time() - start) * 1000),
             )
             raise
+        except CheckpointUnavailable:
+            await queue.put({"type": "error", "data": "CHECKPOINT_UNAVAILABLE"})
+            await _update_session_status(session_id, "failed", error="CHECKPOINT_UNAVAILABLE")
+            await audit.log(event_type="chat_response", session_id=session_id,
+                            user_id=user.user_id, success=False,
+                            payload={"error": "CHECKPOINT_UNAVAILABLE", "stream": True})
         except RuntimeStateUnavailable:
             await queue.put({"type": "error", "data": "RUNTIME_STATE_UNAVAILABLE"})
             await _update_session_status(session_id, "failed", error="RUNTIME_STATE_UNAVAILABLE")
@@ -494,7 +508,7 @@ async def get_history(
         config = {"configurable": {"thread_id": session_id}}
 
         # 获取最新 checkpoint
-        checkpoint_tuple = await checkpointer.aget_tuple(config)
+        checkpoint_tuple = await read_checkpoint(checkpointer, config)
         if checkpoint_tuple is None:
             # Only metadata already authorized by the ownership lookup may be returned.
             return {
@@ -522,7 +536,9 @@ async def get_history(
             "agent_results_count": len(state.get("agent_results", [])),
         }
 
-    except Exception as e:
+    except CheckpointUnavailable:
+        raise HTTPException(503, "CHECKPOINT_UNAVAILABLE") from None
+    except Exception:
         raise HTTPException(500, "CHAT_HISTORY_FAILED") from None
 
 

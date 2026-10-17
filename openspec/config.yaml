@@ -24,7 +24,7 @@ context: |
   当前状态(2026-10-17)：主规格 15 项、已归档 change 15 项；active change 为
   crm-mail-sso-integration、uat-and-ga-rollout 与 engineering-delivery-closeout。
   engineering-delivery-closeout 的 S0/C24/C01 配置增量已推送，C01 运行验收 BLOCKED；
-  C02 外部模型增量 42bfc7f 已推送，真实 API/Linux 验收 BLOCKED；C03 增量 fc8da91 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属增量 dbc8236 已推送；C05 增量 9f5397c 已推送；C06 增量 6955133 已推送；C07 增量 ceae708 已推送；C08 增量 d81c281 已推送；C09 跨进程状态离线增量已完成（28 项专项与 111 项相关回归 PASS），真实双进程/Redis/LangGraph/Milvus/JWT/API/SSE/PG/Linux 验收 BLOCKED，浏览器/SSO 与历史处置阻塞保留，C09 推送与 C10 及后续尚未授权。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
+  C02 外部模型增量 42bfc7f 已推送，真实 API/Linux 验收 BLOCKED；C03 增量 fc8da91 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属增量 dbc8236 已推送；C05 增量 9f5397c 已推送；C06 增量 6955133 已推送；C07 增量 ceae708 已推送；C08 增量 d81c281 已推送；C09 增量 079cd62 已推送；C10 checkpoint 离线增量已完成（27 项专项与 139 项相关回归 PASS），真实双进程/Redis/LangGraph/Milvus/JWT/API/SSE/PG/Linux 验收 BLOCKED，浏览器/SSO 与历史处置阻塞保留；到期租约不具备写入 fencing，C10 整项 open。C10 推送及下一项 C18 前置尚未授权。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
   C01-C25 的现状/缺口/验收以 ISSUES 为准，S0-S7 顺序以 ROADMAP 为准。
   真实企业联调、UAT、灰度与全量放行仍缺资源，不用参考服务成功替代这些任务。
   OpenSpec CLI 本机不可用；结构检查不能替代严格校验，归档前须补齐。

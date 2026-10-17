@@ -28,6 +28,7 @@
 - `retrieval-authorization`: C07 shared retrieval scope, safe expression literals and result guards.
 - `request-context`: C08 per-dispatch agents, request-bound history and explicit dependency rejection.
 - `cross-process-state`: C09 shared cancellation leases, single-use SSO state and request-scoped prompt snapshots.
+- `checkpoint-durability`: C10 explicit backend selection, managed saver lifetime and fail-closed persistence semantics.
 
 ### Modified Capabilities
 
@@ -91,3 +92,5 @@ same remote branch under explicit user authorization. Implement C09 only, using
 already declared Redis/SQLAlchemy dependencies. Keep real LangGraph/Milvus/JWT/
 PostgreSQL/API/SSE/Linux/browser/SSO and historical credential acceptance BLOCKED.
 Real Redis multi-process acceptance is also BLOCKED. Do not push C09 or start C10.
+
+C10 authorization (2026-10-17): C09 `079cd621a07be97be3861a0ae54668c373b547d6` was pushed and verified on the same remote branch. Implement C10 offline only, preserve all real-service blockers, commit locally and stop before C18 prework or any further item. C10 push requires separate confirmation.

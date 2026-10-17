@@ -9,7 +9,7 @@
 - 注入方式:不改 prompt 模板(模板在 prompt_versions 表有 active 版本,
   改 defaults.py 不生效),把历史块拼进现有占位符:
   planner 意图分类拼进 {message} 槽、knowledge 答案生成拼进 {query} 槽
-- 异常静默:历史加载失败返回 [],不影响主流程
+- 读取失败:停止本次图调用,不把存储故障伪装为无历史
 
 反序列化注意(产品文档 4.2.3):恢复后 pydantic 模型可能变 dict,
 读 channel_values 时 user_input 用 dict/属性双兼容方式访问。
@@ -22,6 +22,8 @@ from itertools import islice
 from typing import Any, Optional
 
 from loguru import logger
+
+from app.graph.checkpoint_access import CheckpointUnavailable
 
 
 async def load_recent_history(
@@ -36,7 +38,7 @@ async def load_recent_history(
         user_input: 当前身份/会话/请求,用于过滤历史归属
 
     Returns:
-        [{"user": ..., "assistant": ...}, ...] 按时间正序;失败/无历史返回 []
+        [{"user": ..., "assistant": ...}, ...] 按时间正序;无历史返回 [],读取失败抛固定错误
     """
     if user_input is None or thread_id != user_input.conversation_id or max_turns <= 0:
         return []
@@ -92,9 +94,8 @@ async def load_recent_history(
         if history:
             logger.info(f"多轮历史加载: thread_id={thread_id}, {len(history)} 轮")
         return history
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"多轮历史加载失败(忽略,按无历史处理): {type(e).__name__}: {e}")
-        return []
+    except Exception:
+        raise CheckpointUnavailable() from None
 
 
 async def _list_checkpoints(checkpointer: Any, config: dict, limit: int = 100) -> list:

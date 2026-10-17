@@ -118,6 +118,10 @@ class RequestContextTests(unittest.IsolatedAsyncioTestCase):
         self.executor = load('c08_executor', 'app/graph/executor.py')
         self.dispatch = load('c08_dispatch', 'app/graph/dispatcher.py')
         self.planner = load('c08_planner', 'app/graph/planner.py')
+        self.checkpoint_access = load('c08_checkpoint_access', 'app/graph/checkpoint_access.py')
+        self.stack.enter_context(patch.dict(sys.modules, {
+            'app.graph.checkpoint_access': self.checkpoint_access,
+        }))
         self.history = load('c08_history', 'app/graph/history.py')
         self.aggregator = load('c08_aggregator', 'app/graph/aggregator.py')
         self.stack.enter_context(patch.dict(sys.modules, {
@@ -299,8 +303,9 @@ class RequestContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(await self.history_for(rows, max_turns=200)), 5)
         self.assertEqual(await self.history_for(rows, max_turns=0), [])
         cp = Record(alist=Mock(side_effect=RuntimeError('unavailable')))
-        self.assertEqual(await self.history.load_recent_history('session-a',
-            checkpointer=cp, user_input=self.user()), [])
+        with self.assertRaises(self.checkpoint_access.CheckpointUnavailable):
+            await self.history.load_recent_history('session-a',
+                checkpointer=cp, user_input=self.user())
         self.assertEqual(len(await self.history._list_checkpoints(self.saver(rows),
             {'configurable': {'thread_id': 'session-a'}})), 100)
 
