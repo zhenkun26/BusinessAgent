@@ -12,7 +12,7 @@ from typing import Any
 
 from loguru import logger
 
-from app.config import get_settings
+from app.config import get_settings, validate_production_settings
 from app.core.approval_timeout import scan_expired_approvals
 from app.core.database import init_db, close_db
 from app.core.saga_retry import retry_saga_compensations
@@ -50,6 +50,10 @@ async def main():
     """Worker 主循环"""
     settings = get_settings()
     logger.info(f"Worker 启动, env={settings.app_env}")
+
+    violations = validate_production_settings(settings)
+    if violations and settings.app_env == "prod":
+        raise RuntimeError("Production configuration rejected: " + "; ".join(violations))
 
     from app.rag.model_profile import verify_model_startup
 

@@ -204,6 +204,7 @@ services:
     environment:
       APP_ENV: prod
       AUTH_REQUIRE_PASSWORD: "true"
+      AUTH_CHECK_DB: "true"
       MODEL_PROFILE: ${MODEL_PROFILE:?Set MODEL_PROFILE to bailian-deepseek-v1}
       MILVUS_HOST: milvus-standalone
       POSTGRES_HOST: postgres
@@ -238,6 +239,7 @@ services:
     environment:
       APP_ENV: prod
       AUTH_REQUIRE_PASSWORD: "true"
+      AUTH_CHECK_DB: "true"
       MODEL_PROFILE: ${MODEL_PROFILE:?Set MODEL_PROFILE to bailian-deepseek-v1}
       MILVUS_HOST: milvus-standalone
       POSTGRES_HOST: postgres

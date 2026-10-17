@@ -42,14 +42,15 @@
 - **现状/证据**：[chat.py](../../enterprise-agent/app/api/chat.py) 普通/流式请求接受 session_id，历史和反馈缺少一致归属校验；取消路径已有 owner/admin 检查。
 - **缺口/原因**：会话读写入口未统一按身份授权，存在跨用户读取或修改的静态风险。
 - **验收**：A/B 两用户针对普通对话、SSE、历史、反馈、取消交叉访问；未授权请求全部拒绝且不改变 session/checkpoint/反馈数据；合法本人流程通过；管理员例外逐接口定义并测试；不存在与无权访问的响应不泄漏敏感信息。
-- **实施与限制（2026-10-17）**：五入口统一以 sessions.user_id 授权；普通/SSE/历史/反馈仅本人，取消保留管理员例外。未知/他人 ID 同为固定 404，归属查询失败固定 503；服务端创建新 ID，续聊 UPDATE 带所有者条件，反馈不再补建会话。20 项离线对抗测试 PASS；真实 HTTP/SSE、PG 事务/锁和完整认证仍 **BLOCKED**，C04 整项 open，未推进 C05。见[权限契约](../50-engineering/session-ownership.md)与[阶段记录](阶段性总结_C04会话归属校验.md)。
+- **实施与限制（2026-10-17）**：五入口统一以 sessions.user_id 授权；普通/SSE/历史/反馈仅本人，取消保留管理员例外。未知/他人 ID 同为固定 404，归属查询失败固定 503；服务端创建新 ID，续聊 UPDATE 带所有者条件，反馈不再补建会话。20 项离线对抗测试 PASS；真实 HTTP/SSE、PG 事务/锁和完整认证仍 **BLOCKED**，C04 整项 open；`dbc8236` 已获授权推送，后续 C05 另见下项。见[权限契约](../50-engineering/session-ownership.md)与[阶段记录](阶段性总结_C04会话归属校验.md)。
 
 <a id="c05"></a>
 #### C05 · P0 · 认证失败闭合与运行时授权
 
-- **现状/证据**：[rbac.py](../../enterprise-agent/app/security/rbac.py) DB 查询异常时回退 JWT 身份；[config.py](../../enterprise-agent/app/config.py) 生产检查未强制全部认证开关；[approval.py](../../enterprise-agent/app/api/approval.py) 执行阶段的账户有效性检查不足。
-- **缺口/原因**：身份存储故障、禁用/降权或等待审批期间权限变化可能继续获得授权。
+- **原调查证据**：[rbac.py](../../enterprise-agent/app/security/rbac.py) DB 查询异常时回退 JWT 身份；[config.py](../../enterprise-agent/app/config.py) 生产检查未强制全部认证开关；[approval.py](../../enterprise-agent/app/api/approval.py) 执行阶段的账户有效性检查不足。
+- **缺口/原因（原调查）**：身份存储故障、禁用/降权或等待审批期间权限变化可能继续获得授权。
 - **验收**：数据库不可用、账户删除/禁用/降权、token 过期/伪造、危险生产配置分别覆盖；需要最新身份的操作拒绝且不触发业务副作用；审批执行时重新核验发起人及批准人权限；恢复后合法请求通过；不以旧 JWT 身份兜底绕过校验。
+- **实施与限制（2026-10-17）**：身份库失败固定 503，删除/禁用/非法角色 401，角色/部门取数据库；生产 API/worker 强制两项认证开关。单笔/批量/恢复执行复查双方身份与权限，恢复复查原审批人，工具使用已验证且绑定发起人的凭据。27 项 C05 离线测试、20 项 C04、22 项 C03、15 项模型配置回归 PASS。真实 JWT/FastAPI、PG 锁/事务、API/SSE 与 Linux 验收 **BLOCKED**；C05 整项 open，C06 未开始。见[授权契约](../50-engineering/runtime-authorization.md)与[阶段记录](阶段性总结_C05认证失败闭合与运行时授权.md)。
 
 <a id="c06"></a>
 #### C06 · P0 · 凭证生命周期、脱敏与 HTML 失败安全

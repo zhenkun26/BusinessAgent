@@ -44,6 +44,7 @@ BusinessAgent/
 │   │   ├── 阶段性总结_C24安全验证前置.md # 安全入口前置交付与回归；整项尚未完成
 │   │   ├── 阶段性总结_C02模型依赖.md # 模型契约与离线检查；真实 API/Linux 验收阻塞
 │   │   ├── 阶段性总结_C03数据库迁移与初始化.md # 迁移/bootstrap 离线增量；真实数据库验收阻塞
+│   │   ├── 阶段性总结_C05认证失败闭合与运行时授权.md # 身份与审批授权；运行验收阻塞
 │   │   ├── 阶段性总结_C04会话归属校验.md # 五入口会话归属；真实 HTTP/PG 验收阻塞
 │   │   ├── 阶段性总结_C01部署产物与入口.md # 部署配置修复；目标运行验收阻塞
 │   │   ├── 模板-工程验收证据.md         # 版本、环境、命令/人工步骤、证据等级与结果模板
@@ -127,7 +128,7 @@ BusinessAgent/
     │   ├── release-management/         # UAT、灰度与正式放行契约
     │   └── uat-replay/                 # G0 技术彩排与证据边界
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── engineering-delivery-closeout/ # S0/C24/C01 配置已交付；C01/C02/C03/C04 运行验收阻塞
+        ├── engineering-delivery-closeout/ # S0/C24/C01 配置已交付；C01/C02/C03/C04/C05 运行验收阻塞
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）
@@ -153,3 +154,5 @@ C02 候选详情：[模型 profile](enterprise-agent/deploy/MODEL_PROFILE.md)、
 C03 候选详情：[数据库初始化手册](enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)、[版本清单](enterprise-agent/deploy/schema_manifest.json)、[显式迁移入口](enterprise-agent/app/core/db_bootstrap.py)、[schema 契约](enterprise-agent/app/core/schema_contract.py)、[演示种子](enterprise-agent/deploy/demo_seed.sql)、[离线回归](enterprise-agent/tests/test_db_bootstrap.py)。
 
 C04 候选详情：[会话归属契约](docs/50-engineering/session-ownership.md)、[统一授权守卫](enterprise-agent/app/security/session_access.py)、[离线验证入口](enterprise-agent/eval/run_c04_session_ownership.py)、[对抗性回归](enterprise-agent/tests/test_session_ownership.py)。
+
+C05 候选详情：[认证与运行时授权契约](docs/50-engineering/runtime-authorization.md)、[离线验证入口](enterprise-agent/eval/run_c05_runtime_authorization.py)、[交付记录](docs/40-process/阶段性总结_C05认证失败闭合与运行时授权.md)。

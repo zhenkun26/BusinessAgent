@@ -43,3 +43,11 @@ C02 scope (confirmed 2026-10-17): replace the provisional local candidate with B
 C03 authorization (2026-10-17): C02 commit `42bfc7f6f3033c5eb5e06fb6d497a92dad86a039` was pushed and the remote branch hash verified. Implement C03 without touching the current database; real API/Linux acceptance remains BLOCKED. C04 and C03 push are not authorized.
 
 C04 authorization (2026-10-17): the user approved pushing C03 and implementing C04. C03 `fc8da91534a64737fae32d76b81ed00580f5093e` was pushed to the same remote branch and its hash verified. Real PostgreSQL/API/Linux acceptance remains BLOCKED; deliver C04 locally and pause. No C04 push, C05 work, deployment or release is authorized.
+
+## C05 authorization update (2026-10-17)
+
+The user authorized pushing C04 `dbc8236` to the same remote branch and then
+implementing C05 only. The push was verified at origin/codex/delivery-ci-gates.
+C05 includes fail-closed identity resolution, production authentication gates and
+approval execution reauthorization. Real PostgreSQL/API/SSE/Linux acceptance stays
+BLOCKED. C05 push and C06 require later confirmation. No new dependencies or live calls.

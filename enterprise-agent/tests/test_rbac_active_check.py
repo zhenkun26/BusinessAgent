@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import jwt
 import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.config import get_settings
-from app.security.rbac import get_current_user
+from app.security.rbac import decode_identity_token, get_current_user
 
 from conftest import FakeResult, FakeRow, FakeSession
 
@@ -18,6 +20,7 @@ def _make_token(role: str = "salesperson", user_id: str = "user_sales_001") -> s
     return jwt.encode(
         {
             "sub": user_id,
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "username": "测试用户",
             "role": role,
             "department": "dept_sales",
@@ -97,14 +100,12 @@ async def test_should_use_db_role_when_user_active(
 
 
 @pytest.mark.asyncio
-async def test_should_fallback_to_jwt_when_db_unavailable(
+async def test_should_fail_closed_when_db_unavailable(
     monkeypatch,
     fake_session_factory,
 ):
     """Given 数据库故障, When 请求,
-    Then 降级 JWT 校验放行(可用性优先,并告警)"""
-    session = FakeSession(responses=[FakeResult([FakeRow()])])
-
+    Then 返回 503,不使用旧 JWT 身份兜底"""
     class BrokenSession(FakeSession):
         async def execute(self, sql, params=None):
             raise RuntimeError("pg down")
@@ -115,6 +116,39 @@ async def test_should_fallback_to_jwt_when_db_unavailable(
     )
     monkeypatch.setattr(get_settings(), "auth_check_db", True)
 
-    user = await get_current_user(_credentials(_make_token()))
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(_credentials(_make_token()))
 
-    assert user.user_id == "user_sales_001"
+    assert exc_info.value.status_code == 503
+
+
+@pytest.mark.parametrize("payload", [
+    {"sub": "user_sales_001"},
+    {"exp": 4102444800},
+    {"sub": "", "exp": 4102444800},
+    {"sub": [], "exp": 4102444800},
+    {"sub": "x" * 65, "exp": 4102444800},
+    {"sub": "user_sales_001", "exp": "4102444800"},
+    {"sub": "user_sales_001", "exp": float("nan")},
+    {"sub": "user_sales_001", "exp": float("inf")},
+    {"sub": "user_sales_001", "exp": True},
+    {"sub": "user_sales_001", "exp": 10 ** 100},
+    {"sub": "user_sales_001", "exp": 1},
+])
+def test_should_reject_invalid_claims_with_real_jwt_library(payload):
+    settings = get_settings()
+    token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    with pytest.raises(HTTPException) as caught:
+        decode_identity_token(token)
+    assert caught.value.status_code == 401
+
+
+def test_should_verify_signature_even_for_expired_reauth_token():
+    settings = get_settings()
+    payload = {"sub": "user_sales_001", "exp": 1}
+    signed = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    assert decode_identity_token(signed, allow_expired=True)["sub"] == "user_sales_001"
+    forged = jwt.encode(payload, "synthetic-wrong-signing-key", algorithm=settings.jwt_algorithm)
+    with pytest.raises(HTTPException) as caught:
+        decode_identity_token(forged, allow_expired=True)
+    assert caught.value.status_code == 401

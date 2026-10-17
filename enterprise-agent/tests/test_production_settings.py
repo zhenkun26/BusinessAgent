@@ -12,6 +12,8 @@ def test_should_flag_default_secrets_in_production():
     Then 返回全部违规项(默认 JWT 密钥/数据库口令/短密钥)"""
     settings = Settings(
         app_env="prod",
+        auth_require_password=True,
+        auth_check_db=True,
         jwt_secret_key="change-me-in-production",
         postgres_password="wJ6pbV5eBkzMT2AYDT9w2i8V",
         redis_password="V5lOkygYvgaD6ZZ8rmqJAcO7",
@@ -32,6 +34,8 @@ def test_should_pass_when_production_secrets_overridden():
     Then 无违规项"""
     settings = Settings(
         app_env="prod",
+        auth_require_password=True,
+        auth_check_db=True,
         jwt_secret_key="x" * 64,
         postgres_password="prod-pg-strong-pass-123456",
         redis_password="prod-redis-strong-pass-123456",
@@ -49,6 +53,8 @@ def test_should_reject_wildcard_cors_in_production():
     Then 返回 CORS 违规项"""
     settings = Settings(
         app_env="prod",
+        auth_require_password=True,
+        auth_check_db=True,
         jwt_secret_key="x" * 64,
         postgres_password="prod-pg-strong-pass-123456",
         redis_password="prod-redis-strong-pass-123456",
@@ -74,6 +80,8 @@ def test_should_skip_validation_in_dev_mode():
 def test_should_reject_invalid_system_provider():
     settings = Settings(
         app_env="prod",
+        auth_require_password=True,
+        auth_check_db=True,
         jwt_secret_key="x" * 64,
         postgres_password="prod-pg-strong-pass-123456",
         redis_password="prod-redis-strong-pass-123456",
@@ -90,6 +98,8 @@ def test_should_reject_invalid_system_provider():
 def test_should_require_oidc_settings_before_enabling_sso():
     settings = Settings(
         app_env="prod",
+        auth_require_password=True,
+        auth_check_db=True,
         jwt_secret_key="x" * 64,
         postgres_password="prod-pg-strong-pass-123456",
         redis_password="prod-redis-strong-pass-123456",
@@ -101,3 +111,10 @@ def test_should_require_oidc_settings_before_enabling_sso():
     violations = validate_production_settings(settings)
 
     assert any("SSO_ENABLED=true" in violation for violation in violations)
+
+
+@pytest.mark.parametrize("flag", ["auth_require_password", "auth_check_db"])
+def test_should_reject_disabled_production_auth_flag(flag):
+    settings = Settings(app_env="prod", auth_require_password=True, auth_check_db=True)
+    setattr(settings, flag, False)
+    assert any(flag.upper() in v for v in validate_production_settings(settings))

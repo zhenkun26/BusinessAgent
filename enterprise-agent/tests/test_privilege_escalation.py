@@ -2,12 +2,14 @@
 
 覆盖规格四个 Scenario:
 1. 跨部门命名空间取数被拒绝/过滤(can_access_namespace + 降级链口径)
-2. 禁用用户持旧 JWT 访问受保护接口返回 401;DB 故障降级「告警但放行」
+2. 禁用用户持旧 JWT 访问受保护接口返回 401;DB 故障返回 503
 3. 角色降级(经理→销售)后旧 token 按 DB 新角色判定权限
 4. 越权使用他角色工具被 ToolGateway 拒绝
 """
 
 from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
@@ -32,6 +34,7 @@ def _make_token(role: str = "salesperson", user_id: str = "user_sales_001") -> s
     return jwt.encode(
         {
             "sub": user_id,
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "username": "测试用户",
             "role": role,
             "department": "dept_sales",
@@ -121,11 +124,11 @@ async def test_should_reject_disabled_user_holding_stale_jwt(
 
 
 @pytest.mark.asyncio
-async def test_should_alert_but_allow_when_db_check_degraded(
+async def test_should_alert_and_deny_when_db_check_unavailable(
     monkeypatch, fake_session_factory
 ):
     """Given auth_check_db=True 但数据库故障, When 持有效 JWT 访问,
-    Then 降级为仅 JWT 校验:放行 + 告警(可用性优先,禁用即时性降级)"""
+    Then 返回 503 并记录固定告警,不回退 JWT 身份"""
 
     class BrokenSession(FakeSession):
         async def execute(self, sql, params=None):
@@ -140,12 +143,13 @@ async def test_should_alert_but_allow_when_db_check_degraded(
     warnings: list[str] = []
     sink_id = logger.add(lambda m: warnings.append(str(m)), level="WARNING")
     try:
-        user = await get_current_user(_credentials(_make_token()))
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(_credentials(_make_token()))
     finally:
         logger.remove(sink_id)
 
-    assert user.user_id == "user_sales_001"  # 放行
-    assert any("降级" in w for w in warnings)  # 且告警
+    assert exc_info.value.status_code == 503
+    assert any("Identity store unavailable" in w for w in warnings)
 
 
 # ============ 4.3 角色降级后旧 token 按 DB 新角色判定 ============

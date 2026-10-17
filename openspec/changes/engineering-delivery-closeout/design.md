@@ -85,3 +85,26 @@ S1–S7 以工程基线的证据模板逐项执行；最终验收绑定最终候
 - Feedback removes its session-placeholder upsert, requires an owned row with FOR SHARE in the same transaction as feedback/draft insertion, then follows existing business logic. Cancellation authorizes with a shared row lock before touching the process-local task registry. Ownership is immutable in existing application APIs; concurrent ownership reassignment outside the application and cross-process cancellation remain unsupported and require separate operational controls/C09 work.
 - Add standard-library offline adversarial tests using the actual API module with injected framework/database/graph dependencies. Exercise A/B/manager/admin denial, identical missing/foreign responses, safe database failure, legal flows, collision and race refusal, and no side effects on rejection. Provide a dedicated reviewed eval entry without filesystem cleanup or real connections. These tests are not FastAPI validation, HTTP transport, PostgreSQL locking or live authentication acceptance.
 - Update development trackers before the local commit; keep C04 parent and live subtask unchecked, preserve PostgreSQL/API/Linux/OpenSpec strict blockers, and wait for confirmation before C05 or C04 push. No new dependencies, package installs, services, migration or deletions.
+
+## C05 design: current identity and approval authorization
+
+Use shared strict JWT decoding and active-account resolution in rbac.py. Identity
+query failure returns a fixed 503; absent/disabled/invalid-role identities return
+401. Only explicit development mode may opt out of request database checks;
+approvals always query the database. Production API and worker require both auth
+flags before initializing external resources.
+
+Approval decisions and resumes share a guard: resolve requester and approver in
+sorted ID order with FOR SHARE in the existing transaction, validate current
+approver roles and every planned tool against requester ROLE_TOOLS, and bind a
+verified token subject to requester_id. Repeat the guard at execution. Expired
+signed or absent stored tokens may use the existing pending-reauth transition;
+forged/mismatched tokens cannot. Resume requires an explicit bearer token and
+rechecks the recorded approver. Authorization errors precede business writes,
+tools and notifications; batch items fail individually with sanitized errors.
+
+This is transaction-scoped authorization, not approval claiming or external-effect
+atomicity. C11 owns concurrent duplicate execution, partial batches and final
+execution states; C06 owns persisted credentials and general redaction. No claim
+of mid-flight cancellation for already authorized work is made. Real PostgreSQL
+lock semantics and real JWT/HTTP integration remain blocked.

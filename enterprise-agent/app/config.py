@@ -203,6 +203,10 @@ def validate_production_settings(settings: Optional[Settings] = None) -> list[st
         return []
 
     violations: list[str] = []
+    if not settings.auth_require_password:
+        violations.append("AUTH_REQUIRE_PASSWORD must be true outside development")
+    if not settings.auth_check_db:
+        violations.append("AUTH_CHECK_DB must be true outside development")
     for field_name, default_value in _DEFAULT_SECRETS.items():
         actual = getattr(settings, field_name)
         if actual == default_value:

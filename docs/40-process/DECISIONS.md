@@ -143,3 +143,20 @@
 - **放弃**：用无限扩展的「企业级」清单要求本轮实现多租户/多机 HA；等待企业客户才补工程缺口；用历史通过或模拟结果冒充当前生产可用。
 - **改判条件**：真实企业资源到位、部署/组织边界改变、模型资源不满足、发现新 P0 或某验收无法满足时，先修订相应规格与验收边界并取得确认，再推进受影响项。新增依赖、推送、合并、部署等仍遵守各自授权要求。
 - **当前结论**：只完成 S0 计划文档，工程能力未按新基线验收；CLI 严格校验不可用，不能宣称 OpenSpec 校验通过。当前未归档此 change、未升级版本。
+
+
+## 21. Fail-closed identity and approval execution authorization (2026-10-17)
+
+- **Decision**: Production requires password and current-account checks. Identity-store
+  failure denies access with 503; token claims never replace failed current-account
+  resolution. Explicit development token-only mode remains outside revocation guarantees.
+- **Execution**: Approval single/batch/resume checks requester and approver current
+  permissions in the execution transaction. Resume rechecks the original approver.
+  Identity rows use shared locks in sorted order; tools run as the requester with
+  a signed, unexpired, subject-bound token. Expired signed tokens may require reauth.
+- **Tradeoff**: Identity-store availability becomes required for protected requests;
+  account changes may wait on running approval transactions. C06 credential storage
+  and C11 atomic claiming/state semantics remain separate. Already admitted work is
+  not cancelled mid-flight. No enterprise production use is asserted.
+- **Evidence**: [C05 delivery record](阶段性总结_C05认证失败闭合与运行时授权.md).
+  Offline increment passes; real JWT/HTTP/PostgreSQL/Linux acceptance is BLOCKED.

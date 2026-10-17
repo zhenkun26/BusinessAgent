@@ -43,6 +43,8 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 上述运行步骤仍待隔离环境验收，不能对当前数据库直接执行。C03 的离线预览为 `python -B -m app.core.db_bootstrap plan`，不会连接数据库。[数据库初始化手册](deploy/DATABASE_BOOTSTRAP.md)区分空库、旧库副本、管理员与显式开发演示种子；任一步失败应停止，不继续启动 API/worker。
 
+认证要求：生产 API/worker 必须同时启用 `AUTH_REQUIRE_PASSWORD=true` 和 `AUTH_CHECK_DB=true`。身份库故障返回 503，禁用/删除账户返回 401；审批执行使用双方当前权限。详细约定见[认证与运行时授权契约](../docs/50-engineering/runtime-authorization.md)。
+
 ### 3. 验证服务
 
 ```bash
@@ -171,7 +173,7 @@ enterprise-agent/
 - [x] **W5** LangGraph StateGraph + Planner + Aggregator + Send API 并行 fan-out + 本地小模型闲聊判断优化
 - [x] **W6** Redis Checkpointer 三级降级链(Redis→PG→Memory) + interrupt 人工介入 + 跨进程状态恢复
 - [x] **W7** ExecutionAgent + ToolGateway(8 工具:CRM/邮件/工单/审批进度) + RBAC 角色权限 + Prompt 注入防护 + Saga 补偿回滚
-- [x] **W8** API 层(chat/auth refresh/approval) + 批量审批 batch_id 原子事务 + JWT 刷新 + 限流中间件(Redis 滑动窗口→内存降级)
+- [x] **W8** API 层(chat/auth refresh/approval) + 批量审批 batch_id 追踪（原子领取与外部效果一致性待 C11 验收） + JWT 刷新 + 限流中间件(Redis 滑动窗口→内存降级)
 
 ### 阶段三: 企业级生产化(W9) ✅
 
