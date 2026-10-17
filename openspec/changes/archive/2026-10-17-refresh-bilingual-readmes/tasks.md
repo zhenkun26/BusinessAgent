@@ -36,7 +36,9 @@
 - PASS: both READMEs were copied to the requested local folder; SHA-256 and
   file-mode comparison preserved all 596 unrelated tracked files.
 - Delivery: prepared on `codex/bilingual-readme` from main `2d4bfc17`; push and PR
-  outcomes are reported in the delivery response. Merge is not authorized.
+  outcomes are reported in the delivery response. PR #3 contains this increment.
+  The user subsequently authorized repair, push, and merge; branch protection
+  requirements are checked separately before integration.
 
 ## README content fingerprints
 

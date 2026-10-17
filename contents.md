@@ -109,7 +109,6 @@ BusinessAgent/
     │   ├── performance-resilience/     # 性能与容灾规格（压测/恢复演练/告警值班）
     │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── fix-vulnerable-runtime-dependencies/ # Runtime dependency security remediation for PR #3
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）
@@ -124,5 +123,6 @@ BusinessAgent/
             ├── 2026-08-15-fix-prod-image-pip-removal/   # 生产镜像 pip 清理顺序修复 4/4（归档）
             ├── 2026-09-28-simplify-backend-internals/  # FGR-01/FAT-01 内部简化与定向验证（本地交付）
             ├── 2026-09-28-scan-image-before-publish/  # CI 先扫描后发布（本地验证，待 PR 集成）
+            ├── 2026-10-17-fix-vulnerable-runtime-dependencies/ # Runtime dependency repair; CI passed
             └── 2026-10-17-refresh-bilingual-readmes/  # Chinese and English README refresh and validation
 ```
