@@ -16,10 +16,11 @@
 ### New Capabilities
 
 - `engineering-delivery`: 工程交付范围、逐项验收证据、顺序推进及与企业现场生产验证的隔离规则。
+- `deployment-artifacts`: C01 的同摘要镜像部署、生产入口路由、流式透传与内部指标边界。
 
 ### Modified Capabilities
 
-无。本轮只增加交付治理契约，不改现有运行时主规格。后续 C 项若改变既有能力要求，必须先补充对应 delta 与设计再实现。
+无现有能力主规格修改。当前增加交付治理与 C01 部署产物契约；后续 C 项若改变既有能力要求，必须先补充对应 delta 与设计再实现。
 
 ## Impact
 
@@ -29,3 +30,5 @@
 - 排期事实源：[ROADMAP](../../../docs/40-process/ROADMAP.md#engineering-closeout-stages)。
 - 交付契约：[工程交付基线](../../../docs/50-engineering/engineering-delivery-baseline.md)。
 - S0 文档提交 `05d8d0c` 已按用户单独授权推送到同名远端分支；该授权不延伸为 C24 新提交的推送。合并、发布、部署或外部消息/业务写入不在本轮范围；不新增依赖、不执行删除。
+
+2026-10-17 后续授权：C24 提交 `a329603` 已推送到同名远端；本轮推进 C01，修改生产 Compose、Nginx、部署契约检查及文档，不扩展到 C02 模型、C03 迁移或 C09 多进程一致性。用户随后授权 C01 配置修复独立提交并推送到同名远端分支，再推进 C02；C03 仍未授权。真实运行验收缺少 Docker/Nginx 时保留 BLOCKED，不提前勾选整项。

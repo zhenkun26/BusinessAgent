@@ -12,6 +12,7 @@
 
 ### 工程收尾规划（2026-10-17）
 
+- C01 配置修复：生产 Compose 的 API/worker 使用同一必填镜像引用，部署前契约检查要求 registry digest；不再本地 build 或挂载源码。Nginx 补齐 UI/文档 schema/ready 路由、SSE 关闭缓冲、metrics 保持内部访问；修正 worker 继承 API 探针和部署命令。离线检查通过，但目标环境镜像/登录/SSE 验收 BLOCKED，C01 尚未完成。[实施记录](docs/40-process/阶段性总结_C01部署产物与入口.md)。
 - C24 前置：新增标准库离线安全入口、12 项入口回归、副作用盘点和证据模板；只运行五个已审查核验函数，验证期间阻止文件修改/网络/进程，证据只新建且不保存原始敏感细节。当前五函数执行通过，真实 UAT/发布仍 BLOCKED；不代表 C24 整项完成。[交付记录](docs/40-process/阶段性总结_C24安全验证前置.md)。
 - 完成 S0 文档增量：交付基线、ISSUES C01–C25 差距与验收、ROADMAP S0–S7 顺序及 `engineering-delivery-closeout` OpenSpec 变更。仅文档与规格，应用版本仍为 1.3.0；所有运行时收尾项尚未实施，真实企业验收与上线门槛仍阻塞。验证与限制见 [S0 阶段总结](docs/40-process/阶段性总结_S0工程交付基线.md)。
 

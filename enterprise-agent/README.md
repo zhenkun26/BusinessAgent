@@ -25,12 +25,14 @@ docker compose up -d etcd minio milvus-standalone postgres redis
 # API 在宿主机直接跑(开发模式,.env 默认已指向 localhost + milvus)
 python -m app.main
 
-# 或容器化运行(生产模式)
+# 或使用开发 Compose 的容器化入口（不是不可变镜像生产交付）
 docker compose --profile production up -d api
 
 # 启动监控(可选)
 docker compose --profile monitoring up -d prometheus grafana jaeger
 ```
+
+生产候选使用独立的 `docker-compose.prod.yml`：API/worker 绑定同一镜像摘要且不挂载源码，必须按[生产部署指南](deploy/DEPLOY.md)设置 `BUSINESSAGENT_IMAGE`、显式传入 `.env.prod` 并通过契约检查。C01 的真实镜像/入口验收尚未完成，开发入口能运行不代表生产候选通过。
 
 ### 3. 验证服务
 

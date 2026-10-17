@@ -41,3 +41,13 @@ S1–S7 以工程基线的证据模板逐项执行；最终验收绑定最终候
 - 记录检查是否成功执行与业务准备度两个维度。退出码 0=全部 PASS，1=检查 FAIL，2=前置或业务 BLOCKED；真实资源未齐必须保持 BLOCKED，不能因函数正常返回而放行。
 - 回归用标准库 unittest 直接运行，不加载 pytest/plugin/缓存/临时目录管理器。测试数据写到唯一保留目录，无 tearDown 删除；验证拒绝删除事件时使用 `sys.audit` 事件探针，不执行删除系统调用。
 - C24 整项仍 open；本轮只完成安全入口、脚本副作用清单、证据模板及自身回归。全量应用测试、容器/浏览器/外部参考服务纳入入口前必须另做副作用审查。
+
+## C01 设计（2026-10-17，用户已授权任务 1.2）
+
+- API 与 worker 只从同一个必填 `BUSINESSAGENT_IMAGE=registry/repository@sha256:...` 运行。生产 Compose 不含 build，不覆盖 `/app` 源码；CI 继续用已有 `Dockerfile.prod` 构建/扫描候选，部署不二次构建。
+- 用标准库脚本读取 Compose 渲染后的 JSON，拒绝 tag、不同镜像、本地 build、源码覆盖与应用宿主端口；只输出固定检查名/布尔结果，不回显渲染后的秘密值。不自动调用 Docker、不新增依赖、不写文件。
+- Nginx 保持 HTTP→HTTPS，根路径重定向 `/ui/`；显式代理 `/ui`、`/ui/`、`/api/`、`/health`、`/ready`、`/docs`、`/docs/oauth2-redirect`、`/redoc`、`/openapi.json`。未知路由 404。API 关闭响应缓冲、缓存及压缩干扰，清除无条件 WebSocket Upgrade；保留原路径、查询参数和转发头。
+- `/metrics` 只允许 Compose 网络内 Prometheus 直接读取 `api:8000`，公共入口返回 404；API 不发布宿主端口。worker 禁用从 API 镜像继承的 HTTP 探针，避免检查不存在的 worker:8000；真实 worker 就绪/告警由 C14/C21 承接，不伪造健康信号。
+- 统一部署命令的工作目录和 `--env-file .env.prod`，区分 Compose 插值与容器 env_file；明确镜像身份核验与操作步骤。保留现有进程数，不在 C01 改判 C09 支持范围。
+- 验证分层：本机标准库契约/变异测试及现有 Ruby 标准库 YAML 解析仅作静态证据；真实 Compose 渲染、Nginx 配置检查、镜像身份、浏览器登录/SSE/健康与就绪需隔离 Linux 环境实测。Docker/Nginx 当前缺失，模型/初始化也受 C02/C03 影响；静态通过不关闭 C01。
+- 现有 Dockerfile/备份/worker 审计存在清理路径，本轮不执行构建、服务启动或清理。完整运行前需对实际执行路径复审，沿用 C24 非删除约束。

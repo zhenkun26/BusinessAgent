@@ -1,8 +1,10 @@
 # 生产部署指南
 
-> 适用：Hello，智多星——企业知识工作流 Agent v3
-> 部署方式：Docker Compose（单机生产部署）
-> 更新日期：2026-07-26
+> 适用：智多星 v1.3.0；候选提交与镜像摘要必须另行记录。
+> 部署方式：Linux 单机 Docker Compose；工程候选配置，不代表已完成生产验收。
+> 更新日期：2026-10-17（C01 配置修复；目标环境验收 BLOCKED）
+>
+> C01 已统一镜像引用和访问入口；模型 profile、数据库初始化、多进程状态分别由 C02/C03/C09 验收。当前不能仅凭本指南宣称完整系统可交付。历史备份/恢复/清理章节含破坏性操作，**不属于本轮可执行验收步骤**；先遵守仓库非删除要求与 C22 复审。
 
 ---
 
@@ -87,14 +89,15 @@ huggingface-cli download BAAI/bge-reranker-large --local-dir /data/models/bge-re
 
 ### 3.1 创建 `.env.prod`
 
-```bash
-cp .env .env.prod
-```
+在 `enterprise-agent/` 下创建私有 `.env.prod`；已有文件只编辑需要的字段，不覆盖现有配置。参考 `.env.example` 补齐应用配置。`env_file: .env.prod` 只负责容器环境；Compose 的镜像、密码等 `${...}` 插值通过下文每条命令的 `--env-file .env.prod` 显式读取。不要把真实配置或 `docker compose config` 全文放入聊天、日志或 Git。
 
 编辑 `.env.prod`，**必须修改**以下字段：
 
 ```env
 APP_ENV=prod
+
+# 必须取自经审查的 CI 候选及镜像仓库，不使用 latest 或可变 tag
+BUSINESSAGENT_IMAGE=ghcr.io/<owner>/businessagent@sha256:<64位实际摘要>
 
 # 强密码(用 openssl rand -base64 32 生成)
 POSTGRES_PASSWORD=<生成新密码>
@@ -111,6 +114,9 @@ RERANKER_MODEL=/data/models/bge-reranker-large
 
 # Milvus 切换为真实后端
 VECTOR_STORE_PROVIDER=milvus
+
+# 与实际 HTTPS 入口一致；生产不能使用通配来源
+CORS_ALLOW_ORIGINS=https://<实际域名>
 
 # 关闭调试
 LOG_LEVEL=INFO
@@ -151,46 +157,75 @@ mkdir -p backups
 ### 4.1 拉取代码
 
 ```bash
-git clone <repo-url> /opt/enterprise-agent
-cd /opt/enterprise-agent
-git checkout main
+git clone <repo-url> /opt/BusinessAgent
+cd /opt/BusinessAgent
+git checkout <已审查的候选提交>
+cd enterprise-agent
 ```
 
-### 4.2 启动服务
+以下命令全部从 `enterprise-agent/` 执行。隔离验收时使用独立主机、端口和数据卷，不能覆盖已有实例。CI 使用 `Dockerfile.prod` 构建、扫描并按既有发布授权流程提供镜像；本 Compose **没有 build 路径**，API/worker 都使用 `.env.prod` 中的同一摘要。
+
+### 4.2 验证配置与启动条件
 
 ```bash
-# 启动核心服务(不含监控)
-docker compose -f docker-compose.prod.yml up -d
+# bash/zsh 中保留管道上游失败；只输出安全摘要，不打印渲染后的密码
+set -o pipefail
+docker compose --env-file .env.prod -f docker-compose.prod.yml config --format json \
+  | python3 -I -B scripts/check_deployment_contract.py
 
-# 启动监控(Prometheus + Grafana)
-docker compose -f docker-compose.prod.yml --profile monitoring up -d
+# 只有契约检查 PASS、模型/数据库配置确认且允许启动隔离实例后，才运行：
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull api worker
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-build
+
+# 监控可选；指标走 Compose 网络中的 api:8000/metrics
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile monitoring up -d --no-build
 ```
+
+契约检查失败必须停止，不继续执行启动行；它拒绝可变 tag、API/worker 不同镜像、应用 build、源码覆盖、宿主端口和 worker 误用 API 探针，但**不验证镜像是否存在、模型是否可用或业务启动成功**。缺失 Docker/Nginx 的环境不能执行后续验收。现有镜像构建与应用路径还需按 C24 的副作用规则复审；本次没有执行含删除的构建/清理命令。
 
 ### 4.3 验证部署
 
 ```bash
-# 1. 容器状态
-docker compose -f docker-compose.prod.yml ps
+# 1. 容器状态（running 不等于可用）
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 
-# 2. 健康检查
+# 2. 核对 Nginx 实际配置可加载；只检查，不 reload/清理
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx nginx -t
+
+# 3. 以下 -k 仅用于隔离环境自签证书；真实证书应删除 -k
+curl -k -I https://localhost/
+# 期望：302，Location: /ui/
+curl -k -I https://localhost/ui/
+# 期望：200，HTML；随后必须在浏览器完成实际登录
 curl -k https://localhost/health
-# 期望: {"status":"healthy","version":"1.0.0"}
+# 期望：healthy，version 与候选应用版本一致
 
-# 3. 就绪检查
+# 4. 就绪检查：不能仅看 HTTP 200，当前状态码语义修复由 C21 承接
 curl -k https://localhost/ready
-# 期望: db/milvus/checkpointer 全部 healthy
+# 核对 db/milvus/checkpointer 的实际状态；未初始化或降级不能记为 ready
 
-# 4. API 文档
+# 5. 文档与 schema
 curl -k https://localhost/docs
+curl -k https://localhost/openapi.json
+
+# 6. 外部指标入口关闭，内部 Prometheus 采集单独核对
+curl -k -o /dev/null -w '%{http_code}\n' https://localhost/metrics
+# 期望：404
+
+# 7. 只输出应用容器 ID 和实际 image ID，不打印环境变量
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps -q api worker \
+  | xargs docker inspect --format '{{.Id}} {{.Image}}'
 ```
 
-### 4.4 初始化知识库
+API 与 worker 的实际 image ID 必须一致，并与审查记录中的 registry digest 对应的本地镜像 ID 相同。部署记录保存候选提交、构建/扫描 run、registry digest、平台、API/worker image ID 与配置文件哈希；`docker image inspect <实际摘要引用> --format '{{.Id}}'` 可只读获得比对值。
 
-```bash
-# 入库样本文档
-docker compose -f docker-compose.prod.yml exec api \
-  python -m eval.run_eval --ingest --recreate
-```
+浏览器人工验收仍必需：从 HTTPS 根路径进入 UI，完成授权测试账户登录，发起一条已批准的无副作用知识问答；开发者工具确认 `/api/v1/chat/stream` 返回事件流，观察增量事件而非结束后一次性出现；确认文档页成功加载 schema。记录实际角色、环境、首事件时间、结束状态与来源，不在截图中显示凭证。本机缺少目标运行环境，这些步骤尚未执行。
+
+worker 使用相同应用镜像但运行 `python -m app.worker`，没有 HTTP 监听；已禁用镜像中 API 的 `/health` 探针，**不表示 worker 已健康**，专用信号和消费验证由 C14/C21 承接。
+
+### 4.4 知识数据与镜像内容边界
+
+生产镜像只包含应用及部署 schema/迁移，不包含宿主 `eval/`、`tests/` 或脚本；因此不能在 API 容器内运行 `python -m eval.run_eval`。知识初始化应使用明确授权的应用上传/发布流程，生命周期一致性由 C15 验收。不要用 `--recreate` 补救，避免触及既有集合。
 
 ---
 
@@ -230,17 +265,17 @@ crontab -e
 
 ```bash
 # PostgreSQL 恢复(目标库已有 schema 时必须先清库,否则建表冲突)
-docker compose -f docker-compose.prod.yml exec -T postgres \
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T postgres \
   psql -U agent enterprise_agent -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 gunzip < backups/pg_20260726_020000.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T postgres \
+  docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T postgres \
   psql -U agent enterprise_agent
 
 # Milvus 恢复(停 Milvus → 停 etcd/minio → 清数据卷 → 恢复 etcd snapshot 与
 #             MinIO/milvus 卷数据 → 启 etcd/minio → 启 Milvus)
 # ⚠️ 在运行中的 etcd 上直接 snapshot restore 必失败(数据目录非空/被锁);
 #    只恢复 etcd 元数据不恢复 MinIO/milvus 卷,集合会 load 挂起(实测,ISSUES I-12)
-docker compose -f docker-compose.prod.yml stop milvus-standalone etcd minio
+docker compose --env-file .env.prod -f docker-compose.prod.yml stop milvus-standalone etcd minio
 docker run --rm -v <project>_etcd_data:/etcd alpine sh -c 'rm -rf /etcd/* /etcd/.[!.]*'
 docker run --rm -v <project>_etcd_data:/etcd -v "$(pwd)/backups:/b:ro" \
   quay.io/coreos/etcd:v3.5.5 \
@@ -249,7 +284,7 @@ docker run --rm -v <project>_minio_data:/data -v "$(pwd)/backups:/b:ro" alpine \
   sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/minio_20260726_020000.tar.gz -C /data'
 docker run --rm -v <project>_milvus_data:/data -v "$(pwd)/backups:/b:ro" alpine \
   sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/milvus_20260726_020000.tar.gz -C /data'
-docker compose -f docker-compose.prod.yml up -d etcd minio milvus-standalone
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d etcd minio milvus-standalone
 ```
 
 > 恢复后一致性核查：`/ready` 全 healthy；PG 关键表行数与备份时点比对；
@@ -264,7 +299,7 @@ docker compose -f docker-compose.prod.yml up -d etcd minio milvus-standalone
 
 ```bash
 # 启动监控
-docker compose -f docker-compose.prod.yml --profile monitoring up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile monitoring up -d
 
 # 访问
 http://server-ip:3000
@@ -291,38 +326,39 @@ http://server-ip:3000
 
 ```bash
 # API 日志
-docker compose -f docker-compose.prod.yml logs -f api
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f api
 
 # 特定时间段
-docker compose -f docker-compose.prod.yml logs --since 1h api
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --since 1h api
 
 # Nginx 访问日志
-docker compose -f docker-compose.prod.yml exec nginx cat /var/log/nginx/access.log
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec nginx cat /var/log/nginx/access.log
 ```
 
 ---
 
 ## 七、运维操作
 
-### 7.1 滚动更新
+### 7.1 候选镜像更新
 
 ```bash
-# 拉取新代码
-git pull origin main
-
-# 重新构建 API 镜像
-docker compose -f docker-compose.prod.yml build api worker
-
-# 滚动重启(无停机,Nginx 会自动重试)
-docker compose -f docker-compose.prod.yml up -d --no-deps api worker
+# 将 .env.prod 中 BUSINESSAGENT_IMAGE 改为新审查摘要，保留旧摘要供回退
+set -o pipefail
+docker compose --env-file .env.prod -f docker-compose.prod.yml config --format json \
+  | python3 -I -B scripts/check_deployment_contract.py
+# 仅上一步 PASS 且已获更新授权后继续
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull api worker
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps --no-build api worker
 ```
+
+更新会替换容器，可能中断请求，不承诺零停机；Nginx 上游地址解析也需复核，必要时在授权窗口重新加载代理。按 §4.3 重新验收 API/worker 身份和入口；旧摘要可用不等于数据迁移可回退，迁移回退由 C03/C22 明确。当前非删除规则下，不自动执行容器替换或回收。
 
 ### 7.2 扩容（多实例）
 
-单机内扩容（增加 worker 数）：
+以下仅为历史扩容参考，跨进程状态由 C09 验收前，不作为已支持能力或当前执行步骤：
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --scale api=2
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --scale api=2
 ```
 
 > 多机部署需要额外引入负载均衡器（HAProxy/Nginx）+ 共享存储（NFS/S3），届时再评估是否上 K8s。
@@ -343,10 +379,10 @@ limit_req zone=api_limit burst=60 nodelay;
 
 ```bash
 # 停止全部服务(保留数据)
-docker compose -f docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker-compose.prod.yml down
 
 # 停止并删除数据卷(⚠️ 危险,会丢失全部数据)
-docker compose -f docker-compose.prod.yml down -v
+docker compose --env-file .env.prod -f docker-compose.prod.yml down -v
 
 # 清理无用镜像
 docker image prune -f
@@ -376,7 +412,7 @@ docker image prune -f
 
 ```bash
 # 查看启动日志
-docker compose -f docker-compose.prod.yml logs api | tail -50
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs api | tail -50
 
 # 常见原因:
 # - .env.prod 缺少必填字段(POSTGRES_PASSWORD 等)
@@ -388,7 +424,7 @@ docker compose -f docker-compose.prod.yml logs api | tail -50
 
 ```bash
 # 检查集合状态
-docker compose -f docker-compose.prod.yml exec api \
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec api \
   python -c "from app.core.milvus_client import get_collection; c = get_collection(); print(c.num_entities)"
 
 # 检查命名空间过滤
@@ -399,7 +435,7 @@ docker compose -f docker-compose.prod.yml exec api \
 
 ```bash
 # 检查 RediSearch 模块
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD MODULE LIST
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD MODULE LIST
 
 # 应包含: search + ReJSON
 # 不包含则自动降级 PostgreSQL(三级降级链)
@@ -412,7 +448,7 @@ docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWOR
 docker system df
 
 # 清理日志(json-file 日志会占空间)
-docker compose -f docker-compose.prod.yml logs --tail 0 -f api  # 看实时
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail 0 -f api  # 看实时
 # 然后 truncate 旧日志
 find /var/lib/docker/containers -name "*.log" -mtime +7 -delete
 ```

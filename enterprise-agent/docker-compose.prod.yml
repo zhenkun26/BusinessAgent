@@ -4,16 +4,16 @@
 # - 资源限制(deploy.resources):CPU/内存上限,防止单容器拖垮整机
 # - 日志驱动(logging):json-file + 大小限制,防磁盘写爆
 # - 重启策略(restart):unless-stopped,异常自动拉起
-# - 健康检查:全部服务必备
+# - 健康检查:API 使用镜像探针;worker 专用探针待 C14/C21,不复用 HTTP 探针
 # - 端口:仅暴露必要端口(API/监控),内部服务不对外
 # - 时区:统一 Asia/Shanghai
-# - 只读 App 容器:防止运行时被篡改
+# - 应用产物:API/worker 同一摘要镜像,不挂载宿主源码
 #
 # 使用:
-#     docker compose -f docker-compose.prod.yml up -d
+#     docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-build
 #
 # 依赖:
-#     .env.prod (生产环境配置,含强密码)
+#     .env.prod (生产环境配置,含强密码与 BUSINESSAGENT_IMAGE=...@sha256:...)
 #
 # 部署清单见: deploy/DEPLOY.md
 
@@ -196,9 +196,7 @@ services:
   # ============================================
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: &app_image ${BUSINESSAGENT_IMAGE:?Set BUSINESSAGENT_IMAGE to the reviewed registry digest}
     expose:
       - "8000"
     env_file:
@@ -218,7 +216,6 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./app:/app/app:ro
       - hf_cache:/data/hf_cache
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --no-access-log
     restart: unless-stopped
@@ -236,9 +233,7 @@ services:
           memory: 2G
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *app_image
     env_file:
       - .env.prod
     environment:
@@ -256,9 +251,12 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./app:/app/app:ro
       - hf_cache:/data/hf_cache
     command: python -m app.worker
+    # Dockerfile.prod checks API HTTP; the worker has no HTTP listener.
+    # A dedicated worker readiness signal is tracked by C14/C21.
+    healthcheck:
+      disable: true
     restart: unless-stopped
     logging:
       driver: json-file

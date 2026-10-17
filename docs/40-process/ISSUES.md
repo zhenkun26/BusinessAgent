@@ -8,7 +8,7 @@
 <a id="engineering-closeout"></a>
 ### 工程交付收尾差距 C01–C25（2026-10-17）
 
-本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，其余未实施。现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
+本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，C01 已修配置但目标环境验收 BLOCKED，其余未实施。现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
 
 每项日期均为 2026-10-17，计划修复按对应缺口执行，修复与验证记录待逐项实施后补充。源码链接相对本文件；工程验收遵守[交付基线](../50-engineering/engineering-delivery-baseline.md)的证据等级与记录模板，执行依赖以 [ROADMAP](ROADMAP.md#engineering-closeout-stages) 为准。历史 fixed 条目保留当时证据，不自动覆盖本轮新发现。
 
@@ -18,6 +18,7 @@
 - **现状/证据**：[生产 Compose](../../enterprise-agent/docker-compose.prod.yml) 使用 `Dockerfile` 并挂载源码；CI 构建 `Dockerfile.prod`；[Nginx](../../enterprise-agent/deploy/nginx.conf) 根路径返回文本，未接通 `/ui` 等交付入口。
 - **缺口/原因**：构建、验收、运行产物不一致；不能按生产入口复现完整产品。
 - **验收**：从文档在隔离 Linux 主机启动同摘要 API/worker 镜像，无源码挂载；从声明的入口完成 UI、登录、SSE、API 文档与健康/就绪访问；内部指标端点采用明确访问边界；记录镜像摘要、入口与启动检查，不以容器 running 代替功能通过。
+- **实施与限制（2026-10-17）**：生产 Compose 改为必填同一镜像引用并移除应用 build/源码挂载；[契约检查](../../enterprise-agent/scripts/check_deployment_contract.py)拒绝非摘要镜像和产物覆盖；Nginx 补 UI/schema/ready 路由、关闭 API 响应缓冲、外部 metrics 返回 404；worker 禁用误继承的 API 探针。离线 8 项 PASS、1 项因本机 PyYAML 缺失跳过；另用已有 Ruby 标准库解析真实 YAML 并验证 8 条模型契约通过。**运行验收 BLOCKED，整项保持 open**：无 Docker/Nginx，未实际构建/启动候选、未验收登录/SSE；C02/C03 的模型和初始化未提前完成。[本轮记录](阶段性总结_C01部署产物与入口.md)。
 
 <a id="c02"></a>
 #### C02 · P1 · 模型与依赖 profile 匹配

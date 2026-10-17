@@ -60,7 +60,7 @@ python -m eval.run_w9_tracing
 - AI 工具集成：Kimi Code（`.kimi-code/skills/`）与 Codex（`.codex/skills/`）均已
   由 `openspec init` 生成 6 个工作流 skill；CLI 升级后用 `openspec update` 刷新。
 - 主规格 15 项见 `openspec/specs/`（2026-10-17）；新需求在 `openspec/changes/` 下开启 change。
-- 当前工程收尾 change 为 `engineering-delivery-closeout`：S0 与 C24 安全入口前置已完成，下一项 C01 等待用户确认；顺序以 ROADMAP 为准，验收以 ISSUES C01–C25 为准。真实企业接入与 UAT/灰度两个 change 保持独立，不以参考环境通过替代。
+- 当前工程收尾 change 为 `engineering-delivery-closeout`：S0/C24 前置已完成并推送；C01 配置修复已完成，目标运行验收 BLOCKED，用户已授权配置独立提交/推送并推进 C02；C03 及后续尚未授权。顺序以 ROADMAP 为准，验收以 ISSUES C01–C25 为准。真实企业接入与 UAT/灰度两个 change 保持独立，不以参考环境通过替代。
 - 离线前置核验使用 `python3 -I -B enterprise-agent/scripts/safe_validate.py`（仓库根目录）；默认只输出摘要，exit 2 可表示真实 UAT/发布仍阻塞，不等于入口失败。副作用范围见 `docs/50-engineering/safe-validation.md`；其他脚本不得自动视为已通过安全审查。
 
 ## 关键文档

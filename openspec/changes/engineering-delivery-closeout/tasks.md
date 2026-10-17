@@ -7,10 +7,12 @@
 
 S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条需求结构通过；仅文档与 OpenSpec context 改动。OpenSpec CLI 严格校验 BLOCKED，不计为通过；完整记录见 `docs/40-process/阶段性总结_S0工程交付基线.md`（仓库相对路径）。
 
-## 1. S1：可复现环境（仅 1.1 已授权并完成，其余待逐项授权）
+## 1. S1：可复现环境（1.1 完成；1.2 配置独立交付、运行验收阻塞；1.3 已授权）
 
 - [x] 1.1 C24 前置部分：安全验证入口与证据模板；本项只完成前置，C24 最终状态仍 open。<!-- evidence: enterprise-agent/scripts/safe_validate.py; docs/40-process/阶段性总结_C24安全验证前置.md; 12 stdlib regression tests PASS; offline execution PASS, UAT/release BLOCKED -->
-- [ ] 1.2 C01 部署产物与入口一致。
+- [ ] 1.2 C01 部署产物与入口一致。<!-- configuration implemented; target-runtime acceptance BLOCKED; do not close based on static checks -->
+  - [x] 1.2.1 冻结 deployment-artifacts delta，统一镜像/入口配置，补契约检查和部署说明；离线 8 项通过，PyYAML 测试 1 项跳过，另用系统 Ruby 标准库完成真实 YAML 解析与模型契约检查。
+  - [ ] 1.2.2 在隔离 Linux 环境完成 Compose 渲染、Nginx 校验、候选镜像身份、UI/登录/SSE/健康/就绪/指标边界验收并记录证据。<!-- BLOCKED: no Docker/Nginx here; model/bootstrap dependencies remain C02/C03; see docs/40-process/阶段性总结_C01部署产物与入口.md -->
 - [ ] 1.3 C02 模型与依赖 profile 匹配。
 - [ ] 1.4 C03 数据库迁移与初始化。
 
