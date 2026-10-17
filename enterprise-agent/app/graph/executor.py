@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 from loguru import logger
 
@@ -17,11 +16,6 @@ from app.agents.analysis import AnalysisAgent
 from app.agents.execution import ExecutionAgent
 from app.agents.knowledge import AgentResult
 from app.graph.state import AgentState, SubTask, TaskType, UserInput
-from app.security.rbac import AgentRole
-
-
-# 子 Agent 单例缓存(按 user_role + user_id 缓存,避免串用户身份)
-_agent_cache: dict[tuple[str, str, AgentRole, str], object] = {}
 
 
 async def agent_executor_node(state: AgentState) -> AgentState:
@@ -82,16 +76,10 @@ async def agent_executor_node(state: AgentState) -> AgentState:
         return AgentState(agent_results=[error_result])
 
 
-
-
 def _get_agent(task_type: TaskType, user_input: UserInput):
-    """获取子 Agent 单例(按 task_type + dept + role + user_id 缓存,避免串用户身份)"""
+    """Create an agent for this task; request-bearing instances are never shared."""
     role = user_input.role
     dept = user_input.department or "shared_company"
-    cache_key = (task_type.value, dept, role, user_input.user_id)
-
-    if cache_key in _agent_cache:
-        return _agent_cache[cache_key]
 
     if task_type == TaskType.KNOWLEDGE:
         from app.agents.knowledge import KnowledgeAgent
@@ -106,6 +94,7 @@ def _get_agent(task_type: TaskType, user_input: UserInput):
             user_dept=dept,
             user_id=user_input.user_id,
             conversation_id=user_input.conversation_id,
+            request_id=user_input.request_id,
         )
     else:
         # 兜底:Knowledge
@@ -113,10 +102,4 @@ def _get_agent(task_type: TaskType, user_input: UserInput):
 
         agent = KnowledgeAgent(user_role=role, user_dept=dept)
 
-    _agent_cache[cache_key] = agent
     return agent
-
-
-def clear_agent_cache():
-    """清理 Agent 缓存(测试用)"""
-    _agent_cache.clear()

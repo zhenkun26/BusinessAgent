@@ -34,6 +34,16 @@ from app.prompts import get_prompt
 
 
 async def aggregator_node(state: AgentState) -> AgentState:
+    """Bind the answer to its request so inherited snapshots cannot invent turns."""
+    result = await _aggregate(state)
+    result["answer_request_id"] = (
+        state["user_input"].request_id if result.get("final_answer")
+        and not result.get("needs_replan") else None
+    )
+    return result
+
+
+async def _aggregate(state: AgentState) -> AgentState:
     """Aggregator 节点：汇总子 Agent 结果(async:支持汇总 LLM 的 token 流式)"""
     start = time.time()
     # 断点恢复后,checkpoint 反序列化可能把 AgentResult 变成 dict,统一转回模型

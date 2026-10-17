@@ -194,3 +194,18 @@
 - **Evidence**: [C07 record](阶段性总结_C07检索权限与表达式编码.md) and
   [matrix/acceptance contract](../50-engineering/retrieval-authorization.md).
   Offline increment passes; real Milvus/PG/API/Linux remains BLOCKED. C08 waits.
+
+## 24. Per-task context and explicit dependency refusal (2026-10-17)
+
+- **Decision**: Create request-bearing agents per dispatch; copy identity/history
+  into each Send and carry the request ID into execution. Bind answers to requests
+  and filter history by current user/session/role/department. Bind graph cache to
+  saver identity so a replaced saver cannot supply another graph's history.
+- **Scheduling**: Only independent fan-out is supported. Reject all declared or
+  malformed dependencies before any Send; keep a terminal fixed response. Code-owned
+  prompt guidance applies even to existing activated templates without editing them.
+- **Tradeoff**: Legacy unbound history is excluded from model context without data
+  deletion. No universal DAG, semantic dependency detection, same-session concurrency
+  safety or checkpoint durability is claimed. These require distinct evidence/work.
+- **Evidence**: [C08 record](阶段性总结_C08请求上下文与子任务依赖.md), 23 focused and
+  88 related offline tests PASS. Real runtime acceptance remains BLOCKED; C09 waits.

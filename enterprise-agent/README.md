@@ -49,6 +49,8 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 检索要求：普通角色仅检索许可范围内的本部门与共享区，缺少部门时仅共享区；manager 可跨四个既有部门，admin 可跨命名空间，但所有角色仍须匹配文档 ACL。无角色/非法部门拒绝，空类型列表不返回文档。详见[检索权限契约](../docs/50-engineering/retrieval-authorization.md)。
 
+任务上下文：每个子任务使用独立 Agent 与历史副本；历史仅纳入同一用户/会话/当前角色部门且能验证请求归属的回答，旧无标记快照不进入模型上下文。仅支持独立子任务并行；含 `depends_on` 的计划整体拒绝，请按顺序分别提交。通用 DAG、模型依赖识别和真实并发验收仍未完成，详见[请求上下文契约](../docs/50-engineering/request-context.md)。
+
 ### 3. 验证服务
 
 ```bash

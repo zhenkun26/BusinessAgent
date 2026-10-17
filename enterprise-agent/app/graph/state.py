@@ -92,6 +92,7 @@ class AgentState(TypedDict, total=False):
     intent: Intent
     subtasks: list[SubTask]
     plan_reasoning: str  # Planner 的推理过程(可观测)
+    plan_error: Optional[str]
 
     # ===== 子 Agent 执行区(Send fan-out 并行写入) =====
     # reducer: 每轮初始状态传入 [] 时重置;executor 并行写入时累加
@@ -106,6 +107,7 @@ class AgentState(TypedDict, total=False):
 
     # ===== Aggregator 区 =====
     final_answer: str
+    answer_request_id: Optional[str]
     sources: list[RetrievalSource]
     confidence: float
     needs_replan: bool
@@ -133,6 +135,13 @@ def make_initial_state(user_input: UserInput) -> AgentState:
     return AgentState(
         user_input=user_input,
         request_id=user_input.request_id,
+        final_answer="",
+        answer_request_id=None,
+        sources=[],
+        confidence=0.0,
+        error=None,
+        plan_error=None,
+        replan_reason=None,
         agent_results=[],
         approval_required=False,
         approval_status=None,

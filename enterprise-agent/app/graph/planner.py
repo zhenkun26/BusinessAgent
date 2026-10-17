@@ -28,6 +28,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
 from app.graph.state import AgentState, Intent, SubTask, TaskType, UserInput
+from app.graph.plan_policy import PlanRejected, check_dependencies, check_plan
 from app.rag.llm import get_cloud_lite_llm, get_lite_llm, get_local_llm, get_primary_llm
 
 
@@ -161,7 +162,10 @@ def planner_node(state: AgentState) -> AgentState:
 
     # 3. 任务分解(多任务场景用 primary 大模型)
     if intent == Intent.MULTI_TASK:
-        subtasks = _decompose_tasks(message)
+        try:
+            subtasks = _decompose_tasks(message)
+        except PlanRejected as exc:
+            return AgentState(intent=intent, subtasks=[], plan_error=str(exc))
     elif intent == Intent.KNOWLEDGE_QA:
         subtasks = [
             SubTask(
@@ -248,6 +252,14 @@ def _decompose_tasks(message: str) -> list[SubTask]:
         tpl, pv = get_prompt("planner_task_decompose")
         logger.debug(f"prompt=planner_task_decompose v{pv}")
         prompt = tpl.format(message=message)
+        # Code-owned contract also applies to previously activated registry templates.
+        prompt += (
+            "\nScheduling contract (overrides any earlier independence instruction): "
+            "Each subtask must include task_id and depends_on (a list of prerequisite "
+            "task IDs; [] only when independent). Preserve dependencies when a task "
+            "needs a previous result or must run later. Never flatten ordered actions "
+            "into independent tasks. Dependent plans will be rejected by the scheduler."
+        )
         resp = llm.invoke([HumanMessage(content=prompt)])
         raw = resp.content if hasattr(resp, "content") else str(resp)
         logger.debug(f"任务分解 LLM 响应: {raw[:300]}")
@@ -262,6 +274,8 @@ def _decompose_tasks(message: str) -> list[SubTask]:
             logger.warning("任务分解返回空 subtasks,降级为单一 knowledge")
         else:
             logger.warning("任务分解 JSON 解析失败,降级为单一 knowledge")
+    except PlanRejected:
+        raise
     except Exception as e:  # noqa: BLE001
         logger.warning(f"任务分解 LLM 失败,降级为单一 knowledge: {e}")
 
@@ -327,6 +341,12 @@ def _safe_intent(s: str) -> Optional[Intent]:
 
 def _build_subtasks_from_llm(raw_subtasks: list[dict]) -> list[SubTask]:
     """从 LLM 输出构造 SubTask 列表"""
+    if not isinstance(raw_subtasks, list):
+        raise PlanRejected("INVALID_TASK_DEPENDENCIES")
+    # Check even incomplete tasks: skipping a malformed task must not erase a dependency.
+    for item in raw_subtasks:
+        if isinstance(item, dict):
+            check_dependencies(item.get("depends_on", []))
     out: list[SubTask] = []
     for i, item in enumerate(raw_subtasks, start=1):
         if not isinstance(item, dict):
@@ -373,6 +393,7 @@ def _dedup_subtasks(subtasks: list[SubTask]) -> list[SubTask]:
     (同实体不同动作——如「查 C005」/「为 C005 建工单」/「为 C005 发邮件」——不是重复,不合并)。
     合并时保留描述更完整(更长)的一条,合并后重排 task_id 与 priority。
     """
+    check_plan(subtasks)
     if len(subtasks) <= 1:
         return subtasks
 

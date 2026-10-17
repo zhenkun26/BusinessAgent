@@ -36,9 +36,11 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 2.4.1 Implement shared scope, encoded expressions, ACL result guards, offline matrix tests and documentation. 21 C07 tests PASS; live acceptance remains BLOCKED.
   - [ ] 2.4.2 Verify real Milvus/PostgreSQL filtering and API/SSE output/citations in isolated Linux. <!-- BLOCKED; no current store access -->
 
-## 3. S3：会话与运行状态（待逐项授权）
+## 3. S3：会话与运行状态（C08 离线增量完成、运行验收阻塞；C09/C10 待确认）
 
 - [ ] 3.1 C08 请求上下文、历史和依赖语义。
+  - [x] 3.1.1 Implement per-dispatch context, request-bound history, dependency rejection, offline tests and documentation. 23 C08 and 88 related tests PASS; real runtime acceptance remains BLOCKED.
+  - [ ] 3.1.2 Verify real LangGraph concurrent conversations, JWT refresh, PostgreSQL checkpoint history and API/SSE rejection in isolated Linux. <!-- BLOCKED; prior runtime/browser/SSO/history blockers remain -->
 - [ ] 3.2 C09 跨进程状态或明确支持限制。
 - [ ] 3.3 C10 checkpoint 持久化和故障语义。
 

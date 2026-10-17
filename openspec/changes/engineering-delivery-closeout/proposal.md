@@ -26,6 +26,7 @@
 - `runtime-authorization`: C05 current identity and approval authorization.
 - `credential-safety`: C06 transient credentials, redacted diagnostics and safe HTML fallback.
 - `retrieval-authorization`: C07 shared retrieval scope, safe expression literals and result guards.
+- `request-context`: C08 per-dispatch agents, request-bound history and explicit dependency rejection.
 
 ### Modified Capabilities
 
@@ -73,3 +74,11 @@ expression encoding across memory/vector/keyword/PostgreSQL paths; validate
 results before reranking, generation and citations. No new dependencies, live
 services, indexing, data cleanup or deployment. Prior runtime/browser/SSO/history
 blockers remain; C07 push and C08 require later confirmation.
+
+## C08 authorization update (2026-10-17)
+
+The user authorized pushing C07 `ceae708` and implementing C08 only. The remote
+branch hash was verified. Deliver request isolation, history propagation and
+fail-closed dependency handling with offline tests. Real Milvus/JWT/PostgreSQL/
+API/SSE/Linux/browser/SSO and historical credential acceptance remain BLOCKED.
+C08 push and C09 await confirmation; no dependencies, live calls or cleanup.

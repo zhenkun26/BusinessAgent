@@ -168,3 +168,33 @@ literals, missing ACL fields and fallback equivalence. This does not prove Milvu
 parser/PG SQL behavior or real JWT/API/browser/Linux acceptance. No external calls,
 new packages, current-store access or filesystem deletion. Keep C07 open until
 isolated live matrix and output-leakage acceptance; stop before C08.
+
+## C08 design: request ownership and bounded scheduling
+
+Create a fresh agent for every dispatched task; only lower-level model/store
+factories may retain reusable services. Pass the authenticated user, current role,
+department, conversation ID and request ID to ExecutionAgent. JWT stays outside
+graph state. Each Send receives independent copies of identity, task and history.
+
+Reset answer/replan/error fields at each entry. Aggregation binds completed answers
+to their request ID. Load history from the same checkpointer used for invocation,
+requiring matching answer/request IDs, user, conversation and current role/department.
+Deduplicate by request ID, not question text. Skip unbound legacy snapshots and
+current-request snapshots; do not migrate or delete them. Keep a bounded snapshot
+scan; failures yield empty history. Bind the compiled graph cache to saver identity
+as well as backend so replacement does not split history and invocation stores.
+This is not same-session write serialization
+or checkpoint durability; those remain C10.
+
+Only independent fan-out is supported. Preserve declared dependencies before any
+deduplication, then reject the entire plan before Send when any dependency is
+present or malformed. The planner must not swallow this rejection into a fallback.
+Use a dedicated terminal rejection node with a fixed message and no tool/model
+execution. Add a code-owned decomposition instruction after the registry template
+so existing active templates receive the dependency contract. Models may still
+misclassify unstated dependencies; no general DAG or semantic proof is claimed.
+
+Offline tests use actual source with injected framework/models/checkpointers,
+including overlapping requests, isolated child histories, repeated questions,
+stale/foreign snapshots, rejection and independent/replan compatibility. Real
+LangGraph/API/SSE/checkpoint execution stays BLOCKED. Stop after local C08 delivery.

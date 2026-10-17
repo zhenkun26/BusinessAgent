@@ -44,6 +44,7 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `scripts/backup.sh` | 暂停服务、备份卷、`docker --rm`、`find -delete` | 不直接运行；C22 提供独立非删除路径 |
 | `run_load_test.sh` / k6 | 网络负载，容器模式含 `--rm`，会生成结果 | 不纳入；C23 确定隔离环境与负载后再审查 |
 | `app/observability/audit.py` | 缓存消费成功后 `os.remove` | 不导入/执行应用；C21 处理审计保留与恢复 |
+| `eval/run_c08_request_context.py` | 实际图节点、历史与执行上下文代码；框架/模型/存储为替身，审计钩子禁止写入/删除/网络；并发仅在内存事件循环 | C08 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c08_request_context.py`；不加入五函数白名单，不代表真实 LangGraph/JWT/SQL/API/SSE 验收 |
 | `eval/run_c07_retrieval_authorization.py` | 执行实际检索/重排代码，模型与存储为替身；数值计算替身仅提供分数；审计钩子禁止真实写入/删除/网络；文档删除调用仅落到 Mock | C07 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c07_retrieval_authorization.py`；不加入五函数白名单，不代表真实 Milvus/SQL/API 验收 |
 | `eval/run_c06_credential_safety.py` | 执行实际源代码/函数；DB/HTTP/审计文件均注入内存替身，审计钩子禁止真实写入、删除及网络 | C06 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c06_credential_safety.py`；不代表真实 JWT/PG/HTTP/历史清理 |
 | `tests/test_browser_credential_safety.cjs` | 只读页面源码，在 Node VM 内以假浏览器对象执行；不联网、不写文件、不启动浏览器 | C06 单独审查允许：根目录 `node enterprise-agent/tests/test_browser_credential_safety.cjs`；不代表真实 DOM/净化器/SSO/SSE 验收 |

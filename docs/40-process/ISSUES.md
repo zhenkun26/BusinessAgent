@@ -66,14 +66,15 @@
 - **原调查证据**：[vector_store.py](../../enterprise-agent/app/rag/vector_store.py) 多处直接拼接角色/部门/类型/文档 ID 表达式；[degradation.py](../../enterprise-agent/app/rag/degradation.py) 部分路径已有转义；ROLE_NAMESPACES 未统一进入主检索。
 - **缺口/原因（原调查）**：各检索/降级路径隔离语义不一致，输入编码不足。
 - **验收**：固定角色 × 部门 × 共享区矩阵，向量、关键词和 PG 降级全部遵守；引号、转义、运算符等输入不能扩大权限；结果正文、引用与来源元数据均无越权；manager 跨部门策略明确，声明不支持时必须拒绝，不能仅依赖未接入的常量。
-- **实施与限制（2026-10-17）**：四条检索路径统一角色/当前部门/共享区及文档 ACL；manager 明确开放四部门及共享区，admin 仍须匹配文档 ACL。表达式统一编码，PG 参数绑定，类型约束贯穿降级；结果在重排/生成/引用前复验。21 项 C07 与 74 项相关离线回归 PASS。真实 Milvus/PG/JWT/API/SSE/Linux 验收 **BLOCKED**，既有浏览器/SSO/历史凭证处置阻塞保留；C07 整项 open，C08 未开始。见[检索契约](../50-engineering/retrieval-authorization.md)与[阶段记录](阶段性总结_C07检索权限与表达式编码.md)。
+- **实施与限制（2026-10-17）**：四条检索路径统一角色/当前部门/共享区及文档 ACL；manager 明确开放四部门及共享区，admin 仍须匹配文档 ACL。表达式统一编码，PG 参数绑定，类型约束贯穿降级；结果在重排/生成/引用前复验。21 项 C07 与 74 项相关离线回归 PASS。真实 Milvus/PG/JWT/API/SSE/Linux 验收 **BLOCKED**，既有浏览器/SSO/历史凭证处置阻塞保留；C07 整项 open；`ceae708` 已按后续授权推送，C08 见下项。见[检索契约](../50-engineering/retrieval-authorization.md)与[阶段记录](阶段性总结_C07检索权限与表达式编码.md)。
 
 <a id="c08"></a>
 #### C08 · P0 · 请求上下文、历史与子任务依赖
 
-- **现状/证据**：[executor.py](../../enterprise-agent/app/graph/executor.py) 缓存 ExecutionAgent 的键不包含会话/token，而实例保存两者；[dispatcher.py](../../enterprise-agent/app/graph/dispatcher.py) Send 子状态不含历史，且未消费 depends_on。
+- **现状/证据**：[executor.py](../../enterprise-agent/app/graph/executor.py) 原缓存 ExecutionAgent 的键不包含会话，而实例保存会话；token 已在 C06 移出该上下文；[dispatcher.py](../../enterprise-agent/app/graph/dispatcher.py) Send 子状态不含历史，且未消费 depends_on。
 - **缺口/原因**：请求级状态被实例缓存；历史与依赖字段未贯通调度语义。
 - **验收**：同用户不同会话、刷新 token 及并发请求不串上下文；多轮知识问答收到正确历史；需要前置结果的任务按依赖执行，或在未支持时明确拒绝；不能静默并行执行有依赖的副作用。完整通用 DAG 可延期。
+- **实施与限制（2026-10-17）**：每次派发创建新 Agent，执行上下文携带真实请求 ID，Send 独立复制身份/任务/历史；答案按请求归属绑定，历史按当前用户/会话/角色/部门筛选，保留不同轮次重复问题。无标记旧快照不进入模型上下文且未修改；所有声明或格式异常的依赖在 fan-out 前整单拒绝。23 项专项 + 88 项相关离线回归 PASS。真实 LangGraph/Milvus/JWT/PG/API/SSE/Linux、浏览器/SSO/历史凭证处置继续 **BLOCKED**；模型漏判依赖、通用 DAG、同会话并发一致性未获证明。C08 整项 open，C09 未开始。见[上下文契约](../50-engineering/request-context.md)与[阶段记录](阶段性总结_C08请求上下文与子任务依赖.md)。
 
 <a id="c09"></a>
 #### C09 · P1 · 跨进程运行状态

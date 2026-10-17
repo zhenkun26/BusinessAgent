@@ -187,6 +187,7 @@ class ExecutionAgent:
         llm=None,
         user_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
+        request_id: Optional[str] = None,
     ):
         self.user_role = user_role
         self.user_dept = user_dept
@@ -194,6 +195,7 @@ class ExecutionAgent:
         # 调用身份(审批建单/审计用),由 executor 从 UserInput 注入
         self.user_id = user_id
         self.conversation_id = conversation_id
+        self.request_id = request_id or str(uuid.uuid4())
 
     def _get_llm(self):
         if self.llm is None:
@@ -211,7 +213,7 @@ class ExecutionAgent:
             "role": self.user_role.value if hasattr(self.user_role, "value") else str(self.user_role),
             "dept": self.user_dept or "shared_company",
             "session_id": self.conversation_id,
-            "request_id": f"exec-{int(start)}",
+            "request_id": self.request_id,
         }
 
         logger.info(f"ExecutionAgent 开始： query={query[:80]!r}, role={context['role']}")
