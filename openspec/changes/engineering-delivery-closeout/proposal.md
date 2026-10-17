@@ -23,9 +23,9 @@
 
 ## Impact
 
-- 仅修改项目文档、OpenSpec context 与本 change；不改应用、测试、依赖、部署配置或版本号。
+- S0 仅修改项目文档、OpenSpec context 与本 change。2026-10-17 用户进一步授权 C24 前置：新增离线安全验证入口、针对入口的回归测试及证据模板；不改应用业务行为、依赖、部署配置或版本号。
 - 当前代码基线：`153f78651217eec7544b064446344d27b36085f1`。
 - 差距事实源：[ISSUES](../../../docs/40-process/ISSUES.md#engineering-closeout)。
 - 排期事实源：[ROADMAP](../../../docs/40-process/ROADMAP.md#engineering-closeout-stages)。
 - 交付契约：[工程交付基线](../../../docs/50-engineering/engineering-delivery-baseline.md)。
-- 不包含推送、合并、发布、部署或外部消息/业务写入授权；不新增依赖、不执行删除。
+- S0 文档提交 `05d8d0c` 已按用户单独授权推送到同名远端分支；该授权不延伸为 C24 新提交的推送。合并、发布、部署或外部消息/业务写入不在本轮范围；不新增依赖、不执行删除。

@@ -7,6 +7,8 @@
 - `ROADMAP.md`：里程碑规划（已完成 / 进行中 / 挂起）
 - [工程交付基线](../50-engineering/engineering-delivery-baseline.md)：本轮交付边界、证据分层与完成条件；逐项差距见 [ISSUES C01–C25](ISSUES.md#engineering-closeout)，阶段顺序见 [ROADMAP S0–S7](ROADMAP.md#engineering-closeout-stages)
 - [阶段性总结_S0工程交付基线.md](阶段性总结_S0工程交付基线.md)：S0 文档交付、验证与限制；完成后等待用户确认
+- [阶段性总结_C24安全验证前置.md](阶段性总结_C24安全验证前置.md)：安全入口、副作用盘点与 12 项回归；整项 C24 仍 open
+- [模板-工程验收证据.md](模板-工程验收证据.md)：按 C 项记录版本/环境、步骤、预期/实际、证据等级与限制
 - [code-simplification/20260928-backend/cleanup-report.md](code-simplification/20260928-backend/cleanup-report.md)：FGR-01/FAT-01 简化交付、独立复审、基线与最终验证及限制；审计与 JSON 证据同目录
 - [code-simplification/20260928-backend/ci-publication-report.md](code-simplification/20260928-backend/ci-publication-report.md)：后续 CI 修复：镜像扫描通过后才发布；授权范围、离线验证与 GitHub 集成限制
 - `DECISIONS.md`：设计决策记录（背景 / 决策 / 放弃 / 改判条件）

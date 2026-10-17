@@ -1,0 +1,65 @@
+# C24 离线安全验证入口
+
+> 2026-10-17；仅完成 C24 前置，不是全量应用验收，也不解除企业现场阻塞。
+> 入口：[safe_validate.py](../../enterprise-agent/scripts/safe_validate.py)；回归：[test_safe_validation.py](../../enterprise-agent/tests/test_safe_validation.py)。Python 3.11+ 标准库，无新增依赖。
+
+## 1. 使用方法
+
+以下命令从仓库根目录执行，`-I` 隔离 Python 用户环境，`-B` 禁止 bytecode 写入。入口自行定位仓库，不读取 `.env`，不加载应用或 pytest 插件。
+
+```bash
+# 只列出允许的检查，不执行检查。
+python3 -I -B enterprise-agent/scripts/safe_validate.py --list
+
+# 默认五项，只向 stdout 输出固定字段 JSON，不创建证据文件。
+python3 -I -B enterprise-agent/scripts/safe_validate.py
+
+# 只跑 G0 结构回放；不是应用 E2E。
+python3 -I -B enterprise-agent/scripts/safe_validate.py --check g0-replay
+
+# 可选：用新的 run ID 独占创建一份证据，不重复使用已有 ID。
+python3 -I -B enterprise-agent/scripts/safe_validate.py --record c24-review-001
+
+# 入口自身回归；测试夹具保留，不执行清理。
+python3 -I -B enterprise-agent/tests/test_safe_validation.py
+```
+
+退出码：`0` = 所选检查结果全部 PASS；`1` = 至少一项 FAIL；`2` = BLOCKED（准备度未齐、来源未审查、执行或记录失败）。当前默认五项的预期是 **exit 2**：函数执行成功，但 UAT 准备度与正式发布仍 BLOCKED。不能把它改成 exit 0 来使门禁变绿。
+
+JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检查结果；`overall_status` 按 FAIL 优先、其次 BLOCKED 合并。阻塞前置/记录失败时输出固定错误码，不输出异常原文。参数格式错误由 argparse 返回 2；不要把凭证作为参数传入。
+
+`--record RUN_ID` 仅写到 `enterprise-agent/eval/results/safe-validation/RUN_ID.json`。只允许字母、数字、连字符与下划线；文件已存在、路径含符号链接或权限不足即拒绝。全部结果与测试夹具受现有 ignore 规则保护；重复执行生成的新资产保留给用户处理，无自动轮换/覆盖/删除。
+
+## 2. 允许范围与副作用审查
+
+| 入口 / 资产 | 实际副作用与依赖 | 本轮处理 |
+| --- | --- | --- |
+| `validate_uat_plan` 函数 | 读 UAT Markdown 与 fixture，返回字典；CLI 可覆盖指定报告 | 允许函数，禁用其 CLI 写报告路径 |
+| `validate_uat_execution_readiness` 函数 | 读 UAT Markdown，返回资源准备度；CLI 可写报告 | 允许函数，保留真实资源 BLOCKED |
+| `validate_grey_release_plan` 函数 | 读灰度 Markdown，校验结构；CLI 可写报告 | 允许函数，不执行灰度 |
+| `validate_release_gate` 函数 | 读门槛 Markdown，并检查所引用路径是否存在 | 允许函数；这不校验历史外部证据真伪/新鲜度，不允许据此正式放行 |
+| `run_replay` 函数 | 只处理已载入的合成 fixture，返回字典；CLI 默认写固定结果文件 | 允许函数；fixture 保留 false 安全标记，E1 合成回放不等于 E2 应用验收 |
+| `generate_uat_simulation.py` CLI | 写入指定或默认 fixture，可能覆盖既有内容 | 不纳入入口；使用现有 fixture，不重新生成 |
+| `run_ticket_acceptance.py` | 启动受控服务/调用工具，并在结束路径 `shutil.rmtree` 审计缓存 | 不直接运行；完整参考集成由 C18 前复审 |
+| `scripts/backup.sh` | 暂停服务、备份卷、`docker --rm`、`find -delete` | 不直接运行；C22 提供独立非删除路径 |
+| `run_load_test.sh` / k6 | 网络负载，容器模式含 `--rm`，会生成结果 | 不纳入；C23 确定隔离环境与负载后再审查 |
+| `app/observability/audit.py` | 缓存消费成功后 `os.remove` | 不导入/执行应用；C21 处理审计保留与恢复 |
+| 其他 eval / scripts | 可能启动应用、模型、写 DB/向量库、网络或覆盖报告 | 默认不允许，逐项审查，不能仅凭脚本名认定安全 |
+| 全量 pytest | 项目 conftest 本身为内存 mock，但插件、cache、tmp_path 生命周期不在五函数审查范围内 | 本轮不运行；入口测试用独立 unittest，夹具追加保留 |
+
+五份函数模块的 SHA-256 固化在入口 `REVIEWED`。源码修改必须复审导入、文件/网络/进程副作用，再更新哈希与对应测试；不能提供“自动信任当前源码”的开关。验证输入固定为两份计划与 fixture，报告记录输入和源码哈希；执行前后哈希变化会阻断结果。
+
+## 3. 保护机制与限制
+
+- 验证阶段启用 audit hook：禁止文件写入、删除、改名、建目录、权限修改、链接、环境变量修改、socket、子进程与动态库加载；执行前只运行固定的只读 Git 元数据命令，记录提交和 tracked 内容是否修改。
+- 函数只从已校验的源码字节编译加载，不用 `.pyc` 或其 `__main__`；来源/输入与证据路径含符号链接时拒绝。生产端点、数据库、模型、应用配置均不在允许范围。
+- 输出只取固定检查 ID、枚举状态、布尔值、序号计数与哈希；丢弃原始详情、函数 stdout/stderr 与异常消息，不转储环境变量或绝对路径。失败检查的序号对应已记录哈希的原始函数检查列表，可离线定位。
+- 这是已审查函数的保护入口，**不是恶意 Python 代码的隔离沙箱**；audit hook 不保证拦截所有底层 OS 行为。宿主、标准库、入口自身和文件系统并发编辑者属于信任边界，不能用它运行任意脚本或声明完整权限沙箱。
+- `tracked_content_dirty` 不涵盖 untracked 文件；源码/输入 SHA-256 记录实际执行内容。解释结果时必须同时核对提交与哈希，不把脏工作区证据说成最终提交验证。
+- 结果哈希证明本次读取的字节，不证明内容业务真实或当前 CI 状态；本入口始终 `formal_uat=false`、`release_evidence=false`、`release_allowed=false`。
+
+## 4. 扩展与证据模板
+
+新增检查前，先记录所需环境、输入、输出、副作用、回收行为及失败路径；审核通过后再加入显式允许列表。应用/HTTP/容器检查不能直接加入本离线函数入口；应在对应 C 项设计其隔离执行方案。当前受控结果不构成 C24 最终回归完成。
+
+每轮以[验收证据模板](../40-process/模板-工程验收证据.md)记录范围、命令/步骤、预期/实际、证据等级、状态及复验条件；摘要写入对应阶段总结，原始受控 JSON 保留在 ignored 目录。入库前人工复核脱敏，不提交原始日志、凭证或真实用户数据。

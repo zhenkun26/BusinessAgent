@@ -7,9 +7,9 @@
 
 S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条需求结构通过；仅文档与 OpenSpec context 改动。OpenSpec CLI 严格校验 BLOCKED，不计为通过；完整记录见 `docs/40-process/阶段性总结_S0工程交付基线.md`（仓库相对路径）。
 
-## 1. S1：可复现环境（待逐项授权）
+## 1. S1：可复现环境（仅 1.1 已授权并完成，其余待逐项授权）
 
-- [ ] 1.1 C24 前置部分：安全验证入口与证据模板；本项只完成前置，C24 最终状态仍 open。
+- [x] 1.1 C24 前置部分：安全验证入口与证据模板；本项只完成前置，C24 最终状态仍 open。<!-- evidence: enterprise-agent/scripts/safe_validate.py; docs/40-process/阶段性总结_C24安全验证前置.md; 12 stdlib regression tests PASS; offline execution PASS, UAT/release BLOCKED -->
 - [ ] 1.2 C01 部署产物与入口一致。
 - [ ] 1.3 C02 模型与依赖 profile 匹配。
 - [ ] 1.4 C03 数据库迁移与初始化。

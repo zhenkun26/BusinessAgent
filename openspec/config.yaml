@@ -23,8 +23,8 @@ context: |
 
   当前状态(2026-10-17)：主规格 15 项、已归档 change 15 项；active change 为
   crm-mail-sso-integration、uat-and-ga-rollout 与 engineering-delivery-closeout。
-  本轮仅完成 engineering-delivery-closeout 的 S0 文档与规划，之后等待用户逐项确认，
-  不自动改代码或启动后续阶段。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
+  engineering-delivery-closeout 已完成 S0 与 C24 安全入口前置，下一项 C01 等待用户确认，
+  不自动启动后续阶段。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
   C01-C25 的现状/缺口/验收以 ISSUES 为准，S0-S7 顺序以 ROADMAP 为准。
   真实企业联调、UAT、灰度与全量放行仍缺资源，不用参考服务成功替代这些任务。
   OpenSpec CLI 本机不可用；结构检查不能替代严格校验，归档前须补齐。

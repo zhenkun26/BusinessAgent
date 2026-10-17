@@ -41,6 +41,8 @@ BusinessAgent/
 │   │   ├── README.md                   # 过程记录层索引
 │   │   ├── ROADMAP.md                  # 里程碑规划（已完成/进行中/挂起，单一事实源）
 │   │   ├── 阶段性总结_S0工程交付基线.md # S0 文档交付与验证；运行时收尾尚未实施
+│   │   ├── 阶段性总结_C24安全验证前置.md # 安全入口前置交付与回归；整项尚未完成
+│   │   ├── 模板-工程验收证据.md         # 版本、环境、命令/人工步骤、证据等级与结果模板
 │   │   ├── code-simplification/20260928-backend/ # FGR-01/FAT-01 审计、交付报告、验证脚本与 JSON 证据
 │   │   ├── delivery-followup/20260929/          # CI 保护设置快照与离线核验 JSON
 │   │   ├── 交付与离线推进记录-2026-09-29.md
@@ -61,6 +63,7 @@ BusinessAgent/
 │   │   └── 临时备忘.md                  # 历史速查备忘（内容已拆入 ROADMAP/ISSUES，保留备查）
 │   ├── 50-engineering/                 # 工程文档层：跨模块交付契约与实现文档索引
 │   │   ├── engineering-delivery-baseline.md # 工程交付边界、参考服务与验收证据契约
+│   │   ├── safe-validation.md           # C24 离线入口与副作用审查、状态及限制
 │   │   └── README.md                   # 工程文档层索引（指向后端 README 与部署指南）
 │   ├── 60-knowledge/                   # 知识数据库层：索引 eval/sample_docs 知识数据
 │   │   └── README.md                   # 知识数据库层索引（知识文档 + 入库规范摘要）
@@ -90,8 +93,10 @@ BusinessAgent/
 │   │   └── uat_simulation/             # fixture.json + 使用说明
 │   ├── deploy/                         # 部署配置：init.sql/migrations/DEPLOY.md/nginx/prometheus + 告警规则/漏洞豁免/DR 演练编排
 │   ├── scripts/                        # 运维脚本（fix_seed_approvals.py、backup.sh 备份脚本）
+│   │   └── safe_validate.py            # 仅运行已审查函数；禁止验证副作用，独占创建证据
 │   ├── tests/                          # 单元测试（129 项，含越权/checkpoint TTL/token 用量/评测指标/工单外部调用）
-│   │   └── test_rate_limit.py          # 限流工厂选择、降级与响应行为的离线回归测试
+│   │   ├── test_rate_limit.py          # 限流工厂选择、降级与响应行为的离线回归测试
+│   │   └── test_safe_validation.py     # 直接用标准库 unittest 运行，夹具保留不清理
 │   ├── docker-compose.yml              # 开发环境编排（Milvus/PG/Redis/Ollama）
 │   ├── docker-compose.prod.yml         # 生产部署编排（Nginx + 资源限制）
 │   ├── Dockerfile                      # 应用镜像构建
@@ -116,7 +121,7 @@ BusinessAgent/
     │   ├── release-management/         # UAT、灰度与正式放行契约
     │   └── uat-replay/                 # G0 技术彩排与证据边界
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
-        ├── engineering-delivery-closeout/ # S0 文档完成；C01–C25 等待逐项授权与验收
+        ├── engineering-delivery-closeout/ # S0/C24 前置完成；25 项整项验收仍 open
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）
