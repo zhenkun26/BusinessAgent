@@ -241,3 +241,20 @@
 - **Evidence**: [C10 record](阶段性总结_C10检查点持久化与故障语义.md), 27 focused and 139
   related offline tests PASS. C09 push was authorized and verified; C10 stays local
   and the next C18 contract prework is not started.
+
+## 27. Freeze a controlled business reference profile before recovery work (2026-10-17)
+
+- **Decision**: Freeze [business-reference-v1](../50-engineering/reference-business-contract.md)
+  as the target for independent CRM/ticket/mail reference services. Define durable
+  per-action identity, atomic effect/receipt commits, authenticated outcome queries,
+  conditional compensation and synthetic capture-only mail. No vendor guarantee.
+- **Truthful outcomes**: Unknown write result is not rollback; pending/recall-requested
+  is not completion or actual recall. Never rekey an unknown action or silently
+  switch it to mock. Retain tombstones, original comments and receipts.
+- **Handoff**: C12 owns IDs, retries and response validation; C14 queue recovery;
+  C13 durable Saga/compensation; C11 approval claims; C18 S5 independent services and
+  complete application evidence. C16 extends the shared CRM analysis contract before
+  analytics acceptance; C19 retains IdP. C10 write races stay in C10.
+- **Evidence**: Prework is document-only; 13 interface rows and 20 future cases,
+  all live cases BLOCKED. [Delivery record](阶段性总结_C18参考契约前置.md). No new runtime
+  implementation, service startup, real recipients or current-data operations.

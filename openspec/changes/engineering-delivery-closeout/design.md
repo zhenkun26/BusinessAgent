@@ -266,3 +266,31 @@ write, crash, TTL, backend-loss, restart and actual installed saver-version test
 BLOCKED. Preserve checkpoint/business history; no arbitrary recovery/replay endpoint,
 queue/Saga/approval work, backend switch or deployment worker-count change. A cached
 backend label is not a continuous health probe; full readiness remains C21.
+
+## C18 prework design: a versioned reference contract before recovery implementation
+
+Freeze `business-reference-v1` as a target specification for independent controlled
+CRM, ticket and mail HTTP services. It is not the current stub or a real vendor API.
+Document wire requests/responses, configured service identity, run isolation, durable
+operation ledger and receipts, same-key/body conflict rules, uncertain-outcome queries,
+version-checked compensation and a capture-only mail sink. IdP remains C19.
+
+Retain existing business route/output names where practical; explicitly list required
+adapter changes instead of claiming compatibility. Keep reference service persistence
+independent of application checkpoint/queue state. No automatic retention/reset or
+filesystem deletion; CRM DELETE represents a retained business tombstone. Preserve
+all prior evidence/fixtures and require a fresh isolated run for future acceptance.
+
+Use durable per-action IDs, persisted before I/O, with separate linked compensation
+IDs. Atomic service-side deduplication and effect/receipt commits define the reference
+contract, while C12 owns application IDs/retries/receipt validation, C14 durable queue
+ownership, C13 Saga recovery and C11 approval state. Do not implement those tasks now.
+Reference contract cases must cover same/different payloads, concurrent requests,
+response loss after commit, 401/403/5xx, invalid receipts, partial workflow failure,
+compensation conflict/failure and mail recall-request versus actual recall.
+
+The prework exit is a reviewed contract, field/route map, fault/evidence matrix and
+explicit owner for each known implementation gap. No behavioral tests are claimed
+for a document-only change. Full C18 application-to-independent-service acceptance
+remains task 5.4 in S5; enterprise CRM/mail confirmations and C19 OIDC remain separate.
+C10's lease-expiry race stays in C10 and does not become a reference-service guarantee.

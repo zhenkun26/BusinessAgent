@@ -90,7 +90,7 @@
 - **现状/证据**：[checkpointer.py](../../enterprise-agent/app/graph/checkpointer.py) 缓存初始化时选定的后端；存在 Redis/PG/Memory 路径，Memory 不持久，运行时故障切换与同会话并发一致性尚缺完整证据。
 - **缺口/原因**：初始化回退不能证明运行中无损切换，状态留存和并发边界未验收。
 - **验收**：真实后端跨进程/重启恢复、TTL、同会话并发写入和后端断连分别验证；记录是否允许切换及如何处理旧状态；持久化不可用必须显式报错/降级且不声称已恢复；支持的 PG 路径按实际安装版本测试。
-- **实施与限制（2026-10-17）**：固定后端（默认 Redis、显式 PG、仅 dev 可启用 memory），取消静默回退；串行初始化、读取探针与资源关闭；PG async context/setup 契约修正、显式 schema setup；历史读取失败终止图执行，SSE final 必须绑定当前请求/身份。27 项专项 + 139 项回归 PASS。真实 saver 版本/双进程/重启/TTL/断连/并发写入及此前全部运行验收 **BLOCKED**；C09 租约到期后仍无 checkpoint 写入 fencing，这是 C10 未关闭的已知限制，需要实测和后续修复，不能视为已通过或转移到别项。C10 整项 open，下一项 C18 前置未开始。见[持久化契约](../50-engineering/checkpoint-durability.md)与[阶段记录](阶段性总结_C10检查点持久化与故障语义.md)。
+- **实施与限制（2026-10-17）**：固定后端（默认 Redis、显式 PG、仅 dev 可启用 memory），取消静默回退；串行初始化、读取探针与资源关闭；PG async context/setup 契约修正、显式 schema setup；历史读取失败终止图执行，SSE final 必须绑定当前请求/身份。27 项专项 + 139 项回归 PASS。真实 saver 版本/双进程/重启/TTL/断连/并发写入及此前全部运行验收 **BLOCKED**；C09 租约到期后仍无 checkpoint 写入 fencing，这是 C10 未关闭的已知限制，需要实测和后续修复，不能视为已通过或转移到别项。C10 整项 open；增量 `a57bd4e` 已按后续授权推送，C18 前置仅文档/规格单独推进，不关闭此竞态。见[持久化契约](../50-engineering/checkpoint-durability.md)与[阶段记录](阶段性总结_C10检查点持久化与故障语义.md)。
 
 <a id="c11"></a>
 #### C11 · P0 · 审批原子领取、过期与执行状态
@@ -147,6 +147,7 @@
 - **现状/证据**：[CRM/邮件契约测试](../../enterprise-agent/tests/test_crm_mail_external.py)主要用 MockTransport；已有[工单 stub](../../enterprise-agent/eval/ticket_stub_server.py)与工具层 harness；缺完整应用与独立参考服务链路证据。
 - **缺口/原因**：工具层契约不能证明登录、规划、审批、外部写入、审计和恢复接通。
 - **验收**：先冻结工程基线 §3 契约；通过应用入口在独立参考 HTTP 服务完成查询、创建、更新、审批邮件及失败/补偿；核对服务端持久记录、幂等键和审计；真实网络超时/鉴权失败被正确处理；邮件只到受控收件器，撤回未支持时明确失败。不得勾选真实企业提供方确认任务。
+- **前置交付（2026-10-17）**：已冻结 [business-reference-v1](../50-engineering/reference-business-contract.md)：13 类接口、持久操作 ID/原子回执、未知结果查询、版本化补偿、受控邮件捕获与 20 项未来验收场景，并映射当前适配器/stub 缺口到 C12/C14/C13/C11 与 S5。仅静态文档/规格检查 PASS，未改应用代码或启动服务；20 项运行场景均 **BLOCKED**。4.1 前置完成，5.4/C18 整项及真实提供方任务保持 open。C10 租约竞态继续留在 C10；C12 未开始。见[阶段记录](阶段性总结_C18参考契约前置.md)。
 
 <a id="c19"></a>
 #### C19 · P1 · 受控 IdP 的 SSO 完整链路

@@ -29,6 +29,7 @@
 - `request-context`: C08 per-dispatch agents, request-bound history and explicit dependency rejection.
 - `cross-process-state`: C09 shared cancellation leases, single-use SSO state and request-scoped prompt snapshots.
 - `checkpoint-durability`: C10 explicit backend selection, managed saver lifetime and fail-closed persistence semantics.
+- `reference-business-contract`: C18 prework defining the controlled CRM/ticket/mail contract, failure evidence and handoff to C12-C14/C11 and S5.
 
 ### Modified Capabilities
 
@@ -94,3 +95,13 @@ PostgreSQL/API/SSE/Linux/browser/SSO and historical credential acceptance BLOCKE
 Real Redis multi-process acceptance is also BLOCKED. Do not push C09 or start C10.
 
 C10 authorization (2026-10-17): C09 `079cd621a07be97be3861a0ae54668c373b547d6` was pushed and verified on the same remote branch. Implement C10 offline only, preserve all real-service blockers, commit locally and stop before C18 prework or any further item. C10 push requires separate confirmation.
+
+## C18 prework authorization (2026-10-17)
+
+C10 `a57bd4ed001d86d2da304e890d01da1e7e76db41` was pushed and verified on the
+same remote branch. The user authorized only C18 reference-contract prework next.
+Freeze a versioned project-controlled contract and acceptance matrix in documents
+and OpenSpec; no runtime code, service startup, network business calls, dependencies,
+real recipients or enterprise-provider confirmations. C10 remains open with the
+lease-expiry write race and all real-runtime blockers. Stop after the local document
+increment; C12 and further push require subsequent confirmation.

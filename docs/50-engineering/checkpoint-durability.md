@@ -108,5 +108,6 @@ Do not raise the provisional Compose worker count or claim durable business reco
 | API/SSE/browser | Auth/ownership, status/error mapping and provisional stream behavior under real transport | BLOCKED |
 
 C10 remains open. Prior real Redis/two-process/LangGraph/Milvus/JWT/PostgreSQL/API/SSE/
-Linux/browser/SSO/historical-credential blockers stay unchanged. No next closeout item
-or C10 push is authorized by this local delivery.
+Linux/browser/SSO/historical-credential blockers stay unchanged. The later user authorization pushed C10 and allowed C18 document prework only;
+see [reference contract](reference-business-contract.md). It does not close C10
+or authorize further runtime work.

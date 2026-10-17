@@ -44,6 +44,7 @@ BusinessAgent/
 │   │   ├── 阶段性总结_C24安全验证前置.md # 安全入口前置交付与回归；整项尚未完成
 │   │   ├── 阶段性总结_C02模型依赖.md # 模型契约与离线检查；真实 API/Linux 验收阻塞
 │   │   ├── 阶段性总结_C03数据库迁移与初始化.md # 迁移/bootstrap 离线增量；真实数据库验收阻塞
+│   │   ├── 阶段性总结_C18参考契约前置.md # 参考业务接口与失败/补偿契约
 │   │   ├── 阶段性总结_C10检查点持久化与故障语义.md # 固定 checkpoint 后端与失败契约
 │   │   ├── 阶段性总结_C09跨进程运行状态.md # 共享运行状态与 Prompt 请求快照
 │   │   ├── 阶段性总结_C08请求上下文与子任务依赖.md # 请求隔离、历史归属与依赖拒绝
@@ -171,3 +172,5 @@ C08 候选详情：[请求上下文契约](docs/50-engineering/request-context.m
 C09 候选详情：[跨进程状态契约](docs/50-engineering/cross-process-state.md)、[离线验证](enterprise-agent/eval/run_c09_cross_process_state.py)、[交付记录](docs/40-process/阶段性总结_C09跨进程运行状态.md)。
 
 C10 候选详情：[持久化契约](docs/50-engineering/checkpoint-durability.md)、[离线验证](enterprise-agent/eval/run_c10_checkpoint_durability.py)、[交付记录](docs/40-process/阶段性总结_C10检查点持久化与故障语义.md)。
+
+C18 前置详情：[参考契约](docs/50-engineering/reference-business-contract.md)、[交付记录](docs/40-process/阶段性总结_C18参考契约前置.md)；仅契约冻结，完整参考 HTTP 验收仍 BLOCKED。

@@ -48,9 +48,9 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 3.3.1 Implement explicit backend policy, lifecycle/provisioning, failure semantics, offline tests and documentation. 27 focused and 139 related tests PASS; this does not solve lease-expiry write fencing.
   - [ ] 3.3.2 Verify actual saver versions, two-process/restart durability, TTL, same-session writes and outages on isolated Linux. <!-- BLOCKED; no real services or current-store operations -->
 
-## 4. S4：执行一致性与恢复（待逐项授权）
+## 4. S4：执行一致性与恢复（C18 契约前置完成；C12 及后续待确认）
 
-- [ ] 4.1 C18 前置部分：冻结参考系统幂等、失败和补偿契约，C18 完整验收留 S5。
+- [x] 4.1 C18 前置部分：冻结参考系统幂等、失败和补偿契约，C18 完整验收留 S5。 business-reference-v1 documents 13 interface rows, durable identity/receipts, compensation and 20 future cases; static checks only, no runtime implementation or acceptance.
 - [ ] 4.2 C12 工具幂等与安全重试。
 - [ ] 4.3 C14 队列可靠性与 worker 初始化。
 - [ ] 4.4 C13 Saga 持久化与故障恢复。
@@ -61,7 +61,7 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
 - [ ] 5.1 C15 知识发布与索引一致性。
 - [ ] 5.2 C16 分析数据适配。
 - [ ] 5.3 C17 RAG 质量与指标口径。
-- [ ] 5.4 C18 完整参考 HTTP 集成。
+- [ ] 5.4 C18 完整参考 HTTP 集成。 <!-- BLOCKED: business-reference-v1 R01-R20 require independent persistent services and complete application evidence; prework is not acceptance -->
 - [ ] 5.5 C19 受控 IdP 的 SSO 完整链路。
 
 ## 6. S6：用户操作与运维（待逐项授权）
