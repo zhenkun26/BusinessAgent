@@ -102,9 +102,10 @@
 <a id="c12"></a>
 #### C12 · P0 · 工具幂等与安全重试
 
-- **现状/证据**：[execution.py](../../enterprise-agent/app/agents/execution.py) request_id 具有秒级碰撞风险；[crm.py](../../enterprise-agent/app/tools/crm.py) 动作索引可能默认 0；[Saga](../../enterprise-agent/app/tools/saga.py)复用 context；[HTTP 适配](../../enterprise-agent/app/tools/http_adapter.py)对写请求也重试；[mail.py](../../enterprise-agent/app/tools/mail.py)缺少充分的回执与幂等保证。
-- **缺口/原因**：同一动作重放与不同动作隔离缺少持久身份；网络失败无法区分未执行和已执行未收到响应。
-- **验收**：每个逻辑动作有持久唯一 ID；同动作重试复用键，不同动作不共享键；响应丢失/5xx/重启重放至多产生一次外部动作；缺少幂等或查询契约时禁止盲目重试非幂等写入；缺回执不能显示成功；工具网关校验所需角色和审批执行授权。
+- **原始证据/校正**：旧 CRM 键依赖默认索引、工单每次新随机后缀、邮件无 send 键，通用 HTTP 会重试写入。最初的 request_id 秒级碰撞描述已过时，C08 已使用完整 UUID；C12 处理持久逻辑动作身份。
+- **当前增量**：[动作存储](../../enterprise-agent/app/core/tool_operations.py) 持久化执行/动作 UUID；[网关](../../enterprise-agent/app/tools/operation_gateway.py) 冻结计划/请求、当前权限与审批授权、原子一次发送；[HTTP](../../enterprise-agent/app/tools/http_adapter.py) 禁止写重试、限定总时限；[参考适配](../../enterprise-agent/app/tools/reference.py) 严格回执、版本条件与结果查询。新增迁移 v2 未执行，原 v1 不变。41 项 C12 与 94 项相关离线测试 PASS，详细见 [阶段记录](阶段性总结_C12工具幂等与安全重试.md)。
+- **剩余缺口**：真实 PG 并发/崩溃、HTTP/服务重启与 API/SSE/Linux 尚未验收，C12 整项 open/BLOCKED。领取后发送前崩溃不自动重发，需核对；旧审批缺 ID 拒绝；HTTP 补偿暂时拒绝，等待 C13 持久补偿身份。C14 队列、C13 Saga、C11 审批状态未提前完成；旧审批 API 失败状态问题仍在 C11。
+- **验收**：每个逻辑动作有持久唯一 ID；同动作重试复用键，不同动作不共享键；响应丢失/5xx/重启重放至多产生一次外部动作；缺少幂等或查询契约时禁止盲目重试非幂等写入；缺回执不能显示成功；工具网关校验所需角色和审批执行授权。必须补独立参考服务台账与真实 PG 证据，不能以替身测试关闭。
 
 <a id="c13"></a>
 #### C13 · P1 · Saga 持久化与故障恢复

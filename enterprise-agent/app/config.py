@@ -128,6 +128,10 @@ class Settings(BaseSettings):
     # 外部 HTTP 调用超时与重试(mock 提供方不生效)
     external_timeout_seconds: float = 10.0
     external_max_retries: int = 2
+    # Explicit reference contract opt-in; never infer support from an endpoint.
+    tool_reference_profile: str = ""
+    tool_reference_run_id: str = ""
+    tool_reference_principal: str = ""
 
     # ---- 企业 IdP/OIDC(仅配置占位,默认关闭) ----
     # SSO_ENABLED=true 前必须完成 IdP 契约确认并填入以下环境变量

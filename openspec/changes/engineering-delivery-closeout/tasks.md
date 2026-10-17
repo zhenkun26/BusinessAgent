@@ -48,10 +48,12 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 3.3.1 Implement explicit backend policy, lifecycle/provisioning, failure semantics, offline tests and documentation. 27 focused and 139 related tests PASS; this does not solve lease-expiry write fencing.
   - [ ] 3.3.2 Verify actual saver versions, two-process/restart durability, TTL, same-session writes and outages on isolated Linux. <!-- BLOCKED; no real services or current-store operations -->
 
-## 4. S4：执行一致性与恢复（C18 契约前置完成；C12 及后续待确认）
+## 4. S4：执行一致性与恢复（C18 契约前置已推送；C12 离线增量完成，运行阻塞；后续待确认）
 
 - [x] 4.1 C18 前置部分：冻结参考系统幂等、失败和补偿契约，C18 完整验收留 S5。 business-reference-v1 documents 13 interface rows, durable identity/receipts, compensation and 20 future cases; static checks only, no runtime implementation or acceptance.
 - [ ] 4.2 C12 工具幂等与安全重试。
+  - [x] 4.2.1 Implement persisted identities, dispatch claims, receipt validation, gateway authorization, docs and offline verification. 41 focused and 94 related tests PASS; no runtime acceptance or full Saga/queue/approval recovery claim.
+  - [ ] 4.2.2 Verify real PostgreSQL concurrency/crash, HTTP response loss and complete application replay in isolated Linux. <!-- BLOCKED; no live service authorization -->
 - [ ] 4.3 C14 队列可靠性与 worker 初始化。
 - [ ] 4.4 C13 Saga 持久化与故障恢复。
 - [ ] 4.5 C11 审批原子领取、过期与执行状态。

@@ -39,6 +39,8 @@ async def agent_executor_node(state: AgentState) -> AgentState:
 
     try:
         agent = _get_agent(subtask.task_type, user_input)
+        if subtask.task_type in (TaskType.EXECUTION, TaskType.APPROVAL):
+            agent.execution_slot = subtask.task_id
 
         # 调用 Agent.run(异步方法,LangGraph 原生支持 async 节点,直接 await)
         # knowledge 支持多轮上下文(指代消解 + 答案生成带历史);其余 agent 签名不变

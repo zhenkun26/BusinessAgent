@@ -294,3 +294,37 @@ explicit owner for each known implementation gap. No behavioral tests are claime
 for a document-only change. Full C18 application-to-independent-service acceptance
 remains task 5.4 in S5; enterprise CRM/mail confirmations and C19 OIDC remain separate.
 C10's lease-expiry race stays in C10 and does not become a reference-service guarantee.
+
+## C12 design: persisted actions and conservative dispatch
+
+Persist a UUIDv4 execution and per-slot UUIDv4 operations in PostgreSQL before tool
+I/O. Bind the unique logical scope to authenticated user/session/request/task and
+approval ID; freeze the normalized plan, provider, endpoint, run and principal. A
+replayed scope must match its original plan, never silently regenerate actions.
+Graph task IDs distinguish fan-out; changed replans for the same scope fail closed.
+New user requests are new intentions, not transport retries. Queue/Saga recovery
+will consume these retained IDs in C14/C13; they are not implemented here.
+
+Use an additive checksum-pinned migration. No startup DDL, TTL, deletion or current
+database execution. Persist the exact wire fingerprint/precondition before a CAS
+prepared -> dispatched claim. Never reclaim that claim to send another mutation,
+even after crash. Re-entry queries the original reference operation within bounded
+budgets, or returns unknown. A crash before send can therefore require manual
+reconciliation. This intentionally trades availability for no blind write retry.
+Reads may retry twice; HTTP mutations are attempted once. All attempts have a total
+deadline, no redirects and strict bounded JSON. A valid complete receipt is required
+for success. Unproven HTTP profiles deny mutation, never fallback to mock.
+
+Gate every action on current DB identity/role and mandatory prepared operation ID;
+ignore skip_rbac for actions. External mail also requires an in-process authorization
+scope issued only after the existing fresh requester-token/approver checks, bound
+to the frozen approval calls. No bearer is persisted. C11 still owns atomic approval
+claim/expiry/final state; C12 does not declare those races solved.
+
+Implement forward CRM/ticket/mail reference mapping, strict operation/resource/version
+checks, ticket version read frozen before PATCH, synthetic recipients and explicit
+mail capture wording. Unsafe legacy HTTP compensation is disabled pending C13's
+persistent linked compensation intents; missing evidence must fail, not succeed.
+Stop downstream work and automatic inverse writes on unknown outcomes. Mock remains
+a development demonstration and cannot establish external durability. Runtime
+PostgreSQL/HTTP/LangGraph/Linux and OpenSpec CLI validation remain BLOCKED.

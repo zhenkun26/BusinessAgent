@@ -219,7 +219,7 @@ class RequestContextTests(unittest.IsolatedAsyncioTestCase):
         agent._parse_tool_calls = AsyncMock(return_value=[Record(tool='lookup', params={})])
         await agent.run('lookup')
         self.assertEqual(execute.await_args.args[1], {'user_id': 'u', 'role': 'salesperson',
-            'dept': 'dept_sales', 'session_id': 'c', 'request_id': 'r'})
+            'dept': 'dept_sales', 'session_id': 'c', 'request_id': 'r', 'execution_slot': 'direct'})
         # The same current context reaches approval creation, not only direct tools.
         ns['get_tool'] = lambda name: Record(requires_approval=True, _validate_params=Mock())
         agent._parse_tool_calls = AsyncMock(return_value=[Record(

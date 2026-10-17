@@ -6,6 +6,12 @@
       "name": "core_schema",
       "file": "init.sql",
       "sha256": "3652c4b0fc3421b369f643566d3b89451ed82cb35d46d6050ca5d87230a26212"
+    },
+    {
+      "version": 2,
+      "name": "tool_operations",
+      "file": "002_tool_operations.sql",
+      "sha256": "eaad50d8ab534afac91138a8e2f9e0924e5731be52c5883ef9ab96c2066bf1e7"
     }
   ],
   "columns": {
@@ -363,6 +369,55 @@
       "activated_at": {
         "type": "timestamp"
       }
+    },
+    "tool_executions": {
+      "execution_id": {
+        "type": "uuid"
+      },
+      "scope_key": {
+        "type": "varchar"
+      },
+      "plan_hash": {
+        "type": "varchar"
+      },
+      "owner_id": {
+        "type": "varchar"
+      },
+      "session_id": {
+        "type": "varchar"
+      },
+      "calls": {
+        "type": "jsonb"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      }
+    },
+    "tool_operations": {
+      "operation_id": {
+        "type": "uuid"
+      },
+      "execution_id": {
+        "type": "uuid"
+      },
+      "slot": {
+        "type": "int4"
+      },
+      "intent": {
+        "type": "jsonb"
+      },
+      "request": {
+        "type": "jsonb"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "receipt": {
+        "type": "jsonb"
+      },
+      "updated_at": {
+        "type": "timestamptz"
+      }
     }
   },
   "indexes": {
@@ -392,7 +447,9 @@
     "idx_documents_review_status": false,
     "idx_documents_content_hash": false,
     "idx_prompt_versions_name": false,
-    "idx_prompt_versions_status": false
+    "idx_prompt_versions_status": false,
+    "idx_tool_executions_scope": true,
+    "idx_tool_operations_slot": true
   },
   "legacy_columns": {
     "users": {

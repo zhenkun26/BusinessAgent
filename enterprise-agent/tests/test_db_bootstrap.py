@@ -134,7 +134,7 @@ class BootstrapTests(unittest.TestCase):
 
     def test_empty_apply_and_repeat_preserve_rows(self):
         result = bootstrap.apply_migrations(self.conn, self.manifest)
-        self.assertEqual(result['applied_versions'], [1])
+        self.assertEqual(result['applied_versions'], [m['version'] for m in self.manifest['migrations']])
         self.assertFalse(self.conn.state['business'])
         self.conn.state['business'].append(('existing', 'unchanged'))
         count = sum(q == self.manifest['migrations'][0]['sql'] for q, _, _ in self.conn.calls)
@@ -144,11 +144,12 @@ class BootstrapTests(unittest.TestCase):
 
     def test_pending_versions_are_applied_in_order(self):
         bootstrap.apply_migrations(self.conn, self.manifest)
-        self.manifest['migrations'].append(dict(version=2, name='synthetic_upgrade',
+        next_version = len(self.manifest['migrations']) + 1
+        self.manifest['migrations'].append(dict(version=next_version, name='synthetic_upgrade',
                                                file='unused.sql', sha256='b' * 64,
                                                sql="SELECT 'synthetic upgrade'"))
-        self.assertEqual(bootstrap.apply_migrations(self.conn, self.manifest)['applied_versions'], [2])
-        self.assertEqual([row[0] for row in self.conn.state['history']], [1, 2])
+        self.assertEqual(bootstrap.apply_migrations(self.conn, self.manifest)['applied_versions'], [next_version])
+        self.assertEqual([row[0] for row in self.conn.state['history']], list(range(1, next_version + 1)))
 
     def test_statement_failure_rolls_back_schema_and_history_together(self):
         self.conn.state['business'] = ['preserved']
@@ -388,7 +389,7 @@ class DatabaseStartupTests(unittest.IsolatedAsyncioTestCase):
         manifest = contract.load_manifest()
         item = manifest['migrations'][0]
         connection = SimpleNamespace(execute=AsyncMock(side_effect=[
-            Mock(scalar=lambda: True), Cursor([(1, item['name'], item['sha256'])]),
+            Mock(scalar=lambda: True), Cursor([(m['version'], m['name'], m['sha256']) for m in manifest['migrations']]),
             Cursor(columns(manifest)), Cursor(list(manifest['indexes'].items()))]))
         await contract.verify_async_schema(connection, lambda s: s)
         connection.execute = AsyncMock(return_value=Mock(scalar=lambda: False))

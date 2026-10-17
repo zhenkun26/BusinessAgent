@@ -71,7 +71,7 @@ class Database:
         self.row = Model(approval_id='a1', session_id='s1', requester_id='requester',
                          requester_token='valid', approver_id='approver',
                          approver_roles=['manager'], status='pending',
-                         prefill_payload={'tool_calls': [{'tool': 'send_email_external'}]})
+                         prefill_payload={'tool_calls': [{'tool': 'send_email_external', 'operation_id': '00000000-0000-4000-8000-000000000001'}]})
         self.queries: list[tuple[str, dict]] = []
         self.writes: list[tuple[str, dict]] = []
         self.fail_users = False
@@ -157,6 +157,10 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
         self.stack.enter_context(patch.dict(sys.modules, deps))
         self.rbac = load('c05_rbac', 'app/security/rbac.py')
         self.stack.enter_context(patch.dict(sys.modules, {'app.security.rbac': self.rbac}))
+        self.stack.enter_context(patch.dict(sys.modules, {'app.security.redaction':
+            load('c05_redaction', 'app/security/redaction.py')}))
+        self.operations = load('c05_operations', 'app/core/tool_operations.py')
+        self.stack.enter_context(patch.dict(sys.modules, {'app.core.tool_operations': self.operations}))
         self.approval = load('c05_approval', 'app/api/approval.py')
 
     def decode_fixture(self, token: str, key: str, *, algorithms: list, options: dict) -> dict:
@@ -385,6 +389,24 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
         self.notify.reset_mock()
         self.db.users['approver'].role = 'finance'
         await self.denied('resume', 403)
+
+    async def test_legacy_approval_cannot_mint_new_operation_ids(self) -> None:
+        self.db.row.prefill_payload['tool_calls'][0].pop('operation_id')
+        with self.assertRaises(HTTPException) as caught:
+            await self.call('resume')
+        self.assertEqual(caught.exception.status_code, 409)
+        self.execute.assert_not_awaited()
+
+    async def test_resume_scope_is_bound_to_calls_and_cleared_after_execution(self) -> None:
+        async def execute(plans, context):
+            self.assertEqual(plans[0].operation_id,
+                             self.db.row.prefill_payload['tool_calls'][0]['operation_id'])
+            self.assertTrue(self.operations.approval_authorized(
+                context, self.db.row.prefill_payload['tool_calls']))
+            return Model(success=True, output={})
+        self.execute.side_effect = execute
+        await self.call('resume')
+        self.assertIsNone(self.operations._approval_scope.get())
 
     async def test_valid_resume_rechecks_original_approver(self) -> None:
         result = await self.call('resume')

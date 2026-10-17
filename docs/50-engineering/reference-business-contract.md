@@ -1,7 +1,8 @@
 # Controlled business reference contract
 
 Profile: **business-reference-v1**. Frozen design, 2026-10-17, C18 prework.
-**Target contract only: services and adapter changes are not implemented or accepted.**
+**Target service contract: independent services are not implemented or accepted.**
+C12 now supplies an offline-verified forward adapter candidate; see [C12 operations](tool-operation-safety.md).
 Source baseline: C10 `a57bd4ed001d86d2da304e890d01da1e7e76db41`.
 
 This contract supplies the decisions needed by C12, C14, C13 and C11. C18 full
@@ -126,7 +127,9 @@ The durable `operation` object requires `operation_id`, `run_id`, `service`,
 `request_hash`, `state` (pending/committed/rejected), `resource_id` (null until known),
 `after_version` (null until known), `created_at`, `completed_at` (null while pending),
 `effect` and `compensates_operation_id` (null for forward work). Rejected entries
-also carry a fixed `error_code`. A committed recall-request operation means the
+also carry a fixed `error_code`. C12 makes the forward effect spellings explicit: `created` for B03/B04, `updated`
+for B06, and `captured` for B07; no other effect proves those operations complete.
+A committed recall-request operation means the
 request was recorded; its effect is `recall_requested`, not reversed delivery.
 
 Writes must return ID, version and complete operation receipt. A success-shaped
@@ -300,7 +303,6 @@ enterprise-resource blockers. `formal_uat=false`, `release_evidence=false`,
 | [Checkpoint contract](checkpoint-durability.md) retains lease-expiry write race | Reference dedupe cannot fence checkpoint writes or close C10 | C10, unchanged |
 
 Prework is complete when B01–B13, identity/failure/compensation rules, R01–R20 and this
-gap map are frozen with static links checked. C12 implementation begins only after
-user confirmation; C18 S5 and real vendor tasks remain unchecked. Version this profile
+gap map are frozen with static links checked. C12 implementation was authorized on 2026-10-17; its delivery is recorded separately; C18 S5 and real vendor tasks remain unchecked. Version this profile
 before making incompatible endpoint, identity, retention or receipt changes; never
 silently weaken it to fit an implementation or passing fixture.

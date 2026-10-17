@@ -105,8 +105,17 @@ async def _execute_approval_tools(
         "approval_id": row.approval_id,
     }
     plans = [ToolCallPlan(tool=tc["tool"], params=tc.get("params", {}),
-                          reason=tc.get("reason", "")) for tc in _approval_tool_calls(row)]
-    exec_result = await execute_tool_calls(plans, context)
+                          reason=tc.get("reason", ""), operation_id=tc.get("operation_id"))
+             for tc in _approval_tool_calls(row)]
+    # Legacy approvals without persisted identities require a new approval, never fresh IDs here.
+    from app.core.tool_operations import OperationError, approved_calls, valid_uuid
+    try:
+        for plan in plans:
+            valid_uuid(plan.operation_id)
+    except OperationError:
+        raise HTTPException(409, "APPROVAL_ACTION_IDENTITY_REQUIRED") from None
+    with approved_calls(requester.user_id, row.approval_id, _approval_tool_calls(row)):
+        exec_result = await execute_tool_calls(plans, context)
     outputs = getattr(exec_result, "output", None) or getattr(exec_result, "outputs", None) or {}
     error = getattr(exec_result, "error", None)
     if exec_result.success:

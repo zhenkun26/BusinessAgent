@@ -9,8 +9,8 @@
 - http: 真实工单系统适配,接口契约:
   - POST /api/v1/tickets(携带 Idempotency-Key 幂等键)
   - PATCH /api/v1/tickets/{ticket_id}
-  补偿真实化:创建补偿关闭外部工单(saga_compensation),
-  更新补偿恢复 old_values;补偿失败返回 success=False 交 worker 退避重试
+  C12: durable identity and receipt validation through operation_gateway.
+  HTTP compensation fails closed pending C13 linked durable compensation.
 
 权限设计:
 - create_ticket: customer_service/manager/admin
@@ -27,10 +27,7 @@ from typing import Any, Optional
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
 
-from app.config import get_settings
-from app.observability.audit import get_audit_logger
 from app.tools.base import BaseTool, ToolCategory, ToolResult
-from app.tools.http_adapter import call_external_api
 
 
 # ============ Schemas ============
@@ -152,34 +149,6 @@ _mock_tickets: dict[str, dict] = {
 # ============ 工具实现 ============
 
 
-async def _audit_compensation(
-    *,
-    tool_name: str,
-    action: str,
-    ticket_id: Optional[str],
-    success: bool,
-    attempts: int,
-    error: Optional[str] = None,
-) -> None:
-    """补偿动作写审计(审计器自身容错,不阻塞补偿结果)
-
-    真实提供方下的补偿结果必须可追溯(规格:补偿动作入审计)。
-    """
-    payload: dict[str, Any] = {
-        "action": action,
-        "ticket_id": ticket_id,
-        "attempts": attempts,
-    }
-    if error:
-        payload["error"] = error
-    await get_audit_logger().log(
-        event_type="saga_compensation",
-        tool_name=tool_name,
-        success=success,
-        payload=payload,
-    )
-
-
 class CreateTicketTool(BaseTool):
     """创建工单(ACTION 类)"""
 
@@ -187,54 +156,12 @@ class CreateTicketTool(BaseTool):
     category = ToolCategory.ACTION
     description = "创建客户服务工单(售后/投诉/咨询等)"
     input_schema = CreateTicketSchema
+    provider_config_attr = "ticket_tool_provider"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
-        """真实工单系统适配:POST /api/v1/tickets(携带幂等键)"""
-        settings = get_settings()
-        idempotency_key = self._build_idempotency_key(context)
-        meta: dict[str, Any] = {}
-        ok, data, error = await call_external_api(
-            "POST",
-            f"{settings.ticket_api_base}/tickets",
-            api_token=settings.ticket_api_token,
-            json_body=params,
-            extra_headers={"Idempotency-Key": idempotency_key},
-            meta=meta,
-        )
-        if not ok:
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error=error,
-                side_effects={
-                    "idempotency_key": idempotency_key,
-                    "external_attempts": meta.get("attempts", 1),
-                },
-            )
-        ticket = data.get("ticket", data) if isinstance(data, dict) else data
-        ticket_id = ticket.get("ticket_id") if isinstance(ticket, dict) else None
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"ticket": ticket},
-            side_effects={
-                "created_ticket_id": ticket_id,
-                "idempotency_key": idempotency_key,
-                "external_attempts": meta.get("attempts", 1),
-            },
-            compensation_data={"ticket_id": ticket_id, "action": "close"},
-        )
+        from app.tools.operation_gateway import invoke_action
+        return await invoke_action(self, params, context)
 
-    @staticmethod
-    def _build_idempotency_key(context: dict[str, Any]) -> str:
-        """生成幂等键:ticket-{request_id}-{uuid 后缀}
-
-        复用 context["request_id"] 作前缀:同一次对话请求内 HTTP 层重试
-        共用同一键,外部系统可据此去重;uuid 后缀区分不同建单动作。
-        """
-        request_id = context.get("request_id") or uuid.uuid4().hex[:8]
-        return f"ticket-{request_id}-{uuid.uuid4().hex[:8]}"
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         # 校验 priority
@@ -274,13 +201,13 @@ class CreateTicketTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:关闭已创建的工单(不删除,保留审计)
 
-        http 提供方下真实调用外部系统(PATCH closed + saga_compensation),
-        失败返回 success=False 交 worker 按退避策略重试;
+        HTTP compensation requires C13 durable intent and linked receipt;
+        missing evidence returns failure without sending a mutation;
         mock 提供方行为保持不变。
         """
         ticket_id = compensation_data.get("ticket_id")
-        if self._effective_provider() == "http":
-            return await self._compensate_external(ticket_id)
+        if compensation_data.get("provider") == "http" or self._effective_provider() == "http":
+            return ToolResult(False, self.name, {}, error="DURABLE_COMPENSATION_REQUIRED")
         if ticket_id and ticket_id in _mock_tickets:
             _mock_tickets[ticket_id]["status"] = "closed"
             _mock_tickets[ticket_id]["closure_reason"] = "saga_compensation"
@@ -296,41 +223,6 @@ class CreateTicketTool(BaseTool):
             output={"message": f"工单 {ticket_id} 不存在,无需补偿"},
         )
 
-    async def _compensate_external(self, ticket_id: Optional[str]) -> ToolResult:
-        """创建补偿(真实提供方):PATCH 关闭外部工单并标注补偿原因"""
-        if not ticket_id:
-            return ToolResult(
-                success=True,
-                tool_name=self.name,
-                output={"message": "无 ticket_id,无需补偿"},
-            )
-        settings = get_settings()
-        meta: dict[str, Any] = {}
-        ok, _data, error = await call_external_api(
-            "PATCH",
-            f"{settings.ticket_api_base}/tickets/{ticket_id}",
-            api_token=settings.ticket_api_token,
-            json_body={"status": "closed", "closure_reason": "saga_compensation"},
-            meta=meta,
-        )
-        await _audit_compensation(
-            tool_name=self.name,
-            action="close",
-            ticket_id=ticket_id,
-            success=ok,
-            attempts=meta.get("attempts", 1),
-            error=error,
-        )
-        if not ok:
-            logger.warning(f"工单补偿失败(外部系统): ticket_id={ticket_id}, error={error}")
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
-        logger.info(f"工单补偿: 已关闭外部工单 ticket_id={ticket_id}")
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"message": f"工单 {ticket_id} 已关闭(补偿)"},
-        )
-
 
 class UpdateTicketTool(BaseTool):
     """更新工单(ACTION 类)"""
@@ -339,36 +231,20 @@ class UpdateTicketTool(BaseTool):
     category = ToolCategory.ACTION
     description = "更新工单状态/优先级/指派(需先有工单)"
     input_schema = UpdateTicketSchema
+    provider_config_attr = "ticket_tool_provider"
+
+    def _validate_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        if set(params) - set(UpdateTicketSchema.model_fields):
+            raise ValueError("unknown update fields")
+        result = UpdateTicketSchema(**params).model_dump(exclude_unset=True)
+        if any(value is None for key, value in result.items() if key != "assignee"):
+            raise ValueError("null update field")
+        return result
+
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
-        """真实工单系统适配:PATCH /api/v1/tickets/{id}"""
-        settings = get_settings()
-        ticket_id = params["ticket_id"]
-        update_payload = {
-            key: params[key]
-            for key in ("status", "priority", "assignee", "comment")
-            if params.get(key) is not None
-        }
-        ok, data, error = await call_external_api(
-            "PATCH",
-            f"{settings.ticket_api_base}/tickets/{ticket_id}",
-            api_token=settings.ticket_api_token,
-            json_body=update_payload,
-        )
-        if not ok:
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
-        ticket = data.get("ticket", data) if isinstance(data, dict) else data
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"ticket": ticket, "updated_fields": list(update_payload.keys())},
-            side_effects={"updated_ticket_id": ticket_id},
-            compensation_data={
-                "ticket_id": ticket_id,
-                "action": "restore",
-                "old_values": {},
-            },
-        )
+        from app.tools.operation_gateway import invoke_action
+        return await invoke_action(self, params, context)
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         ticket_id = params["ticket_id"]
@@ -417,14 +293,14 @@ class UpdateTicketTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:恢复工单旧值
 
-        http 提供方下真实调用外部系统(PATCH 恢复 old_values),
-        失败返回 success=False 交 worker 按退避策略重试;
+        HTTP compensation requires C13 durable intent and linked receipt;
+        missing evidence returns failure without sending a mutation;
         mock 提供方行为保持不变。
         """
         ticket_id = compensation_data.get("ticket_id")
         old_values = compensation_data.get("old_values", {})
-        if self._effective_provider() == "http":
-            return await self._compensate_external(ticket_id, old_values)
+        if compensation_data.get("provider") == "http" or self._effective_provider() == "http":
+            return ToolResult(False, self.name, {}, error="DURABLE_COMPENSATION_REQUIRED")
 
         if ticket_id and ticket_id in _mock_tickets and old_values:
             for field, old_val in old_values.items():
@@ -439,46 +315,4 @@ class UpdateTicketTool(BaseTool):
             success=True,
             tool_name=self.name,
             output={"message": f"工单 {ticket_id} 无需恢复"},
-        )
-
-    async def _compensate_external(
-        self, ticket_id: Optional[str], old_values: dict[str, Any]
-    ) -> ToolResult:
-        """更新补偿(真实提供方):PATCH 将工单字段恢复为执行前旧值"""
-        if not ticket_id or not old_values:
-            return ToolResult(
-                success=True,
-                tool_name=self.name,
-                output={"message": f"工单 {ticket_id} 无需恢复"},
-            )
-        settings = get_settings()
-        meta: dict[str, Any] = {}
-        ok, _data, error = await call_external_api(
-            "PATCH",
-            f"{settings.ticket_api_base}/tickets/{ticket_id}",
-            api_token=settings.ticket_api_token,
-            json_body=old_values,
-            meta=meta,
-        )
-        await _audit_compensation(
-            tool_name=self.name,
-            action="restore",
-            ticket_id=ticket_id,
-            success=ok,
-            attempts=meta.get("attempts", 1),
-            error=error,
-        )
-        if not ok:
-            logger.warning(
-                f"工单更新补偿失败(外部系统): ticket_id={ticket_id}, error={error}"
-            )
-            return ToolResult(success=False, tool_name=self.name, output={}, error=error)
-        logger.info(
-            f"工单更新补偿: 已恢复外部工单 ticket_id={ticket_id}, "
-            f"fields={list(old_values.keys())}"
-        )
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"message": f"工单 {ticket_id} 已恢复旧值"},
         )

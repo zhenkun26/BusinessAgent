@@ -185,8 +185,12 @@ class DiagnosticSafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(error)
 
     def http_adapter(self, status: int, payload: Any, body: str) -> ModuleType:
-        response = SimpleNamespace(status_code=status, text=body, json=lambda: payload)
-        client = SimpleNamespace(request=AsyncMock(return_value=response))
+        async def chunks():
+            yield json.dumps(payload).encode()
+        response = SimpleNamespace(status_code=status, headers={}, aiter_bytes=chunks)
+        response_context = Mock(__aenter__=AsyncMock(return_value=response),
+                                __aexit__=AsyncMock(return_value=False))
+        client = SimpleNamespace(stream=lambda *a, **kw: response_context)
         context = Mock(__aenter__=AsyncMock(return_value=client), __aexit__=AsyncMock(return_value=False))
         self.stack.enter_context(patch.dict(sys.modules, {
             'httpx': module('httpx', AsyncClient=lambda **kw: context,
@@ -202,8 +206,12 @@ class DiagnosticSafetyTests(unittest.IsolatedAsyncioTestCase):
             get_audit_logger=lambda: SimpleNamespace(log=AsyncMock()),
             redact_text=self.redaction.redact_text, redact_value=self.redaction.redact_value)
         create = function('app/agents/execution.py', '_create_approval_request', namespace, 'ExecutionAgent')
+        async def prepare(plans, context, **kwargs):
+            context['execution_calls'] = [{'tool': p.tool, 'params': p.params} for p in plans]
+        self.stack.enter_context(patch.dict(sys.modules, {
+            'app.tools.operation_gateway': module('app.tools.operation_gateway', prepare_calls=prepare)}))
         owner = SimpleNamespace(_build_approval_summary=lambda *args: 'synthetic approval')
-        await create(owner, [SimpleNamespace(tool='send_email_external', params={'token': MARKER}, reason='')],
+        await create(owner, [SimpleNamespace(tool='send_email_external', params={'subject': 'safe subject'}, reason='')],
                      {'user_id': 'r', 'session_id': 's', 'jwt_token': JWT_MARKER}, 'synthetic query')
         for call in self.db.execute.await_args_list:
             self.assertNotIn('requester_token', call.args[0])
@@ -258,7 +266,8 @@ class DiagnosticSafetyTests(unittest.IsolatedAsyncioTestCase):
                                  error='Bearer ' + MARKER, side_effects={'password': MARKER}, latency_ms=0)
         audit = SimpleNamespace(log_tool_call=AsyncMock())
         namespace = dict(Any=Any, ToolResult=SimpleNamespace, time=SimpleNamespace(time=lambda: 1),
-            AgentRole=Role, can_use_tool=lambda *args: True, logger=self.log,
+            AgentRole=Role, ToolCategory=SimpleNamespace(ACTION='action'),
+            can_use_tool=lambda *args: True, logger=self.log,
             traced_span=lambda *args, **kw: nullcontext(), record_span_attributes=Mock(),
             record_span_event=Mock(), get_audit_logger=lambda: audit,
             redact_value=self.redaction.redact_value)

@@ -100,6 +100,7 @@ class ToolCallPlan(BaseModel):
     tool: str = Field(description="工具名")
     params: dict[str, Any] = Field(default_factory=dict, description="工具参数")
     reason: str = Field(default="", description="调用原因")
+    operation_id: Optional[str] = None  # Assigned by the durable planner, never by the LLM.
 
 
 # ============ 公共执行入口(审批批准后复用)============
@@ -120,6 +121,8 @@ async def execute_tool_calls(
         单工具返回 ToolResult，多工具返回 SagaResult
     """
     _ensure_tools()
+    from app.tools.operation_gateway import prepare_calls
+    await prepare_calls(plans, context)
     if len(plans) == 1:
         return await _invoke_single(plans[0], context)
     return await _invoke_saga(plans, context)
@@ -138,7 +141,7 @@ async def _invoke_single(
             error=f"工具未注册： {plan.tool}",
         )
 
-    return await tool.invoke(plan.params, context)
+    return await tool.invoke(plan.params, {**context, "operation_id": plan.operation_id})
 
 
 async def _invoke_saga(
@@ -160,6 +163,7 @@ async def _invoke_saga(
             tool_name=plan.tool,
             params=plan.params,
             block_on_failure=block,
+            operation_id=plan.operation_id,
         )
 
     return await saga.execute()
@@ -188,6 +192,7 @@ class ExecutionAgent:
         user_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        execution_slot: str = "direct",
     ):
         self.user_role = user_role
         self.user_dept = user_dept
@@ -196,6 +201,7 @@ class ExecutionAgent:
         self.user_id = user_id
         self.conversation_id = conversation_id
         self.request_id = request_id or str(uuid.uuid4())
+        self.execution_slot = execution_slot
 
     def _get_llm(self):
         if self.llm is None:
@@ -214,6 +220,7 @@ class ExecutionAgent:
             "dept": self.user_dept or "shared_company",
             "session_id": self.conversation_id,
             "request_id": self.request_id,
+            "execution_slot": self.execution_slot,
         }
 
         logger.info(f"ExecutionAgent 开始： query={query[:80]!r}, role={context['role']}")
@@ -245,13 +252,18 @@ class ExecutionAgent:
             # 无外部权限 → RBAC 友好拒绝;有权限 → 正常走高风险审批流
             for p in plans:
                 if p.tool == "send_email_internal":
-                    to_list = p.params.get("to") or []
-                    if isinstance(to_list, str):
-                        to_list = [to_list]
-                    if any(
-                        isinstance(a, str) and "@" in a and not a.endswith("@company.internal")
-                        for a in to_list
-                    ):
+                    from app.config import get_settings
+                    from app.tools.reference import PROFILE
+                    settings = get_settings()
+                    addresses = []
+                    for field in ("to", "cc"):
+                        value = p.params.get(field) or []
+                        addresses.extend([value] if isinstance(value, str) else value)
+                    reference_mail = (settings.mail_tool_provider or settings.tool_provider) == "http" and (
+                        settings.tool_reference_profile == PROFILE)
+                    if any(isinstance(a, str) and "@" in a and (
+                        a not in {"employee@reference.invalid", "manager@reference.invalid"}
+                        if reference_mail else not a.endswith("@company.internal")) for a in addresses):
                         logger.info("内部邮件含外部地址，纠偏为 send_email_external")
                         p.tool = "send_email_external"
 
@@ -581,12 +593,9 @@ class ExecutionAgent:
             if risk_rank.get(tool_risk, 0) > risk_rank.get(risk_level, 0):
                 risk_level = tool_risk
 
-        prefill_payload = {
-            "tool_calls": [
-                {"tool": p.tool, "params": p.params, "reason": p.reason}
-                for p in plans
-            ]
-        }
+        from app.tools.operation_gateway import prepare_calls
+        await prepare_calls(plans, context, partition="approval")
+        prefill_payload = {"tool_calls": context["execution_calls"]}
 
         factory = get_session_factory()
         async with factory() as session:
@@ -721,6 +730,8 @@ class ExecutionAgent:
             mid = output.get("message_id", "")
             n = output.get("recipients", "")
             kind = "内部邮件" if tool_name == "send_email_internal" else "外部邮件"
+            if output.get("receipt_state") == "captured":
+                return f"参考邮件已捕获(编号 `{mid}`，收件人 {n} 人)，未向真实邮箱投递。"
             return f"{kind}已发送(编号 `{mid}`，收件人 {n} 人)。"
 
         if tool_name == "create_ticket":
@@ -779,13 +790,10 @@ class ExecutionAgent:
             return "\n\n".join(parts)
 
         # 失败
+        errors = getattr(result, "compensation_errors", [])
+        if errors:
+            return f"工具执行失败，补偿未完成；有 {len(errors)} 项需人工核对：{errors}"
         if getattr(result, "compensated", False):
-            errors = getattr(result, "compensation_errors", [])
-            if errors:
-                return (
-                    f"工具执行失败，已自动补偿回滚。"
-                    f"但有 {len(errors)} 个补偿失败需运维介入： {errors}"
-                )
-            return "工具执行失败，已自动补偿回滚所有已执行步骤。"
+            return "工具执行失败，已补偿所有确认执行成功的步骤。"
 
         return f"工具执行失败： {getattr(result, 'error', '未知错误')}"

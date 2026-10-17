@@ -65,7 +65,7 @@ async def test_should_fail_immediately_on_401_without_retry(monkeypatch):
 
     assert ok is False
     assert attempts["count"] == 1
-    assert "认证失败" in (error or "")
+    assert error == "EXTERNAL_HTTP_401"
 
 
 @pytest.mark.asyncio
@@ -84,7 +84,7 @@ async def test_should_retry_then_fail_on_5xx(monkeypatch):
         return original_client(transport=_transport(handler), **kwargs)
 
     monkeypatch.setattr("app.tools.http_adapter.httpx.AsyncClient", patched_client)
-    monkeypatch.setattr("app.tools.http_adapter._backoff", lambda _: _noop())
+    monkeypatch.setattr("app.tools.http_adapter.asyncio.sleep", lambda _: _noop())
 
     async def _noop():
         return None
@@ -95,7 +95,7 @@ async def test_should_retry_then_fail_on_5xx(monkeypatch):
 
     assert ok is False
     assert attempts["count"] == 3  # 首次 + 2 次重试
-    assert "服务不可用" in (error or "")
+    assert error == "EXTERNAL_HTTP_503"
 
 
 @pytest.mark.asyncio
@@ -106,9 +106,9 @@ async def test_should_fail_cleanly_on_timeout(monkeypatch):
         raise httpx.TimeoutException("timeout")
 
     monkeypatch.setattr(
-        "app.tools.http_adapter.httpx.AsyncClient.request", never
+        "app.tools.http_adapter.httpx.AsyncClient.send", never
     )
-    monkeypatch.setattr("app.tools.http_adapter._backoff", lambda _: _noop())
+    monkeypatch.setattr("app.tools.http_adapter.asyncio.sleep", lambda _: _noop())
 
     async def _noop():
         return None
@@ -118,4 +118,4 @@ async def test_should_fail_cleanly_on_timeout(monkeypatch):
     )
 
     assert ok is False
-    assert "超时" in (error or "")
+    assert error == "EXTERNAL_TRANSPORT_UNCERTAIN"

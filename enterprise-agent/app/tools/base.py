@@ -184,7 +184,7 @@ class BaseTool(ABC):
             },
         ):
             # 1. RBAC 权限校验
-            if not skip_rbac:
+            if not skip_rbac or self.category == ToolCategory.ACTION:
                 try:
                     role = AgentRole(role_str) if isinstance(role_str, str) else role_str
                 except ValueError:
@@ -253,7 +253,10 @@ class BaseTool(ABC):
                     f"params_keys={list(validated_params.keys())}, "
                     f"provider={self._effective_provider()}"
                 )
-                if self._effective_provider() == "http":
+                if self.category == ToolCategory.ACTION:
+                    from app.tools.operation_gateway import invoke_action
+                    result = await invoke_action(self, validated_params, context)
+                elif self._effective_provider() == "http":
                     result = await self._call_external(validated_params, context)
                 else:
                     result = await self._execute(validated_params, context)
@@ -300,6 +303,10 @@ class BaseTool(ABC):
                 return result
 
             except Exception as e:  # noqa: BLE001
+                from app.core.tool_operations import OperationError
+                if isinstance(e, OperationError):
+                    return ToolResult(False, tool_name, {}, error=str(e),
+                                      side_effects={"outcome": "unknown"})
                 logger.exception(f"工具执行异常: tool={tool_name}, error={e}")
                 from app.observability.tracing import record_exception
                 record_exception(e)
@@ -308,6 +315,7 @@ class BaseTool(ABC):
                     tool_name=tool_name,
                     output={},
                     error="TOOL_EXECUTION_FAILED",
+                    side_effects={"outcome": "unknown"} if self.category == ToolCategory.ACTION else {},
                     latency_ms=int((time.time() - start) * 1000),
                 )
 

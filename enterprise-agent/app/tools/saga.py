@@ -69,6 +69,7 @@ class SagaStep:
     params: dict[str, Any]
     # 该步骤失败时是否阻断后续(默认 True;False 表示跳过继续)
     block_on_failure: bool = True
+    operation_id: Optional[str] = None
     # 执行结果(运行时填充)
     status: SagaStepStatus = SagaStepStatus.PENDING
     result: Optional[ToolResult] = None
@@ -124,6 +125,7 @@ class SagaCoordinator:
         tool_name: str,
         params: dict[str, Any],
         block_on_failure: bool = True,
+        operation_id: Optional[str] = None,
     ) -> "SagaCoordinator":
         """添加一个步骤(链式调用)
 
@@ -140,6 +142,7 @@ class SagaCoordinator:
                 tool_name=tool_name,
                 params=params,
                 block_on_failure=block_on_failure,
+                operation_id=operation_id,
             )
         )
         return self
@@ -179,16 +182,17 @@ class SagaCoordinator:
 
                     if step.block_on_failure:
                         # 触发补偿
-                        await self._compensate(completed_steps)
+                        compensation_errors = await self._compensate(completed_steps)
                         record_span_attributes({
                             "saga.success": False,
-                            "saga.compensated": True,
+                            "saga.compensated": not compensation_errors,
                         })
                         return SagaResult(
                             success=False,
                             steps=self.steps,
                             total_latency_ms=int((time.time() - start) * 1000),
-                            compensated=True,
+                            compensated=not compensation_errors,
+                            compensation_errors=compensation_errors,
                             error=step.error,
                             outputs=self._aggregate_outputs(completed_steps),
                         )
@@ -197,7 +201,8 @@ class SagaCoordinator:
                         continue
 
                 # 执行工具(span 在 tool.invoke 内自动创建)
-                result = await tool.invoke(step.params, self.context)
+                result = await tool.invoke(step.params, {**self.context, "operation_id": step.operation_id,
+                                                        "step_id": step.step_id})
                 step.result = result
 
                 if result.success:
@@ -219,19 +224,23 @@ class SagaCoordinator:
                         "error": result.error or "",
                     })
 
+                    if result.side_effects.get("outcome") == "unknown":
+                        return SagaResult(False, self.steps, int((time.time() - start) * 1000),
+                                          error="ACTION_OUTCOME_UNKNOWN", compensated=False,
+                                          outputs=self._aggregate_outputs(completed_steps))
                     if step.block_on_failure:
                         # 触发补偿
                         compensation_errors = await self._compensate(completed_steps)
                         record_span_attributes({
                             "saga.success": False,
-                            "saga.compensated": True,
+                            "saga.compensated": not compensation_errors,
                             "saga.compensation_errors": len(compensation_errors),
                         })
                         return SagaResult(
                             success=False,
                             steps=self.steps,
                             total_latency_ms=int((time.time() - start) * 1000),
-                            compensated=True,
+                            compensated=not compensation_errors,
                             compensation_errors=compensation_errors,
                             error=f"步骤 {step.step_id} 失败: {result.error}",
                             outputs=self._aggregate_outputs(completed_steps),
@@ -291,7 +300,8 @@ class SagaCoordinator:
                 logger.warning(
                     f"Saga 补偿无数据: step_id={step.step_id}, tool={step.tool_name}"
                 )
-                step.status = SagaStepStatus.COMPENSATED
+                step.status = SagaStepStatus.COMPENSATION_FAILED
+                compensation_errors.append(f"COMPENSATION_EVIDENCE_REQUIRED: {step.step_id}")
                 continue
 
             try:

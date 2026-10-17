@@ -29,6 +29,7 @@
 - `request-context`: C08 per-dispatch agents, request-bound history and explicit dependency rejection.
 - `cross-process-state`: C09 shared cancellation leases, single-use SSO state and request-scoped prompt snapshots.
 - `checkpoint-durability`: C10 explicit backend selection, managed saver lifetime and fail-closed persistence semantics.
+- `tool-operation-safety`: C12 durable action identity, one-way dispatch, receipt validation and runtime gateway authorization.
 - `reference-business-contract`: C18 prework defining the controlled CRM/ticket/mail contract, failure evidence and handoff to C12-C14/C11 and S5.
 
 ### Modified Capabilities
@@ -105,3 +106,12 @@ and OpenSpec; no runtime code, service startup, network business calls, dependen
 real recipients or enterprise-provider confirmations. C10 remains open with the
 lease-expiry write race and all real-runtime blockers. Stop after the local document
 increment; C12 and further push require subsequent confirmation.
+
+## C12 authorization update (2026-10-17)
+
+C18 prework `317aa7f` was pushed to the same remote branch. The user authorized
+C12 implementation, documentation and offline verification only. Add capability
+`tool-operation-safety`: durable action identity, guarded dispatch, strict reference
+receipts, read-only reconciliation and gateway authorization. Do not run services,
+install dependencies, migrate current stores or start C14/C13/C11. C10 remains open.
+C12 push requires separate confirmation.

@@ -258,3 +258,18 @@
 - **Evidence**: Prework is document-only; 13 interface rows and 20 future cases,
   all live cases BLOCKED. [Delivery record](阶段性总结_C18参考契约前置.md). No new runtime
   implementation, service startup, real recipients or current-data operations.
+
+## 28. Durable action intent and conservative dispatch (2026-10-17)
+
+- **Decision**: Persist execution and per-action UUIDs, normalized plan and target,
+  then freeze wire request/precondition before a one-way PostgreSQL dispatch claim.
+  Re-entry queries retained receipts; no automatic mutation retry or claim reclaim.
+- **Authority**: Recheck current role at the gateway and require a transient fresh
+  approval scope bound to persisted calls for external mail. Never persist bearer
+  credentials or assign replacement IDs to legacy approvals.
+- **Tradeoff**: A claim/send crash may require manual reconciliation. Disable unsafe
+  legacy HTTP compensation pending C13's durable inverse contract; unknown outcomes
+  stop downstream work. The approval state machine and queue ownership remain C11/C14.
+- **Evidence**: [C12 record](阶段性总结_C12工具幂等与安全重试.md), 41 focused and
+  94 related offline tests PASS. C18 `317aa7f` pushed; C12 remains local. Real services,
+  OpenSpec strict CLI, C10 fencing, enterprise UAT and release remain BLOCKED.
