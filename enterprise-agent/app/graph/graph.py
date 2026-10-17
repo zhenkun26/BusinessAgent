@@ -31,6 +31,7 @@ from typing import Optional
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
+from app.prompts import request_prompt_snapshot
 from app.graph.aggregator import aggregator_node
 from app.graph.dispatcher import plan_rejected_node, route_after_planner
 from app.graph.executor import agent_executor_node
@@ -170,8 +171,9 @@ async def run_graph(
     # I-07:请求级 token 采集作用域(contextvar),图内全部 LLM 调用统一计入
     from app.observability.token_usage import track_token_usage
 
-    with track_token_usage():
-        final_state = await graph.ainvoke(initial_state, config=config)
+    async with request_prompt_snapshot(enabled=use_checkpointer):
+        with track_token_usage():
+            final_state = await graph.ainvoke(initial_state, config=config)
     return final_state
 
 
@@ -227,22 +229,23 @@ async def run_graph_stream(
     # I-07:请求级 token 采集作用域(contextvar),图内全部 LLM 调用统一计入
     from app.observability.token_usage import track_token_usage
 
-    with track_token_usage():
-        async for ev in graph.astream_events(initial_state, config=config, version="v2"):
-            kind = ev.get("event", "")
-            node = ev.get("metadata", {}).get("langgraph_node")
+    async with request_prompt_snapshot():
+        with track_token_usage():
+            async for ev in graph.astream_events(initial_state, config=config, version="v2"):
+                kind = ev.get("event", "")
+                node = ev.get("metadata", {}).get("langgraph_node")
 
-            if kind in ("on_chain_start", "on_chain_end") and node in watched_nodes:
-                phase = "start" if kind.endswith("_start") else "end"
-                # astream_events 对同一节点会发 chain/runnable 两组事件,去重
-                if (node, phase) != last_progress:
-                    last_progress = (node, phase)
-                    yield {"type": "progress", "node": node, "phase": phase}
-            elif kind == "on_chat_model_stream" and "final_answer" in ev.get("tags", []):
-                chunk = ev.get("data", {}).get("chunk")
-                text = getattr(chunk, "content", None) if chunk is not None else None
-                if text:
-                    yield {"type": "token", "data": text}
+                if kind in ("on_chain_start", "on_chain_end") and node in watched_nodes:
+                    phase = "start" if kind.endswith("_start") else "end"
+                    # astream_events 对同一节点会发 chain/runnable 两组事件,去重
+                    if (node, phase) != last_progress:
+                        last_progress = (node, phase)
+                        yield {"type": "progress", "node": node, "phase": phase}
+                elif kind == "on_chat_model_stream" and "final_answer" in ev.get("tags", []):
+                    chunk = ev.get("data", {}).get("chunk")
+                    text = getattr(chunk, "content", None) if chunk is not None else None
+                    if text:
+                        yield {"type": "token", "data": text}
 
 
 def reset_graph():

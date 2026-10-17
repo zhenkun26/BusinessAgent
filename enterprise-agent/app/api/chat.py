@@ -2,7 +2,7 @@
 
 P2-2/P2-4 增强:
 - sessions 表生命周期:入口置 running,终态落 completed/failed/cancelled
-- 用户取消机制:run_graph 包成 Task 注册到 cancellation 注册表,/cancel 端点取消
+- 用户取消机制:Redis 租约绑定运行标识,/cancel 可由另一 API 进程受理
 """
 
 import asyncio
@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.config import get_settings
-from app.core.cancellation import register_task, request_cancel, unregister_task
+from app.core.cancellation import CancellationLease, SessionBusy, reserve_session, request_cancel
+from app.core.runtime_state import RuntimeStateUnavailable
 from app.core.database import get_db
 from app.observability.audit import get_audit_logger
 from app.prompts import reset_prompt_user, set_prompt_user
@@ -28,6 +29,35 @@ from app.security.rbac import User, get_current_user, AgentRole, security_scheme
 from app.security.session_access import prepare_chat_session, require_session_access
 
 router = APIRouter()
+
+
+async def _reserve_chat(session_id: str) -> CancellationLease:
+    try:
+        return await reserve_session(session_id)
+    except SessionBusy:
+        raise HTTPException(409, "SESSION_ALREADY_RUNNING") from None
+    except RuntimeStateUnavailable:
+        raise HTTPException(503, "RUNTIME_STATE_UNAVAILABLE") from None
+
+
+async def _prepare_owned_run(db, user: User, requested_id: str | None,
+                             message: str) -> tuple[str, CancellationLease]:
+    if requested_id is not None:
+        # Deny foreign sessions before Redis; reserve before changing active-run metadata.
+        await require_session_access(db, requested_id, user)
+        lease = await _reserve_chat(requested_id)
+        try:
+            session_id = await prepare_chat_session(db, user, requested_id, message)
+        except BaseException:
+            await lease.release()
+            raise
+        return session_id, lease
+    session_id = await prepare_chat_session(db, user, None, message)
+    try:
+        return session_id, await _reserve_chat(session_id)
+    except HTTPException:
+        await _update_session_status(session_id, "failed", error="RUNTIME_STATE_UNAVAILABLE")
+        raise
 
 
 async def _update_session_status(
@@ -118,7 +148,7 @@ async def send_message(
 
     # Authorize before graph imports, audits, checkpoint access or task registration.
     req.message = redact_text(req.message)
-    session_id = await prepare_chat_session(db, user, req.session_id, req.message)
+    session_id, lease = await _prepare_owned_run(db, user, req.session_id, req.message)
 
     from app.graph.graph import run_graph
     from app.graph.state import UserInput
@@ -146,18 +176,15 @@ async def send_message(
         request_id=str(uuid.uuid4()),
     )
 
-    # P2-1:设置 prompt 分流用户(contextvar;create_task 会复制上下文传入图内)
     prompt_token = set_prompt_user(user.user_id)
 
-    # P2-2:run_graph 包成 Task 并注册,/chat/cancel 可中途取消
-    task = asyncio.create_task(
-        run_graph(
-            user_input=user_input,
-            thread_id=session_id,  # 同一会话可跨进程恢复
-            use_checkpointer=True,
-        )
-    )
-    register_task(session_id, task)
+    async def run_owned():
+        async with lease.watch(release_on_exit=False):
+            return await run_graph(
+                user_input=user_input, thread_id=session_id, use_checkpointer=True,
+            )
+
+    task = asyncio.create_task(run_owned())
 
     try:
         # 调用 LangGraph 工作流(自动接入 Checkpointer 三级降级链)
@@ -228,6 +255,13 @@ async def send_message(
             latency_ms=latency_ms,
         )
 
+    except RuntimeStateUnavailable:
+        await _update_session_status(session_id, "failed", error="RUNTIME_STATE_UNAVAILABLE")
+        await audit.log(event_type="chat_response", session_id=session_id,
+                        user_id=user.user_id, success=False,
+                        payload={"error": "RUNTIME_STATE_UNAVAILABLE"})
+        raise HTTPException(503, "RUNTIME_STATE_UNAVAILABLE") from None
+
     except Exception as e:
         # sessions 生命周期:失败置 failed
         await _update_session_status(session_id, "failed", error="CHAT_EXECUTION_FAILED")
@@ -243,7 +277,7 @@ async def send_message(
         raise HTTPException(500, "CHAT_EXECUTION_FAILED") from None
 
     finally:
-        unregister_task(session_id)
+        await lease.release()
         reset_prompt_user(prompt_token)
 
 
@@ -268,7 +302,7 @@ async def stream_message(
 
     # Reject unauthorized IDs before constructing a StreamingResponse/producer.
     req.message = redact_text(req.message)
-    session_id = await prepare_chat_session(db, user, req.session_id, req.message)
+    session_id, lease = await _prepare_owned_run(db, user, req.session_id, req.message)
 
     from fastapi.responses import StreamingResponse
 
@@ -302,41 +336,42 @@ async def stream_message(
         # 在本任务自己的上下文里 set,finally 里 reset 才不致跨 Context 报错
         prompt_token = set_prompt_user(user.user_id)
         try:
-            async for ev in run_graph_stream(user_input, thread_id=session_id):
-                # 进度事件携带 session_id,前端首轮即可调 /chat/cancel
-                if isinstance(ev, dict):
-                    ev.setdefault("session_id", session_id)
-                await queue.put(ev)
+            async with lease.watch(release_on_exit=False):
+                async for ev in run_graph_stream(user_input, thread_id=session_id):
+                    # 进度事件携带 session_id,前端首轮即可调 /chat/cancel
+                    if isinstance(ev, dict):
+                        ev.setdefault("session_id", session_id)
+                    await queue.put(ev)
 
-            # 流结束:从 checkpointer 取最终状态,组装 final 事件
-            cp, backend = await get_checkpointer()
-            tup = await cp.aget_tuple({"configurable": {"thread_id": session_id}})
-            state = tup.checkpoint.get("channel_values", {}) if tup else {}
-            latency_ms = int((time.time() - start) * 1000)
+                # 流结束:从 checkpointer 取最终状态,组装 final 事件
+                cp, backend = await get_checkpointer()
+                tup = await cp.aget_tuple({"configurable": {"thread_id": session_id}})
+                state = tup.checkpoint.get("channel_values", {}) if tup else {}
+                latency_ms = int((time.time() - start) * 1000)
 
-            def _unwrap_source(s):
-                """checkpoint 里 pydantic 对象可能被 LangChain 序列化成
-                {"lc":1,"type":"constructor","kwargs":{...}} 包装,需解包"""
-                if hasattr(s, "model_dump"):
-                    return s.model_dump()
-                if isinstance(s, dict) and isinstance(s.get("kwargs"), dict):
-                    return s["kwargs"]
-                return dict(s)
+                def _unwrap_source(s):
+                    """checkpoint 里 pydantic 对象可能被 LangChain 序列化成
+                    {"lc":1,"type":"constructor","kwargs":{...}} 包装,需解包"""
+                    if hasattr(s, "model_dump"):
+                        return s.model_dump()
+                    if isinstance(s, dict) and isinstance(s.get("kwargs"), dict):
+                        return s["kwargs"]
+                    return dict(s)
 
-            sources = [_unwrap_source(s) for s in state.get("sources", [])]
-            intent = state.get("intent", "")
-            # I-07:token 用量统一采集(aggregator 汇总进 AgentState.tokens_used)
-            tokens_used = int(state.get("tokens_used", 0) or 0)
-            final = {
-                "session_id": session_id,
-                "answer": state.get("final_answer", ""),
-                "sources": sources,
-                "confidence": state.get("confidence", 0.0),
-                "intent": intent.value if hasattr(intent, "value") else str(intent),
-                "needs_replan": state.get("needs_replan", False),
-                "checkpointer_backend": backend,
-                "latency_ms": latency_ms,
-            }
+                sources = [_unwrap_source(s) for s in state.get("sources", [])]
+                intent = state.get("intent", "")
+                # I-07:token 用量统一采集(aggregator 汇总进 AgentState.tokens_used)
+                tokens_used = int(state.get("tokens_used", 0) or 0)
+                final = {
+                    "session_id": session_id,
+                    "answer": state.get("final_answer", ""),
+                    "sources": sources,
+                    "confidence": state.get("confidence", 0.0),
+                    "intent": intent.value if hasattr(intent, "value") else str(intent),
+                    "needs_replan": state.get("needs_replan", False),
+                    "checkpointer_backend": backend,
+                    "latency_ms": latency_ms,
+                }
             await queue.put({"type": "final", "data": final})
             await _update_session_status(session_id, "completed")
             await audit.log(
@@ -364,6 +399,12 @@ async def stream_message(
                 latency_ms=int((time.time() - start) * 1000),
             )
             raise
+        except RuntimeStateUnavailable:
+            await queue.put({"type": "error", "data": "RUNTIME_STATE_UNAVAILABLE"})
+            await _update_session_status(session_id, "failed", error="RUNTIME_STATE_UNAVAILABLE")
+            await audit.log(event_type="chat_response", session_id=session_id,
+                            user_id=user.user_id, success=False,
+                            payload={"error": "RUNTIME_STATE_UNAVAILABLE", "stream": True})
         except Exception as e:  # noqa: BLE001
             logger.exception(f"流式对话失败: session_id={session_id}, error={e}")
             await queue.put({"type": "error", "data": "CHAT_EXECUTION_FAILED"})
@@ -377,12 +418,11 @@ async def stream_message(
                 payload={"error": "CHAT_EXECUTION_FAILED", "stream": True},
             )
         finally:
+            await lease.release()
             await queue.put(None)
-            unregister_task(session_id)
             reset_prompt_user(prompt_token)
 
     task = asyncio.create_task(produce())
-    register_task(session_id, task)
 
     async def event_gen():
         try:
@@ -418,13 +458,17 @@ async def cancel_message(
     """取消正在进行的对话(P2-2)
 
     - 仅本人会话可取消(admin 可取消任意会话)
-    - 取消语义:asyncio Task cancel,在下一个 await 点生效
+    - cancelled=true 仅表示共享取消信号已受理,不表示已经停止
+    - 取消语义:拥有任务的进程轮询后发出 Task cancel,在下一个 await 点生效
       (Agent 内 LLM 调用已 ainvoke 化,LLM 等待期间即可生效)
     - 已执行的工具副作用不撤销(取消 ≠ 回滚)
     """
     await require_session_access(db, req.session_id, user, allow_admin=True, lock=True)
 
-    cancelled = request_cancel(req.session_id)
+    try:
+        cancelled = await request_cancel(req.session_id)
+    except RuntimeStateUnavailable:
+        raise HTTPException(503, "RUNTIME_STATE_UNAVAILABLE") from None
     if cancelled:
         await get_audit_logger().log(
             event_type="chat_cancel_requested",

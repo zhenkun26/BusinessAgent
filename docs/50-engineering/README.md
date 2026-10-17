@@ -8,6 +8,7 @@
 |---|---|---|
 | 工程交付基线 | [engineering-delivery-baseline.md](engineering-delivery-baseline.md) | 单组织单机支持边界、参考集成、验收证据与工程完成条件 |
 | 离线安全验证入口 | [safe-validation.md](safe-validation.md) | C24 前置：允许范围、副作用审查、执行方式、输出状态与限制 |
+| 跨进程运行状态 | [cross-process-state.md](cross-process-state.md) | C09 Redis 租约/SSO、Prompt 快照与双进程验收边界 |
 | 请求上下文与依赖 | [request-context.md](request-context.md) | C08 任务隔离、历史归属、依赖拒绝与真实验收边界 |
 | 检索权限与表达式 | [retrieval-authorization.md](retrieval-authorization.md) | C07 角色/部门/共享区矩阵、编码与真实验收边界 |
 | 凭证与 HTML 安全 | [credential-safety.md](credential-safety.md) | C06 凭证生命周期、脱敏、浏览器与历史处置边界 |

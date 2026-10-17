@@ -110,7 +110,8 @@ class RequestContextTests(unittest.IsolatedAsyncioTestCase):
                 RetrievalSource=Record, KnowledgeAgent=self.agent_factory),
             'app.rag.llm': module('app.rag.llm', get_primary_llm=self.primary,
                 get_lite_llm=Mock(), get_local_llm=Mock(), get_cloud_lite_llm=Mock()),
-            'app.prompts': module('app.prompts', get_prompt=lambda name: ('{message}', 1)),
+            'app.prompts': module('app.prompts', get_prompt=lambda name: ('{message}', 1),
+                                   request_prompt_snapshot=lambda **kw: nullcontext()),
             'app.observability.token_usage': module('app.observability.token_usage',
                 track_token_usage=nullcontext, snapshot_total_tokens=lambda: 0),
         }))

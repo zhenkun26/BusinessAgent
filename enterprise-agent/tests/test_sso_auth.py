@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import secrets
 
 import pytest
 from fastapi import FastAPI
@@ -12,6 +13,23 @@ import app.api.auth as auth_api
 from app.config import get_settings
 from app.core.database import get_db
 from app.security.rbac import User
+
+
+@pytest.fixture(autouse=True)
+def shared_state_double(monkeypatch):
+    """HTTP fixtures stay offline; C09 covers actual shared-state adapter contracts."""
+    states = {}
+
+    async def register():
+        state, nonce = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+        states[state] = nonce
+        return state, nonce
+
+    async def consume(state):
+        return states.pop(state, None)
+
+    monkeypatch.setattr(auth_api, '_register_sso_state', register)
+    monkeypatch.setattr(auth_api, '_consume_sso_state', consume)
 
 
 class _FakeAuditLogger:
@@ -60,7 +78,6 @@ def test_should_redirect_to_idp_with_state_and_nonce_when_sso_enabled(monkeypatc
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
 
     response = TestClient(_build_app(audit)).get("/sso/login", follow_redirects=False)
 
@@ -87,8 +104,7 @@ async def test_should_reject_callback_when_state_cookie_does_not_match(monkeypat
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
-    state, _ = auth_api._register_sso_state()
+    state, _ = await auth_api._register_sso_state()
 
     response = TestClient(_build_app(audit)).get(
         f"/sso/callback?code=one-time-code&state={state}",
@@ -104,8 +120,7 @@ async def test_should_map_existing_sso_user_and_issue_local_jwt(monkeypatch):
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
-    state, nonce = auth_api._register_sso_state()
+    state, nonce = await auth_api._register_sso_state()
     user = User(
         user_id="user_sales_001",
         username="销售员张三",
@@ -145,8 +160,7 @@ async def test_should_audit_first_sso_provisioning_without_logging_idp_token(mon
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
-    state, nonce = auth_api._register_sso_state()
+    state, nonce = await auth_api._register_sso_state()
     user = SimpleNamespace(
         user_id="sso_123",
         username="new-user",

@@ -209,3 +209,20 @@
   safety or checkpoint durability is claimed. These require distinct evidence/work.
 - **Evidence**: [C08 record](阶段性总结_C08请求上下文与子任务依赖.md), 23 focused and
   88 related offline tests PASS. Real runtime acceptance remains BLOCKED; C09 waits.
+
+## 25. Shared ephemeral state and per-request prompt versions (2026-10-17)
+
+- **Decision**: Use existing Redis for expiring run leases/cancel signals and atomic
+  SSO nonce consumption. Compare run tokens on renew/release; require browser state
+  cookies before nonce consumption. Shared-store failure never falls back to memory.
+- **Prompt visibility**: Read committed active versions once per persistent graph
+  invocation, pin them in ContextVar, and fail the request on snapshot-read failure.
+  New requests see DB updates without cross-worker invalidation messages.
+- **Tradeoff**: Redis is now required for chat admission and SSO; prompt DB reads add
+  per-request cost. Cancellation is cooperative, leases do not fence business writes,
+  and consumed SSO state is not protected against restoring old Redis backups. No HA
+  or durable-job claim. Existing one-worker candidate remains provisional, not a
+  newly approved restriction of the C09 two-process target.
+- **Evidence**: [C09 record](阶段性总结_C09跨进程运行状态.md), 28 focused and 111
+  related offline tests PASS. Real multi-process/Redis/SQL/SSO acceptance BLOCKED;
+  C10 and C09 push await confirmation.

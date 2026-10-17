@@ -74,14 +74,15 @@
 - **现状/证据**：[executor.py](../../enterprise-agent/app/graph/executor.py) 原缓存 ExecutionAgent 的键不包含会话，而实例保存会话；token 已在 C06 移出该上下文；[dispatcher.py](../../enterprise-agent/app/graph/dispatcher.py) Send 子状态不含历史，且未消费 depends_on。
 - **缺口/原因**：请求级状态被实例缓存；历史与依赖字段未贯通调度语义。
 - **验收**：同用户不同会话、刷新 token 及并发请求不串上下文；多轮知识问答收到正确历史；需要前置结果的任务按依赖执行，或在未支持时明确拒绝；不能静默并行执行有依赖的副作用。完整通用 DAG 可延期。
-- **实施与限制（2026-10-17）**：每次派发创建新 Agent，执行上下文携带真实请求 ID，Send 独立复制身份/任务/历史；答案按请求归属绑定，历史按当前用户/会话/角色/部门筛选，保留不同轮次重复问题。无标记旧快照不进入模型上下文且未修改；所有声明或格式异常的依赖在 fan-out 前整单拒绝。23 项专项 + 88 项相关离线回归 PASS。真实 LangGraph/Milvus/JWT/PG/API/SSE/Linux、浏览器/SSO/历史凭证处置继续 **BLOCKED**；模型漏判依赖、通用 DAG、同会话并发一致性未获证明。C08 整项 open，C09 未开始。见[上下文契约](../50-engineering/request-context.md)与[阶段记录](阶段性总结_C08请求上下文与子任务依赖.md)。
+- **实施与限制（2026-10-17）**：每次派发创建新 Agent，执行上下文携带真实请求 ID，Send 独立复制身份/任务/历史；答案按请求归属绑定，历史按当前用户/会话/角色/部门筛选，保留不同轮次重复问题。无标记旧快照不进入模型上下文且未修改；所有声明或格式异常的依赖在 fan-out 前整单拒绝。23 项专项 + 88 项相关离线回归 PASS。真实 LangGraph/Milvus/JWT/PG/API/SSE/Linux、浏览器/SSO/历史凭证处置继续 **BLOCKED**；模型漏判依赖、通用 DAG、同会话并发一致性未获证明。C08 整项 open；`d81c281` 已按后续授权推送，C09 见下项。见[上下文契约](../50-engineering/request-context.md)与[阶段记录](阶段性总结_C08请求上下文与子任务依赖.md)。
 
 <a id="c09"></a>
 #### C09 · P1 · 跨进程运行状态
 
-- **现状/证据**：[cancellation.py](../../enterprise-agent/app/core/cancellation.py)、[auth.py](../../enterprise-agent/app/api/auth.py) 的 SSO state、[registry.py](../../enterprise-agent/app/prompts/registry.py) 缓存均为进程内；生产 Compose 配置多个 API worker。
+- **原调查证据**：[cancellation.py](../../enterprise-agent/app/core/cancellation.py)、[auth.py](../../enterprise-agent/app/api/auth.py) 的 SSO state、[registry.py](../../enterprise-agent/app/prompts/registry.py) 缓存原为进程内；本轮核实 C01/C02 候选生产 Compose 已为单 API worker，双进程支持仍是本项待验证目标。
 - **缺口/原因**：负载分配后取消、SSO 回调与 Prompt 激活可能由另一进程处理。
 - **验收**：至少两个 API 进程下，跨进程取消、SSO state 单次消费与 Prompt 新版本可见性通过；重启/过期行为明确。若选择只支持单 API 进程，先确认收窄范围，并同步部署、入口和文档，不能保留多进程支持声明。
+- **实施与限制（2026-10-17）**：Redis 租约/取消信号绑定运行 token，原子续期/释放；SSO state 共享存储、TTL、cookie 校验后原子消费；图请求从 PG 固定 Prompt 快照，故障不使用旧缓存。28 项专项 + 111 项相关回归 PASS。真实双进程/Redis/PG/LangGraph/JWT/API/SSE/Linux、浏览器/SSO/历史凭证处置 **BLOCKED**；租约不保证业务写入 fencing 或 checkpoint 一致性，不提供 HA。现有单 worker 候选配置未改，不等于确认收窄支持范围。C09 整项 open，C10 未开始。见[跨进程契约](../50-engineering/cross-process-state.md)与[阶段记录](阶段性总结_C09跨进程运行状态.md)。
 
 <a id="c10"></a>
 #### C10 · P1 · checkpoint 持久化与故障语义

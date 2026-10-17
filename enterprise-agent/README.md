@@ -51,6 +51,8 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 任务上下文：每个子任务使用独立 Agent 与历史副本；历史仅纳入同一用户/会话/当前角色部门且能验证请求归属的回答，旧无标记快照不进入模型上下文。仅支持独立子任务并行；含 `depends_on` 的计划整体拒绝，请按顺序分别提交。通用 DAG、模型依赖识别和真实并发验收仍未完成，详见[请求上下文契约](../docs/50-engineering/request-context.md)。
 
+运行状态：聊天入口和 SSO 现在要求可用的共享 Redis，不会退回进程内状态。已有任务占用同一会话时返回 409，协调存储故障返回 503；取消成功仅表示信号受理。每次持久化图请求从 PostgreSQL 固定 Prompt 快照，读取失败则终止。真实双进程验收尚未完成，现有单 worker 配置仍为候选，详见[跨进程状态契约](../docs/50-engineering/cross-process-state.md)。
+
 ### 3. 验证服务
 
 ```bash
@@ -203,7 +205,7 @@ enterprise-agent/
 
 ### 阶段五: P2 迭代 ✅(2026-07-26)
 
-- [x] **P2-1 Prompt 版本管理**:`prompt_versions` 表(draft/active/archived + traffic_weight)+ `app/prompts/` 注册模块(缓存读取、md5 确定性 A/B 分流、DB 故障降级代码默认)+ 管理 API(仅 admin/manager);11 个 prompt 全部从硬编码迁出,E2E 验证 draft→activate→traffic 80/20→回滚,变更落 prompt_change 审计
+- [x] **P2-1 Prompt 版本管理**:`prompt_versions` 表(draft/active/archived + traffic_weight)+ `app/prompts/` 注册模块(缓存读取、md5 确定性 A/B 分流、DB 故障降级代码默认)+ 管理 API(仅 admin/manager);11 个 prompt 全部从硬编码迁出,E2E 验证 draft→activate→traffic 80/20→回滚,变更落 prompt_change 审计（历史阶段记录；当前持久化图请求采用上述 C09 快照契约，DB 读取故障不会退回旧缓存）
 - [x] **P2-2 用户取消机制**:Agent 内 LLM 调用全部 ainvoke 化(取消在 LLM 等待期间即时生效,顺带消除事件循环阻塞);`POST /chat/cancel`(本人/admin);E2E 实测:长请求 16.6s 取消成功,sessions=cancelled,audit 链 chat_request→chat_cancel_requested→chat_cancelled
 - [x] **P2-3 部门级测试数据入库**:dept_sales/dept_finance 专属文档入库,命名空间隔离验证 4/4 通过(`eval/run_p2_namespace.py`);顺带修复降级链跨部门泄露 + partition 静默兜底两个缺陷
 - [x] **P2-4 sessions 表梳理**:双轨定责(checkpointer=状态快照,sessions=生命周期元数据);/message 主链路维护 running→completed/failed/cancelled 全状态机;/history 未命中时回查 sessions 兜底

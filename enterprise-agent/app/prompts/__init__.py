@@ -3,6 +3,7 @@
 from app.prompts.defaults import DEFAULT_PROMPTS
 from app.prompts.registry import (
     get_prompt,
+    request_prompt_snapshot,
     refresh_prompt_cache,
     reset_prompt_user,
     set_prompt_user,
@@ -12,6 +13,7 @@ from app.prompts.registry import (
 __all__ = [
     "DEFAULT_PROMPTS",
     "get_prompt",
+    "request_prompt_snapshot",
     "refresh_prompt_cache",
     "reset_prompt_user",
     "set_prompt_user",

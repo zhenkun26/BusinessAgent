@@ -198,3 +198,36 @@ Offline tests use actual source with injected framework/models/checkpointers,
 including overlapping requests, isolated child histories, repeated questions,
 stale/foreign snapshots, rejection and independent/replan compatibility. Real
 LangGraph/API/SSE/checkpoint execution stays BLOCKED. Stop after local C08 delivery.
+
+## C09 design: shared ephemeral coordination and prompt snapshots
+
+Use the existing Redis dependency with bounded connection/command timeouts, fixed
+versioned key prefixes and hashed session/state identifiers. No in-memory fallback
+for cancellation or SSO. New chat work reserves a 30-second renewable session lease
+before starting graph work; conflicting work receives 409. A per-task watcher polls
+at 0.5 seconds, renews only its own lease, and cancels the owning task on a matching
+request. Lease loss/store failure aborts with a fixed unavailable error. Atomic Lua
+scripts bind cancellation and cleanup to the lease token, preventing late cleanup
+or old cancellation from affecting the next run. Cancellation means accepted signal,
+not rollback or completion; blocking work may outlive cooperative cancellation.
+Worker death leaves an expiring lease; no automatic replay or exactly-once claim.
+
+SSO login stores only random nonce under a hashed random state key for 600 seconds
+with SET NX EX. Callback validates the browser cookie before atomic GETDEL, including
+IdP-error callbacks. Unknown/expired/replayed states deny; store failures return 503
+without exchanging a code or issuing a token. No filesystem/current-store cleanup.
+
+Each persistent graph invocation loads active prompt versions once from PostgreSQL
+into a ContextVar snapshot before any planner/agent execution. Threads/child tasks
+inherit it; a running invocation stays pinned while later invocations on any worker
+read committed activation/traffic changes. Database failure aborts instead of using
+stale process cache. Non-persistent developer runs can explicitly use code/cache
+defaults. Existing local cache remains for non-graph consumers, replaced atomically.
+No Redis invalidation race, background polling or new schema/dependency is needed.
+
+The current production Compose already uses one API worker as a provisional C01/C02
+candidate; the original C09 investigation wording is stale. Keep that deployment
+unchanged pending real two-process acceptance, without deciding to narrow the C09
+target. No HA, full checkpoint consistency, queue/Saga recovery or capacity claims.
+Offline tests use separate module instances over shared in-memory doubles; real
+Redis Lua/TTL/GETDEL, SQL, context propagation and HTTP/SSE/SSO remain BLOCKED.

@@ -364,6 +364,8 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps -
 
 ### 7.2 扩容（多实例）
 
+C09 已提供共享 Redis 取消租约/SSO state 与每请求数据库 Prompt 快照的离线实现；真实双进程、Redis 原子性/TTL/故障、API/SSE/SSO 验收仍 BLOCKED。当前 Compose 的 `--workers 1` 保持不变，也未确认将交付范围收窄为单进程。后续隔离验证须让两个独立 API 进程指向同一套隔离 Redis/PG，并明确将登录/取消/Prompt 更新与后续请求路由到不同进程；详细标准见[跨进程状态契约](../../docs/50-engineering/cross-process-state.md)。Redis 不可用现在会拒绝新聊天/SSO；不要依赖进程内降级。本文不会自动执行扩容或重启。
+
 以下仅为历史扩容参考，跨进程状态由 C09 验收前，不作为已支持能力或当前执行步骤：
 
 ```bash

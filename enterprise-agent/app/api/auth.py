@@ -3,7 +3,6 @@
 import hashlib
 import json
 import secrets
-import time
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
@@ -18,6 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.database import get_db
+from app.core.runtime_state import (
+    RuntimeStateUnavailable, SSO_STATE_TTL_SECONDS as _SSO_STATE_TTL_SECONDS,
+    register_sso_state as _register_sso_state, consume_sso_state as _consume_sso_state,
+)
 from app.observability.audit import get_audit_logger
 from app.security.jwt_manager import get_jwt_manager
 from app.security.password import hash_password, verify_password
@@ -38,11 +41,6 @@ class TokenResponse(BaseModel):
     role: str
     department: str
     expires_in: int
-
-
-_SSO_STATE_TTL_SECONDS = 600
-# 状态只保存短期随机值和 nonce，不保存用户资料或令牌。多进程部署时应迁移到 Redis。
-_sso_states: dict[str, tuple[str, float]] = {}
 
 
 def _issue_token(user: User) -> TokenResponse:
@@ -101,26 +99,6 @@ def _append_query(url: str, params: dict[str, str]) -> str:
     extra = urlencode(params)
     query = f"{query}&{extra}" if query else extra
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment))
-
-
-def _register_sso_state() -> tuple[str, str]:
-    """注册一次性 state/nonce，清理过期状态。"""
-    now = time.time()
-    for state, (_, expires_at) in list(_sso_states.items()):
-        if expires_at <= now:
-            _sso_states.pop(state, None)
-    state = secrets.token_urlsafe(32)
-    nonce = secrets.token_urlsafe(32)
-    _sso_states[state] = (nonce, now + _SSO_STATE_TTL_SECONDS)
-    return state, nonce
-
-
-def _consume_sso_state(state: str) -> str | None:
-    """消费 state，保证回调不能重复使用同一授权请求。"""
-    record = _sso_states.pop(state, None)
-    if record is None or record[1] <= time.time():
-        return None
-    return record[0]
 
 
 async def _exchange_sso_code(code: str) -> dict:
@@ -300,7 +278,10 @@ async def sso_login():
     """跳转企业 IdP，使用授权码流程开始 SSO。"""
     _require_sso_config()
     settings = get_settings()
-    state, nonce = _register_sso_state()
+    try:
+        state, nonce = await _register_sso_state()
+    except RuntimeStateUnavailable:
+        return _sso_error(503, "RUNTIME_STATE_UNAVAILABLE")
     redirect_url = _append_query(
         settings.sso_authorize_url,
         {
@@ -338,19 +319,21 @@ async def sso_callback(
     except HTTPException as exc:
         return _sso_error(exc.status_code, str(exc.detail))
 
+    cookie_state = request.cookies.get("sso_state")
+    if (not state or not (code or error) or not cookie_state
+            or not secrets.compare_digest(state, cookie_state)):
+        return _sso_error(400, "SSO 回调状态无效，请重新发起登录")
+    try:
+        expected_nonce = await _consume_sso_state(state)
+    except RuntimeStateUnavailable:
+        return _sso_error(503, "RUNTIME_STATE_UNAVAILABLE")
+    if expected_nonce is None:
+        return _sso_error(400, "SSO 登录已过期，请重新发起登录")
     if error:
-        _consume_sso_state(state or "")
         await get_audit_logger().log(
             event_type="auth_sso_login", success=False, payload={"reason": "idp_error"}
         )
         return _sso_error(401, "企业 IdP 认证未完成，请使用本地密码登录")
-
-    cookie_state = request.cookies.get("sso_state")
-    if not state or not code or not cookie_state or not secrets.compare_digest(state, cookie_state):
-        return _sso_error(400, "SSO 回调状态无效，请重新发起登录")
-    expected_nonce = _consume_sso_state(state)
-    if expected_nonce is None:
-        return _sso_error(400, "SSO 登录已过期，请重新发起登录")
 
     try:
         token_payload = await _exchange_sso_code(code)

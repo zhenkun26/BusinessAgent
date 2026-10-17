@@ -27,6 +27,7 @@
 - `credential-safety`: C06 transient credentials, redacted diagnostics and safe HTML fallback.
 - `retrieval-authorization`: C07 shared retrieval scope, safe expression literals and result guards.
 - `request-context`: C08 per-dispatch agents, request-bound history and explicit dependency rejection.
+- `cross-process-state`: C09 shared cancellation leases, single-use SSO state and request-scoped prompt snapshots.
 
 ### Modified Capabilities
 
@@ -82,3 +83,11 @@ branch hash was verified. Deliver request isolation, history propagation and
 fail-closed dependency handling with offline tests. Real Milvus/JWT/PostgreSQL/
 API/SSE/Linux/browser/SSO and historical credential acceptance remain BLOCKED.
 C08 push and C09 await confirmation; no dependencies, live calls or cleanup.
+
+## C09 authorization update (2026-10-17)
+
+C08 `d81c2814f9c1ffe74956f62f10ddff4a3fc5525c` was pushed and verified on the
+same remote branch under explicit user authorization. Implement C09 only, using
+already declared Redis/SQLAlchemy dependencies. Keep real LangGraph/Milvus/JWT/
+PostgreSQL/API/SSE/Linux/browser/SSO and historical credential acceptance BLOCKED.
+Real Redis multi-process acceptance is also BLOCKED. Do not push C09 or start C10.

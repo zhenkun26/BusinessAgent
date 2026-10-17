@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from copy import deepcopy
 from enum import Enum
 import json
@@ -183,7 +183,21 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
         }
         self.stack.enter_context(patch.dict(sys.modules, deps))
         self.access = load('c04_access', 'app/security/session_access.py')
+        self.runtime = load('c04_runtime', 'app/core/runtime_state.py')
+        self.stack.enter_context(patch.dict(sys.modules, {'app.core.runtime_state': self.runtime}))
         self.cancellation = load('c04_cancellation', 'app/core/cancellation.py')
+        self.lease = SimpleNamespace(watch=lambda **kw: nullcontext(), release=AsyncMock())
+        self.cancellation.reserve_session = AsyncMock(return_value=self.lease)
+        self.cancel_available = True
+        self.pending = Mock(done=lambda: False)
+
+        async def cancel(session_id):
+            if session_id == 'session-a' and self.cancel_available:
+                self.pending.cancel()
+                return True
+            return False
+
+        self.cancellation.request_cancel = AsyncMock(side_effect=cancel)
         self.stack.enter_context(patch.dict(sys.modules, {
             'app.security.session_access': self.access, 'app.core.cancellation': self.cancellation,
             'app.security.redaction': load('c04_redaction', 'app/security/redaction.py'),
@@ -191,8 +205,6 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.chat = load('c04_chat', 'app/api/chat.py')
         self.chat._update_session_status = AsyncMock()
         self.chat._writeback_session_tokens = AsyncMock()
-        self.pending = Mock(done=lambda: False)
-        self.cancellation.register_task('session-a', self.pending)
 
     async def asyncTearDown(self) -> None:
         await asyncio.sleep(0)  # Drain in-memory writeback fakes, no runtime DB calls.
@@ -232,7 +244,8 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
         fn = self.chat.submit_feedback if action == 'feedback' else self.chat.cancel_message
         return await fn(req, user=user, db=self.db)
 
-    def assert_no_side_effects(self, before: Any, checkpoint_before: Any) -> None:
+    def assert_no_side_effects(self, before: Any, checkpoint_before: Any,
+                               *, reservation_allowed: bool = False) -> None:
         self.assertEqual(self.db.snapshot(), before)
         self.assertEqual(self.checkpoints, checkpoint_before)
         self.graph.assert_not_awaited()
@@ -242,7 +255,12 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.chat._update_session_status.assert_not_awaited()
         self.chat._writeback_session_tokens.assert_not_awaited()
         self.pending.cancel.assert_not_called()
-        self.assertEqual(self.cancellation._tasks, {'session-a': self.pending})
+        if reservation_allowed:
+            self.assertEqual(self.cancellation.reserve_session.await_count,
+                             self.lease.release.await_count)
+        else:
+            self.cancellation.reserve_session.assert_not_awaited()
+        self.cancellation.request_cancel.assert_not_awaited()
         self.assertEqual(self.responses, [])
         self.assertEqual(self.stream_calls, [])
         self.assertEqual(self.db.commits, 0)
@@ -320,7 +338,7 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
                         await self.call(action, self.owner, sid)
                     self.assertEqual((error.exception.status_code, error.exception.detail),
                                      (503, 'SESSION_ACCESS_UNAVAILABLE'))
-                    self.assert_no_side_effects(before, checkpoints)
+                    self.assert_no_side_effects(before, checkpoints, reservation_allowed=True)
             setattr(self.db, stage, False)
         self.assertEqual(self.db.rollbacks, 8)
 
@@ -435,7 +453,7 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
             await self.call('cancel', self.admin, 'missing')
         self.assertEqual((error.exception.status_code, error.exception.detail),
                          (404, 'SESSION_NOT_AVAILABLE'))
-        self.cancellation.unregister_task('session-a')
+        self.cancel_available = False
         result = await self.call('cancel', self.owner)
         self.assertFalse(result['cancelled'])
         self.audit.log.assert_not_awaited()
