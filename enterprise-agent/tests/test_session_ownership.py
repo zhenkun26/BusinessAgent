@@ -186,6 +186,7 @@ class SessionOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.cancellation = load('c04_cancellation', 'app/core/cancellation.py')
         self.stack.enter_context(patch.dict(sys.modules, {
             'app.security.session_access': self.access, 'app.core.cancellation': self.cancellation,
+            'app.security.redaction': load('c04_redaction', 'app/security/redaction.py'),
         }))
         self.chat = load('c04_chat', 'app/api/chat.py')
         self.chat._update_session_status = AsyncMock()

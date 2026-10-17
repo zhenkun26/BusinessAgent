@@ -71,12 +71,12 @@ async def agent_executor_node(state: AgentState) -> AgentState:
             success=False,
             confidence=0.0,
             output={
-                "answer": f"子任务执行异常: {e}",
+                "answer": "AGENT_EXECUTION_FAILED",
                 "coverage": "none",
                 "stage": "error",
             },
             sources=[],
-            error=str(e),
+            error="AGENT_EXECUTION_FAILED",
             latency_ms=latency_ms,
         )
         return AgentState(agent_results=[error_result])
@@ -106,7 +106,6 @@ def _get_agent(task_type: TaskType, user_input: UserInput):
             user_dept=dept,
             user_id=user_input.user_id,
             conversation_id=user_input.conversation_id,
-            jwt_token=user_input.jwt_token,
         )
     else:
         # 兜底:Knowledge

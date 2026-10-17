@@ -42,6 +42,7 @@ from app.observability.tracing import (
     traced_span,
 )
 from app.tools.base import BaseTool, ToolCategory, ToolResult, get_tool
+from app.security.redaction import redact_value
 
 
 # ============ 数据契约 ============
@@ -112,7 +113,7 @@ class SagaCoordinator:
     def __init__(self, context: dict[str, Any]):
         """
         Args:
-            context: 调用上下文(user_id, role, dept, jwt_token, request_id)
+            context: 调用上下文(user_id, role, dept, request_id)
         """
         self.context = context
         self.steps: list[SagaStep] = []
@@ -299,6 +300,9 @@ class SagaCoordinator:
                     f"action={compensation_data.get('action')}"
                 )
                 comp_result = await tool.compensate(compensation_data)
+                comp_result.output = redact_value(comp_result.output)
+                comp_result.error = redact_value(comp_result.error)
+                comp_result.side_effects = redact_value(comp_result.side_effects)
                 step.compensation_result = comp_result
 
                 if comp_result.success:
@@ -315,7 +319,7 @@ class SagaCoordinator:
 
             except Exception as e:  # noqa: BLE001
                 step.status = SagaStepStatus.COMPENSATION_FAILED
-                err = f"补偿异常: step_id={step.step_id}, error={type(e).__name__}: {e}"
+                err = f"COMPENSATION_FAILED: step_id={step.step_id}"
                 compensation_errors.append(err)
                 logger.exception(err)
 

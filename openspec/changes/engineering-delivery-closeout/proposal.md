@@ -23,6 +23,9 @@
 - `database-bootstrap`: C03 explicit migrations, schema readiness and isolated administrator/demo bootstrap.
 - `session-ownership`: C04 persisted chat-session ownership, explicit administrator exceptions and authorization before side effects.
 
+- `runtime-authorization`: C05 current identity and approval authorization.
+- `credential-safety`: C06 transient credentials, redacted diagnostics and safe HTML fallback.
+
 ### Modified Capabilities
 
 无现有能力主规格修改。当前增加交付治理与 C01 部署产物契约；后续 C 项若改变既有能力要求，必须先补充对应 delta 与设计再实现。
@@ -51,3 +54,11 @@ implementing C05 only. The push was verified at origin/codex/delivery-ci-gates.
 C05 includes fail-closed identity resolution, production authentication gates and
 approval execution reauthorization. Real PostgreSQL/API/SSE/Linux acceptance stays
 BLOCKED. C05 push and C06 require later confirmation. No new dependencies or live calls.
+
+## C06 authorization update (2026-10-17)
+
+C05 `9f5397c` was pushed and verified on origin/codex/delivery-ci-gates under
+explicit user authorization. Implement C06 only: remove reusable credentials from
+approval/checkpoint inputs, use explicit requester confirmation after approval,
+redact diagnostics and fail safely on HTML rendering errors. No new dependencies,
+real calls, historical-data cleanup or deployment; C06 push and C07 await confirmation.

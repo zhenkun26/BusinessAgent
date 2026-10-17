@@ -16,6 +16,7 @@ from typing import Any, Optional
 import httpx
 from loguru import logger
 
+from app.security.redaction import redact_value
 from app.config import get_settings
 
 
@@ -71,13 +72,11 @@ async def call_external_api(
 
             if response.status_code in (401, 403):
                 return False, None, (
-                    f"外部系统认证失败(HTTP {response.status_code});"
-                    f"请检查 {_host_label(url)} 的访问凭证配置"
+                    f"外部系统认证失败(HTTP {response.status_code})"
                 )
             if 400 <= response.status_code < 500:
                 return False, None, (
-                    f"外部系统请求被拒绝(HTTP {response.status_code}): "
-                    f"{response.text[:200]}"
+                    f"外部系统请求被拒绝(HTTP {response.status_code})"
                 )
             if response.status_code >= 500:
                 if attempt <= retries:
@@ -90,9 +89,9 @@ async def call_external_api(
 
             # 2xx:尝试解析 JSON,失败则返回文本
             try:
-                return True, response.json(), None
+                return True, redact_value(response.json(), secrets=(api_token or "",)), None
             except ValueError:
-                return True, response.text, None
+                return True, redact_value(response.text, secrets=(api_token or "",)), None
 
         except httpx.TimeoutException:
             last_error = f"外部系统请求超时(>{timeout}s)"
@@ -113,12 +112,3 @@ async def _backoff(attempt: int) -> None:
     delay = min(2 ** (attempt - 1), 8)
     logger.warning(f"外部 API 调用失败,{delay}s 后重试(第 {attempt} 次)")
     await asyncio.sleep(delay)
-
-
-def _host_label(url: str) -> str:
-    """仅提取 host 用于错误提示(不含路径/凭证)"""
-    try:
-        parsed = httpx.URL(url)
-        return parsed.host or url
-    except Exception:  # noqa: BLE001
-        return url

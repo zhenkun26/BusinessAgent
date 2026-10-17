@@ -236,7 +236,7 @@ class KnowledgeAgent:
                 confidence=0.0,
                 output={"answer": "知识检索服务异常，请稍后重试。", "coverage": "none"},
                 sources=[],
-                error=str(e),
+                error="KNOWLEDGE_SERVICE_FAILED",
                 latency_ms=int((time.time() - start) * 1000),
             )
 

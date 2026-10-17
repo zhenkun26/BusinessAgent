@@ -37,14 +37,14 @@ failures SHALL not invoke tools, mutate that approval, or send result notificati
 - **WHEN** either participant is disabled/deleted or loses the required role/tool permission
 - **THEN** execution is denied, including resume after a previous valid decision
 
-#### Scenario: Reauthentication is required
-- **WHEN** both accounts and permissions remain valid but the stored signed token expired
-  or no stored token exists
-- **THEN** approval may enter approved_pending_reauth without executing tools; a forged or
-  mismatched stored token is rejected rather than treated as execution authorization
+#### Scenario: Requester confirmation after approval
+- **WHEN** both accounts and permissions remain valid and an approval is granted
+- **THEN** the request enters approved_pending_reauth without executing tools;
+  C06 requires an explicit requester resume with a current subject-bound token
 
 #### Scenario: Authorized execution
-- **WHEN** both current identities and permissions and a requester-bound token are valid
+- **WHEN** the requester resumes and both current identities, permissions and the
+  requester-bound token are valid
 - **THEN** tools execute as the requester using current database role and department;
   the approver's privileges never replace the requester's permissions
 

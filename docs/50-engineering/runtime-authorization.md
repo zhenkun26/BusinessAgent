@@ -42,8 +42,8 @@ authorized execution interval; it does not lock or atomically claim approvals.
 
 | Entry | Fresh identities | Required authority | Token policy |
 | --- | --- | --- | --- |
-| Single approve | Requester + current approver | Approver's current role in persisted `approver_roles`, or current admin; requester may use **every** planned tool | Stored signed token must belong to requester; refreshed token is revalidated and actually passed to tools |
-| Batch approve | Both identities for each item | Same checks per item; stale request-level approver role is ignored | Same signature/subject/expiry policy; execution rechecks even after preflight |
+| Single approve | Requester + current approver | Approver's current role in persisted `approver_roles`, or current admin; requester may use **every** planned tool | C06: no stored token is read; decision only enters approved_pending_reauth |
+| Batch approve | Both identities for each item | Same checks per item; stale request-level approver role is ignored | C06: no execution during batch decision; requester must resume |
 | Resume | Requester + **original persisted approver** | Both active; original approver still authorized and requester still allowed every tool | Explicit fresh bearer credentials required; never fall back to stored token |
 | Reject | Current approver | Current approver role still allowed, or current admin | No requester token needed; no tool execution |
 
@@ -54,18 +54,18 @@ returns 400; identity-store failure returns 503. The helper never defaults a
 missing requester to salesperson or shared-company department, and no permissive
 exception handler bypasses permission checks. Tools execute as the requester.
 
-An expired **signed, requester-bound** stored token, or absent stored token, may
-move an otherwise authorized request to `approved_pending_reauth`; no tools run.
-The existing near-expiry refresh-failure path also requests reauthentication.
-Forged or mismatched tokens are denied without this transition. Execution always
-performs strict expiry/signature checks and fresh account/role checks again.
+C06 supersedes the stored-token execution path: all approved decisions enter
+`approved_pending_reauth`, and only requester resume executes. No legacy token is
+read, refreshed or written; invalid supplied resume credentials deny execution.
+See [credential safety](credential-safety.md) for the current lifecycle and migration
+limits. Current-account checks precede approval writes and execution; the token is
+validated after lock acquisition, before tools run.
 
 Authorization failure leaves that approval unchanged and calls no tools or result
 notifications. Single/resume failures precede success audit. Batch reports safe
-per-item errors with `status_code` and may emit a batch outcome audit. Existing
-partial-success semantics remain: other authorized items may execute and commit.
-Database failure can abort the entire transaction, returning a fixed 503.
-External effects from earlier items cannot be undone by database rollback.
+per-item errors and may emit an outcome audit; other authorized decisions may
+commit. Batch decisions no longer execute tools. Resume's external effects still
+cannot be undone by database rollback; atomic claiming remains C11.
 
 ## Offline checks and required live acceptance
 
@@ -99,9 +99,9 @@ identity IDs and before/after digests, then verify:
    changes from another connection, verify serialization, exception/session
    teardown and eventual lock release. Measure lock wait during slow tools;
    account changes may wait for already authorized work to finish.
-5. Valid single/batch/resume execution reaches only the synthetic tool sink as the
-   requester. Expired-token reauth invokes no tools. Invalid refreshed credentials
-   do not execute or get persisted. Mixed batches preserve item-level denials.
+5. Valid single/batch decisions invoke no tools; requester resume reaches only the
+   synthetic tool sink. Expired or wrong-subject resume credentials do not execute
+   or get persisted. Mixed batches preserve item-level decision denials.
 6. API and worker both refuse each unsafe flag before external startup; safe flags
    permit normal startup. Re-run existing password, RBAC, ownership and production
    settings pytest suites using declared dependencies, then Linux deployment checks.
@@ -110,8 +110,9 @@ identity IDs and before/after digests, then verify:
 
 This is admission/approval execution authorization, not mid-flight cancellation of
 already admitted graph/SSE work. The development opt-out cannot prove revocation.
-This increment does not replace persisted requester JWTs (C06), add per-token
-revocation/password-change invalidation, alter SSO (C19), or fix approval expiry,
+C06 now removes new credential persistence; historical stores still need separately
+authorized remediation. These increments do not add per-token revocation or
+password-change invalidation, complete SSO acceptance (C19), or fix approval expiry,
 duplicate concurrent execution, external-effect atomicity or final states (C11).
 Holding identity locks across a batch/tool call has an operational wait cost;
 real locking, concurrency and throughput are unmeasured. No production-readiness

@@ -17,6 +17,7 @@ from typing_extensions import TypedDict
 
 from app.agents.knowledge import AgentResult, RetrievalSource
 from app.security.rbac import AgentRole
+from app.security.redaction import redact_text
 
 
 class Intent(str, Enum):
@@ -69,7 +70,6 @@ class UserInput(BaseModel):
     username: str
     role: AgentRole
     department: Optional[str] = None
-    jwt_token: str = ""
     conversation_id: str = Field(description="会话 ID,用于多轮")
     request_id: str = Field(description="请求 ID,用于追踪")
 
@@ -128,6 +128,7 @@ class AgentState(TypedDict, total=False):
 
 def make_initial_state(user_input: UserInput) -> AgentState:
     """构造初始状态(入口节点用)"""
+    user_input = user_input.model_copy(update={"message": redact_text(user_input.message)})
     now = datetime.now()
     return AgentState(
         user_input=user_input,

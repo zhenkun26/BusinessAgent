@@ -9,6 +9,8 @@ from typing import Optional
 from loguru import logger
 from sqlalchemy import text
 
+from app.security.redaction import redact_value
+
 
 class AuditLogger:
     """审计日志器
@@ -49,13 +51,17 @@ class AuditLogger:
             "session_id": session_id,
             "user_id": user_id,
             "tool_name": tool_name,
-            "input_summary": (input_summary or "")[:500],
-            "output_summary": (output_summary or "")[:500],
+            "input_summary": input_summary or "",
+            "output_summary": output_summary or "",
             "success": success,
             "latency_ms": latency_ms,
             "payload": payload,
             "timestamp": datetime.utcnow().isoformat(),
         }
+
+        record = redact_value(record)
+        record["input_summary"] = record["input_summary"][:500]
+        record["output_summary"] = record["output_summary"][:500]
 
         # 尝试写入 PG(SQLAlchemy async session;未初始化或写失败则走本地兜底)
         try:
@@ -92,7 +98,7 @@ class AuditLogger:
             self.consecutive_failures = 0
             return
         except Exception as e:
-            logger.warning(f"审计日志写入 PG 失败: {e}")
+            logger.warning("AUDIT_DATABASE_WRITE_FAILED")
             self.consecutive_failures += 1
 
         # 兜底:写本地缓存
@@ -108,6 +114,7 @@ class AuditLogger:
     async def _write_local_cache(self, record: dict):
         """本地缓存兜底"""
         try:
+            record = redact_value(record)
             os.makedirs(self.local_cache, exist_ok=True)
             # 文件名用纳秒时间戳:同秒同 event_type 的多条记录不会互相覆盖
             filename = (
@@ -117,7 +124,7 @@ class AuditLogger:
             with open(filename, "w", encoding="utf-8") as f:
                 json.dump(record, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            logger.error(f"审计日志本地缓存写入失败: {e}")
+            logger.error("AUDIT_LOCAL_WRITE_FAILED")
 
     async def flush_local_cache(self) -> int:
         """将本地缓存审计逐条回写 PG(worker 启动时调用)
@@ -135,7 +142,7 @@ class AuditLogger:
         try:
             factory = get_session_factory()
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"审计缓存回写: 数据库未就绪,跳过: {e}")
+            logger.warning("AUDIT_REPLAY_DATABASE_UNAVAILABLE")
             return 0
 
         synced_count = 0
@@ -145,7 +152,7 @@ class AuditLogger:
             file_path = os.path.join(self.local_cache, filename)
             try:
                 with open(file_path, encoding="utf-8") as f:
-                    record = json.load(f)
+                    record = redact_value(json.load(f))
                 async with factory() as session:
                     await session.execute(
                         text(
@@ -176,7 +183,7 @@ class AuditLogger:
                 os.remove(file_path)
                 synced_count += 1
             except Exception as e:  # noqa: BLE001 单条失败保留文件,下次重试
-                logger.warning(f"审计缓存回写失败,保留待重试: {filename}: {e}")
+                logger.warning("AUDIT_REPLAY_FAILED")
         if synced_count:
             logger.info(f"审计缓存回写完成: {synced_count} 条")
         return synced_count

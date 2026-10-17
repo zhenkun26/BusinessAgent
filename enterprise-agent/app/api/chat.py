@@ -14,6 +14,8 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from loguru import logger
+
+from app.security.redaction import redact_text
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
@@ -115,6 +117,7 @@ async def send_message(
     import time
 
     # Authorize before graph imports, audits, checkpoint access or task registration.
+    req.message = redact_text(req.message)
     session_id = await prepare_chat_session(db, user, req.session_id, req.message)
 
     from app.graph.graph import run_graph
@@ -122,8 +125,7 @@ async def send_message(
 
     start = time.time()
 
-    # 真实 JWT(审批建单时作为 requester_token 存储,审批通过后恢复执行用)
-    jwt_token = credentials.credentials if credentials else ""
+    # Bearer credentials end at authentication; graph state carries identity only.
 
     # 审计:对话请求入口
     audit = get_audit_logger()
@@ -131,7 +133,7 @@ async def send_message(
         event_type="chat_request",
         session_id=session_id,
         user_id=user.user_id,
-        input_summary=req.message[:500],
+        input_summary=req.message,
     )
 
     user_input = UserInput(
@@ -140,7 +142,6 @@ async def send_message(
         username=user.username,
         role=AgentRole(user.role),
         department=user.department,
-        jwt_token=jwt_token,
         conversation_id=session_id,
         request_id=str(uuid.uuid4()),
     )
@@ -229,7 +230,7 @@ async def send_message(
 
     except Exception as e:
         # sessions 生命周期:失败置 failed
-        await _update_session_status(session_id, "failed", error=str(e)[:500])
+        await _update_session_status(session_id, "failed", error="CHAT_EXECUTION_FAILED")
         # 审计:对话响应(失败)
         await audit.log(
             event_type="chat_response",
@@ -237,9 +238,9 @@ async def send_message(
             user_id=user.user_id,
             success=False,
             latency_ms=int((time.time() - start) * 1000),
-            payload={"error": str(e)[:500]},
+            payload={"error": "CHAT_EXECUTION_FAILED"},
         )
-        raise HTTPException(500, f"Agent 处理失败: {e}")
+        raise HTTPException(500, "CHAT_EXECUTION_FAILED") from None
 
     finally:
         unregister_task(session_id)
@@ -266,6 +267,7 @@ async def stream_message(
     import time
 
     # Reject unauthorized IDs before constructing a StreamingResponse/producer.
+    req.message = redact_text(req.message)
     session_id = await prepare_chat_session(db, user, req.session_id, req.message)
 
     from fastapi.responses import StreamingResponse
@@ -274,14 +276,13 @@ async def stream_message(
     from app.graph.state import UserInput
 
     start = time.time()
-    jwt_token = credentials.credentials if credentials else ""
 
     audit = get_audit_logger()
     await audit.log(
         event_type="chat_request",
         session_id=session_id,
         user_id=user.user_id,
-        input_summary=req.message[:500],
+        input_summary=req.message,
     )
     user_input = UserInput(
         message=req.message,
@@ -289,7 +290,6 @@ async def stream_message(
         username=user.username,
         role=AgentRole(user.role),
         department=user.department,
-        jwt_token=jwt_token,
         conversation_id=session_id,
         request_id=str(uuid.uuid4()),
     )
@@ -366,15 +366,15 @@ async def stream_message(
             raise
         except Exception as e:  # noqa: BLE001
             logger.exception(f"流式对话失败: session_id={session_id}, error={e}")
-            await queue.put({"type": "error", "data": str(e)[:500]})
-            await _update_session_status(session_id, "failed", error=str(e)[:500])
+            await queue.put({"type": "error", "data": "CHAT_EXECUTION_FAILED"})
+            await _update_session_status(session_id, "failed", error="CHAT_EXECUTION_FAILED")
             await audit.log(
                 event_type="chat_response",
                 session_id=session_id,
                 user_id=user.user_id,
                 success=False,
                 latency_ms=int((time.time() - start) * 1000),
-                payload={"error": str(e)[:500], "stream": True},
+                payload={"error": "CHAT_EXECUTION_FAILED", "stream": True},
             )
         finally:
             await queue.put(None)
@@ -479,7 +479,7 @@ async def get_history(
         }
 
     except Exception as e:
-        raise HTTPException(500, f"读取历史失败: {e}")
+        raise HTTPException(500, "CHAT_HISTORY_FAILED") from None
 
 
 class FeedbackRequest(BaseModel):

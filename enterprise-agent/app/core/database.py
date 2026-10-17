@@ -29,7 +29,8 @@ async def init_db():
 
     engine = create_async_engine(
         settings.postgres_dsn,
-        echo=settings.is_dev,
+        echo=False,
+        hide_parameters=True,
         pool_size=10,
         max_overflow=20,
         pool_pre_ping=True,

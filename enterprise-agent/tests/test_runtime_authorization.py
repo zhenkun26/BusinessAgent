@@ -93,8 +93,7 @@ class Database:
             row = deepcopy(self.users.get(params['uid']))
         elif 'FROM approval_requests' in sql:
             assert 'WHERE approval_id = :id' in sql
-            if 'approver_id, approver_roles' in sql:
-                assert 'prefill_payload, requester_token' in sql
+            assert 'requester_token' not in sql
             row = deepcopy(self.row)
         elif sql.startswith('UPDATE approval_requests'):
             self.writes.append((sql, deepcopy(params)))
@@ -303,12 +302,15 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
                 with self.subTest(path=path, participant=participant):
                     await self.denied(path, 403)
 
-    async def test_requester_token_subject_and_signature_rejected(self) -> None:
+    async def test_legacy_tokens_are_ignored_by_decisions(self) -> None:
         for path in ('decide', 'batch'):
-            for token in ('other', 'forged'):
+            for token in ('other', 'forged', 'expired', 'valid'):
                 self.db.row.requester_token = token
                 self.db.row.status = 'pending'
-                await self.denied(path, 401)
+                await self.call(path)
+        self.execute.assert_not_awaited()
+        self.decode.assert_not_called()
+        self.assertTrue(all('requester_token' not in sql for sql, _ in self.db.queries))
 
     async def test_resume_requires_bearer_and_rejects_expired_or_wrong_subject(self) -> None:
         self.db.row.status = 'approved_pending_reauth'
@@ -351,44 +353,51 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
         self.db.users['requester'].is_active = False
         await self.denied('decide', 401)
 
-    async def test_refresh_failure_enters_reauth_without_execution(self) -> None:
-        self.jwt_manager.refresh_if_needed.side_effect = RuntimeError('synthetic refresh failure')
+    async def test_approval_does_not_refresh_or_use_stored_credentials(self) -> None:
+        self.jwt_manager.refresh_if_needed.side_effect = AssertionError('Must not refresh')
         result = await self.call()
         self.assertEqual(result.status, 'approved_pending_reauth')
+        self.jwt_manager.refresh_if_needed.assert_not_awaited()
         self.execute.assert_not_awaited()
 
-    async def test_refreshed_token_is_verified_and_used_for_execution(self) -> None:
-        result = await self.call()
+    async def test_resume_executes_identity_only_context(self) -> None:
+        result = await self.call('resume')
         self.assertEqual(result.status, 'executed')
         context = self.execute.await_args.args[1]
-        self.assertEqual(context['jwt_token'], 'refreshed')
+        self.assertNotIn('jwt_token', context)
         self.assertEqual((context['user_id'], context['role'], context['dept']),
                          ('requester', 'salesperson', 'dept_sales'))
         queries = [(sql, params['uid']) for sql, params in self.db.queries if 'FROM users' in sql]
-        self.assertEqual([uid for _, uid in queries], ['approver', 'requester'] * 2)
+        self.assertEqual([uid for _, uid in queries], ['approver', 'requester'])
         self.assertTrue(all('FOR SHARE' in sql for sql, _ in queries))
 
-    async def test_refresh_cannot_change_requester_identity(self) -> None:
-        self.jwt_manager.refresh_if_needed.return_value = 'other'
-        await self.denied('decide', 401)
+    async def test_decision_records_auditable_confirmation_requirement(self) -> None:
+        await self.call()
+        payload = self.audit.log.await_args.kwargs['payload']
+        self.assertEqual(payload['decided_by'], 'approver')
+        self.assertEqual(payload['execution_authorization'], 'requester_confirmation_required')
+        self.execute.assert_not_awaited()
 
-    async def test_recheck_catches_role_change_during_refresh(self) -> None:
-        async def refresh(*args: Any, **kwargs: Any) -> str:
-            self.db.users['approver'].role = 'finance'
-            return 'refreshed'
-        self.jwt_manager.refresh_if_needed.side_effect = refresh
-        await self.denied('decide', 403)
+    async def test_revocation_after_approval_prevents_later_resume(self) -> None:
+        await self.call()
+        self.db.writes.clear()
+        self.audit.log.reset_mock()
+        self.notify.reset_mock()
+        self.db.users['approver'].role = 'finance'
+        await self.denied('resume', 403)
 
     async def test_valid_resume_rechecks_original_approver(self) -> None:
         result = await self.call('resume')
         self.assertEqual(result.status, 'executed')
-        self.assertEqual(self.execute.await_args.args[1]['jwt_token'], 'valid')
+        self.assertNotIn('jwt_token', self.execute.await_args.args[1])
+        self.assertTrue(all('token' not in params for _, params in self.db.writes))
         self.assertEqual(self.audit.log.await_args.kwargs['payload']['decided_by'], 'approver')
 
-    async def test_valid_batch_executes_as_requester(self) -> None:
+    async def test_valid_batch_only_records_approval(self) -> None:
         result = await self.call('batch')
         self.assertEqual((result.succeeded, result.failed), (1, 0))
-        self.assertEqual(self.execute.await_args.args[1]['role'], 'salesperson')
+        self.execute.assert_not_awaited()
+        self.assertEqual(result.results[0]['new_status'], 'approved_pending_reauth')
 
     async def test_development_bypass_does_not_apply_to_approvals(self) -> None:
         self.settings.auth_check_db = False

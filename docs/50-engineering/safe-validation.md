@@ -44,6 +44,8 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `scripts/backup.sh` | 暂停服务、备份卷、`docker --rm`、`find -delete` | 不直接运行；C22 提供独立非删除路径 |
 | `run_load_test.sh` / k6 | 网络负载，容器模式含 `--rm`，会生成结果 | 不纳入；C23 确定隔离环境与负载后再审查 |
 | `app/observability/audit.py` | 缓存消费成功后 `os.remove` | 不导入/执行应用；C21 处理审计保留与恢复 |
+| `eval/run_c06_credential_safety.py` | 执行实际源代码/函数；DB/HTTP/审计文件均注入内存替身，审计钩子禁止真实写入、删除及网络 | C06 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c06_credential_safety.py`；不代表真实 JWT/PG/HTTP/历史清理 |
+| `tests/test_browser_credential_safety.cjs` | 只读页面源码，在 Node VM 内以假浏览器对象执行；不联网、不写文件、不启动浏览器 | C06 单独审查允许：根目录 `node enterprise-agent/tests/test_browser_credential_safety.cjs`；不代表真实 DOM/净化器/SSO/SSE 验收 |
 | `eval/run_c05_runtime_authorization.py` | 标准库执行 C05 实际源代码/启动函数；注入 JWT/框架/DB/工具，无真实连接、文件写入或清理 | C05 单独审查允许：仓库根目录 `python3 -I -B enterprise-agent/eval/run_c05_runtime_authorization.py`；不加入五函数白名单，不代表真实密码学/HTTP/PG 验收 |
 | `eval/run_c04_session_ownership.py` | 标准库加载 C04 unittest；依赖注入，内存数据库/图/审计，无真实网络、文件写入或清理 | C04 单独审查允许：仓库根目录执行 `python3 -I -B enterprise-agent/eval/run_c04_session_ownership.py`；不加入原五函数白名单，不代表真实 HTTP/PG 验收 |
 | 其他 eval / scripts | 可能启动应用、模型、写 DB/向量库、网络或覆盖报告 | 默认不允许，逐项审查，不能仅凭脚本名认定安全 |

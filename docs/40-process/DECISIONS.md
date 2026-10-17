@@ -160,3 +160,20 @@
   not cancelled mid-flight. No enterprise production use is asserted.
 - **Evidence**: [C05 delivery record](阶段性总结_C05认证失败闭合与运行时授权.md).
   Offline increment passes; real JWT/HTTP/PostgreSQL/Linux acceptance is BLOCKED.
+
+
+## 22. Transient requester confirmation and redacted output (2026-10-17)
+
+- **Decision**: Approval grants permission but does not execute tools. The requester
+  explicitly resumes with current bearer credentials; current requester/original
+  approver authorization is rechecked. New graph/approval state never stores login
+  tokens. No reusable server-side delegation credential or encryption key is added.
+- **Tradeoff**: Approvals now require a requester action. Browser memory-only tokens
+  require login after reload; SSO has a single-use tab-scoped handoff. Client logout
+  is not server-side token revocation, and historical credentials still need operator
+  revocation/retention decisions. Existing data is not rewritten or deleted.
+- **Output**: Shared credential masking at owned diagnostic/persistence boundaries,
+  fixed public errors, and escaped text on Markdown/sanitizer failure. Arbitrary
+  encodings, external logging/exporters and real browser behavior need live evidence.
+- **Evidence**: [C06 delivery record](阶段性总结_C06凭证与HTML失败安全.md); offline
+  increment passes, runtime/historical acceptance remains BLOCKED. C07 not started.

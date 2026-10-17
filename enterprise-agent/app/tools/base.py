@@ -21,6 +21,8 @@ from typing import Any, Optional
 
 from loguru import logger
 
+from app.security.redaction import redact_value
+
 from app.observability.audit import get_audit_logger
 from app.observability.tracing import (
     record_span_attributes,
@@ -93,7 +95,7 @@ class BaseTool(ABC):
 
         Args:
             params: 入参(已通过 input_schema 校验)
-            context: 调用上下文(user_id, role, dept, jwt_token, request_id)
+            context: 调用上下文(user_id, role, dept, request_id)
 
         Returns:
             ToolResult
@@ -216,12 +218,12 @@ class BaseTool(ABC):
             try:
                 validated_params = self._validate_params(params)
             except Exception as e:
-                record_span_event("param.invalid", {"error": str(e)})
+                record_span_event("param.invalid", {"error": "TOOL_PARAMETERS_INVALID"})
                 return ToolResult(
                     success=False,
                     tool_name=tool_name,
                     output={},
-                    error=f"参数校验失败: {e}",
+                    error="TOOL_PARAMETERS_INVALID",
                     latency_ms=int((time.time() - start) * 1000),
                 )
 
@@ -255,6 +257,9 @@ class BaseTool(ABC):
                     result = await self._call_external(validated_params, context)
                 else:
                     result = await self._execute(validated_params, context)
+                result.output = redact_value(result.output)
+                result.error = redact_value(result.error)
+                result.side_effects = redact_value(result.side_effects)
                 result.latency_ms = int((time.time() - start) * 1000)
 
                 record_span_attributes({
@@ -281,8 +286,8 @@ class BaseTool(ABC):
                     session_id=context.get("session_id"),
                     user_id=context.get("user_id"),
                     tool_name=tool_name,
-                    input_summary=str(validated_params)[:500],
-                    output_summary=str(result.output)[:500],
+                    input_summary=str(redact_value(validated_params)),
+                    output_summary=str(result.output),
                     success=result.success,
                     latency_ms=result.latency_ms,
                     payload=audit_payload,
@@ -302,7 +307,7 @@ class BaseTool(ABC):
                     success=False,
                     tool_name=tool_name,
                     output={},
-                    error=f"工具执行异常: {type(e).__name__}: {e}",
+                    error="TOOL_EXECUTION_FAILED",
                     latency_ms=int((time.time() - start) * 1000),
                 )
 

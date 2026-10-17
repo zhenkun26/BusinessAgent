@@ -240,4 +240,8 @@ def validate_production_settings(settings: Optional[Settings] = None) -> list[st
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    from app.security.redaction import register_configured_secrets
+
+    settings = Settings()
+    register_configured_secrets(settings.model_dump())
+    return settings

@@ -12,6 +12,10 @@ from typing import Any
 
 from loguru import logger
 
+from app.security.redaction import install_log_redaction
+
+install_log_redaction()
+
 from app.config import get_settings, validate_production_settings
 from app.core.approval_timeout import scan_expired_approvals
 from app.core.database import init_db, close_db

@@ -108,3 +108,30 @@ atomicity. C11 owns concurrent duplicate execution, partial batches and final
 execution states; C06 owns persisted credentials and general redaction. No claim
 of mid-flight cancellation for already authorized work is made. Real PostgreSQL
 lock semantics and real JWT/HTTP integration remain blocked.
+
+## C06 design: transient authorization and output boundaries
+
+Approval decisions always enter approved_pending_reauth, after C05 participant
+authorization. Resume alone executes tools with a fresh requester bearer, verifying
+its subject and rechecking the original approver. No token is read from or written
+to approval rows; the legacy nullable column remains for schema compatibility.
+Remove JWT from UserInput and ExecutionAgent context/cache, so authentication
+credentials never enter new graph/checkpoint state. No server-side delegated token
+or new encryption key/dependency is introduced. Existing rows/checkpoints/backups
+need separately authorized inventory and revocation/retention work, not automatic
+cleanup. C11 atomic claiming and duplicate execution remain out of scope.
+
+Use a stdlib recursive redactor at audit persistence (before truncation, including
+local fallback/replay), tool output and HTTP response boundaries. Sensitive field
+names, bearer/JWT/credential assignments, URL userinfo and configured environment
+secret values are masked. API/worker Loguru records are sanitized; exception
+tracebacks/locals are suppressed. Public exception paths use fixed error codes.
+Do not claim arbitrary text privacy or retroactive cleaning of historical logs.
+
+Browser tokens stay in application memory; SSO uses a one-time tab-scoped handoff
+consumed and cleared on UI load. Legacy browser auth keys are cleared, logout/401
+clears state and aborts streaming, refresh requires login. Password is transient.
+Markdown output is sanitized only when both libraries work; otherwise return
+HTML-escaped original text. Missing/throwing libraries must never return raw HTML.
+All verification remains offline; real JWT/PG/API/SSE/Linux/browser acceptance is
+BLOCKED and C07 is not started.

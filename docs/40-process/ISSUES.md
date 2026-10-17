@@ -50,14 +50,15 @@
 - **原调查证据**：[rbac.py](../../enterprise-agent/app/security/rbac.py) DB 查询异常时回退 JWT 身份；[config.py](../../enterprise-agent/app/config.py) 生产检查未强制全部认证开关；[approval.py](../../enterprise-agent/app/api/approval.py) 执行阶段的账户有效性检查不足。
 - **缺口/原因（原调查）**：身份存储故障、禁用/降权或等待审批期间权限变化可能继续获得授权。
 - **验收**：数据库不可用、账户删除/禁用/降权、token 过期/伪造、危险生产配置分别覆盖；需要最新身份的操作拒绝且不触发业务副作用；审批执行时重新核验发起人及批准人权限；恢复后合法请求通过；不以旧 JWT 身份兜底绕过校验。
-- **实施与限制（2026-10-17）**：身份库失败固定 503，删除/禁用/非法角色 401，角色/部门取数据库；生产 API/worker 强制两项认证开关。单笔/批量/恢复执行复查双方身份与权限，恢复复查原审批人，工具使用已验证且绑定发起人的凭据。27 项 C05 离线测试、20 项 C04、22 项 C03、15 项模型配置回归 PASS。真实 JWT/FastAPI、PG 锁/事务、API/SSE 与 Linux 验收 **BLOCKED**；C05 整项 open，C06 未开始。见[授权契约](../50-engineering/runtime-authorization.md)与[阶段记录](阶段性总结_C05认证失败闭合与运行时授权.md)。
+- **实施与限制（2026-10-17）**：身份库失败固定 503，删除/禁用/非法角色 401，角色/部门取数据库；生产 API/worker 强制两项认证开关。单笔/批量/恢复执行复查双方身份与权限，恢复复查原审批人，工具使用已验证且绑定发起人的凭据。27 项 C05 离线测试、20 项 C04、22 项 C03、15 项模型配置回归 PASS。真实 JWT/FastAPI、PG 锁/事务、API/SSE 与 Linux 验收 **BLOCKED**；C05 整项 open；`9f5397c` 已推送，C06 改为批准后由发起人确认执行，见下项。见[授权契约](../50-engineering/runtime-authorization.md)与[阶段记录](阶段性总结_C05认证失败闭合与运行时授权.md)。
 
 <a id="c06"></a>
 #### C06 · P0 · 凭证生命周期、脱敏与 HTML 失败安全
 
-- **现状/证据**：[execution.py](../../enterprise-agent/app/agents/execution.py) 将 JWT 写入审批记录，图状态也携带 JWT；[审计](../../enterprise-agent/app/observability/audit.py)与[HTTP 适配](../../enterprise-agent/app/tools/http_adapter.py)存在原文记录路径；[UI](../../enterprise-agent/app/static/index.html)正常路径有 DOMPurify，但渲染异常回退原始内容并交给 v-html。
-- **缺口/原因**：持久化凭证与不统一的输出脱敏扩大暴露面；渲染失败路径不安全。
+- **原调查证据**：[execution.py](../../enterprise-agent/app/agents/execution.py) 将 JWT 写入审批记录，图状态也携带 JWT；[审计](../../enterprise-agent/app/observability/audit.py)与[HTTP 适配](../../enterprise-agent/app/tools/http_adapter.py)存在原文记录路径；[UI](../../enterprise-agent/app/static/index.html)正常路径有 DOMPurify，但渲染异常回退原始内容并交给 v-html。
+- **缺口/原因（原调查）**：持久化凭证与不统一的输出脱敏扩大暴露面；渲染失败路径不安全。
 - **验收**：定义可审计的执行授权机制，审批/checkpoint 不持久化可复用明文 JWT；用标记凭证验证 DB、日志、错误响应和审计无泄漏；渲染器/净化器缺失或抛错时只显示安全文本；注入样例不执行脚本；明确浏览器 token 存储与退出/过期行为。
+- **实施与限制（2026-10-17）**：新审批及 graph/agent 上下文不保存 JWT；单笔/批量批准只进入待确认，发起人以当前凭据恢复执行并复查原审批人。审计/应用日志/trace/HTTP 工具边界脱敏，公开错误固定化；浏览器 token 内存保存、SSO 单次交接，Markdown 失败转义。20 项 C06 Python、13 项页面脚本 VM、27/20/22/15 项相关离线回归 PASS。真实 JWT/PG/API/SSE/Linux、浏览器/IdP/外部日志导出及历史凭证处置 **BLOCKED**；旧列/checkpoint 未清理，不视为已撤销。C06 整项 open，C07 未开始。见[凭证契约](../50-engineering/credential-safety.md)与[阶段记录](阶段性总结_C06凭证与HTML失败安全.md)。
 
 <a id="c07"></a>
 #### C07 · P0 · 检索权限与表达式编码

@@ -281,6 +281,7 @@
       <div class="manual-toggle" v-if="!showManual" @click="showManual=true">使用其他账号登录</div>
       <input v-if="showManual" v-model="loginName" placeholder="输入用户名">
       <div class="login-err">{{ loginErr }}</div>
+      <input type="password" v-model="loginPassword" autocomplete="current-password" placeholder="密码">
       <button class="btn btn-block" :disabled="logging" @click="doLogin">
         {{ logging ? '登录中…' : '登 录' }}
       </button>
@@ -448,8 +449,8 @@
             <template v-if="m.approver_id"><br>审批人:{{ m.approver_id }} · {{ fmtTime(m.decided_at) }}<span v-if="m.comment"> · 意见:{{ m.comment }}</span></template>
           </div>
           <div class="row" v-if="m.status==='approved_pending_reauth'" style="margin-top:10px">
-            <button class="btn-sm btn" @click="resume(m)">恢复执行</button>
-            <span style="font-size:12px;color:#888">审批已通过,但发起时登录已过期,点击以当前身份恢复执行</span>
+            <button class="btn-sm btn" @click="resume(m)">确认执行</button>
+            <span style="font-size:12px;color:#888">审批已通过，请确认操作内容后以当前身份执行</span>
           </div>
         </div>
       </div></div>
@@ -581,16 +582,29 @@
 
 <script>
 const { createApp } = Vue;
+// One-time SSO handoff only; normal tokens never enter browser storage.
+let ssoHandoff = {};
+try {
+  const raw = sessionStorage.getItem('ea_sso_once');
+  sessionStorage.removeItem('ea_sso_once');
+  ssoHandoff = raw ? JSON.parse(raw) : {};
+  if (!ssoHandoff || typeof ssoHandoff !== 'object') ssoHandoff = {};
+} catch { ssoHandoff = {}; }
+try {
+  ['ea_token', 'ea_username', 'ea_role', 'ea_dept', 'ea_sid'].forEach(k => localStorage.removeItem(k));
+} catch { /* Storage denial must not prevent memory-only login. */ }
+
 
 createApp({
   data() {
     return {
       toast: '',
       // auth
-      token: localStorage.getItem('ea_token') || '',
-      username: localStorage.getItem('ea_username') || '',
-      role: localStorage.getItem('ea_role') || '',
-      userDept: localStorage.getItem('ea_dept') || '',
+      authEpoch: 0,
+      token: typeof ssoHandoff.access_token === 'string' ? ssoHandoff.access_token : '',
+      username: ssoHandoff.username || '',
+      role: ssoHandoff.role || '',
+      userDept: ssoHandoff.department || '',
       seedUsers: [
         { username: '销售员张三', role: 'salesperson', department: 'dept_sales', label: '张三 · 销售员 · 销售部' },
         { username: '销售员王芳', role: 'salesperson', department: 'dept_sales', label: '王芳 · 销售员 · 销售部' },
@@ -604,6 +618,7 @@ createApp({
         { username: '管理员钱七', role: 'admin', department: 'shared_company' },
       ],
       loginName: '销售员张三',
+      loginPassword: '',
       loginErr: '',
       logging: false,
       pickerOpen: false,
@@ -612,7 +627,7 @@ createApp({
       tab: 'chat',
       refTab: 'customers',
       // chat
-      sessionId: localStorage.getItem('ea_sid') || '',
+      sessionId: '',
       backend: '',
       messages: [],
       draft: '',
@@ -789,9 +804,12 @@ createApp({
       }
       const headers = { 'Content-Type': 'application/json; charset=utf-8', ...(opts.headers || {}) };
       if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
+      const epoch = this.authEpoch;
       const resp = await fetch(path, { ...opts, headers });
+      if (epoch !== this.authEpoch) throw new Error('登录状态已变化，请重试');
       if (resp.status === 401) { this.doLogout(); throw new Error('登录已过期,请重新登录'); }
       const text = await resp.text();
+      if (epoch !== this.authEpoch) throw new Error('登录状态已变化，请重试');
       let data;
       try { data = JSON.parse(text); } catch { data = text; }
       if (!resp.ok) {
@@ -805,7 +823,17 @@ createApp({
       // CommonMark 侧翼规则:闭合 ** 前是标点(如 %)且后紧跟中文时不算加粗,
       // 「**5%-10%**需…」会漏渲染成字面星号——先把 **x** 统一转 <strong> 再走 marked
       const pre = String(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
-      try { return DOMPurify.sanitize(marked.parse(pre)); } catch { return text; }
+      const escaped = String(text).replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+      try {
+        if (typeof marked === 'undefined' || typeof marked.parse !== 'function' ||
+            typeof DOMPurify === 'undefined' || DOMPurify.isSupported === false ||
+            typeof DOMPurify.sanitize !== 'function') return escaped;
+        const rendered = marked.parse(pre);
+        if (typeof rendered !== 'string') return escaped;
+        const clean = DOMPurify.sanitize(rendered);
+        return typeof clean === 'string' ? clean : escaped;
+      } catch { return escaped; }
     },
     fmtTime(t) {
       if (!t) return '';
@@ -849,28 +877,33 @@ createApp({
       try {
         const d = await this.api('/api/v1/auth/login', {
           method: 'POST',
-          body: JSON.stringify({ username: this.loginName.trim() }),
+          body: JSON.stringify({ username: this.loginName.trim(), password: this.loginPassword }),
         });
+        this.authEpoch++;
         this.token = d.access_token;
         this.role = d.role;
         this.username = this.loginName.trim();
         // 优先用登录响应里的部门(非种子用户也有),fallback 到 seedUsers
         const u = this.seedUsers.find(x => x.username === this.username);
         this.userDept = d.department || (u ? u.department : '');
-        localStorage.setItem('ea_token', this.token);
-        localStorage.setItem('ea_role', this.role);
-        localStorage.setItem('ea_username', this.username);
-        localStorage.setItem('ea_dept', this.userDept);
       } catch (e) {
         this.loginErr = e.message;
       } finally {
+        this.loginPassword = '';
         this.logging = false;
       }
     },
     doLogout() {
-      ['ea_token', 'ea_role', 'ea_username', 'ea_sid', 'ea_dept'].forEach(k => localStorage.removeItem(k));
+      this.authEpoch++;
+      ssoHandoff = {};
+      this.loginPassword = '';
+      try { sessionStorage.removeItem('ea_sso_once'); } catch {}
       this.token = ''; this.role = ''; this.username = ''; this.userDept = '';
       this.messages = []; this.sessionId = '';
+      this.approvals = []; this.myApprovals = []; this.handledApprovals = [];
+      this.prompts = {}; this.promptDrafts = {}; this.status = {};
+      this.documents = []; this.draft = '';
+      this.activateVer = {}; this.archiveOthers = {}; this.weights = {};
       // 清掉进行中的请求状态,避免重登后卡在 pending-bar
       this.pending = false;
       clearInterval(this._timer);
@@ -888,7 +921,6 @@ createApp({
     // ===== chat =====
     newSession() {
       this.sessionId = '';
-      localStorage.removeItem('ea_sid');
       this.messages = [];
       this.showToast('已开始新会话');
     },
@@ -908,6 +940,7 @@ createApp({
       this.progressText = '⏳ 正在规划…';
       this._timer = setInterval(() => this.elapsed++, 1000);
       this._abort = new AbortController();
+      const epoch = this.authEpoch;
       const agentMsg = { role: 'agent', text: '', sources: [], intent: '' };
       let pushed = false;
       const ensurePush = () => { if (!pushed) { this.messages.push(agentMsg); pushed = true; } };
@@ -923,6 +956,7 @@ createApp({
           body: JSON.stringify(body),
           signal: this._abort.signal,
         });
+        if (epoch !== this.authEpoch) return;
         if (resp.status === 401) { this.doLogout(); throw new Error('登录已过期,请重新登录'); }
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const reader = resp.body.getReader();
@@ -930,6 +964,7 @@ createApp({
         let buf = '';
         while (true) {
           const { done, value } = await reader.read();
+          if (epoch !== this.authEpoch) return;
           if (done) break;
           buf += decoder.decode(value, { stream: true });
           let idx;
@@ -942,7 +977,6 @@ createApp({
             // 流式事件携带 session_id,首轮对话即可取消(不必等 final)
             if (ev.session_id && !this.sessionId) {
               this.sessionId = ev.session_id;
-              localStorage.setItem('ea_sid', this.sessionId);
             }
             if (ev.type === 'progress') {
               this.progressText = this.progressLabel(ev);
@@ -953,7 +987,6 @@ createApp({
             } else if (ev.type === 'final') {
               const d = ev.data;
               this.sessionId = d.session_id;
-              localStorage.setItem('ea_sid', this.sessionId);
               this.backend = d.checkpointer_backend || '';
               ensurePush();
               if (!agentMsg.text) agentMsg.text = d.answer || '(空回复)';
@@ -976,7 +1009,7 @@ createApp({
         }
         if (pushed && !agentMsg.text) agentMsg.text = '(无内容)';
       } catch (e) {
-        if (!this.token) {
+        if (!this.token || epoch !== this.authEpoch) {
           // 已登出(401 触发 doLogout 清空了 messages),不再推错误气泡
         } else if (e.name === 'AbortError') {
           ensurePush();
@@ -987,10 +1020,12 @@ createApp({
           this.messages.push({ role: 'agent', text: '❌ ' + e.message, intent: 'error' });
         }
       } finally {
-        this.pending = false;
-        clearInterval(this._timer);
-        this.progressText = '';
-        this.scrollBottom();
+        if (epoch === this.authEpoch) {
+          this.pending = false;
+          clearInterval(this._timer);
+          this.progressText = '';
+          this.scrollBottom();
+        }
       }
     },
     async cancelChat() {
@@ -1079,7 +1114,7 @@ createApp({
         executed: '已执行',
         approved: '已批准',
         rejected: '已拒绝',
-        approved_pending_reauth: '已批准·待恢复',
+        approved_pending_reauth: '已批准·待确认',
         timeout: '已超时',
       };
       return m[s] || s;
@@ -1211,6 +1246,7 @@ createApp({
     if (this.token) this.openTab('chat');
   },
 }).mount('#app');
+ssoHandoff = {}; // Do not retain a second reference to the handoff credential.
 </script>
 </body>
 </html>

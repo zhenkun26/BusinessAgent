@@ -45,6 +45,8 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 认证要求：生产 API/worker 必须同时启用 `AUTH_REQUIRE_PASSWORD=true` 和 `AUTH_CHECK_DB=true`。身份库故障返回 503，禁用/删除账户返回 401；审批执行使用双方当前权限。详细约定见[认证与运行时授权契约](../docs/50-engineering/runtime-authorization.md)。
 
+凭证要求：C06 不再保存审批/图状态 JWT。批准后须由发起人在“我的审批”确认执行；浏览器 token 仅在内存，刷新后需重新登录。历史凭证处置与真实验收仍阻塞，详见[凭证安全契约](../docs/50-engineering/credential-safety.md)。
+
 ### 3. 验证服务
 
 ```bash
@@ -106,11 +108,15 @@ curl -X POST http://localhost:8000/api/v1/chat/message \
 curl http://localhost:8000/api/v1/approvals/pending \
   -H "Authorization: Bearer <manager-token>"
 
-# 批准 → 服务端自动执行(prefill_payload 中的工具调用)
+# 批准 → 仅记录批准，进入 approved_pending_reauth；发起人需确认执行
 curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
   -H "Authorization: Bearer <manager-token>" \
   -H "Content-Type: application/json" \
   -d '{"decision": "approved", "comment": "同意"}'
+
+# 发起人审阅后，以当前登录凭据确认执行
+curl -X POST http://localhost:8000/api/v1/pending-executions/appr_xxx/resume \
+  -H "Authorization: Bearer <requester-token>"
 ```
 
 ### 7. 验证脚本

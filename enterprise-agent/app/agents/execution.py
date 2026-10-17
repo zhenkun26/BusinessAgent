@@ -25,6 +25,8 @@ from typing import Any, Optional
 
 from langchain_core.messages import HumanMessage
 from loguru import logger
+
+from app.security.redaction import redact_text, redact_value
 from pydantic import BaseModel, Field
 
 from app.agents.knowledge import AgentResult
@@ -112,7 +114,7 @@ async def execute_tool_calls(
 
     Args:
         plans: 工具调用计划列表(应已过 RBAC 过滤)
-        context: 调用上下文(user_id/role/dept/jwt_token/request_id/session_id)
+        context: 调用上下文(user_id/role/dept/request_id/session_id)
 
     Returns:
         单工具返回 ToolResult，多工具返回 SagaResult
@@ -185,7 +187,6 @@ class ExecutionAgent:
         llm=None,
         user_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
-        jwt_token: str = "",
     ):
         self.user_role = user_role
         self.user_dept = user_dept
@@ -193,7 +194,6 @@ class ExecutionAgent:
         # 调用身份(审批建单/审计用),由 executor 从 UserInput 注入
         self.user_id = user_id
         self.conversation_id = conversation_id
-        self.jwt_token = jwt_token
 
     def _get_llm(self):
         if self.llm is None:
@@ -210,7 +210,6 @@ class ExecutionAgent:
             "user_id": self.user_id or "system",  # 由外层注入真实 user_id
             "role": self.user_role.value if hasattr(self.user_role, "value") else str(self.user_role),
             "dept": self.user_dept or "shared_company",
-            "jwt_token": self.jwt_token,
             "session_id": self.conversation_id,
             "request_id": f"exec-{int(start)}",
         }
@@ -322,12 +321,12 @@ class ExecutionAgent:
                     approval_ids.append(approval_id)
                     approval_note = (
                         f"以下操作已提交审批(审批号 {approval_id})，"
-                        f"待经理审批后自动执行： "
+                        f"待经理审批后由您确认执行： "
                         + ", ".join(p.tool for p in approval_plans)
                     )
                 except Exception as e:  # noqa: BLE001
                     logger.exception(f"审批建单失败： {e}")
-                    approval_note = f"审批建单失败： {e}"
+                    approval_note = "APPROVAL_CREATION_FAILED"
 
             # 4. 执行无需审批的部分:单工具直接调用,多工具走 Saga
             result = None
@@ -398,12 +397,12 @@ class ExecutionAgent:
                 success=False,
                 confidence=0.0,
                 output={
-                    "answer": f"工具执行异常： {e}",
+                    "answer": "TOOL_EXECUTION_FAILED",
                     "coverage": "none",
                     "stage": "error",
                 },
                 sources=[],
-                error=str(e),
+                error="TOOL_EXECUTION_FAILED",
                 latency_ms=int((time.time() - start) * 1000),
             )
 
@@ -596,18 +595,18 @@ class ExecutionAgent:
                     "VALUES (:sid, :uid, :query, 'running') "
                     "ON CONFLICT (session_id) DO NOTHING"
                 ),
-                {"sid": session_id, "uid": user_id, "query": query[:500]},
+                {"sid": session_id, "uid": user_id, "query": redact_text(query)[:500]},
             )
             await session.execute(
                 text(
                     "INSERT INTO approval_requests ("
                     "approval_id, session_id, requester_id, operation_type, "
                     "risk_level, summary, prefill_payload, approver_roles, "
-                    "status, requester_token, expires_at"
+                    "status, expires_at"
                     ") VALUES ("
                     ":aid, :sid, :uid, :op, :risk, :summary, "
                     "CAST(:payload AS JSONB), CAST(:roles AS JSONB), "
-                    "'pending', :token, NOW() + INTERVAL '1 day'"
+                    "'pending', NOW() + INTERVAL '1 day'"
                     ")"
                 ),
                 {
@@ -616,10 +615,9 @@ class ExecutionAgent:
                     "uid": user_id,
                     "op": plans[0].tool,
                     "risk": risk_level,
-                    "summary": self._build_approval_summary(plans, query),
-                    "payload": json.dumps(prefill_payload, ensure_ascii=False),
+                    "summary": redact_text(self._build_approval_summary(plans, query)),
+                    "payload": json.dumps(redact_value(prefill_payload), ensure_ascii=False),
                     "roles": json.dumps(["manager", "admin"]),
-                    "token": context.get("jwt_token") or "",
                 },
             )
             await session.commit()
@@ -652,11 +650,11 @@ class ExecutionAgent:
             if isinstance(to_list, str):
                 to_list = [to_list]  # LLM 可能输出单字符串,统一为列表避免逐字符 join
             if "email" in p.tool and to_list:
-                recipients = ", ".join(str(t) for t in to_list[:3])
-                subject = p.params.get("subject", "")
+                recipients = ", ".join(redact_text(str(t)) for t in to_list[:3])
+                subject = redact_text(p.params.get("subject", ""))
                 parts.append(f"向 {recipients} 发送邮件「{subject[:50]}」")
             else:
-                parts.append(f"{p.tool}: {p.reason or query[:50]}")
+                parts.append(f"{p.tool}: {redact_text(p.reason or query)[:50]}")
         return ";".join(parts)[:500]
 
     # ============ 结果格式化 ============

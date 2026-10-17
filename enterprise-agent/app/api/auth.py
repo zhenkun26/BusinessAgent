@@ -71,6 +71,7 @@ def _issue_token(user: User) -> TokenResponse:
 def _sso_error(status_code: int, detail: str) -> JSONResponse:
     """返回不泄露令牌内容的 SSO 错误，并清除一次性状态 Cookie。"""
     response = JSONResponse(status_code=status_code, content={"detail": detail})
+    response.headers["Cache-Control"] = "no-store"
     response.delete_cookie("sso_state")
     return response
 
@@ -392,15 +393,13 @@ async def sso_callback(
                 "<!doctype html><meta charset='utf-8'>"
                 "<title>SSO 登录成功</title><p>登录成功，正在返回智多星…</p>"
                 f"<script>const d={payload};"
-                "localStorage.setItem('ea_token',d.access_token);"
-                "localStorage.setItem('ea_username',d.username);"
-                "localStorage.setItem('ea_role',d.role);"
-                "localStorage.setItem('ea_dept',d.department||'');"
+                "sessionStorage.setItem('ea_sso_once',JSON.stringify(d));"
                 "location.replace('/ui');</script>"
             )
         )
     else:
         response = JSONResponse(content=token_response.model_dump())
+    response.headers["Cache-Control"] = "no-store"
     response.delete_cookie("sso_state")
     return response
 

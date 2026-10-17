@@ -99,7 +99,6 @@ class UserContext(BaseModel):
     username: str
     role: AgentRole
     department: Optional[str] = None
-    jwt_token: str
 
 
 def decode_identity_token(token: str, *, allow_expired: bool = False) -> dict[str, Any]:
@@ -181,13 +180,12 @@ async def get_current_user(
 
 
 def get_user_context(user: User = Depends(get_current_user)) -> UserContext:
-    """获取完整用户上下文(含 jwt_token)"""
+    """Return identity-only context; credentials remain at the authentication boundary."""
     return UserContext(
         user_id=user.user_id,
         username=user.username,
         role=AgentRole(user.role),
         department=user.department,
-        jwt_token="",  # 由调用方填充
     )
 
 

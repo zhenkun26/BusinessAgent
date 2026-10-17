@@ -5,8 +5,13 @@ import uuid
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.exceptions import RequestValidationError
 from loguru import logger
+
+from app.security.redaction import install_log_redaction
+
+install_log_redaction()
 
 from app.config import get_settings, validate_production_settings
 from app.api import chat, approval, auth, prompts, admin
@@ -114,6 +119,13 @@ def create_app() -> FastAPI:
 
     # 中间件(顺序:后注册的先执行)
     @app.middleware("http")
+    async def prevent_auth_caching(request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/api/v1/auth/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.middleware("http")
     async def strip_markdown_asterisks(request, call_next):
         """URL 容错:去掉路径尾部的 markdown 加粗星号(**)
 
@@ -209,6 +221,19 @@ def create_app() -> FastAPI:
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    @app.exception_handler(RequestValidationError)
+    async def safe_validation_error(request, exc):
+        # Validation inputs can contain passwords/tokens; never echo them.
+        return JSONResponse(status_code=422, content={"detail": "REQUEST_VALIDATION_FAILED"})
+
+    @app.middleware("http")
+    async def safe_request_errors(request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            logger.error("REQUEST_FAILED")
+            return JSONResponse(status_code=500, content={"detail": "REQUEST_FAILED"})
 
     return app
 

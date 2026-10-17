@@ -8,6 +8,7 @@
 |---|---|---|
 | 工程交付基线 | [engineering-delivery-baseline.md](engineering-delivery-baseline.md) | 单组织单机支持边界、参考集成、验收证据与工程完成条件 |
 | 离线安全验证入口 | [safe-validation.md](safe-validation.md) | C24 前置：允许范围、副作用审查、执行方式、输出状态与限制 |
+| 凭证与 HTML 安全 | [credential-safety.md](credential-safety.md) | C06 凭证生命周期、脱敏、浏览器与历史处置边界 |
 | 认证与运行时授权 | [runtime-authorization.md](runtime-authorization.md) | C05 身份故障闭合、生产开关、审批执行权限与验收边界 |
 | 会话归属契约 | [session-ownership.md](session-ownership.md) | C04 五入口权限矩阵、错误与事务边界、离线和运行验收 |
 | 后端 README | [enterprise-agent/README.md](../../enterprise-agent/README.md) | 快速开始、项目结构、实施进度、技术栈 |

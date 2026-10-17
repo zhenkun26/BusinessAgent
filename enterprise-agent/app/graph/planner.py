@@ -137,7 +137,7 @@ def planner_node(state: AgentState) -> AgentState:
             lite = get_lite_llm()
         except Exception as e:  # noqa: BLE001
             logger.warning(f"轻量 LLM 初始化失败: {e}")
-            reasoning = f"意图分类 LLM 降级: {e}"
+            reasoning = "INTENT_MODEL_UNAVAILABLE"
         if lite is not None:
             parsed = _invoke_classify(lite, prompt, "lite")
 
