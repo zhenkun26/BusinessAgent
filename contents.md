@@ -109,6 +109,7 @@ BusinessAgent/
     │   ├── performance-resilience/     # 性能与容灾规格（压测/恢复演练/告警值班）
     │   └── security-operations/        # 安全运营规格（密钥/漏洞扫描/越权测试）
     └── changes/                        # 变更记录（propose→apply→archive 生命周期）
+        ├── fix-vulnerable-runtime-dependencies/ # Runtime dependency security remediation for PR #3
         ├── crm-mail-sso-integration/       # CRM/邮件/SSO 真实接入（实施中 9/19）
         ├── uat-and-ga-rollout/             # UAT、灰度、上线门槛（实施中 8/15）
         └── archive/                        # 已归档变更（全部完成）

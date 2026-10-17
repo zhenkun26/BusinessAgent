@@ -32,7 +32,7 @@ langgraph-checkpoint==4.1.1
 langgraph-checkpoint-postgres==3.1.1
 langgraph-checkpoint-redis==0.5.1
 langgraph-prebuilt==1.1.0
-langgraph-sdk==0.4.2
+langgraph-sdk==0.4.4
 langsmith==0.10.15
 loguru==0.7.3
 lxml==6.1.1
@@ -60,9 +60,9 @@ psycopg-pool==3.3.1
 pydantic==2.13.4
 pydantic-core==2.46.4
 pydantic-settings==2.14.2
-pyjwt==2.13.0
+pyjwt==2.15.0
 pymilvus==3.0.1
-pypdf==6.15.0
+pypdf==6.19.0
 python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.2.2
@@ -84,7 +84,7 @@ tiktoken==0.13.0
 tqdm==4.70.0
 typing-extensions==4.16.0
 typing-inspection==0.4.2
-urllib3==2.7.0
+urllib3==2.8.0
 uuid-utils==0.17.0
 uvicorn==0.52.1
 uvloop>=0.21,<1

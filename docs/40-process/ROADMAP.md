@@ -44,6 +44,7 @@
 | ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
 | ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
 | ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
+| fix-vulnerable-runtime-dependencies | P1 | 修复待 CI 验证 | PR #3 镜像扫描发现 17 项 HIGH/CRITICAL；升级 4 个既有依赖并同步开发约束；静态检查通过，等待完整 CI 与审核；[记录](../../openspec/changes/fix-vulnerable-runtime-dependencies/tasks.md) |
 | crm-mail-sso-integration | P2 | 实施中 9/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
 | uat-and-ga-rollout | P3 | 实施中 8/15 | UAT、灰度、上线门槛检查单（灰度方案条件评审通过，最短观察期 4 周；UAT 资源核验仍 BLOCKED） |
 | ~~fix-prod-image-pip-removal~~ | P1 | ✅ 已归档 2026-08-15 | 修复生产镜像 runner 阶段 pip 清理顺序；CI run 31890705614 已通过 Python 3.11/3.13、生产镜像构建与 Trivy 扫描 |
