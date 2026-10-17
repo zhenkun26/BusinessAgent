@@ -31,6 +31,7 @@
 | G0 UAT 技术彩排回放 | 2026-08-15 | ✅ | uat-replay-harness 9/9 归档：合成 fixture、结构/安全回放器、JSON/Markdown 证据报告 |
 | 后端内部简化 | 2026-09-28 | ✅ 本地验证 | simplify-backend-internals：仅 FGR-01/FAT-01；基线与最终均 13/13 定向测试、8 组内存检查通过，独立复审无阻塞；未跑完整 CI，OpenSpec CLI 不可用；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
 | CI 镜像发布门禁修复 | 2026-09-28 | PR #1 检查中 | scan-image-before-publish：先扫描后发布同一镜像；11 项离线条件通过；首次云端 Python 3.11/3.13 均 143 测试通过，gitleaks 因浅克隆失败，已补完整历史配置待复验；GitHub 批准及合并发布待完成；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
+| 中英文 README | 2026-10-17 | ✅ 本地文档检查；待 PR 集成 | 中文 README 与完整英文翻译、互链及目录索引；各 21 个仓库链接/3 个锚点有效，11 组代码块与配置/链接目标一致，16 段 Shell 语法检查通过；未安装依赖或启动服务，OpenSpec CLI 不可用；[变更与验证记录](../../openspec/changes/archive/2026-10-17-refresh-bilingual-readmes/tasks.md) |
 
 ## 二、进行中
 
