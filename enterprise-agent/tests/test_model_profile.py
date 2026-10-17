@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import ast
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import importlib.util
 from pathlib import Path
 import sys
@@ -141,7 +141,7 @@ class ModelProfileTests(unittest.IsolatedAsyncioTestCase):
         tree = ast.parse((ROOT/'app/rag/vector_store.py').read_text())
         cls = next(node for node in tree.body if isinstance(node, ast.ClassDef)
                    and node.name == 'SearchResult')
-        ns = {'dataclass': dataclass}
+        ns = {'dataclass': dataclass, 'field': field}
         exec(compile(ast.Module(body=[cls], type_ignores=[]), '<SearchResult>', 'exec'), ns)
         embeddings = Mock()
         embeddings.embed_query.return_value = [1.0]*1024

@@ -28,6 +28,7 @@ from app.rag.llm import get_lite_llm, get_local_llm
 from app.rag.retriever import EnterpriseRAGRetriever
 from app.rag.vector_store import SearchResult
 from app.security.rbac import AgentRole
+from app.security.retrieval_policy import resolve_scope
 
 
 class RetrievalSource(BaseModel):
@@ -127,6 +128,7 @@ class KnowledgeAgent:
         start = time.time()
 
         try:
+            scope = resolve_scope(self.user_role, self.user_dept)
             # 1. 降级链检索(向量 → BM25 → PG LIKE)
             # 检索用扩展后的 query(embedding 需要完整语义);自评/日志仍用原 query
             from app.graph.history import expand_query_with_history
@@ -139,7 +141,7 @@ class KnowledgeAgent:
                 top_k=self.rerank_top_k,
             )
 
-            results = deg_result.results
+            results = [result for result in deg_result.results if scope.allows_result(result)]
             stage = deg_result.stage
 
             if not results:

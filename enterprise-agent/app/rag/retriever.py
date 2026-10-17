@@ -17,6 +17,7 @@ from typing import Optional
 
 from loguru import logger
 from app.config import get_settings
+from app.security.retrieval_policy import resolve_scope
 from app.rag.model_profile import uses_remote_profile
 
 from app.observability.tracing import (
@@ -102,6 +103,7 @@ class EnterpriseRAGRetriever:
             doc_types: 文档类型白名单
             scene: 场景(None 时自动识别)
         """
+        scope = resolve_scope(user_role, dept_namespace, doc_types)
         start = time.time()
 
         # tracing: 整个 retrieve 作为一个 span(含子 span:粗排/精排)
@@ -140,6 +142,7 @@ class EnterpriseRAGRetriever:
                     top_k=coarse_k,
                     filter=search_filter,
                 )
+                coarse_results = [r for r in coarse_results if scope.allows_result(r)]
                 record_span_attributes({
                     "rag.coarse.count": len(coarse_results),
                     "rag.coarse.k": coarse_k,
@@ -166,6 +169,7 @@ class EnterpriseRAGRetriever:
             try:
                 with traced_span("rag.rerank") as rerank_ctx:
                     ranked = self.reranker.rerank(query, coarse_results, top_n=self.rerank_top_n)
+                    ranked = [r for r in ranked if scope.allows_result(r)]
                     stage = "rerank"
                     record_span_attributes({
                         "rag.rerank.count": len(ranked),

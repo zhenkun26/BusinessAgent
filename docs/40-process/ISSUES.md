@@ -58,14 +58,15 @@
 - **原调查证据**：[execution.py](../../enterprise-agent/app/agents/execution.py) 将 JWT 写入审批记录，图状态也携带 JWT；[审计](../../enterprise-agent/app/observability/audit.py)与[HTTP 适配](../../enterprise-agent/app/tools/http_adapter.py)存在原文记录路径；[UI](../../enterprise-agent/app/static/index.html)正常路径有 DOMPurify，但渲染异常回退原始内容并交给 v-html。
 - **缺口/原因（原调查）**：持久化凭证与不统一的输出脱敏扩大暴露面；渲染失败路径不安全。
 - **验收**：定义可审计的执行授权机制，审批/checkpoint 不持久化可复用明文 JWT；用标记凭证验证 DB、日志、错误响应和审计无泄漏；渲染器/净化器缺失或抛错时只显示安全文本；注入样例不执行脚本；明确浏览器 token 存储与退出/过期行为。
-- **实施与限制（2026-10-17）**：新审批及 graph/agent 上下文不保存 JWT；单笔/批量批准只进入待确认，发起人以当前凭据恢复执行并复查原审批人。审计/应用日志/trace/HTTP 工具边界脱敏，公开错误固定化；浏览器 token 内存保存、SSO 单次交接，Markdown 失败转义。20 项 C06 Python、13 项页面脚本 VM、27/20/22/15 项相关离线回归 PASS。真实 JWT/PG/API/SSE/Linux、浏览器/IdP/外部日志导出及历史凭证处置 **BLOCKED**；旧列/checkpoint 未清理，不视为已撤销。C06 整项 open，C07 未开始。见[凭证契约](../50-engineering/credential-safety.md)与[阶段记录](阶段性总结_C06凭证与HTML失败安全.md)。
+- **实施与限制（2026-10-17）**：新审批及 graph/agent 上下文不保存 JWT；单笔/批量批准只进入待确认，发起人以当前凭据恢复执行并复查原审批人。审计/应用日志/trace/HTTP 工具边界脱敏，公开错误固定化；浏览器 token 内存保存、SSO 单次交接，Markdown 失败转义。20 项 C06 Python、13 项页面脚本 VM、27/20/22/15 项相关离线回归 PASS。真实 JWT/PG/API/SSE/Linux、浏览器/IdP/外部日志导出及历史凭证处置 **BLOCKED**；旧列/checkpoint 未清理，不视为已撤销。C06 整项 open；`6955133` 已按后续授权推送，C07 状态见下项。见[凭证契约](../50-engineering/credential-safety.md)与[阶段记录](阶段性总结_C06凭证与HTML失败安全.md)。
 
 <a id="c07"></a>
 #### C07 · P0 · 检索权限与表达式编码
 
-- **现状/证据**：[vector_store.py](../../enterprise-agent/app/rag/vector_store.py) 多处直接拼接角色/部门/类型/文档 ID 表达式；[degradation.py](../../enterprise-agent/app/rag/degradation.py) 部分路径已有转义；ROLE_NAMESPACES 未统一进入主检索。
-- **缺口/原因**：各检索/降级路径隔离语义不一致，输入编码不足。
+- **原调查证据**：[vector_store.py](../../enterprise-agent/app/rag/vector_store.py) 多处直接拼接角色/部门/类型/文档 ID 表达式；[degradation.py](../../enterprise-agent/app/rag/degradation.py) 部分路径已有转义；ROLE_NAMESPACES 未统一进入主检索。
+- **缺口/原因（原调查）**：各检索/降级路径隔离语义不一致，输入编码不足。
 - **验收**：固定角色 × 部门 × 共享区矩阵，向量、关键词和 PG 降级全部遵守；引号、转义、运算符等输入不能扩大权限；结果正文、引用与来源元数据均无越权；manager 跨部门策略明确，声明不支持时必须拒绝，不能仅依赖未接入的常量。
+- **实施与限制（2026-10-17）**：四条检索路径统一角色/当前部门/共享区及文档 ACL；manager 明确开放四部门及共享区，admin 仍须匹配文档 ACL。表达式统一编码，PG 参数绑定，类型约束贯穿降级；结果在重排/生成/引用前复验。21 项 C07 与 74 项相关离线回归 PASS。真实 Milvus/PG/JWT/API/SSE/Linux 验收 **BLOCKED**，既有浏览器/SSO/历史凭证处置阻塞保留；C07 整项 open，C08 未开始。见[检索契约](../50-engineering/retrieval-authorization.md)与[阶段记录](阶段性总结_C07检索权限与表达式编码.md)。
 
 <a id="c08"></a>
 #### C08 · P0 · 请求上下文、历史与子任务依赖

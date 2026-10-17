@@ -47,6 +47,8 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 凭证要求：C06 不再保存审批/图状态 JWT。批准后须由发起人在“我的审批”确认执行；浏览器 token 仅在内存，刷新后需重新登录。历史凭证处置与真实验收仍阻塞，详见[凭证安全契约](../docs/50-engineering/credential-safety.md)。
 
+检索要求：普通角色仅检索许可范围内的本部门与共享区，缺少部门时仅共享区；manager 可跨四个既有部门，admin 可跨命名空间，但所有角色仍须匹配文档 ACL。无角色/非法部门拒绝，空类型列表不返回文档。详见[检索权限契约](../docs/50-engineering/retrieval-authorization.md)。
+
 ### 3. 验证服务
 
 ```bash

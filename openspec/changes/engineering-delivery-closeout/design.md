@@ -135,3 +135,36 @@ Markdown output is sanitized only when both libraries work; otherwise return
 HTML-escaped original text. Missing/throwing libraries must never return raw HTML.
 All verification remains offline; real JWT/PG/API/SSE/Linux/browser acceptance is
 BLOCKED and C07 is not started.
+
+
+## C07 design: shared retrieval authorization and expression literals
+
+Use ROLE_NAMESPACES as the single role grant source. Ordinary roles see only their
+current department intersected with that grant plus shared_company; absent/empty
+department means shared-only, never unrestricted. Nonempty invalid or disallowed
+departments and missing/unknown roles raise a fixed authorization error before
+models or stores. Managers explicitly see the four configured departments plus
+shared_company; admins retain wildcard namespaces. All roles, including admin,
+must match document access_roles and active status. Invalid document ACL metadata
+fails closed. Namespace/role context comes from C05 current identity, not user text.
+
+Centralize a resolved scope, Milvus quoted string encoder and result predicate.
+Encode every dynamic role/namespace/type/document ID; reject empty/control/oversized
+values. SQL values remain bound parameters with JSON serialization for role arrays,
+namespace/type arrays passed as JSONB, and literal LIKE wildcard escaping. None
+means no document-type narrowing; an empty type list means no documents. There is
+no unfiltered or inactive-document mode on user retrieval methods.
+
+Apply the same scope in vector and keyword expressions and PostgreSQL fallback,
+including doc_types through every fallback. Fetch ACL metadata for defensive
+post-filtering before text scoring, external reranking, LLM generation and citation
+construction. Preserve ACL fields through all rerankers. Invalid authorization
+must not trigger a broader fallback; database errors return no documents. Document
+ID delete expressions are encoded but no delete operation is executed here.
+
+Tests execute actual source with injected collections/sessions/models and a small
+in-memory numeric double; validate the role/department/shared matrix, malicious
+literals, missing ACL fields and fallback equivalence. This does not prove Milvus
+parser/PG SQL behavior or real JWT/API/browser/Linux acceptance. No external calls,
+new packages, current-store access or filesystem deletion. Keep C07 open until
+isolated live matrix and output-leakage acceptance; stop before C08.

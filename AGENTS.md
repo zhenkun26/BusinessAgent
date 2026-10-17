@@ -60,7 +60,7 @@ python -m eval.run_w9_tracing
 - AI 工具集成：Kimi Code（`.kimi-code/skills/`）与 Codex（`.codex/skills/`）均已
   由 `openspec init` 生成 6 个工作流 skill；CLI 升级后用 `openspec update` 刷新。
 - 主规格 15 项见 `openspec/specs/`（2026-10-17）；新需求在 `openspec/changes/` 下开启 change。
-- 当前工程收尾 change 为 `engineering-delivery-closeout`：S0/C24 前置已完成并推送；C01 配置独立提交 `2a9c364` 已推送，运行验收 BLOCKED；C02 外部模型增量 `42bfc7f` 已推送，真实 API/Linux 验收 BLOCKED；C03 增量 `fc8da91` 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属增量 `dbc8236` 已推送，真实 HTTP/PG 验收 BLOCKED；C05 增量 `9f5397c` 已推送；C06 凭证生命周期、脱敏与 HTML 失败安全离线增量已完成，真实 JWT/API/SSE/PG/Linux、浏览器与历史凭证处置验收 BLOCKED；C06 本地交付后暂停，C06 推送与 C07 及后续需另行确认。顺序以 ROADMAP 为准，验收以 ISSUES C01–C25 为准。真实企业接入与 UAT/灰度两个 change 保持独立，不以参考环境通过替代。
+- 当前工程收尾 change 为 `engineering-delivery-closeout`：S0/C24 前置已完成并推送；C01 配置独立提交 `2a9c364` 已推送，运行验收 BLOCKED；C02 外部模型增量 `42bfc7f` 已推送，真实 API/Linux 验收 BLOCKED；C03 增量 `fc8da91` 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属增量 `dbc8236` 已推送，真实 HTTP/PG 验收 BLOCKED；C05 增量 `9f5397c` 已推送；C06 `6955133` 已推送；C07 检索权限与表达式编码离线增量已完成，真实 Milvus/JWT/API/SSE/PG/Linux 验收 BLOCKED，浏览器/SSO 与历史凭证处置阻塞保留；C07 本地交付后暂停，C07 推送与 C08 及后续需另行确认。顺序以 ROADMAP 为准，验收以 ISSUES C01–C25 为准。真实企业接入与 UAT/灰度两个 change 保持独立，不以参考环境通过替代。
 - 离线前置核验使用 `python3 -I -B enterprise-agent/scripts/safe_validate.py`（仓库根目录）；默认只输出摘要，exit 2 可表示真实 UAT/发布仍阻塞，不等于入口失败。副作用范围见 `docs/50-engineering/safe-validation.md`；其他脚本不得自动视为已通过安全审查。
 
 ## 关键文档

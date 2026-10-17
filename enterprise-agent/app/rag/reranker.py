@@ -107,6 +107,8 @@ class BgeLocalReranker(Reranker):
                     doc_type=c.doc_type,
                     source_url=c.source_url,
                     updated_at=c.updated_at,
+                    access_roles=list(c.access_roles),
+                    is_active=c.is_active,
                 )
             )
         return out
@@ -167,6 +169,8 @@ class CohereReranker(Reranker):
                     doc_type=original.doc_type,
                     source_url=original.source_url,
                     updated_at=original.updated_at,
+                    access_roles=list(original.access_roles),
+                    is_active=original.is_active,
                 )
             )
         # 截断 top_n
@@ -235,6 +239,8 @@ class LLMReranker(Reranker):
                 doc_type=c.doc_type,
                 source_url=c.source_url,
                 updated_at=c.updated_at,
+                access_roles=list(c.access_roles),
+                is_active=c.is_active,
             )
             for s, c in scored[:top_n]
         ]

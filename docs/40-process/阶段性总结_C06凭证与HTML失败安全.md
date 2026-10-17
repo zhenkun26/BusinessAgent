@@ -73,3 +73,12 @@ resume/atomic claiming and final execution states remain C11.
 
 Stop after the local C06 commit. **C07 not started.** C01–C05 runtime blockers,
 `formal_uat=false`, `release_evidence=false` and `release_allowed=false` remain.
+
+
+## Subsequent authorization (2026-10-17)
+
+The user subsequently authorized pushing C06 and implementing C07. C06
+`69551336219b10159ada741da79f4f85723f025c` was pushed to the same remote branch
+and the remote hash was verified. The original local-only delivery record above
+remains historical; all C06 runtime/browser/SSO/history blockers persist. See the
+[C07 delivery record](阶段性总结_C07检索权限与表达式编码.md) for the new increment.

@@ -21,7 +21,7 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 1.4.1 Implement the version/checksum runner, schema-only baseline, explicit admin/demo bootstrap, startup guards, documentation and offline checks. 22 fake orchestration/startup tests PASS; real PostgreSQL/Linux acceptance remains BLOCKED.
   - [ ] 1.4.2 Verify empty PostgreSQL initialization, legacy-copy upgrades, repeated/concurrent runs, rollback and login in isolated Linux. <!-- BLOCKED: no local Docker/PostgreSQL; never migrate the current database -->
 
-## 2. S2：权限与敏感信息（C04 离线增量完成，运行验收阻塞；C05 离线增量完成，运行验收阻塞；C06 离线增量完成，运行验收阻塞；C07 及后续待授权）
+## 2. S2：权限与敏感信息（C04 离线增量完成，运行验收阻塞；C05 离线增量完成，运行验收阻塞；C06 离线增量完成，运行验收阻塞；C07 离线增量完成，运行验收阻塞；后续待授权）
 
 - [ ] 2.1 C04 会话归属校验。
   - [x] 2.1.1 Implement persisted ownership guards for message/stream/history/feedback/cancel, explicit admin policy, safe creation, offline adversarial tests and documentation. 20 offline tests PASS; real HTTP/PostgreSQL acceptance remains BLOCKED.
@@ -33,6 +33,8 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 2.3.1 Implement transient approval/graph credentials, redaction boundaries, browser lifecycle and safe Markdown fallback; add offline evidence and docs. 20 Python tests and 13 browser-script VM cases PASS; live/historical acceptance remains BLOCKED.
   - [ ] 2.3.2 Verify real JWT/PostgreSQL/API/SSE/Linux/browser flows and historical credential remediation in an explicitly authorized isolated candidate. <!-- BLOCKED; no current data cleanup -->
 - [ ] 2.4 C07 检索权限与表达式编码。
+  - [x] 2.4.1 Implement shared scope, encoded expressions, ACL result guards, offline matrix tests and documentation. 21 C07 tests PASS; live acceptance remains BLOCKED.
+  - [ ] 2.4.2 Verify real Milvus/PostgreSQL filtering and API/SSE output/citations in isolated Linux. <!-- BLOCKED; no current store access -->
 
 ## 3. S3：会话与运行状态（待逐项授权）
 

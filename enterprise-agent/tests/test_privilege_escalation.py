@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import json
+
 import jwt
 import pytest
 from conftest import FakeResult, FakeRow, FakeSession
@@ -82,10 +84,10 @@ async def test_should_filter_other_dept_namespace_in_pg_degradation(
     assert results == []
     assert session.executed_sql, "降级链应执行 PG 查询"
     sql = session.executed_sql[0]
-    assert "dept_namespace IN (:dept_ns, 'shared_company')" in sql
+    assert "dept_namespace IN" in sql and "jsonb_array_elements_text" in sql
     assert "access_roles @>" in sql
     params = session.executed_params[0]
-    assert params["dept_ns"] == "dept_sales"  # 只能带本人部门,取不到 dept_finance
+    assert json.loads(params["namespaces"]) == ["dept_sales", "shared_company"]
     assert params["role"] == '["salesperson"]'
 
 

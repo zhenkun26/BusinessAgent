@@ -18,6 +18,9 @@ import numpy as np
 from loguru import logger
 
 from app.config import get_settings
+from app.security.retrieval_policy import (
+    RetrievalAccessError, RetrievalScope, milvus_literal, resolve_scope,
+)
 
 
 # ============ 数据契约 ============
@@ -55,6 +58,8 @@ class SearchResult:
     doc_type: str
     source_url: str
     updated_at: int
+    access_roles: list[str] = field(default_factory=list)
+    is_active: bool = False  # Missing backend ACL metadata must deny.
 
 
 @dataclass
@@ -62,9 +67,13 @@ class SearchFilter:
     """检索过滤条件(RBAC + 命名空间)"""
 
     user_role: Optional[str] = None  # 用户角色,必须命中 access_roles
-    dept_namespace: Optional[str] = None  # 部门命名空间,None 表示不限
+    dept_namespace: Optional[str] = None  # Current identity department; absent is shared-only
     doc_types: Optional[list[str]] = None  # 文档类型白名单
-    active_only: bool = True  # 只查 is_active=True
+    active_only: bool = True  # User retrieval cannot opt into inactive documents.
+
+    def resolve(self) -> RetrievalScope:
+        return resolve_scope(self.user_role, self.dept_namespace, self.doc_types,
+                             active_only=self.active_only)
 
 
 class EnterpriseVectorStore(Protocol):
@@ -132,6 +141,9 @@ class InMemoryVectorStore:
         top_k: int = 10,
         filter: Optional[SearchFilter] = None,
     ) -> list[SearchResult]:
+        if filter is None:
+            raise RetrievalAccessError('RETRIEVAL_ACCESS_DENIED')
+        scope = filter.resolve()
         if not self._chunks or self._embeddings is None:
             return []
 
@@ -147,7 +159,7 @@ class InMemoryVectorStore:
         # 过滤
         results: list[tuple[float, ChunkData]] = []
         for idx, chunk in enumerate(self._chunks):
-            if filter and not self._match_filter(chunk, filter):
+            if not scope.allows_result(chunk):
                 continue
             results.append((float(scores[idx]), chunk))
 
@@ -166,6 +178,8 @@ class InMemoryVectorStore:
                 doc_type=c.doc_type,
                 source_url=c.source_url,
                 updated_at=c.updated_at,
+                access_roles=list(c.access_roles),
+                is_active=c.is_active,
             )
             for s, c in results
         ]
@@ -195,22 +209,7 @@ class InMemoryVectorStore:
 
     @staticmethod
     def _match_filter(chunk: ChunkData, f: SearchFilter) -> bool:
-        if f.active_only and not chunk.is_active:
-            return False
-        if f.user_role and f.user_role not in chunk.access_roles:
-            return False
-        # 命名空间过滤:用户能看本部门 + 公司共享文档(对应 v3 方案 7.2 节)
-        # - chunk.ns == shared_company:任何用户都可看
-        # - chunk.ns == f.dept_namespace:本部门文档
-        # - f.dept_namespace is None:不做命名空间过滤
-        if f.dept_namespace and chunk.dept_namespace not in (
-            f.dept_namespace,
-            "shared_company",
-        ):
-            return False
-        if f.doc_types and chunk.doc_type not in f.doc_types:
-            return False
-        return True
+        return f.resolve().allows_result(chunk)
 
 
 # ============ Milvus 实现(生产用) ============
@@ -269,28 +268,16 @@ class MilvusVectorStore:
         top_k: int = 10,
         filter: Optional[SearchFilter] = None,
     ) -> list[SearchResult]:
-        # 构造 Milvus 过滤表达式
-        expr_parts: list[str] = []
-        if filter:
-            if filter.active_only:
-                expr_parts.append("is_active == true")
-            if filter.user_role:
-                # ARRAY 任一元素匹配:Milvus 用 ARRAY_CONTAINS
-                expr_parts.append(f'ARRAY_CONTAINS(access_roles, "{filter.user_role}")')
-            if filter.dept_namespace:
-                # 命名空间过滤:本部门 + 公司共享(对应 v3 方案 7.2 节)
-                expr_parts.append(
-                    f'dept_namespace in ["{filter.dept_namespace}", "shared_company"]'
-                )
-            if filter.doc_types:
-                types = ",".join([f'"{t}"' for t in filter.doc_types])
-                expr_parts.append(f"doc_type in [{types}]")
-        expr = " and ".join(expr_parts) if expr_parts else None
+        if filter is None:
+            raise RetrievalAccessError('RETRIEVAL_ACCESS_DENIED')
+        scope = filter.resolve()
+        expr = scope.milvus_expression()
 
         # 检索字段
         output_fields = [
             "chunk_id", "document_id", "title", "content",
             "dept_namespace", "doc_type", "source_url", "updated_at",
+            "access_roles", "is_active",
         ]
         search_params = {"metric_type": "COSINE", "params": {"ef": max(top_k * 4, 64)}}
 
@@ -309,6 +296,9 @@ class MilvusVectorStore:
             entity = hit.entity.to_dict() if hasattr(hit.entity, "to_dict") else {}
             # pymilvus 2.4+ 返回 dict-like
             fields = entity.get("fields", entity) if isinstance(entity, dict) else entity
+            if not scope.allows(fields.get('dept_namespace'), fields.get('access_roles'),
+                                fields.get('is_active'), fields.get('doc_type')):
+                continue
             out.append(
                 SearchResult(
                     chunk_id=fields.get("chunk_id", ""),
@@ -320,12 +310,14 @@ class MilvusVectorStore:
                     doc_type=fields.get("doc_type", ""),
                     source_url=fields.get("source_url", ""),
                     updated_at=int(fields.get("updated_at", 0)),
+                    access_roles=list(fields["access_roles"]),
+                    is_active=fields["is_active"],
                 )
             )
         return out
 
     def delete_document(self, document_id: str) -> int:
-        self.collection.delete(f'document_id == "{document_id}"')
+        self.collection.delete(f"document_id == {milvus_literal(document_id, 64)}")
         self.collection.flush()
         logger.info(f"MilvusVS 删除 document_id={document_id}")
         return 1

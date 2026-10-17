@@ -25,6 +25,7 @@
 
 - `runtime-authorization`: C05 current identity and approval authorization.
 - `credential-safety`: C06 transient credentials, redacted diagnostics and safe HTML fallback.
+- `retrieval-authorization`: C07 shared retrieval scope, safe expression literals and result guards.
 
 ### Modified Capabilities
 
@@ -62,3 +63,13 @@ explicit user authorization. Implement C06 only: remove reusable credentials fro
 approval/checkpoint inputs, use explicit requester confirmation after approval,
 redact diagnostics and fail safely on HTML rendering errors. No new dependencies,
 real calls, historical-data cleanup or deployment; C06 push and C07 await confirmation.
+
+
+## C07 authorization update (2026-10-17)
+
+The user authorized pushing C06 `6955133` and implementing C07 only. The same
+remote branch was verified at that commit. Unify retrieval authorization and
+expression encoding across memory/vector/keyword/PostgreSQL paths; validate
+results before reranking, generation and citations. No new dependencies, live
+services, indexing, data cleanup or deployment. Prior runtime/browser/SSO/history
+blockers remain; C07 push and C08 require later confirmation.

@@ -16,6 +16,7 @@ W3 实现要点:
 - DegradationChain 统一调度,记录命中的 stage
 """
 
+import json
 import re
 import time
 from dataclasses import dataclass
@@ -24,6 +25,9 @@ from typing import Optional
 from loguru import logger
 
 from app.rag.vector_store import SearchResult
+from app.security.retrieval_policy import (
+    RetrievalAccessError, checked_string, milvus_literal, resolve_scope,
+)
 
 
 @dataclass
@@ -57,8 +61,10 @@ class KeywordRetriever:
         top_k: int = 10,
         user_role: Optional[str] = None,
         dept_namespace: Optional[str] = None,
+        doc_types: Optional[list[str]] = None,
     ) -> list[SearchResult]:
         """关键词检索(降级路径)"""
+        resolve_scope(user_role, dept_namespace, doc_types)
         # 提取关键词(去停用词,保留 2 字以上中文/英文单词)
         keywords = self._extract_keywords(query)
         if not keywords:
@@ -67,11 +73,13 @@ class KeywordRetriever:
 
         # 第一级降级:Milvus 全表扫描 + Python 层关键词匹配
         try:
-            return self._scan_via_milvus(keywords, top_k, user_role, dept_namespace)
+            return self._scan_via_milvus(keywords, top_k, user_role, dept_namespace, doc_types)
+        except RetrievalAccessError:
+            raise
         except Exception as e:  # noqa: BLE001
             logger.error(f"Milvus 关键词扫描失败: {e}")
             return await self._fallback_pg_tsvector(
-                keywords, top_k, user_role, dept_namespace
+                keywords, top_k, user_role, dept_namespace, doc_types
             )
 
     @staticmethod
@@ -109,14 +117,8 @@ class KeywordRetriever:
 
     @staticmethod
     def _escape_milvus_expr_str(value: str) -> str:
-        """Milvus 表达式字符串转义(防注入/语法破坏)
-
-        Milvus query() 的 expr 不支持参数绑定,值必须安全转义:
-        反斜杠与双引号转义后包双引号。角色/部门等值来自 JWT/DB,
-        但仍按"不可信输入"处理,防止含引号值破坏表达式或注入过滤条件。
-        """
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
+        """Compatibility wrapper around the shared literal encoder."""
+        return milvus_literal(value)
 
     def _scan_via_milvus(
         self,
@@ -124,32 +126,18 @@ class KeywordRetriever:
         top_k: int,
         user_role: Optional[str],
         dept_namespace: Optional[str] = None,
+        doc_types: Optional[list[str]] = None,
     ) -> list[SearchResult]:
         """通过 Milvus query() 全表扫描(性能差,仅降级用)
 
         生产环境应替换为 PostgreSQL tsvector 检索。
         """
+        scope = resolve_scope(user_role, dept_namespace, doc_types)
         from app.core.milvus_client import get_collection
 
         collection = get_collection()
         collection.load()
-
-        # 构造过滤:任意关键词命中 content
-        # Milvus 不支持 LIKE 多关键词 OR,只能逐个查或用 query() 全表
-        # 简化:查所有 active chunks,在 Python 层做关键词匹配
-        expr = "is_active == true"
-        if user_role:
-            expr += (
-                " and ARRAY_CONTAINS(access_roles, "
-                f"{self._escape_milvus_expr_str(user_role)})"
-            )
-        if dept_namespace:
-            # 命名空间隔离:本部门 + 公司共享(口径与 vector_store.search 一致)
-            expr += (
-                " and dept_namespace in ["
-                f"{self._escape_milvus_expr_str(dept_namespace)}, "
-                f"{self._escape_milvus_expr_str('shared_company')}]"
-            )
+        expr = scope.milvus_expression()
 
         # query() 拉取一批(限制 500,避免拉全表)
         results = collection.query(
@@ -157,6 +145,7 @@ class KeywordRetriever:
             output_fields=[
                 "chunk_id", "document_id", "title", "content",
                 "dept_namespace", "doc_type", "source_url", "updated_at",
+                "access_roles", "is_active",
             ],
             limit=500,
         )
@@ -164,6 +153,9 @@ class KeywordRetriever:
         # Python 层关键词匹配 + 简单打分(命中数 / 总关键词数)
         scored: list[tuple[float, dict]] = []
         for entity in results:
+            if not scope.allows(entity.get('dept_namespace'), entity.get('access_roles'),
+                                entity.get('is_active'), entity.get('doc_type')):
+                continue
             content = entity.get("content", "")
             title = entity.get("title", "")
             text = f"{title} {content}".lower()
@@ -187,6 +179,8 @@ class KeywordRetriever:
                 doc_type=e.get("doc_type", ""),
                 source_url=e.get("source_url", ""),
                 updated_at=int(e.get("updated_at", 0)),
+                access_roles=list(e["access_roles"]),
+                is_active=e["is_active"],
             )
             for s, e in scored
         ]
@@ -197,11 +191,12 @@ class KeywordRetriever:
         top_k: int,
         user_role: Optional[str],
         dept_namespace: Optional[str] = None,
+        doc_types: Optional[list[str]] = None,
     ) -> list[SearchResult]:
         """PostgreSQL tsvector 全文检索(降级链第三级)
 
-        强制应用命名空间隔离(本部门 + shared_company)与角色过滤(access_roles),
-        防止降级路径泄露其他部门文档——口径与主路径向量检索完全一致。
+        Apply the same resolved namespace grant, role ACL and type constraints as
+        vector retrieval. Invalid scope never becomes an unrestricted fallback.
 
         Args:
             keywords: 已提取的关键词列表
@@ -212,60 +207,57 @@ class KeywordRetriever:
         Returns:
             带 ts_rank 排序的检索结果;查询失败或库不可用时返回空列表
         """
+        scope = resolve_scope(user_role, dept_namespace, doc_types)
+        terms = [checked_string(term, 512) for term in keywords[:8]]
+        if not terms or scope.doc_types == ():
+            return []
         from sqlalchemy import text
 
+        # Only generated parameter names enter SQL. Each term uses plain-text query parsing.
+        query_sql = " || ".join(f"plainto_tsquery('simple', :term_{i})" for i in range(len(terms)))
+        params: dict[str, object] = {f'term_{i}': term for i, term in enumerate(terms)}
+        params.update({
+            'kw': terms[0].replace('!', '!!').replace('%', '!%').replace('_', '!_'),
+            'all_namespaces': scope.namespaces is None,
+            'namespaces': json.dumps(scope.namespaces or []),
+            'role': json.dumps([scope.role]),
+            'all_types': scope.doc_types is None,
+            'doc_types': json.dumps(scope.doc_types or []),
+            'limit': top_k,
+        })
         try:
             from app.core.database import get_session_factory
 
-            factory = get_session_factory()
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"PG tsvector 降级: 数据库未就绪, {e}")
-            return []
-
-        # tsquery:关键词 OR 组合(simple 配置,中文可控的关键词匹配)
-        ts_query = " | ".join(keywords[:8])
-        if not ts_query:
-            return []
-
-        try:
-            async with factory() as session:
-                # search_vector 未维护时按 content 模糊匹配兜底(老数据)
-                rows = (
-                    await session.execute(
-                        text(
-                            """
-                            SELECT document_id, title, content, dept_namespace,
-                                   doc_type, source_url, updated_at,
-                                   ts_rank_cd(
-                                       COALESCE(search_vector,
-                                                to_tsvector('simple', COALESCE(content, ''))),
-                                       to_tsquery('simple', :ts_query)
-                                   ) AS rank
-                            FROM documents
-                            WHERE status = 'active'
-                              AND (search_vector @@ to_tsquery('simple', :ts_query)
-                                   OR content ILIKE '%' || :kw || '%')
-                              AND dept_namespace IN (:dept_ns, 'shared_company')
-                              AND access_roles @> CAST(:role AS JSONB)
-                            ORDER BY rank DESC
-                            LIMIT :limit
-                            """
-                        ),
-                        {
-                            "ts_query": ts_query,
-                            "kw": keywords[0],
-                            "dept_ns": dept_namespace or "shared_company",
-                            "role": f'["{user_role}"]' if user_role else "[]",
-                            "limit": top_k,
-                        },
-                    )
-                ).fetchall()
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"PG tsvector 降级检索失败: {e}")
+            async with get_session_factory()() as session:
+                rows = (await session.execute(text(f"""
+                    SELECT document_id, title, content, dept_namespace,
+                           doc_type, source_url, updated_at, access_roles, status,
+                           ts_rank_cd(COALESCE(search_vector,
+                                      to_tsvector('simple', COALESCE(content, ''))),
+                                      ({query_sql})) AS rank
+                    FROM documents
+                    WHERE status = 'active'
+                      AND (search_vector @@ ({query_sql})
+                           OR content ILIKE '%' || :kw || '%' ESCAPE '!')
+                      AND (:all_namespaces OR dept_namespace IN (
+                          SELECT jsonb_array_elements_text(CAST(:namespaces AS JSONB))))
+                      AND access_roles @> CAST(:role AS JSONB)
+                      AND (:all_types OR doc_type IN (
+                          SELECT jsonb_array_elements_text(CAST(:doc_types AS JSONB))))
+                    ORDER BY rank DESC
+                    LIMIT :limit
+                """), params)).fetchall()
+        except Exception:  # Database failure never removes filters or returns raw errors.
+            logger.error('RETRIEVAL_DATABASE_UNAVAILABLE')
             return []
 
         results: list[SearchResult] = []
         for row in rows:
+            if not scope.allows(getattr(row, 'dept_namespace', None),
+                                getattr(row, 'access_roles', None),
+                                getattr(row, 'status', None) == 'active',
+                                getattr(row, 'doc_type', None)):
+                continue
             results.append(
                 SearchResult(
                     chunk_id=f"{row.document_id}_chunk_pg",
@@ -277,6 +269,8 @@ class KeywordRetriever:
                     doc_type=row.doc_type or "",
                     source_url=row.source_url or "",
                     updated_at=int(row.updated_at.timestamp()) if row.updated_at else 0,
+                    access_roles=list(row.access_roles),
+                    is_active=True,
                 )
             )
         return results
@@ -305,6 +299,7 @@ class DegradationChain:
         top_k: int = 5,
     ) -> DegradationResult:
         """执行降级链"""
+        scope = resolve_scope(user_role, dept_namespace, doc_types)
         start = time.time()
 
         # 1. 主路径:向量检索
@@ -315,14 +310,17 @@ class DegradationChain:
                 dept_namespace=dept_namespace,
                 doc_types=doc_types,
             )
-            if r.results:
+            authorized = [result for result in r.results if scope.allows_result(result)]
+            if authorized:
                 return DegradationResult(
-                    results=r.results,
+                    results=authorized,
                     stage="vector",
                     latency_ms=r.latency_ms,
                 )
             # 结果为空,不一定是故障,可能是知识库真没数据。继续尝试关键词检索
             logger.info("向量检索结果为空,尝试关键词降级")
+        except RetrievalAccessError:
+            raise
         except Exception as e:  # noqa: BLE001
             from app.rag.model_profile import uses_remote_profile
             from app.rag.remote_models import RemoteModelError
@@ -336,8 +334,9 @@ class DegradationChain:
         try:
             results = await self.keyword_retriever.retrieve_by_keywords(
                 query=query, top_k=top_k, user_role=user_role,
-                dept_namespace=dept_namespace,
+                dept_namespace=dept_namespace, doc_types=doc_types,
             )
+            results = [result for result in results if scope.allows_result(result)]
             if results:
                 ms = int((time.time() - start) * 1000)
                 logger.info(f"BM25 降级命中: {len(results)} 条, cost={ms}ms")
@@ -346,6 +345,8 @@ class DegradationChain:
                     stage="bm25",
                     latency_ms=ms,
                 )
+        except RetrievalAccessError:
+            raise
         except Exception as e:  # noqa: BLE001
             logger.error(f"BM25 降级异常: {e}")
 

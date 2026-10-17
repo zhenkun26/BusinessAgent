@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import json
+
 import pytest
 
 from app.rag.degradation import KeywordRetriever
@@ -35,6 +37,8 @@ async def test_should_return_pg_rows_with_namespace_and_role_filters_when_milvus
         source_url=None,
         updated_at=now,
         rank=0.75,
+        access_roles=["salesperson"],
+        status="active",
     )
     session = FakeSession(responses=[FakeResult([fake_row])])
     monkeypatch.setattr(
@@ -61,11 +65,11 @@ async def test_should_return_pg_rows_with_namespace_and_role_filters_when_milvus
     assert results[0].score == 0.75
     sql_text = session.executed_sql[0]
     assert "dept_namespace IN" in sql_text
-    assert "shared_company" in sql_text
+    assert "jsonb_array_elements_text" in sql_text
     assert "access_roles" in sql_text
     assert "status = 'active'" in sql_text
     params = session.executed_params[0]
-    assert params["dept_ns"] == "dept_sales"
+    assert json.loads(params["namespaces"]) == ["dept_sales", "shared_company"]
     assert '"salesperson"' in params["role"]
 
 

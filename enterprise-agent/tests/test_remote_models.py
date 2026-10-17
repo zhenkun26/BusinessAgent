@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from contextlib import nullcontext
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import importlib.util
 from pathlib import Path
 import sys
@@ -35,17 +35,21 @@ def search_result_type():
     tree = ast.parse((ROOT / "app/rag/vector_store.py").read_text())
     cls = next(node for node in tree.body if isinstance(node, ast.ClassDef)
                and node.name == "SearchResult")
-    ns = {"dataclass": dataclass}
+    ns = {"dataclass": dataclass, "field": field}
     exec(compile(ast.Module(body=[cls], type_ignores=[]), "SearchResult", "exec"), ns)
     return ns["SearchResult"]
 
 
 SearchResult = search_result_type()
+policy = load('c07_policy_remote_tests', 'app/security/retrieval_policy.py')
+retrieval_helpers = load('c07_helpers_remote_tests', 'tests/test_retrieval_authorization.py')
+role_stub = module('app.security.rbac', **retrieval_helpers.role_contract())
 
 
 def candidate(index: int):
     return SearchResult(str(index), "doc", "title", "sample " + str(index), 0.2,
-                        "shared_company", "policy", "https://example.invalid/source", 123)
+                        "shared_company", "policy", "https://example.invalid/source", 123,
+                        ["salesperson"], True)
 
 
 class RemoteModelsTests(unittest.IsolatedAsyncioTestCase):
@@ -206,14 +210,17 @@ class RemoteModelsTests(unittest.IsolatedAsyncioTestCase):
         cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'DegradationChain')
         keyword = SimpleNamespace(_settings=settings(), retrieve_by_keywords=Mock())
         ns = dict(Optional=Optional, DegradationResult=object, time=time, logger=Mock(),
-                  KeywordRetriever=lambda: keyword)
+                  KeywordRetriever=lambda: keyword, resolve_scope=policy.resolve_scope,
+                  RetrievalAccessError=policy.RetrievalAccessError)
         exec(compile(ast.Module(body=[cls], type_ignores=[]), 'degradation', 'exec'), ns)
         primary = Mock()
         primary.retrieve.side_effect = remote.RemoteModelError('MODEL_RERANK_FAILED')
-        deps = {'app.rag.model_profile': helpers.profile, 'app.rag.remote_models': remote}
+        deps = {'app.rag.model_profile': helpers.profile, 'app.rag.remote_models': remote,
+                'app.security.rbac': role_stub}
         with patch.dict(sys.modules, deps):
             with self.assertRaisesRegex(remote.RemoteModelError, '^MODEL_RERANK_FAILED$'):
-                await ns['DegradationChain'](primary).run('query')
+                await ns['DegradationChain'](primary).run(
+                    'query', user_role='salesperson', dept_namespace='dept_sales')
         keyword.retrieve_by_keywords.assert_not_called()
 
     def test_retriever_does_not_swallow_remote_rerank_failure(self) -> None:
@@ -223,14 +230,16 @@ class RemoteModelsTests(unittest.IsolatedAsyncioTestCase):
                   RetrievalResult=object, SearchResult=SearchResult, time=time, logger=Mock(),
                   get_settings=settings, uses_remote_profile=helpers.profile.uses_remote_profile,
                   traced_span=lambda *a, **kw: nullcontext(), record_span_attributes=Mock(),
-                  SearchFilter=lambda **kw: kw)
+                  SearchFilter=lambda **kw: kw, resolve_scope=policy.resolve_scope)
         exec(compile(ast.Module(body=[cls], type_ignores=[]), 'retriever', 'exec'), ns)
         store = Mock(search=Mock(return_value=[candidate(0)]))
         ranker = Mock(rerank=Mock(side_effect=ValueError('SYNTHETIC_SECRET')))
         retriever = ns['EnterpriseRAGRetriever'](store, ranker, Mock())
-        with patch.dict(sys.modules, {'app.rag.remote_models': remote}):
+        with patch.dict(sys.modules, {
+            'app.rag.remote_models': remote, 'app.security.rbac': role_stub,
+        }):
             with self.assertRaisesRegex(remote.RemoteModelError, '^MODEL_RERANK_FAILED$'):
-                retriever.retrieve('query', scene='general')
+                retriever.retrieve('query', 'salesperson', 'dept_sales', scene='general')
 
 
 if __name__ == '__main__':

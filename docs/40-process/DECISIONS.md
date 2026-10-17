@@ -177,3 +177,20 @@
   encodings, external logging/exporters and real browser behavior need live evidence.
 - **Evidence**: [C06 delivery record](阶段性总结_C06凭证与HTML失败安全.md); offline
   increment passes, runtime/historical acceptance remains BLOCKED. C07 not started.
+
+
+## 23. One fail-closed retrieval scope (2026-10-17)
+
+- **Decision**: Resolve ROLE_NAMESPACES with current identity before retrieval.
+  Ordinary roles receive allowed current department plus shared; missing department
+  is shared-only. Managers receive their explicit four-department grant; admins
+  have wildcard namespaces. Both still require active documents and role ACL.
+- **Encoding**: Centralize Milvus literals; bind PG JSON arrays and plain keyword
+  queries. Carry type constraints across fallback and recheck ACL metadata before
+  reranking, generation and citations. No unfiltered retrieval compatibility mode.
+- **Tradeoff**: Unknown/missing ACL rows are unavailable until corrected through
+  separately authorized data operations. Persisted misclassification, historical
+  answers and index consistency remain outside this incremental query guard.
+- **Evidence**: [C07 record](阶段性总结_C07检索权限与表达式编码.md) and
+  [matrix/acceptance contract](../50-engineering/retrieval-authorization.md).
+  Offline increment passes; real Milvus/PG/API/Linux remains BLOCKED. C08 waits.
