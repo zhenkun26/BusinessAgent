@@ -12,6 +12,8 @@
 
 ### 工程收尾规划（2026-10-17）
 
+- C04 离线增量：五个会话入口统一归属授权，明确管理员仅可跨用户取消；固定拒绝响应、安全新会话创建、带所有者条件的续聊更新、移除反馈占位会话。20 项离线测试通过；C03 `fc8da91` 已推送，真实 PostgreSQL/API/Linux 验收仍 BLOCKED，C04 整项 open，未推进 C05。[实施记录](docs/40-process/阶段性总结_C04会话归属校验.md)。
+
 - C03 离线增量：schema/演示种子分离、版本与校验和迁移、事务锁、显式管理员与开发种子、启动/健康 schema 检查；C02 `42bfc7f` 已推送。真实 PostgreSQL/API/Linux 验收仍 BLOCKED，C03 整项 open，未推进 C04。[实施记录](docs/40-process/阶段性总结_C03数据库迁移与初始化.md)。
 
 - C02 外部模型离线增量：百炼北京 embedding/reranker 与 DeepSeek Flash/Pro，独立密钥、超时重试、严格响应校验、失败闭合与付费启动探针授权开关；slim 构建保留获批 libpq5/import 检查。真实 API/Linux 验收 BLOCKED，C02 整项 open。[实施记录](docs/40-process/阶段性总结_C02模型依赖.md)。

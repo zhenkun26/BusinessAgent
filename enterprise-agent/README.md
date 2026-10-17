@@ -74,6 +74,8 @@ curl -X POST http://localhost:8000/api/v1/auth/refresh \
 
 ### 5. 发送对话
 
+首次对话省略 `session_id`（或传 null），之后只使用服务端返回且属于当前用户的 ID。普通/SSE 对话、历史和反馈均仅本人可用；管理员仅在取消接口保留跨用户例外。不存在与无权访问统一返回 404，反馈不会补建会话。完整规则和运行验收限制见[会话归属契约](../docs/50-engineering/session-ownership.md)。
+
 ```bash
 # 知识问答(RAG)
 curl -X POST http://localhost:8000/api/v1/chat/message \

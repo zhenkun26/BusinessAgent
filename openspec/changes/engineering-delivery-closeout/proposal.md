@@ -21,6 +21,7 @@
 - `model-profile`: C02 生产模型方案、依赖契约、启动推理探针与失败闭合。
 
 - `database-bootstrap`: C03 explicit migrations, schema readiness and isolated administrator/demo bootstrap.
+- `session-ownership`: C04 persisted chat-session ownership, explicit administrator exceptions and authorization before side effects.
 
 ### Modified Capabilities
 
@@ -40,3 +41,5 @@
 C02 scope (confirmed 2026-10-17): replace the provisional local candidate with Beijing Bailian embedding/reranking and official DeepSeek Flash/Pro services. Implement separate credentials, bounded remote adapters, profile/startup validation, isolated vector collection configuration and slim-image alignment; retain approved libpq5/checkpoint checks. This increment includes documentation and offline verification only. Real API calls and isolated Linux acceptance remain BLOCKED; C02 remains open; the then-pending C03 authorization is recorded separately below.
 
 C03 authorization (2026-10-17): C02 commit `42bfc7f6f3033c5eb5e06fb6d497a92dad86a039` was pushed and the remote branch hash verified. Implement C03 without touching the current database; real API/Linux acceptance remains BLOCKED. C04 and C03 push are not authorized.
+
+C04 authorization (2026-10-17): the user approved pushing C03 and implementing C04. C03 `fc8da91534a64737fae32d76b81ed00580f5093e` was pushed to the same remote branch and its hash verified. Real PostgreSQL/API/Linux acceptance remains BLOCKED; deliver C04 locally and pause. No C04 push, C05 work, deployment or release is authorized.

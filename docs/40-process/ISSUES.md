@@ -8,7 +8,7 @@
 <a id="engineering-closeout"></a>
 ### 工程交付收尾差距 C01–C25（2026-10-17）
 
-本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，C01 配置已独立提交推送但运行验收 BLOCKED；C02 已有模型契约与离线实现，libpq5 已获批并补入配方，外部模型方案已确认，真实 API/Linux 验收仍 BLOCKED；C03 迁移/bootstrap 离线增量已实现，真实 PostgreSQL/Linux 验收 BLOCKED；其余未实施。现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
+本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，C01 配置已独立提交推送但运行验收 BLOCKED；C02 已有模型契约与离线实现，libpq5 已获批并补入配方，外部模型方案已确认，真实 API/Linux 验收仍 BLOCKED；C03 增量 fc8da91 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属离线增量已实现，真实 HTTP/PG 验收 BLOCKED；其余未实施。现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
 
 每项日期均为 2026-10-17，计划修复按对应缺口执行，修复与验证记录待逐项实施后补充。源码链接相对本文件；工程验收遵守[交付基线](../50-engineering/engineering-delivery-baseline.md)的证据等级与记录模板，执行依赖以 [ROADMAP](ROADMAP.md#engineering-closeout-stages) 为准。历史 fixed 条目保留当时证据，不自动覆盖本轮新发现。
 
@@ -34,7 +34,7 @@
 - **现状/证据**：[init.sql](../../enterprise-agent/deploy/init.sql) 混合 schema 与演示账户/业务数据；[database.py](../../enterprise-agent/app/core/database.py) 初始化主要检查连接；已有[迁移目录](../../enterprise-agent/deploy/migrations)但缺少统一版本执行约束。
 - **缺口/原因**：空库、已有库升级、重复启动和生产 bootstrap 缺少统一可复现路径。
 - **验收**：隔离空库初始化及已有版本副本升级均通过，迁移有版本记录并可重复安全执行；迁移失败不进入 ready；默认交付不自动生成演示账户/默认口令，演示种子显式启用；记录管理员 bootstrap 与回退方法，已有业务数据保留。不对当前库执行迁移。
-- **实施与限制（2026-10-17）**：schema 与演示数据已分离，Compose 不再自动挂载初始化 SQL；版本/校验和/事务锁、显式旧库接管、管理员与开发种子、API/worker schema 启动检查已实现。22 项模拟编排/失败边界测试 PASS；不连接当前库、不创建默认账户、不回填历史口令。真实 PostgreSQL 空库/升级/并发/回滚/登录和 Linux 部署仍 **BLOCKED**，C03 整项 open，C04 未推进。见[初始化手册](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)与[阶段记录](阶段性总结_C03数据库迁移与初始化.md)。
+- **实施与限制（2026-10-17）**：schema 与演示数据已分离，Compose 不再自动挂载初始化 SQL；版本/校验和/事务锁、显式旧库接管、管理员与开发种子、API/worker schema 启动检查已实现。22 项模拟编排/失败边界测试 PASS；不连接当前库、不创建默认账户、不回填历史口令。真实 PostgreSQL 空库/升级/并发/回滚/登录和 Linux 部署仍 **BLOCKED**，C03 整项 open；增量 `fc8da91` 已按后续授权推送，C04 单独授权推进。见[初始化手册](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)与[阶段记录](阶段性总结_C03数据库迁移与初始化.md)。
 
 <a id="c04"></a>
 #### C04 · P0 · 会话归属校验
@@ -42,6 +42,7 @@
 - **现状/证据**：[chat.py](../../enterprise-agent/app/api/chat.py) 普通/流式请求接受 session_id，历史和反馈缺少一致归属校验；取消路径已有 owner/admin 检查。
 - **缺口/原因**：会话读写入口未统一按身份授权，存在跨用户读取或修改的静态风险。
 - **验收**：A/B 两用户针对普通对话、SSE、历史、反馈、取消交叉访问；未授权请求全部拒绝且不改变 session/checkpoint/反馈数据；合法本人流程通过；管理员例外逐接口定义并测试；不存在与无权访问的响应不泄漏敏感信息。
+- **实施与限制（2026-10-17）**：五入口统一以 sessions.user_id 授权；普通/SSE/历史/反馈仅本人，取消保留管理员例外。未知/他人 ID 同为固定 404，归属查询失败固定 503；服务端创建新 ID，续聊 UPDATE 带所有者条件，反馈不再补建会话。20 项离线对抗测试 PASS；真实 HTTP/SSE、PG 事务/锁和完整认证仍 **BLOCKED**，C04 整项 open，未推进 C05。见[权限契约](../50-engineering/session-ownership.md)与[阶段记录](阶段性总结_C04会话归属校验.md)。
 
 <a id="c05"></a>
 #### C05 · P0 · 认证失败闭合与运行时授权

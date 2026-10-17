@@ -44,6 +44,7 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `scripts/backup.sh` | 暂停服务、备份卷、`docker --rm`、`find -delete` | 不直接运行；C22 提供独立非删除路径 |
 | `run_load_test.sh` / k6 | 网络负载，容器模式含 `--rm`，会生成结果 | 不纳入；C23 确定隔离环境与负载后再审查 |
 | `app/observability/audit.py` | 缓存消费成功后 `os.remove` | 不导入/执行应用；C21 处理审计保留与恢复 |
+| `eval/run_c04_session_ownership.py` | 标准库加载 C04 unittest；依赖注入，内存数据库/图/审计，无真实网络、文件写入或清理 | C04 单独审查允许：仓库根目录执行 `python3 -I -B enterprise-agent/eval/run_c04_session_ownership.py`；不加入原五函数白名单，不代表真实 HTTP/PG 验收 |
 | 其他 eval / scripts | 可能启动应用、模型、写 DB/向量库、网络或覆盖报告 | 默认不允许，逐项审查，不能仅凭脚本名认定安全 |
 | 全量 pytest | 项目 conftest 本身为内存 mock，但插件、cache、tmp_path 生命周期不在五函数审查范围内 | 本轮不运行；入口测试用独立 unittest，夹具追加保留 |
 
