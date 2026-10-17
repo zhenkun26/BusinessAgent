@@ -32,6 +32,7 @@
 | 后端内部简化 | 2026-09-29 | ✅ 已合并并发布 | PR #1 合并为 `2d4bfc1`；Python 3.11/3.13 各 143 项测试通过；仅 FGR-01/FAT-01，OpenSpec 已归档；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
 | CI 镜像发布门禁修复 | 2026-09-29 | ✅ 已合并并发布 | 先扫描后发布同一镜像；主分支 CI `36522224892` 全部通过，GHCR 提交标签与 latest 摘要一致；OpenSpec 已归档，未部署生产；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
 | 交付收尾与 CI 必需检查 | 2026-09-29 | ✅ 必需检查生效，离线核验完成 | strict 模式绑定三个 GitHub Actions 检查；G0 16/16 通过、GATE-01 自动回归证据就绪；保持真实 UAT/联调/灰度阻塞；[推进记录](交付与离线推进记录-2026-09-29.md) |
+| 中英文 README | 2026-10-17 | ✅ 本地文档检查；待 PR 集成 | 中文 README 与完整英文翻译、互链及目录索引；各 21 个仓库链接/3 个锚点有效，11 组代码块与配置/链接目标一致，16 段 Shell 语法检查通过；未安装依赖或启动服务，OpenSpec CLI 不可用；[变更与验证记录](../../openspec/changes/archive/2026-10-17-refresh-bilingual-readmes/tasks.md) |
 
 ## 二、进行中
 
@@ -44,6 +45,7 @@
 | ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
 | ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
 | ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
+| ~~fix-vulnerable-runtime-dependencies~~ | P1 | ✅ 已归档 2026-10-17；待 PR 集成 | `492882c` 修复 4 个既有依赖；CI 39012279790 的 Python 3.11/3.13 各 143 测试、gitleaks、pip-audit、生产镜像构建及 Trivy 全部通过；最终记录提交与批准审核仍需核验；[记录](../../openspec/changes/archive/2026-10-17-fix-vulnerable-runtime-dependencies/tasks.md) |
 | crm-mail-sso-integration | P2 | 实施中 9/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
 | uat-and-ga-rollout | P3 | 实施中 8/15 | UAT、灰度、上线门槛检查单（灰度方案条件评审通过，最短观察期 4 周；UAT 资源核验仍 BLOCKED） |
 | ~~fix-prod-image-pip-removal~~ | P1 | ✅ 已归档 2026-08-15 | 修复生产镜像 runner 阶段 pip 清理顺序；CI run 31890705614 已通过 Python 3.11/3.13、生产镜像构建与 Trivy 扫描 |

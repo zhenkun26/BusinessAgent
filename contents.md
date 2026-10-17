@@ -4,7 +4,8 @@
 
 ```text
 BusinessAgent/
-├── README.md                           # 全仓库唯一导航入口（本层所有链接起点）
+├── README.md                           # 中文项目介绍与全仓库导航入口
+├── README-en.md                        # English translation of the root README
 ├── contents.md                         # 本文件：目录树索引（每行注释用途）
 ├── CHANGELOG.md                        # 版本变更日志（按时间倒序，含版本号/日期/摘要）
 ├── AGENTS.md                           # AI 助手项目说明：目录结构、常用命令、工程约定
@@ -125,5 +126,7 @@ BusinessAgent/
             ├── 2026-08-15-fix-prod-image-pip-removal/   # 生产镜像 pip 清理顺序修复 4/4（归档）
             ├── 2026-09-28-simplify-backend-internals/  # FGR-01/FAT-01 内部简化与验证（已合并归档）
             ├── 2026-09-28-scan-image-before-publish/  # CI 先扫描后发布（已合并并发布镜像）
-            └── 2026-09-29-close-delivery-and-require-ci/ # 交付收尾、CI 必需检查与离线推进
+            ├── 2026-09-29-close-delivery-and-require-ci/ # 交付收尾、CI 必需检查与离线推进
+            ├── 2026-10-17-fix-vulnerable-runtime-dependencies/ # Runtime dependency repair; CI passed
+            └── 2026-10-17-refresh-bilingual-readmes/  # Chinese and English README refresh and validation
 ```

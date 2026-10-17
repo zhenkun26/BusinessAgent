@@ -105,6 +105,15 @@
 
 ## 二、已修复（按日期倒序）
 
+### I-13 PR #3 生产镜像依赖漏洞阻断（2026-10-17）
+
+- 状态：fixed（492882c 云端 CI 验证通过；待 PR 集成）· 优先级 P1
+- 现象：[CI 39011635217](https://github.com/zhenkun26/BusinessAgent/actions/runs/39011635217) 的 Python 3.11/3.13 检查通过，Trivy 报告 16 个 HIGH、1 个 CRITICAL，生产镜像检查失败。
+- 根因：生产依赖清单锁定的 PyJWT、langgraph-sdk、pypdf、urllib3 版本命中已公布漏洞；README 变更未修改这些依赖。
+- 修复：生产 pin 分别升级到 2.15.0、0.4.4、6.19.0、2.8.0；开发 requirements 与 pyproject 同步安全下限。PyJWT 2.14.0 仍有后续公告，选择已发布的 2.15.0。
+- 验证：三份清单一致性、上游约束、diff 检查通过；[CI 39012279790](https://github.com/zhenkun26/BusinessAgent/actions/runs/39012279790) 在修复提交 `492882c` 上全部通过：Python 3.11/3.13 各 143 测试通过，gitleaks/pip-audit 无发现，生产镜像构建与 Trivy 门禁通过。归档记录提交仍需最终 CI；PR 检查未发布镜像。
+- 边界：扫描门槛、漏洞豁免、分支保护均未修改；必需批准审核独立于 CI。详见 [修复记录](../../openspec/changes/archive/2026-10-17-fix-vulnerable-runtime-dependencies/tasks.md)。
+
 ### 2026-08-15 生产镜像 runner 阶段 pip 清理顺序导致 CI 构建失败
 
 - 状态：fixed（2026-08-15 CI 验证通过）· 优先级 P1
