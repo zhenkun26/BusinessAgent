@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from contextlib import ExitStack, asynccontextmanager
 from copy import deepcopy
 from pathlib import Path
@@ -72,6 +73,16 @@ class Database:
                          requester_token='valid', approver_id='approver',
                          approver_roles=['manager'], status='pending',
                          prefill_payload={'tool_calls': [{'tool': 'send_email_external', 'operation_id': '00000000-0000-4000-8000-000000000001'}]})
+        self.row.live=True
+        self.row.execution_id=None
+        self.row.execution_claim=None
+        self.row.execution_deadline=None
+        self.row.execution_error=None
+        self.saved_row=deepcopy(self.row)
+        self.events=[]
+        self.saved_events=[]
+        self.operations=[]
+        self.saga=None
         self.queries: list[tuple[str, dict]] = []
         self.writes: list[tuple[str, dict]] = []
         self.fail_users = False
@@ -84,29 +95,55 @@ class Database:
     async def __aexit__(self, *args: Any) -> None:
         pass
 
-    async def execute(self, sql: str, params: dict) -> Any:
+    async def execute(self, sql: str, params: dict | None = None) -> Any:
+        params=params or {}
         self.queries.append((sql, deepcopy(params)))
+        row=None; rows=[]
         if 'FROM users' in sql:
-            if self.fail_users:
-                raise RuntimeError('SYNTHETIC_PRIVATE_DATABASE_SECRET')
             assert 'WHERE user_id = :uid' in sql
-            row = deepcopy(self.users.get(params['uid']))
+            if self.fail_users:raise RuntimeError('SYNTHETIC_PRIVATE_DATABASE_SECRET')
+            row=deepcopy(self.users.get(params['uid']))
+        elif 'FROM saga_runs' in sql:
+            row=self.saga
+        elif 'FROM tool_operations' in sql:
+            rows=self.operations
         elif 'FROM approval_requests' in sql:
-            assert 'WHERE approval_id = :id' in sql
             assert 'requester_token' not in sql
-            row = deepcopy(self.row)
+            if 'WHERE approval_id = :id' in sql:
+                row=deepcopy(self.row) if params['id']==self.row.approval_id else None
+            else:rows=[deepcopy(self.row)]
         elif sql.startswith('UPDATE approval_requests'):
-            self.writes.append((sql, deepcopy(params)))
-            row = None
-        else:
-            raise AssertionError('Unexpected SQL')
-        return SimpleNamespace(fetchone=lambda: row)
+            self.writes.append((sql,deepcopy(params)))
+            current=self.row
+            allowed=current.approval_id==params['id']
+            if "status = 'timeout'" in sql:
+                allowed=allowed and current.status in ('pending','approved_pending_reauth') and not current.live
+                if allowed:current.status='timeout'
+            elif "status = 'executing'" in sql:
+                allowed=allowed and current.status=='approved_pending_reauth' and current.live and current.execution_claim is None
+                if allowed:current.status='executing';current.execution_id=params['eid'];current.execution_claim=params['claim']
+            elif 'execution_claim = :claim' in sql:
+                allowed=allowed and current.status in ('executing','execution_unknown') and current.execution_claim==params['claim'] and current.status!=params['status']
+                if allowed:current.status=params['status'];current.execution_error=params['error']
+            elif 'execution_checked_at' in sql:
+                pass
+            else:
+                allowed=allowed and current.status=='pending' and current.live
+                if allowed:current.status=params['status'];current.approver_id=params['approver']
+            if allowed:row=deepcopy(current)
+        elif 'INSERT INTO audit_logs' in sql:
+            self.events.append(json.loads(params['payload']))
+        else:raise AssertionError(sql)
+        return SimpleNamespace(fetchone=lambda:row,fetchall=lambda:deepcopy(rows),
+            mappings=lambda:SimpleNamespace(all=lambda:deepcopy(rows)))
 
     async def commit(self) -> None:
-        self.commits += 1
+        self.commits+=1
+        self.saved_row=deepcopy(self.row);self.saved_events=deepcopy(self.events)
 
     async def rollback(self) -> None:
-        self.rollbacks += 1
+        self.rollbacks+=1
+        self.row=deepcopy(self.saved_row);self.events=deepcopy(self.saved_events)
 
 
 class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
@@ -161,7 +198,20 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
             load('c05_redaction', 'app/security/redaction.py')}))
         self.operations = load('c05_operations', 'app/core/tool_operations.py')
         self.stack.enter_context(patch.dict(sys.modules, {'app.core.tool_operations': self.operations}))
+        self.lifecycle=load('c11_lifecycle','app/core/approval_lifecycle.py')
+        self.original_bind=self.lifecycle.bind_execution
+        self.original_observe=self.lifecycle.observe
+        self.lifecycle.bind_execution=AsyncMock(side_effect=self.bind_fixture)
+        self.lifecycle.observe=AsyncMock(return_value='executed')
+        self.stack.enter_context(patch.dict(sys.modules, {
+            'app.core':module('app.core',approval_lifecycle=self.lifecycle),
+            'app.core.approval_lifecycle':self.lifecycle}))
         self.approval = load('c05_approval', 'app/api/approval.py')
+
+    async def bind_fixture(self,row,calls):
+        for call in calls:self.operations.valid_uuid(call.get('operation_id'))
+        return '00000000-0000-4000-8000-000000000002'
+
 
     def decode_fixture(self, token: str, key: str, *, algorithms: list, options: dict) -> dict:
         # A branch-driving fixture, NOT a signature implementation or a PyJWT substitute.
@@ -347,10 +397,11 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
     async def test_expired_or_missing_stored_token_only_enters_reauth(self) -> None:
         for token in ('expired', ''):
             self.db.row.requester_token = token
+            self.db.row.status = 'pending'
             result = await self.call()
             self.assertEqual(result.status, 'approved_pending_reauth')
             self.execute.assert_not_awaited()
-        self.assertTrue(all('approved_pending_reauth' in sql for sql, _ in self.db.writes))
+        self.assertTrue(all(params.get('status') == 'approved_pending_reauth' for sql, params in self.db.writes))
 
     async def test_expired_token_does_not_bypass_revoked_requester(self) -> None:
         self.db.row.requester_token = 'expired'
@@ -372,12 +423,12 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((context['user_id'], context['role'], context['dept']),
                          ('requester', 'salesperson', 'dept_sales'))
         queries = [(sql, params['uid']) for sql, params in self.db.queries if 'FROM users' in sql]
-        self.assertEqual([uid for _, uid in queries], ['approver', 'requester'])
+        self.assertEqual([uid for _, uid in queries], ['approver', 'requester', 'approver', 'requester'])
         self.assertTrue(all('FOR SHARE' in sql for sql, _ in queries))
 
     async def test_decision_records_auditable_confirmation_requirement(self) -> None:
         await self.call()
-        payload = self.audit.log.await_args.kwargs['payload']
+        payload = self.db.events[-1]
         self.assertEqual(payload['decided_by'], 'approver')
         self.assertEqual(payload['execution_authorization'], 'requester_confirmation_required')
         self.execute.assert_not_awaited()
@@ -413,7 +464,7 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status, 'executed')
         self.assertNotIn('jwt_token', self.execute.await_args.args[1])
         self.assertTrue(all('token' not in params for _, params in self.db.writes))
-        self.assertEqual(self.audit.log.await_args.kwargs['payload']['decided_by'], 'approver')
+        self.assertEqual(self.db.events[-1]['decided_by'], 'approver')
 
     async def test_valid_batch_only_records_approval(self) -> None:
         result = await self.call('batch')

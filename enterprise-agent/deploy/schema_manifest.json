@@ -24,6 +24,12 @@
       "name": "saga_journal",
       "file": "004_saga_journal.sql",
       "sha256": "00b28bf3f460525713a0ec19a378cf783c43850ace1787f95b3e92fc05e12376"
+    },
+    {
+      "version": 5,
+      "name": "approval_execution",
+      "file": "005_approval_execution.sql",
+      "sha256": "3c4fd1fc49c4e3792c7955149684f2c677459383d2f98a94b76c48cbf5977126"
     }
   ],
   "columns": {
@@ -158,6 +164,22 @@
       },
       "expires_at": {
         "type": "timestamp"
+      },
+      "execution_id": {
+        "type": "uuid"
+      },
+      "execution_claim": {
+        "type": "uuid"
+      },
+      "execution_deadline": {
+        "type": "timestamptz"
+      },
+      "execution_error": {
+        "type": "varchar",
+        "length": 64
+      },
+      "execution_checked_at": {
+        "type": "timestamptz"
       }
     },
     "audit_logs": {
@@ -575,7 +597,9 @@
     "idx_task_jobs_scope": true,
     "idx_task_jobs_poll": false,
     "idx_task_jobs_expired": false,
-    "idx_saga_runs_recovery": false
+    "idx_saga_runs_recovery": false,
+    "idx_approval_execution": true,
+    "idx_approval_reconcile": false
   },
   "legacy_columns": {
     "users": {

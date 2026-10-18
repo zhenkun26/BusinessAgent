@@ -374,3 +374,28 @@ Saga-only bounded queue retry is safe only through these retained dispatch claim
 knowledge jobs keep C14's conservative policy. Legacy Saga rows are not converted.
 No new dependency, live service, migration execution or filesystem deletion. C10/C21
 remain outside this increment. Real acceptance and OpenSpec CLI remain BLOCKED.
+
+## C11 design: atomic approval decisions and one-way execution claims
+
+Lock approval rows and use status/deadline predicates with RETURNING for every transition.
+Approval expiry applies to pending and approved_pending_reauth, using database UTC time;
+null legacy deadlines fail closed. Batch decisions are all-or-nothing, lock distinct IDs
+in sorted order, reject duplicates and never execute tools. Approval, execution success
+and compensation success remain different states.
+
+Resume checks a fresh requester bearer and both current participants, binds the exact C12
+plan/owner/session, then commits a unique execution binding and random claim before tool
+I/O. Release identity locks before HTTP. Repeat resume never dispatches an already claimed
+execution. A five-minute observation deadline marks execution_unknown, never releases or
+reclaims it. Late completion may settle the same claim; expiry after a valid claim is not
+cancellation of a sent request. Current tool authorization still applies per C05/C12.
+
+Resolve state from retained C12 receipts / C13 journal: executed, execution_failed,
+compensated, compensation_failed or execution_unknown. Worker reconciliation reads only
+stored evidence and never mints JWT, approval scope or forward operations. Legacy executed
+rows without new evidence remain historical/unverified, not re-certified by this increment.
+
+Write transition audit events in the same database transaction as state changes. Notifications
+are best-effort observations and cannot change committed outcomes; no automatic notification
+retry or C21 cache replay. Add v5 schema fields/index without changing v1-v4 bytes. No live
+migration/service/model calls, dependency addition or deletion. Stop after local C11 delivery.

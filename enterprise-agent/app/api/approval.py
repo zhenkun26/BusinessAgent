@@ -2,18 +2,20 @@
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from loguru import logger
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import text
+
+from app.core import approval_lifecycle as lifecycle
+from app.core.tool_operations import OperationError
+from app.security.redaction import redact_text
 
 from app.core.database import get_db
 from app.core.approval_notify import notify_approval_result
-from app.observability.audit import get_audit_logger
 from app.security.rbac import (
     User, get_current_user, AgentRole, security_scheme, ROLE_TOOLS,
     decode_identity_token, resolve_active_user,
@@ -26,7 +28,7 @@ class ApprovalDecisionRequest(BaseModel):
     """审批决策请求"""
 
     decision: Literal["approved", "rejected"]
-    comment: str = ""
+    comment: str = Field(default="", max_length=1000)
 
 
 class ApprovalResponse(BaseModel):
@@ -114,220 +116,161 @@ async def _execute_approval_tools(
             valid_uuid(plan.operation_id)
     except OperationError:
         raise HTTPException(409, "APPROVAL_ACTION_IDENTITY_REQUIRED") from None
+    # Release participant locks before external work; the execution claim already committed.
+    await db.commit()
     with approved_calls(requester.user_id, row.approval_id, _approval_tool_calls(row)):
         exec_result = await execute_tool_calls(plans, context)
-    outputs = getattr(exec_result, "output", None) or getattr(exec_result, "outputs", None) or {}
-    error = getattr(exec_result, "error", None)
     if exec_result.success:
-        return True, f"工具执行成功: {outputs}", requester.role
-    return False, f"工具执行失败: {error or outputs}", requester.role
+        return True, "工具返回成功；最终状态以持久回执为准", requester.role
+    return False, "工具执行未完成；请核对持久执行状态", requester.role
+
+
+STATUS_MESSAGES = {
+    "approved_pending_reauth": "审批已通过，待发起人确认执行",
+    "rejected": "审批已拒绝，操作未执行",
+    "timeout": "审批已过期，操作未领取",
+    "executing": "执行已领取，正在处理；重复确认不会重复执行",
+    "executed": "已由持久记录确认执行成功",
+    "execution_failed": "执行失败，未确认产生成功动作",
+    "compensated": "执行失败，已补偿所有确认成功的步骤",
+    "compensation_failed": "补偿未完成，需要人工核对",
+    "execution_unknown": "执行结果尚未确认，请勿重新发起相同操作",
+}
+
+
+async def _notify_committed(db: Any, row: Any, state: str) -> None:
+    try:
+        await notify_approval_result(db=db, approval_id=row.approval_id,
+            requester_id=row.requester_id, session_id=row.session_id,
+            result_type=state, detail=STATUS_MESSAGES.get(state, "请查询审批状态"))
+    except Exception:
+        logger.warning("APPROVAL_NOTIFICATION_FAILED")
+        # Notification queries must not leave a failed transaction in a reused batch session.
+        try:
+            await db.rollback()
+        except Exception:
+            logger.warning("APPROVAL_NOTIFICATION_SESSION_UNAVAILABLE")
+
+
+async def _decide_locked(db: Any, row: Any, approver_id: str, decision: str,
+                         comment: str, batch_id: str | None = None) -> str:
+    if row is None:
+        raise HTTPException(404, "审批请求不存在")
+    if decision == "rejected":
+        _check_approver_role(row, await resolve_active_user(approver_id, db, lock=True))
+    else:
+        await _authorize_approval(db, row, approver_id)
+    if row.status != "pending":
+        raise HTTPException(409, "APPROVAL_ALREADY_DECIDED")
+    if not row.live:
+        await lifecycle.expire(db, row)
+        raise HTTPException(409, "APPROVAL_EXPIRED")
+    state = "rejected" if decision == "rejected" else "approved_pending_reauth"
+    changed = (await db.execute(text("""UPDATE approval_requests SET status = :status,
+        approver_id = :approver, comment = :comment, decided_at = NOW(), batch_id = :batch_id
+        WHERE approval_id = :id AND status = 'pending'
+        AND expires_at > (clock_timestamp() AT TIME ZONE 'UTC') RETURNING approval_id"""), {
+            "id": row.approval_id, "status": state, "approver": approver_id,
+            "comment": redact_text(comment), "batch_id": batch_id})).fetchone()
+    if changed is None:
+        raise HTTPException(409, "APPROVAL_STATE_CONFLICT")
+    current = await lifecycle.load_locked(db, row.approval_id)
+    await lifecycle.event(db, current, approver_id, state)
+    return state
 
 
 @router.post("/approval/{approval_id}/decide", response_model=ApprovalResponse)
 async def decide_approval(
-    approval_id: str,
-    req: ApprovalDecisionRequest,
-    approver: User = Depends(get_current_user),
-    db=Depends(get_db),
+    approval_id: str, req: ApprovalDecisionRequest,
+    approver: User = Depends(get_current_user), db=Depends(get_db),
 ):
-    """审批决策 API
-
-    对应 v3 方案 10.3 节 decide_approval_v3:
-    - 校验审批人身份
-    - 记录批准决定并等待发起人确认
-    - 不读取、刷新或保存历史 JWT;执行仅通过 resume
-    """
-    from sqlalchemy import text
-
-    # 1. 查询审批请求
-    result = await db.execute(
-        text(
-            "SELECT approval_id, session_id, requester_id, operation_type, "
-            "risk_level, summary, prefill_payload, approver_roles, status "
-            "FROM approval_requests WHERE approval_id = :id"
-        ),
-        {"id": approval_id},
-    )
-    row = result.fetchone()
-    if row is None:
-        raise HTTPException(404, "审批请求不存在")
-
-    if row.status != "pending":
-        raise HTTPException(400, f"审批已处理, 当前状态: {row.status}")
-
-    # Request authentication may predate this transaction; resolve authority again.
-    if req.decision == "rejected":
-        current_approver = await resolve_active_user(approver.user_id, db, lock=True)
-        _check_approver_role(row, current_approver)
-    else:
-        await _authorize_approval(db, row, approver.user_id)
-
-    if req.decision == "rejected":
-        # 直接拒绝,无需执行
-        await db.execute(
-            text(
-                "UPDATE approval_requests SET status = 'rejected', "
-                "approver_id = :approver, comment = :comment, "
-                "decided_at = NOW() WHERE approval_id = :id"
-            ),
-            {
-                "id": approval_id, "approver": approver.user_id,
-                "comment": req.comment,
-            },
-        )
-        await db.commit()
-
-        # 审计:审批决策(拒绝)
-        await get_audit_logger().log(
-            event_type="approval_decision",
-            user_id=approver.user_id,
-            session_id=row.session_id,
-            payload={
-                "approval_id": approval_id,
-                "decision": req.decision,
-                "new_status": "rejected",
-            },
-        )
-        # 通知发起人:审批已拒绝
-        try:
-            await notify_approval_result(
-                db=db,
-                approval_id=approval_id,
-                requester_id=row.requester_id,
-                session_id=row.session_id,
-                result_type="rejected",
-                detail=f"审批已拒绝({req.comment or '无意见'}),操作未执行",
-            )
-        except Exception as e:  # noqa: BLE001 通知失败不影响审批结果返回
-            logger.warning(f"审批拒绝通知失败 {approval_id}: {e}")
-        return ApprovalResponse(
-            approval_id=approval_id, status="rejected",
-            message="审批已拒绝, 流程终止",
-        )
-
-    # Approval records authority only; requester confirmation executes the tools.
-    await db.execute(
-        text(
-            "UPDATE approval_requests SET status = 'approved_pending_reauth', "
-            "approver_id = :approver, comment = :comment, "
-            "decided_at = NOW() WHERE approval_id = :id"
-        ),
-        {
-            "id": approval_id, "approver": approver.user_id,
-            "comment": req.comment,
-        },
-    )
-    await db.commit()
-
-    await get_audit_logger().log(
-        event_type="approval_decision", user_id=approver.user_id, session_id=row.session_id,
-        payload={"approval_id": approval_id, "decision": "approved",
-                 "new_status": "approved_pending_reauth", "decided_by": approver.user_id,
-                 "execution_authorization": "requester_confirmation_required"},
-    )
-
-    # 通知发起人:需重新登录授权后恢复执行
+    """Conditional decision only; execution requires a separate requester confirmation."""
     try:
-        await notify_approval_result(
-            db=db,
-            approval_id=approval_id,
-            requester_id=row.requester_id,
-            session_id=row.session_id,
-            result_type="approved_pending_reauth",
-            detail="审批已通过，请由发起人确认后执行",
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"重新授权通知失败 {approval_id}: {e}")
-    return ApprovalResponse(
-        approval_id=approval_id,
-        status="approved_pending_reauth",
-        message="审批已通过，待发起人确认执行",
-    )
+        row = await lifecycle.load_locked(db, approval_id)
+        state = await _decide_locked(db, row, approver.user_id, req.decision, req.comment)
+        await db.commit()
+    except HTTPException as exc:
+        if exc.detail == "APPROVAL_EXPIRED":
+            try:
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise HTTPException(503, "APPROVAL_STORE_UNAVAILABLE") from None
+            await _notify_committed(db, row, "timeout")
+        else:
+            await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "APPROVAL_STORE_UNAVAILABLE") from None
+    await _notify_committed(db, row, state)
+    return ApprovalResponse(approval_id=approval_id, status=state, message=STATUS_MESSAGES[state])
 
 
 @router.post("/pending-executions/{approval_id}/resume", response_model=ApprovalResponse)
 async def resume_pending_execution(
-    approval_id: str,
-    requester: User = Depends(get_current_user),
-    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
-    db=Depends(get_db),
+    approval_id: str, requester: User = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme), db=Depends(get_db),
 ):
-    """发起人重新授权后恢复执行(P0-5)
-
-    用当前登录的发起人身份(新 token)同步执行 prefill_payload 中的工具调用。
-    """
-    result = await db.execute(
-        text(
-            "SELECT approval_id, session_id, requester_id, status, "
-            "prefill_payload, approver_id, approver_roles FROM approval_requests "
-            "WHERE approval_id = :id"
-        ),
-        {"id": approval_id},
-    )
-    row = result.fetchone()
-    if row is None:
-        raise HTTPException(404, "审批请求不存在")
-
-    if row.requester_id != requester.user_id:
-        raise HTTPException(403, "仅原发起人可恢复执行")
-
-    if row.status != "approved_pending_reauth":
-        raise HTTPException(400, f"审批状态不允许执行: {row.status}")
-
-    # 用发起人重新登录后的新 token 执行
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(401, "未提供认证凭据")
-    new_token = credentials.credentials
-    exec_success, exec_summary, requester_role = await _execute_approval_tools(
-        db, row, approver_id=row.approver_id, requester_token=new_token
-    )
-
-    await db.execute(
-        text(
-            "UPDATE approval_requests SET status = 'executed' "
-            "WHERE approval_id = :id"
-        ),
-        {"id": approval_id},
-    )
-    await db.commit()
-
-    # 审计:恢复执行(执行身份=发起人,与 decide 路径一致)
-    await get_audit_logger().log(
-        event_type="approval_decision",
-        user_id=requester.user_id,
-        session_id=row.session_id,
-        payload={
-            "approval_id": approval_id,
-            "decision": "resume",
-            "new_status": "executed",
-            "exec_success": exec_success,
-            "decided_by": row.approver_id,  # Revalidated original approver.
-            "executed_as_user_id": row.requester_id,
-            "executed_as_role": requester_role,
-        },
-    )
-
-    # 通知发起人:恢复执行完成
+    """Commit a one-way claim before I/O. An unknown claim is never reclaimed."""
     try:
-        await notify_approval_result(
-            db=db,
-            approval_id=approval_id,
-            requester_id=row.requester_id,
-            session_id=row.session_id,
-            result_type="executed",
-            detail=exec_summary[:500],
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"恢复执行通知失败 {approval_id}: {e}")
+        row = await lifecycle.load_locked(db, approval_id)
+        if row is None:
+            raise HTTPException(404, "审批请求不存在")
+        if row.requester_id != requester.user_id:
+            raise HTTPException(403, "仅原发起人可恢复执行")
+        if credentials is None or credentials.scheme.lower() != "bearer":
+            raise HTTPException(401, "未提供认证凭据")
+        _check_requester_token(row, credentials.credentials)
+        if row.status in lifecycle.ACTIVE | lifecycle.OUTCOMES:
+            await db.commit()
+            return ApprovalResponse(approval_id=approval_id, status=row.status,
+                                    message=STATUS_MESSAGES[row.status])
+        if row.status != "approved_pending_reauth":
+            raise HTTPException(409, "APPROVAL_NOT_EXECUTABLE")
+        await _authorize_approval(db, row, row.approver_id)
+        if not row.live:
+            await lifecycle.expire(db, row)
+            await db.commit()
+            await _notify_committed(db, row, "timeout")
+            raise HTTPException(409, "APPROVAL_EXPIRED")
+        try:
+            execution_id = await lifecycle.bind_execution(row, _approval_tool_calls(row))
+        except OperationError:
+            raise HTTPException(409, "APPROVAL_ACTION_IDENTITY_REQUIRED") from None
+        owner = await lifecycle.claim(db, row, execution_id)
+        if owner is None:
+            raise HTTPException(409, "APPROVAL_STATE_CONFLICT")
+        await db.commit()  # An uncertain acknowledgment never reaches tool invocation.
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "APPROVAL_CLAIM_UNCONFIRMED") from None
 
-    if exec_success:
-        message = f"执行已恢复: {exec_summary}"
-    else:
-        message = f"执行已恢复, 但工具执行失败: {exec_summary}"
-
-    return ApprovalResponse(
-        approval_id=approval_id, status="executed", message=message,
-    )
+    try:
+        await _execute_approval_tools(db, row, approver_id=row.approver_id,
+                                      requester_token=credentials.credentials)
+    except Exception:
+        await db.rollback()
+        logger.warning("APPROVAL_EXECUTION_UNCONFIRMED")
+    # Cancellation deliberately leaves the retained executing claim for observation.
+    try:
+        current = await lifecycle.load_locked(db, approval_id)
+        if str(current.execution_claim) != owner:
+            raise OperationError("APPROVAL_CLAIM_CONFLICT")
+        try:
+            state = await lifecycle.observe(db, current, finished=True)
+        except OperationError:
+            state = "execution_unknown"
+        state = await lifecycle.settle(db, current, state)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "APPROVAL_RESULT_UNCONFIRMED") from None
+    await _notify_committed(db, current, state)
+    return ApprovalResponse(approval_id=approval_id, status=state, message=STATUS_MESSAGES[state])
 
 
 @router.get("/approvals/pending")
@@ -342,7 +285,7 @@ async def list_pending_approvals(
         text(
             "SELECT approval_id, session_id, operation_type, risk_level, "
             "summary, created_at, batch_id FROM approval_requests "
-            "WHERE status = 'pending' AND approver_roles ? :role "
+            "WHERE status = 'pending' AND expires_at > (clock_timestamp() AT TIME ZONE 'UTC') AND (approver_roles ? :role OR :role = 'admin') "
             "ORDER BY created_at DESC LIMIT 50"
         ),
         {"role": approver.role},
@@ -466,13 +409,13 @@ class BatchApprovalRequest(BaseModel):
     """批量审批请求(对应 v3 方案 P0-6)
 
     场景:审批人一次性处理多个待审请求(如早上一并处理昨晚积压的审批)
-    事务性:同一 batch_id 内所有决策原子提交(全成功或全回滚)
+    事务性:整批决策原子提交；不执行工具；重复 ID 在写入前拒绝
     """
 
     approvals: list[BatchApprovalItem] = Field(
         ..., min_length=1, max_length=50, description="批量决策列表(最多 50 条)"
     )
-    comment: str = Field(default="", description="统一备注")
+    comment: str = Field(default="", max_length=1000, description="统一备注")
 
 
 class BatchApprovalResponse(BaseModel):
@@ -491,118 +434,30 @@ async def batch_decide_approvals(
     approver: User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """批量审批决策(P0-6:pending_approvals + batch_id 事务)
-
-    Each item is authorized independently. Successful items may be committed even
-    when others fail. External tool effects are not rolled back by the database;
-    atomic claiming and execution-state semantics remain C11. Returns a batch ID.
-    """
-    from sqlalchemy import text
-
-    batch_id = f"batch_{uuid.uuid4().hex[:12]}"
-    results: list[dict] = []
-    succeeded = 0
-    failed = 0
-
+    """All decisions commit together; a failing member rolls the whole batch back."""
+    batch_id = "batch_" + uuid.uuid4().hex
+    ids = [item.approval_id for item in req.approvals]
+    if len(ids) != len(set(ids)):
+        raise HTTPException(400, "APPROVAL_DUPLICATE_ID")
+    records = []
     try:
-        # 事务开始:批量处理所有决策
+        locked = {aid: await lifecycle.load_locked(db, aid) for aid in sorted(ids)}
         for item in req.approvals:
-            try:
-                # 查询审批请求
-                result = await db.execute(
-                    text(
-                        "SELECT approval_id, session_id, requester_id, status, "
-                        "approver_roles, prefill_payload "
-                        "FROM approval_requests WHERE approval_id = :id"
-                    ),
-                    {"id": item.approval_id},
-                )
-                row = result.fetchone()
-
-                if row is None:
-                    failed += 1
-                    results.append({
-                        "approval_id": item.approval_id,
-                        "success": False,
-                        "error": "审批请求不存在",
-                    })
-                    continue
-
-                if row.status != "pending":
-                    failed += 1
-                    results.append({
-                        "approval_id": item.approval_id,
-                        "success": False,
-                        "error": f"审批已处理,状态: {row.status}",
-                    })
-                    continue
-
-                if item.decision == "rejected":
-                    current_approver = await resolve_active_user(approver.user_id, db, lock=True)
-                    _check_approver_role(row, current_approver)
-                else:
-                    await _authorize_approval(db, row, approver.user_id)
-
-                # Granting approval never executes with a stored credential.
-                new_status = "rejected" if item.decision == "rejected" else "approved_pending_reauth"
-
-                await db.execute(
-                    text(
-                        "UPDATE approval_requests SET status = :status, "
-                        "approver_id = :approver, comment = :comment, "
-                        "decided_at = NOW(), batch_id = :batch_id "
-                        "WHERE approval_id = :id"
-                    ),
-                    {
-                        "id": item.approval_id,
-                        "status": new_status,
-                        "approver": approver.user_id,
-                        "comment": req.comment,
-                        "batch_id": batch_id,
-                    },
-                )
-
-                succeeded += 1
-                item_result = {
-                    "approval_id": item.approval_id,
-                    "success": True,
-                    "new_status": new_status,
-                }
-                results.append(item_result)
-
-            except Exception as e:
-                failed += 1
-                results.append({
-                    "approval_id": item.approval_id,
-                    "success": False,
-                    "error": e.detail if isinstance(e, HTTPException) else "审批处理失败",
-                    "status_code": e.status_code if isinstance(e, HTTPException) else 500,
-                })
-
-        # Commit accepted items; authorization failures leave their approval unchanged.
+            row = locked[item.approval_id]
+            state = await _decide_locked(db, row, approver.user_id, item.decision,
+                                         req.comment, batch_id)
+            records.append((row, state))
         await db.commit()
-
-        # 审计:批量审批决策
-        await get_audit_logger().log(
-            event_type="approval_decision",
-            user_id=approver.user_id,
-            payload={
-                "batch_id": batch_id,
-                "decision": "batch",
-                "total": len(req.approvals),
-                "succeeded": succeeded,
-                "failed": failed,
-            },
-        )
-
-        return BatchApprovalResponse(
-            batch_id=batch_id,
-            total=len(req.approvals),
-            succeeded=succeeded,
-            failed=failed,
-            results=results,
-        )
-
-    except Exception as e:
+    except HTTPException as exc:
         await db.rollback()
-        raise HTTPException(503, "批量审批事务未完成") from None
+        return BatchApprovalResponse(batch_id=batch_id, total=len(ids), succeeded=0,
+            failed=len(ids), results=[{"approval_id": aid, "success": False,
+                "error": "APPROVAL_BATCH_ROLLED_BACK", "status_code": exc.status_code} for aid in ids])
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "APPROVAL_BATCH_UNCONFIRMED") from None
+    for row, state in records:
+        await _notify_committed(db, row, state)
+    return BatchApprovalResponse(batch_id=batch_id, total=len(ids), succeeded=len(ids), failed=0,
+        results=[{"approval_id": row.approval_id, "success": True, "new_status": state}
+                 for row, state in records])

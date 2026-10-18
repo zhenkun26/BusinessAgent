@@ -24,8 +24,9 @@ Do not run SQL files manually or mix the old scripts with the managed entry poin
 Managed v2 adds retained tool executions/operations; v3 adds `task_jobs` and
 `task_consumers` for transactional publication and worker progress. C13 v4 adds
 `saga_runs` and `saga_steps` for retained recovery; legacy `saga_transactions` is preserved
-and not converted to executable input. API/worker startup requires all four versions.
-No migration is applied implicitly; real v3/v4 migration acceptance is still BLOCKED.
+and not converted to executable input. C11 v5 adds retained approval execution identities, claims, observation deadlines
+and reconciliation indexes. API/worker startup requires all five versions.
+No migration is applied implicitly; real v3/v4/v5 migration acceptance is still BLOCKED.
 Do not run an older application against newer migration history.
 
 `schema_migrations` records version, name, checksum and application time.

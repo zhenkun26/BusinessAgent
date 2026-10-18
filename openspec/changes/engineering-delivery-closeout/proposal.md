@@ -132,3 +132,10 @@ Persist Saga execution and recovery evidence, connect C14's transactional worker
 the journal, and implement previously deferred linked HTTP compensation. Deliver offline
 verification and explicit live blockers, then stop before C11. C14 commit `59a5c14` was
 pushed to the same remote branch; C13 remains local pending separate push authorization.
+
+## Authorized C11 increment
+
+C13 `c42dcf8` is pushed to the same branch. Implement atomic approval decisions/execution
+claiming, expiry and evidence-based final status, with UI/docs/offline tests. Preserve
+runtime BLOCKED, C10 open and C21 audit replay deferred; stop before C15. C11 push requires
+separate authorization.

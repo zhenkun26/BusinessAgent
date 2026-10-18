@@ -99,5 +99,15 @@ function setup(extra = {}) {
     await assert.rejects(pending);
     assert.equal(app.token, 'different-login'); passed++;
   }
+  {
+    const { app } = setup();
+    const states = ['executing', 'execution_failed', 'execution_unknown', 'compensated', 'compensation_failed'];
+    for (const state of states) {
+      assert.notEqual(app.statusLabel(state), app.statusLabel('executed'));
+      assert.notEqual(app.statusClass(state), app.statusClass('executed'));
+    }
+    assert.equal(app.statusLabel('executed'), '执行成功');
+    passed++;
+  }
   console.log(`PASS: ${passed} browser-script cases (VM only; real DOM/browser acceptance BLOCKED)`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

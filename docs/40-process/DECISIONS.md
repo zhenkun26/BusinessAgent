@@ -309,3 +309,18 @@
   [C13 record](阶段性总结_C13Saga持久化与故障恢复.md). C14 `59a5c14` pushed; C13 local only.
 - **Revisit**: isolated crash/locking/provider evidence may justify a separately reviewed
   continuation policy. C11 approval state and C21 audit replay remain separate. Stop at C13.
+
+## 31. C11: one-way approval claims and evidence-based outcomes
+
+- **Decision**: Commit a conditional execution claim before tools; never reclaim it on
+  timeout. Batch decisions commit all or none. Expire both pending and approved-but-
+  unconfirmed requests by database time; a five-minute execution deadline triggers
+  observation only. Record state/audit atomically and notify after commit.
+- **Evidence**: Success requires retained C12 receipts or C13 succeeded state. Unknown,
+  failed, compensated and incomplete compensation remain distinct across API/UI/query
+  tools. No fresh IDs, automatic forward retry, historical recertification or token storage.
+- **Verification**: 34 focused + 210 related offline cases PASS; real SQL/JWT/API/browser/
+  Linux, full pytest and strict CLI BLOCKED. [C11 record](阶段性总结_C11审批领取与执行状态.md).
+- **Delivery**: C13 `c42dcf8` pushed and exact remote verified. C11 local only; stop before
+  C15. C10 checkpoint fencing open; C21 audit replay deferred. Mock notification receipt
+  is not delivery; HTTP notification integration remains unavailable.

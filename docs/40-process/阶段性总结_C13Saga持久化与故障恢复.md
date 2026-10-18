@@ -85,3 +85,10 @@ is not changed by this increment. C18 independent services and all earlier runti
 browser/SSO/historical-credential, enterprise UAT and release blockers remain unchanged.
 No main-spec sync or archive. Stop after the local C13 commit and await confirmation;
 do not start C11. `formal_uat=false`, `release_evidence=false`, `release_allowed=false`.
+
+## Subsequent authorized handoff
+
+The user subsequently authorized pushing C13 and starting C11. Commit
+`c42dcf808cd1fca9889beee534c1d41cde4d1650` was pushed to the same remote branch and
+its exact head verified. Earlier local-only wording records the original delivery gate.
+C13 runtime acceptance remains BLOCKED. See [C11 delivery](阶段性总结_C11审批领取与执行状态.md).

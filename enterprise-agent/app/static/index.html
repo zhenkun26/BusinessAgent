@@ -1111,7 +1111,12 @@ createApp({
     statusLabel(s) {
       const m = {
         pending: '待审批',
-        executed: '已执行',
+        executed: '执行成功',
+        executing: '执行中',
+        execution_failed: '执行失败',
+        execution_unknown: '结果待核对',
+        compensated: '执行失败·已补偿',
+        compensation_failed: '补偿未完成',
         approved: '已批准',
         rejected: '已拒绝',
         approved_pending_reauth: '已批准·待确认',
@@ -1123,6 +1128,11 @@ createApp({
       const m = {
         pending: 'orange',
         executed: 'green',
+        executing: 'purple',
+        execution_failed: 'orange',
+        execution_unknown: 'orange',
+        compensated: 'gray',
+        compensation_failed: 'orange',
         approved: 'green',
         rejected: 'gray',
         approved_pending_reauth: 'purple',
