@@ -139,3 +139,10 @@ C13 `c42dcf8` is pushed to the same branch. Implement atomic approval decisions/
 claiming, expiry and evidence-based final status, with UI/docs/offline tests. Preserve
 runtime BLOCKED, C10 open and C21 audit replay deferred; stop before C15. C11 push requires
 separate authorization.
+
+## Authorized C15 increment
+
+C11 `8bb6241` was pushed and verified on the same remote branch. Implement C15 only:
+versioned publication, index/ledger visibility, guarded retry and deactivation, with
+docs/offline tests. No dependencies, live calls, migrations or deletion. C10 remains
+open, C21 audit replay deferred. Stop after local delivery before C16; no C15 push.

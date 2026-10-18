@@ -25,6 +25,7 @@ from typing import Optional
 from loguru import logger
 
 from app.rag.vector_store import SearchResult
+from app.rag.publication_visibility import publication_scope, visible_results
 from app.security.retrieval_policy import (
     RetrievalAccessError, checked_string, milvus_literal, resolve_scope,
 )
@@ -73,7 +74,12 @@ class KeywordRetriever:
 
         # 第一级降级:Milvus 全表扫描 + Python 层关键词匹配
         try:
-            return self._scan_via_milvus(keywords, top_k, user_role, dept_namespace, doc_types)
+            results = visible_results(self._scan_via_milvus(
+                keywords, top_k, user_role, dept_namespace, doc_types))
+            if results:
+                return results
+            return await self._fallback_pg_tsvector(
+                keywords, top_k, user_role, dept_namespace, doc_types)
         except RetrievalAccessError:
             raise
         except Exception as e:  # noqa: BLE001
@@ -230,12 +236,21 @@ class KeywordRetriever:
 
             async with get_session_factory()() as session:
                 rows = (await session.execute(text(f"""
-                    SELECT document_id, title, content, dept_namespace,
+                    SELECT chunk_id, document_id, title, content, dept_namespace,
                            doc_type, source_url, updated_at, access_roles, status,
                            ts_rank_cd(COALESCE(search_vector,
                                       to_tsvector('simple', COALESCE(content, ''))),
                                       ({query_sql})) AS rank
-                    FROM documents
+                    FROM (
+                        SELECT c.chunk_id, d.document_id, d.title, c.content, d.dept_namespace,
+                            d.doc_type, d.source_url, d.updated_at, d.access_roles, d.status,
+                            to_tsvector('simple', c.content) AS search_vector
+                        FROM documents d JOIN knowledge_publications p
+                          ON p.publication_id = d.active_publication AND p.document_id = d.document_id
+                        CROSS JOIN LATERAL jsonb_to_recordset(p.chunks)
+                          AS c(chunk_id TEXT, content TEXT)
+                        WHERE p.state = 'published' AND d.pending_publication IS NULL
+                    ) documents
                     WHERE status = 'active'
                       AND (search_vector @@ ({query_sql})
                            OR content ILIKE '%' || :kw || '%' ESCAPE '!')
@@ -260,7 +275,7 @@ class KeywordRetriever:
                 continue
             results.append(
                 SearchResult(
-                    chunk_id=f"{row.document_id}_chunk_pg",
+                    chunk_id=row.chunk_id,
                     document_id=row.document_id,
                     title=row.title or "",
                     content=row.content or "",
@@ -273,7 +288,7 @@ class KeywordRetriever:
                     is_active=True,
                 )
             )
-        return results
+        return visible_results(results)
 
 
 class DegradationChain:
@@ -291,6 +306,15 @@ class DegradationChain:
         self.keyword_retriever = KeywordRetriever()
 
     async def run(
+        self, query: str, user_role: Optional[str] = None,
+        dept_namespace: Optional[str] = None, doc_types: Optional[list[str]] = None,
+        top_k: int = 5,
+    ) -> DegradationResult:
+        scope = resolve_scope(user_role, dept_namespace, doc_types)
+        async with publication_scope(scope):
+            return await self._run(query, user_role, dept_namespace, doc_types, top_k)
+
+    async def _run(
         self,
         query: str,
         user_role: Optional[str] = None,
@@ -310,7 +334,7 @@ class DegradationChain:
                 dept_namespace=dept_namespace,
                 doc_types=doc_types,
             )
-            authorized = [result for result in r.results if scope.allows_result(result)]
+            authorized = visible_results([result for result in r.results if scope.allows_result(result)])
             if authorized:
                 return DegradationResult(
                     results=authorized,
@@ -336,7 +360,7 @@ class DegradationChain:
                 query=query, top_k=top_k, user_role=user_role,
                 dept_namespace=dept_namespace, doc_types=doc_types,
             )
-            results = [result for result in results if scope.allows_result(result)]
+            results = visible_results([result for result in results if scope.allows_result(result)])
             if results:
                 ms = int((time.time() - start) * 1000)
                 logger.info(f"BM25 降级命中: {len(results)} 条, cost={ms}ms")

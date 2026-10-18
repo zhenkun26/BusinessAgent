@@ -182,4 +182,6 @@ C14 离线增量：[队列契约](docs/50-engineering/queue-reliability.md)、[�
 
 C13 离线增量：[Saga 契约](docs/50-engineering/saga-recovery.md)、[交付记录](docs/40-process/阶段性总结_C13Saga持久化与故障恢复.md)；持久日志、队列恢复与 HTTP 补偿候选完成，C13 `c42dcf8` 已推送，真实运行 BLOCKED；C11 候选见下文。
 
-C11 离线增量：[审批契约](docs/50-engineering/approval-execution.md)、[交付记录](docs/40-process/阶段性总结_C11审批领取与执行状态.md)；原子领取、过期和执行状态候选完成，本地提交，运行 BLOCKED；C15 等待确认。
+C11 离线增量：[审批契约](docs/50-engineering/approval-execution.md)、[交付记录](docs/40-process/阶段性总结_C11审批领取与执行状态.md)；原子领取、过期和执行状态候选 `8bb6241` 已推送，运行 BLOCKED；C15 见下文。
+
+C15 离线增量：[发布契约](docs/50-engineering/knowledge-publication.md)、[交付记录](docs/40-process/阶段性总结_C15知识发布与索引一致性.md)；版本化发布与检索可见性候选完成，本地提交，运行及完整 RAG BLOCKED；C16 等待确认。

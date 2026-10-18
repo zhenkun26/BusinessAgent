@@ -30,6 +30,12 @@
       "name": "approval_execution",
       "file": "005_approval_execution.sql",
       "sha256": "3c4fd1fc49c4e3792c7955149684f2c677459383d2f98a94b76c48cbf5977126"
+    },
+    {
+      "version": 6,
+      "name": "knowledge_publication",
+      "file": "006_knowledge_publication.sql",
+      "sha256": "52ff47563aad423e62fdd018fccf3403bd6532dd4404e80c5caa171873ee618d"
     }
   ],
   "columns": {
@@ -370,6 +376,12 @@
       },
       "updated_at": {
         "type": "timestamp"
+      },
+      "active_publication": {
+        "type": "uuid"
+      },
+      "pending_publication": {
+        "type": "uuid"
       }
     },
     "prompt_versions": {
@@ -562,6 +574,41 @@
       "compensation_receipt": {
         "type": "jsonb"
       }
+    },
+    "knowledge_publications": {
+      "publication_id": {
+        "type": "uuid"
+      },
+      "document_id": {
+        "type": "varchar"
+      },
+      "input_hash": {
+        "type": "varchar"
+      },
+      "source_hash": {
+        "type": "varchar"
+      },
+      "snapshot": {
+        "type": "jsonb"
+      },
+      "chunks": {
+        "type": "jsonb"
+      },
+      "reviewer": {
+        "type": "varchar"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "error_code": {
+        "type": "varchar"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      },
+      "published_at": {
+        "type": "timestamptz"
+      }
     }
   },
   "indexes": {
@@ -599,7 +646,10 @@
     "idx_task_jobs_expired": false,
     "idx_saga_runs_recovery": false,
     "idx_approval_execution": true,
-    "idx_approval_reconcile": false
+    "idx_approval_reconcile": false,
+    "knowledge_publications_pkey": true,
+    "knowledge_publications_document_id_input_hash_key": true,
+    "idx_publication_document": false
   },
   "legacy_columns": {
     "users": {

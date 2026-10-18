@@ -324,3 +324,19 @@
 - **Delivery**: C13 `c42dcf8` pushed and exact remote verified. C11 local only; stop before
   C15. C10 checkpoint fencing open; C21 audit replay deferred. Mock notification receipt
   is not delivery; HTTP notification integration remains unavailable.
+
+## 32. C15: immutable publication generations and ledger-authorized retrieval
+
+- **Decision**: Persist a generation and frozen chunk plan before index writes; use
+  generation-specific IDs with upsert and atomically activate after complete acknowledgment,
+  current-source and reviewer checks. Keep prior generations, hide unfinished versions,
+  and use fresh PostgreSQL visibility before reranking and across fallback paths.
+- **Recovery**: Retain dead jobs; explicit admin retry keeps the original payload/generation.
+  Deactivation prevents late activation. No deletion, automatic queue reset, credential
+  persistence or silent legacy visibility. In-flight admitted snapshots may finish.
+- **Limits**: Legacy unversioned content needs approved isolated reimport. Reference-profile
+  snapshot limits and stale-vector top-K crowding require real capacity/quality acceptance.
+- **Evidence**: 36 focused + 148 related offline tests PASS; actual SQL/Milvus/Linux/full
+  RAG regression and strict CLI BLOCKED. [C15 record](阶段性总结_C15知识发布与索引一致性.md).
+- **Delivery**: C11 `8bb6241` pushed/verified; C15 local only. Stop before C16. C10 write race
+  remains open; non-deleting audit replay remains C21; enterprise UAT/release not authorized.

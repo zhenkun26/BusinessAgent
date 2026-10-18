@@ -79,8 +79,8 @@ async def test_should_reject_candidate_with_reason_when_admin_rejects():
     """Given draft 候选, When 管理员拒绝并填写原因,
     Then 状态置 rejected,记录审核人/时间/原因,且 SQL 参数化"""
     candidate = FakeRow(document_id="doc_fb_abc", status="draft")
-    # execute 顺序:查存在性 → 更新状态 → 审计(审计走独立 session,此处补一个空响应)
-    session = FakeSession(responses=[FakeResult([candidate]), FakeResult()])
+    # Same transaction: lock, conditional update returning row, audit, commit.
+    session = FakeSession(responses=[FakeResult([candidate]), FakeResult([candidate]), FakeResult()])
     app = _build_test_app(session)
     client = TestClient(app)
 

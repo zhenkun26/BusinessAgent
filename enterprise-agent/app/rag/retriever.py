@@ -104,6 +104,8 @@ class EnterpriseRAGRetriever:
             scene: 场景(None 时自动识别)
         """
         scope = resolve_scope(user_role, dept_namespace, doc_types)
+        from app.rag.publication_visibility import visible_results
+        visible_results([])  # Require a current ledger snapshot before embedding/model calls.
         start = time.time()
 
         # tracing: 整个 retrieve 作为一个 span(含子 span:粗排/精排)
@@ -142,7 +144,7 @@ class EnterpriseRAGRetriever:
                     top_k=coarse_k,
                     filter=search_filter,
                 )
-                coarse_results = [r for r in coarse_results if scope.allows_result(r)]
+                coarse_results = visible_results([r for r in coarse_results if scope.allows_result(r)])
                 record_span_attributes({
                     "rag.coarse.count": len(coarse_results),
                     "rag.coarse.k": coarse_k,
@@ -169,7 +171,7 @@ class EnterpriseRAGRetriever:
             try:
                 with traced_span("rag.rerank") as rerank_ctx:
                     ranked = self.reranker.rerank(query, coarse_results, top_n=self.rerank_top_n)
-                    ranked = [r for r in ranked if scope.allows_result(r)]
+                    ranked = visible_results([r for r in ranked if scope.allows_result(r)])
                     stage = "rerank"
                     record_span_attributes({
                         "rag.rerank.count": len(ranked),

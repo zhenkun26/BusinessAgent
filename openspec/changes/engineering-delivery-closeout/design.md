@@ -399,3 +399,25 @@ Write transition audit events in the same database transaction as state changes.
 are best-effort observations and cannot change committed outcomes; no automatic notification
 retry or C21 cache replay. Add v5 schema fields/index without changing v1-v4 bytes. No live
 migration/service/model calls, dependency addition or deletion. Stop after local C11 delivery.
+
+## C15: publish immutable generations through a PostgreSQL visibility boundary
+
+Persist a publication generation and frozen chunk plan before embedding/vector writes.
+Use generation-specific chunk IDs and upsert, never delete old generations. Only a
+complete acknowledged write may atomically switch the document to active and bind its
+active generation. Pending work hides the old version. Identical retries reuse the
+same generation; conflicting inputs while indexing are rejected. A disabled document
+cannot be reactivated by a late worker. Recheck source and reviewer at activation.
+
+All application retrieval runs in a fresh, bounded PostgreSQL visibility snapshot,
+including vector candidates before reranking, keyword and PG fallback. Match chunk IDs
+and canonical content/ACL against the current active generation; stale, partial and
+legacy unversioned rows are not eligible. Database failure fails closed, with no cached
+visibility fallback. A request admitted before deactivation may finish; this is not
+revocation of already-produced answers. Snapshot bounds and post-filter recall limits
+are documented and require C17/full runtime evaluation.
+
+Add migration v6 without rewriting v1-v5. Retain failed publications and dead tasks.
+An admin may explicitly retry a dead knowledge job using the same immutable plan;
+no generic queue reset or automatic mutation replay. Add guarded deactivation and
+metadata status routes. This does not change C10 checkpoint fencing or C21 audit replay.

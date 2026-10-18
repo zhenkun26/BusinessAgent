@@ -48,7 +48,7 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 3.3.1 Implement explicit backend policy, lifecycle/provisioning, failure semantics, offline tests and documentation. 27 focused and 139 related tests PASS; this does not solve lease-expiry write fencing.
   - [ ] 3.3.2 Verify actual saver versions, two-process/restart durability, TTL, same-session writes and outages on isolated Linux. <!-- BLOCKED; no real services or current-store operations -->
 
-## 4. S4：执行一致性与恢复（C18 契约前置已推送；C12 已推送；C14 已推送；C13 已推送；C11 离线增量完成，真实运行阻塞；C15 待确认）
+## 4. S4：执行一致性与恢复（C18 契约前置已推送；C12 已推送；C14 已推送；C13 已推送；C11 已推送，真实运行阻塞）
 
 - [x] 4.1 C18 前置部分：冻结参考系统幂等、失败和补偿契约，C18 完整验收留 S5。 business-reference-v1 documents 13 interface rows, durable identity/receipts, compensation and 20 future cases; static checks only, no runtime implementation or acceptance.
 - [ ] 4.2 C12 工具幂等与安全重试。
@@ -64,9 +64,11 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 4.5.1 Implement guarded decisions, one-way execution claims, expiry, truthful result states, atomic audit events, UI labels and offline verification. 34 focused + 210 related cases PASS; local only.
   - [ ] 4.5.2 Verify real PostgreSQL/JWT/API/browser concurrency, timeout races and crash recovery in isolated Linux. <!-- BLOCKED; C10/C21 unchanged -->
 
-## 5. S5：数据与参考集成（待逐项授权）
+## 5. S5：数据与参考集成（C15 离线增量完成、运行阻塞；C16 待确认）
 
 - [ ] 5.1 C15 知识发布与索引一致性。
+  - [x] 5.1.1 Implement immutable publication records, deterministic chunk upsert, atomic activation, retrieval visibility guards, retained retry/deactivation, documentation and offline verification. 36 focused + 148 related tests PASS; local only.
+  - [ ] 5.1.2 Verify real PostgreSQL/Milvus concurrency, partial writes, restarts, indexing visibility and full RAG regression in isolated Linux. <!-- BLOCKED; C10/C21 unchanged -->
 - [ ] 5.2 C16 分析数据适配。
 - [ ] 5.3 C17 RAG 质量与指标口径。
 - [ ] 5.4 C18 完整参考 HTTP 集成。 <!-- BLOCKED: business-reference-v1 R01-R20 require independent persistent services and complete application evidence; prework is not acceptance -->

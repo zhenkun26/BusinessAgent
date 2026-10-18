@@ -45,7 +45,9 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 审批执行：批准后待原发起人确认；持久领取后重复确认不重复执行。过期待确认单不可执行，成功/失败/结果待核对/补偿状态分别显示。批量决策整批提交或回滚。详见[审批执行契约](../docs/50-engineering/approval-execution.md)，真实 PG/JWT/API/浏览器验收仍 BLOCKED。
 
-后台任务：知识审核改为 PostgreSQL 同事务入队，返回 `202` 与 `task_id`；独立 worker 处理后通过管理员任务接口查询结果。迁移清单现要求 v5；知识任务派发后结果不明保留待核对。Saga 使用持久日志与独立补偿 ID，重启后核对原动作再逆序补偿，不补跑正向动作或重复已领取的写入；详见 [Saga 恢复契约](../docs/50-engineering/saga-recovery.md)。审计缓存非删除回写等待 C21；完整运行验收仍 BLOCKED，见[队列与 worker 契约](../docs/50-engineering/queue-reliability.md)。
+知识发布：先记录不可见版本，固定 chunk ID 写索引，完整确认后原子激活；检索在重排前核对当前版本。旧版本、部分写入及停用内容不可进入新检索请求，历史无版本记录内容需显式重导。管理员可查询发布记录、显式重试 dead 知识任务或停用文档，见[发布契约](../docs/50-engineering/knowledge-publication.md)。真实运行与完整 RAG 验收仍 BLOCKED。
+
+后台任务：知识审核改为 PostgreSQL 同事务入队，返回 `202` 与 `task_id`；独立 worker 处理后通过管理员任务接口查询结果。迁移清单现要求 v6；知识任务派发后结果不明保留待核对。Saga 使用持久日志与独立补偿 ID，重启后核对原动作再逆序补偿，不补跑正向动作或重复已领取的写入；详见 [Saga 恢复契约](../docs/50-engineering/saga-recovery.md)。审计缓存非删除回写等待 C21；完整运行验收仍 BLOCKED，见[队列与 worker 契约](../docs/50-engineering/queue-reliability.md)。
 
 认证要求：生产 API/worker 必须同时启用 `AUTH_REQUIRE_PASSWORD=true` 和 `AUTH_CHECK_DB=true`。身份库故障返回 503，禁用/删除账户返回 401；审批执行使用双方当前权限。详细约定见[认证与运行时授权契约](../docs/50-engineering/runtime-authorization.md)。
 

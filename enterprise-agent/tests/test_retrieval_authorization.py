@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-from contextlib import ExitStack, nullcontext
+from contextlib import ExitStack, nullcontext, asynccontextmanager
 from dataclasses import asdict, replace
 from datetime import datetime, UTC
 from enum import Enum
@@ -44,6 +44,12 @@ def role_contract() -> dict[str, Any]:
     return ns
 
 
+@asynccontextmanager
+async def visibility_fixture(scope):
+    # C07 isolates ACL behavior. C15 tests the actual PostgreSQL visibility boundary.
+    yield
+
+
 class Scores:
     def __init__(self, size: int):
         self.size = size
@@ -78,6 +84,8 @@ class RetrievalAuthorizationTests(unittest.IsolatedAsyncioTestCase):
             'app.core.database': module('app.core.database',
                                          get_session_factory=lambda: self.factory),
             'sqlalchemy': module('sqlalchemy', text=lambda sql: sql),
+            'app.rag.publication_visibility': module('app.rag.publication_visibility',
+                visible_results=lambda results: results, publication_scope=visibility_fixture),
             'app.rag.model_profile': module('app.rag.model_profile',
                 uses_remote_profile=lambda s: False, validate_model_profile=Mock()),
             'app.rag.remote_models': module('app.rag.remote_models', RemoteModelError=RuntimeError),

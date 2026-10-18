@@ -211,6 +211,7 @@ class RemoteModelsTests(unittest.IsolatedAsyncioTestCase):
         keyword = SimpleNamespace(_settings=settings(), retrieve_by_keywords=Mock())
         ns = dict(Optional=Optional, DegradationResult=object, time=time, logger=Mock(),
                   KeywordRetriever=lambda: keyword, resolve_scope=policy.resolve_scope,
+                  publication_scope=lambda scope: nullcontext(), visible_results=lambda rows: rows,
                   RetrievalAccessError=policy.RetrievalAccessError)
         exec(compile(ast.Module(body=[cls], type_ignores=[]), 'degradation', 'exec'), ns)
         primary = Mock()
@@ -237,6 +238,8 @@ class RemoteModelsTests(unittest.IsolatedAsyncioTestCase):
         retriever = ns['EnterpriseRAGRetriever'](store, ranker, Mock())
         with patch.dict(sys.modules, {
             'app.rag.remote_models': remote, 'app.security.rbac': role_stub,
+            'app.rag.publication_visibility': module('app.rag.publication_visibility',
+                visible_results=lambda rows: rows),
         }):
             with self.assertRaisesRegex(remote.RemoteModelError, '^MODEL_RERANK_FAILED$'):
                 retriever.retrieve('query', 'salesperson', 'dept_sales', scene='general')

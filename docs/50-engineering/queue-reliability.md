@@ -10,7 +10,7 @@ existing dependencies and lets the business transition and enqueue share one com
 Migration v3 adds jobs and consumer progress; v1/v2 bytes remain immutable. Apply only
 through the [explicit bootstrap workflow](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)
 in a separately authorized isolated candidate. No migration was executed this round.
-C13 adds journal migration v4; API and worker now require manifest v4 before accepting work.
+C13 adds v4, C11 v5 and C15 v6; API and worker require the current manifest before work.
 
 Each job has a UUID, unique logical scope, frozen payload hash, attempt count, state,
 owner token, database-clock deadline and safe error code. Success and failure rows
@@ -62,8 +62,8 @@ The envelope stores document ID, snapshot hash, original reviewer and publicatio
 options only. The worker reloads the queued document, checks snapshot and explicit ACL,
 reauthorizes the current reviewer as admin, then calls text ingestion. Arbitrary local
 file paths and legacy file-ingestion payloads are refused. Zero chunks is failure.
-Full publication/version consistency, vector-before-ledger failures and concurrent
-out-of-band document edits remain C15; there is no automatic replay to amplify them.
+C15 now supplies generation staging, conditional activation and source guards; real
+publication consistency remains BLOCKED. There is no automatic queue replay.
 
 All status endpoints require current admin authorization:
 
@@ -74,8 +74,9 @@ All status endpoints require current admin authorization:
 Job records are durable execution evidence, not a complete replacement for the C21
 audit pipeline. Completion means the ingestion function returned a positive count
 and queue acknowledgment committed, not independent verification of Milvus visibility.
-The original scope currently allows one publication per document; versioned updates
-and deliberate re-publication must be designed in C15, not implemented by clearing jobs.
+The original approval scope allows one job per document. C15 adds explicit dead-job retry
+with a retained child task and identical payload, plus versioned publication. No job rows
+are cleared. See [C15 contract](knowledge-publication.md) for limits and deactivation.
 
 ## Worker lifecycle and unresolved capabilities
 

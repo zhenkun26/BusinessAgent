@@ -25,8 +25,9 @@ Managed v2 adds retained tool executions/operations; v3 adds `task_jobs` and
 `task_consumers` for transactional publication and worker progress. C13 v4 adds
 `saga_runs` and `saga_steps` for retained recovery; legacy `saga_transactions` is preserved
 and not converted to executable input. C11 v5 adds retained approval execution identities, claims, observation deadlines
-and reconciliation indexes. API/worker startup requires all five versions.
-No migration is applied implicitly; real v3/v4/v5 migration acceptance is still BLOCKED.
+and reconciliation indexes. C15 v6 adds immutable knowledge generations and active/pending document pointers.
+API/worker startup requires all six versions.
+No migration is applied implicitly; real v3/v4/v5/v6 migration acceptance is still BLOCKED.
 Do not run an older application against newer migration history.
 
 `schema_migrations` records version, name, checksum and application time.
@@ -177,3 +178,12 @@ duplicate/refused bootstrap and development-only demo repetition; API/worker ref
 on pending schema; recovery into a separate restored copy. Bind sanitized output,
 exit codes and target identity to commit, image digest and manifest hashes. Never
 store credentials, full row contents or raw database exceptions in evidence.
+
+## C15 visibility compatibility
+
+Migration 006 preserves all legacy documents/vectors but does not certify their visibility.
+Without an active publication generation they are excluded from retrieval, even if the old
+status is active. Before an authorized isolated rollout, inventory intended documents and
+ACLs, then explicitly reimport/review them through the versioned path. Do not clear volumes
+or reset rows to simulate success. Trusted CLI imports require explicit `--roles`; old
+unversioned eval import commands need review. See the [C15 contract](../../docs/50-engineering/knowledge-publication.md).

@@ -6,6 +6,7 @@
 
 | 文档 | 位置 | 用途 |
 |---|---|---|
+| 知识发布与索引一致性 | [knowledge-publication.md](knowledge-publication.md) | C15 版本化发布、重试与可见性 |
 | 审批执行状态 | [approval-execution.md](approval-execution.md) | C11 条件决策、一次领取与结果核对 |
 | Saga 与故障恢复 | [saga-recovery.md](saga-recovery.md) | C13 持久日志、关联补偿与恢复边界 |
 | 队列与 worker | [queue-reliability.md](queue-reliability.md) | C14 PostgreSQL 任务、202 契约、恢复与依赖阻塞 |

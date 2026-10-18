@@ -119,13 +119,20 @@ class InMemoryVectorStore:
     def add_documents(self, chunks: list[ChunkData], partition: str = "shared_company") -> int:
         if not chunks:
             return 0
+        if any(c.dept_namespace != partition for c in chunks):
+            raise ValueError("KNOWLEDGE_PARTITION_INVALID")
         # 校验 dim
         for c in chunks:
             if len(c.embedding) != self._dim:
                 raise ValueError(
                     f"chunk {c.chunk_id} embedding dim={len(c.embedding)} 不等于 store dim={self._dim}"
                 )
-        self._chunks.extend(chunks)
+        incoming = {chunk.chunk_id: chunk for chunk in chunks}
+        if len(incoming) != len(chunks):
+            raise ValueError("KNOWLEDGE_DUPLICATE_CHUNK")
+        retained = {chunk.chunk_id: chunk for chunk in self._chunks}
+        retained.update(incoming)
+        self._chunks = list(retained.values())
         # 重建 embeddings 矩阵(简单实现,数据量小够用)
         new_emb = np.array([c.embedding for c in self._chunks], dtype=np.float32)
         # L2 归一化(便于余弦相似度 = 内积)
@@ -247,19 +254,15 @@ class MilvusVectorStore:
             }
             for c in chunks
         ]
-        partition_name = (
-            partition if self.collection.has_partition(partition) else "shared_company"
-        )
-        if partition_name != partition:
-            logger.warning(
-                f"partition '{partition}' 不存在,数据落入 shared_company,"
-                "部门文档可能被误共享"
-            )
-        self.collection.insert(data=data, partition_name=partition_name)
-        self.collection.flush()
-        logger.info(
-            f"MilvusVS 入库 {len(data)} chunks, partition={partition_name}"
-        )
+        if (any(c.dept_namespace != partition for c in chunks)
+                or len({c.chunk_id for c in chunks}) != len(chunks)
+                or not self.collection.has_partition(partition)):
+            raise ValueError("KNOWLEDGE_PARTITION_INVALID")
+        result = self.collection.upsert(data=data, partition_name=partition, timeout=30)
+        if (result.upsert_count != len(data)
+                or set(result.primary_keys) != {c.chunk_id for c in chunks}):
+            raise ValueError("KNOWLEDGE_INDEX_INCOMPLETE")
+        self.collection.flush(timeout=30)
         return len(data)
 
     def search(

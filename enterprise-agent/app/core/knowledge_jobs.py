@@ -1,4 +1,4 @@
-"""Knowledge approval producer and worker handoff; publication consistency remains C15."""
+"""Transactional knowledge approval and frozen publication handoff."""
 from __future__ import annotations
 
 from typing import Any
@@ -13,7 +13,7 @@ NAMESPACES = frozenset({
 })
 ROLES = frozenset({"salesperson", "customer_service", "finance", "manager", "admin"})
 DOCUMENT_SQL = """SELECT document_id, title, content, doc_type, dept_namespace,
-    access_roles, uploaded_by, status FROM documents WHERE document_id = :did"""
+    access_roles, uploaded_by, status, source_url, reviewed_by FROM documents WHERE document_id = :did"""
 
 
 def document_snapshot(row: Any) -> dict[str, Any]:
@@ -21,9 +21,11 @@ def document_snapshot(row: Any) -> dict[str, Any]:
     if (not isinstance(roles, list) or not roles or len(roles) > 20
             or any(not isinstance(role, str) or role not in ROLES for role in roles)):
         raise TaskRejected("TASK_INPUT_INVALID")
-    return {key: row[key] for key in (
+    snapshot = {key: row[key] for key in (
         "document_id", "title", "content", "access_roles", "uploaded_by",
     )}
+    snapshot["content"] = row["content"] or row["title"]
+    return snapshot
 
 
 def publication_options(doc_type: str, dept_namespace: str) -> dict[str, str]:
@@ -93,14 +95,37 @@ async def handle_knowledge_job(payload: dict[str, Any]) -> None:
             raise TaskRejected("TASK_AUTHORIZATION_DENIED") from None
         row = (await session.execute(text(DOCUMENT_SQL),
                                      {"did": payload["document_id"]})).mappings().first()
-        if (row is None or row["status"] != "queued"
+        if (row is None or row["status"] not in {"queued", "indexing", "active"}
                 or fingerprint(document_snapshot(row)) != payload["snapshot_hash"]):
             raise TaskRejected("TASK_DOCUMENT_CHANGED")
         snapshot = document_snapshot(row)
     count = await MilvusIngestService().ingest_text(
         document_id=snapshot["document_id"], title=snapshot["title"],
         content=snapshot["content"] or snapshot["title"],
-        access_roles=snapshot["access_roles"], uploaded_by=snapshot["uploaded_by"], **options,
+        access_roles=snapshot["access_roles"], uploaded_by=snapshot["uploaded_by"],
+        source_url=row.get("source_url"), publication_approval=payload, **options,
     )
     if type(count) is not int or count <= 0:
         raise TaskRejected("TASK_EMPTY_RESULT")
+
+
+async def retry_knowledge_task(session: Any, task_id: str, actor: str) -> dict[str, Any]:
+    """Explicit recovery of a dead knowledge job; never reset queue rows or change input."""
+    old = (await session.execute(text("SELECT * FROM task_jobs WHERE task_id = :tid FOR UPDATE"),
+                                 {'tid': task_id})).mappings().first()
+    if old is None or old['queue_name'] != 'tasks:doc_ingest' or old['state'] != 'dead':
+        raise TaskRejected('KNOWLEDGE_RETRY_DENIED')
+    payload = old['payload']
+    if set(payload) != {'document_id', 'reviewer', 'options', 'snapshot_hash'}:
+        raise TaskRejected('KNOWLEDGE_RETRY_DENIED')
+    row = (await session.execute(text(DOCUMENT_SQL + ' FOR UPDATE'),
+                                 {'did': payload['document_id']})).mappings().first()
+    if (row is None or row['status'] not in {'queued', 'indexing', 'active'}
+            or fingerprint(document_snapshot(row)) != payload['snapshot_hash']):
+        raise TaskRejected('KNOWLEDGE_SOURCE_CHANGED')
+    job = await enqueue_task(session, 'tasks:doc_ingest', 'knowledge-retry:' + task_id, payload)
+    await session.execute(text("""INSERT INTO audit_logs (event_type, user_id, success, payload)
+        VALUES ('knowledge_retry_queued', :uid, true, CAST(:payload AS JSONB))"""),
+        {'uid': actor, 'payload': canonical({'previous_task_id': task_id,
+            'task_id': str(job['task_id']), 'document_id': payload['document_id']})})
+    return job
