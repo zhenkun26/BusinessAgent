@@ -78,3 +78,11 @@ C10 lease-expiry checkpoint writing remains unresolved and stays in C10. C15/C16
 remain open; all earlier real runtime, full RAG, browser/SSO and historical credential gates
 remain BLOCKED. `formal_uat=false`, `release_evidence=false`, `release_allowed=false`.
 Stop after the C19 local commit and wait for confirmation before its push or C20.
+
+## Subsequent authorized handoff (2026-10-18)
+
+The user subsequently authorized the C19 push and C20 only. Commit
+`4afe54bda9cfd581870d84ced50fb5dd86687c75` was pushed to
+`origin/codex/delivery-ci-gates` and verified against `git ls-remote` before C20.
+All S01–S16 and earlier runtime boundaries remain unchanged; see the
+[C20 delivery record](阶段性总结_C20浏览器角色流程与前端交付.md).

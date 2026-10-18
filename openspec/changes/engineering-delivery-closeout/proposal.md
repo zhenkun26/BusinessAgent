@@ -15,6 +15,8 @@
 
 ### New Capabilities
 
+- `browser-delivery`: C20 pinned self-hosted assets, current-identity UI flows and truthful failure/acceptance states.
+
 - `controlled-sso`: C19 independent retained issuer, strict RS256/PKCE identity mapping and isolated browser acceptance.
 
 - `analysis-data`: C16 provider-aligned snapshot reads, bounded aggregation and deterministic reporting.
@@ -200,3 +202,14 @@ Approval received on 2026-10-18: add PyJWT[crypto], cryptography==50.0.2, cffi==
 and pycparser==3.11 declarations and import probes. PyPI metadata confirms the dependency
 edges; resolution, installation, build, vulnerability scan and real cryptography are unrun.
 The existing PyJWT pin stays 2.15.0. This supersedes the approval-pending state above.
+
+## Authorized C20 increment — 2026-10-18
+
+C19 `4afe54bda9cfd581870d84ced50fb5dd86687c75` was pushed and remote-verified.
+The user authorized C20 browser role flows and frontend delivery only. Vendor the three
+already-used browser libraries at exact registry versions, with licenses/checksums; no new
+framework or package installation. Fix current-identity gates, stale async results, repeated
+actions, interrupted streams/cancellation and misleading fixture fallbacks. Document API-only
+administration and a complete role/browser acceptance matrix. Source/VM checks cannot close
+real browser/PG/JWT/API/SSE/Linux, S01–S16, R01–R20 or full RAG. Preserve C10/C21; stop after
+a local C20 commit, before its push or C21. No app/service launch, paid call or data cleanup.

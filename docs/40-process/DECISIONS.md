@@ -409,3 +409,22 @@
   certify operator claims. C18 R01–R20, C10 fencing, C21 audit and full RAG remain unchanged.
 - **Revisit**: real browser/crypto/retention failures require a reviewed correction; enterprise
   provider differences belong to the separate integration change, not hidden profile relaxation.
+
+## 37. C20: retained frontend assets and evidence-bounded role flows
+
+- **Need**: floating CDN resources, unverified login roles, seeded ledger fallback and ambiguous
+  stream/action outcomes prevent a reproducible and reviewable frontend delivery.
+- **Choice**: retain exact existing Vue/Marked/DOMPurify browser builds, licenses, hashes and SRI;
+  verify them in the image recipe. Require current `/me` before workspace/management actions,
+  isolate obsolete identity/session replies, and guard duplicate mutations. Require stream
+  terminal events; cancellation acceptance and uncertain mutations never imply completion.
+- **Tradeoffs**: no frontend framework/package installation or new administration pages.
+  User/knowledge writes remain documented admin API-only operations. Static business examples
+  are labelled; admin ledger failure clears data. In-memory guards do not replace C11/C12.
+  Browser refresh requires login; history is a snapshot and lists are bounded, not full inventories.
+- **Verification**: 45 focused + 134 related offline cases PASS, seven retained asset/license
+  hashes pass. VM/static checks and registry integrity are not DOM, real authorization,
+  vulnerability, image or browser evidence. B01–B16 are all BLOCKED.
+- **Boundary**: C19 `4afe54b` was pushed with authorization. C20 stops at a local commit;
+  its push/C21 need confirmation. S01–S16/R01–R20/full RAG remain BLOCKED, C10 writing
+  is still open, C21 audit replay deferred. No application launch or filesystem deletion.

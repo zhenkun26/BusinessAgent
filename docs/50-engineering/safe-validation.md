@@ -61,6 +61,8 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `eval/run_c07_retrieval_authorization.py` | 执行实际检索/重排代码，模型与存储为替身；数值计算替身仅提供分数；审计钩子禁止真实写入/删除/网络；文档删除调用仅落到 Mock | C07 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c07_retrieval_authorization.py`；不加入五函数白名单，不代表真实 Milvus/SQL/API 验收 |
 | `eval/run_c06_credential_safety.py` | 执行实际源代码/函数；DB/HTTP/审计文件均注入内存替身，审计钩子禁止真实写入、删除及网络 | C06 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c06_credential_safety.py`；不代表真实 JWT/PG/HTTP/历史清理 |
 | `tests/test_browser_credential_safety.cjs` | 只读页面源码，在 Node VM 内以假浏览器对象执行；不联网、不写文件、不启动浏览器 | C06 单独审查允许：根目录 `node enterprise-agent/tests/test_browser_credential_safety.cjs`；不代表真实 DOM/净化器/SSO/SSE 验收 |
+| `tests/test_browser_delivery.cjs` | 只读实际页面与固定分发文件；VM/HTTP/计时器替身、实际 Marked VM 解析；不启动应用/浏览器、不联网、写入或删除 | C20 单独审查允许：根目录 `node enterprise-agent/tests/test_browser_delivery.cjs`；Vue/DOMPurify 仅语法与引用检查，不证明真实 DOM/授权/SSO/SSE；不扩展五函数白名单 |
+| `scripts/verify_frontend_assets.py` | 标准库只读 HTML/manifest/JS/licenses，校验路径、SHA-256/SRI 与本地引用；无应用导入、网络、写入/删除 | C20 允许根目录 `python3.13 -I -B enterprise-agent/scripts/verify_frontend_assets.py enterprise-agent/app/static`；镜像构建有同入口配方但本轮未构建；不等于漏洞扫描或浏览器加载证据 |
 | `eval/run_c05_runtime_authorization.py` | 标准库执行 C05 实际源代码/启动函数；注入 JWT/框架/DB/工具，无真实连接、文件写入或清理 | C05 单独审查允许：仓库根目录 `python3 -I -B enterprise-agent/eval/run_c05_runtime_authorization.py`；不加入五函数白名单，不代表真实密码学/HTTP/PG 验收 |
 | `eval/run_c04_session_ownership.py` | 标准库加载 C04 unittest；依赖注入，内存数据库/图/审计，无真实网络、文件写入或清理 | C04 单独审查允许：仓库根目录执行 `python3 -I -B enterprise-agent/eval/run_c04_session_ownership.py`；不加入原五函数白名单，不代表真实 HTTP/PG 验收 |
 | 其他 eval / scripts | 可能启动应用、模型、写 DB/向量库、网络或覆盖报告 | 默认不允许，逐项审查，不能仅凭脚本名认定安全 |

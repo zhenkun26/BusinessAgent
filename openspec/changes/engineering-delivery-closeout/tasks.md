@@ -64,7 +64,7 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 4.5.1 Implement guarded decisions, one-way execution claims, expiry, truthful result states, atomic audit events, UI labels and offline verification. 34 focused + 210 related cases PASS; local only.
   - [ ] 4.5.2 Verify real PostgreSQL/JWT/API/browser concurrency, timeout races and crash recovery in isolated Linux. <!-- BLOCKED; C10/C21 unchanged -->
 
-## 5. S5：数据与参考集成（C15–C18 已推送；C19 离线增量完成、运行阻塞；C20 待确认）
+## 5. S5：数据与参考集成（C15–C19 已推送；运行阻塞；C20 离线增量完成）
 
 - [ ] 5.1 C15 知识发布与索引一致性。
   - [x] 5.1.1 Implement immutable publication records, deterministic chunk upsert, atomic activation, retrieval visibility guards, retained retry/deactivation, documentation and offline verification. 36 focused + 148 related tests PASS; local only.
@@ -82,9 +82,11 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 5.5.1 Implement independent retained issuer, strict RS256/PKCE/mapping, approved dependency declarations, HTTPS recipes, browser acceptance plan and offline checks. 37 focused + 136 related cases PASS; no real crypto/browser or installation.
   - [ ] 5.5.2 Verify all S01–S16 including real signing, browser handoff, PostgreSQL identity, Redis across API processes, rotation, faults and disk restart in isolated Linux. <!-- BLOCKED; R01–R20/full RAG/C10/C21 unchanged; operator reports are not acceptance -->
 
-## 6. S6：用户操作与运维（待逐项授权）
+## 6. S6：用户操作与运维（C20 离线增量完成、运行阻塞；C21 待确认）
 
 - [ ] 6.1 C20 浏览器角色流程与前端交付。
+  - [x] 6.1.1 Pin and self-host existing browser assets with licenses/integrity, verify current identity, isolate asynchronous UI state, guard mutations, report truthful stream/action outcomes, and document UI/API-only roles. 45 focused + 134 related offline cases PASS; no browser/application launch.
+  - [ ] 6.1.2 Verify B01–B16 on the delivered Linux/Nginx entry with actual browsers, all roles and independent server evidence. <!-- BLOCKED; S01–S16/R01–R20/full RAG/C10/C21 unchanged -->
 - [ ] 6.2 C21 就绪、审计、指标和告警。
 - [ ] 6.3 C22 备份恢复与回退。
 - [ ] 6.4 C23 规定负载下的性能与容量。

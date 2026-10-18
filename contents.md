@@ -192,4 +192,6 @@ C17 离线增量：[RAG 质量契约](docs/50-engineering/rag-quality.md)、[交
 
 C18 完整集成离线候选：[实施/隔离/验收指南](docs/50-engineering/reference-integration.md)、[交付记录](docs/40-process/阶段性总结_C18完整参考HTTP业务集成.md)、[专项入口](enterprise-agent/eval/run_c18_reference_integration.py)；45 项专项及 162 项回归 PASS，R01–R20/真实运行/完整 RAG BLOCKED，C10 open，C21 延后；`bd04a12` 已推送，C19 见下文。
 
-C19 离线候选：[受控 SSO 指南](docs/50-engineering/controlled-sso.md)、[交付记录](docs/40-process/阶段性总结_C19受控IdP与SSO完整链路.md)、[专项入口](enterprise-agent/eval/run_c19_controlled_sso.py)；37 项专项及 136 项相关回归 PASS，S01–S16/真实签名/浏览器/Linux BLOCKED，C10/C21 及此前运行边界保留；本地交付后暂停，推送/C20 待确认。
+C19 离线候选：[受控 SSO 指南](docs/50-engineering/controlled-sso.md)、[交付记录](docs/40-process/阶段性总结_C19受控IdP与SSO完整链路.md)、[专项入口](enterprise-agent/eval/run_c19_controlled_sso.py)；37 项专项及 136 项相关回归 PASS，S01–S16/真实签名/浏览器/Linux BLOCKED，C10/C21 及此前运行边界保留；`4afe54b` 已推送并核验，C20 见下文。
+
+C20 离线候选：[浏览器交付指南](docs/50-engineering/browser-delivery.md)、[交付记录](docs/40-process/阶段性总结_C20浏览器角色流程与前端交付.md)、[专项入口](enterprise-agent/tests/test_browser_delivery.cjs)、[资源检查](enterprise-agent/scripts/verify_frontend_assets.py)；45 项专项及 134 项相关回归 PASS，B01–B16/S01–S16/R01–R20/真实运行/完整 RAG BLOCKED，C10/C21 边界不变；本地提交后暂停，推送/C21 待确认。

@@ -521,3 +521,25 @@ source/in-memory storage/crypto-double checks are explicitly not real signatures
 browser. Real rotation, restart, JWT/PG/Redis, browser handoff and deny cases require the
 same application candidate and independent issuer; no claims of OIDC certification,
 enterprise federation, UAT or release. C18 R01-R20, full RAG, C10 and C21 remain unchanged.
+
+## C20 browser delivery design — 2026-10-18
+
+Keep the existing Vue global-build UI and backend routes. Self-host the already referenced
+Vue/Marked/DOMPurify distributions with exact versions, registry tarball integrity, per-file
+hashes/SRI and license files. Missing Vue leaves a visible static boot failure; missing Markdown
+or sanitizer keeps C06 escaped-text fallback. No remote script/CDN fallback or new build stack.
+
+Treat login/SSO roles as provisional until `/auth/me` confirms current identity. Snapshot auth
+and conversation generations around asynchronous operations; stale responses cannot reinsert
+private data after logout or session change. Role-gate management views and methods, retain
+backend authority and refresh identity before privileged mutations. Serialize repeated actions
+locally, distinguish request failure/unknown outcome from a confirmed result, and never auto-retry
+mutations. A cancelled prompt performs no write. Empty, loading and unavailable lists are distinct.
+
+Require a terminal SSE event; truncated/malformed/mismatched streams remain incomplete with
+partial output explicitly labelled. Accepted cancellation is a request, not confirmed completion;
+do not abort the stream and fabricate cancellation. Use bounded response/time/frame budgets.
+Keep the static business examples but label them as synthetic and independent of current provider
+data; remove the live document ledger's fixture fallback. User/knowledge mutations without UI stay
+documented authenticated API workflows. A role × flow matrix covers positive, denied, stale,
+duplicate, timeout, renderer and dependency failure cases, all runtime BLOCKED until observed.

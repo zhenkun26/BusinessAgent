@@ -7,6 +7,8 @@
 参考 HTTP 集成的隔离配方、鉴权/故障控制和应用证据入口见[工程指南](../docs/50-engineering/reference-integration.md)。独立服务代码已提供，完整应用运行验收仍 BLOCKED；普通开发启动不自动启用这些服务。
 
 受控 SSO 的独立 IdP、PKCE/RS256/身份映射及 HTTPS 配方见[工程指南](../docs/50-engineering/controlled-sso.md)。仅离线候选，真实签名/浏览器/部署验收 BLOCKED；默认关闭。
+前端固定本地依赖、角色流程及 API-only 管理边界见[浏览器交付指南](../docs/50-engineering/browser-delivery.md)。从同源 `/ui/` 访问；B01–B16 真实浏览器验收仍 BLOCKED。
+
 ## 快速开始
 
 ### 1. 环境准备

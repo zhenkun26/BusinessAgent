@@ -24,7 +24,8 @@ function setup(extra = {}) {
       for (const [key, fn] of Object.entries(options.methods)) app[key] = fn.bind(app);
     } }) },
     location: { protocol: 'https:' }, window: {}, document: {},
-    setTimeout: () => 1, setInterval: () => 1, clearInterval: () => {},
+    setTimeout: () => 1, clearTimeout: () => {}, setInterval: () => 1, clearInterval: () => {},
+    AbortController,
     fetch: async () => { throw new Error('Unexpected network attempt'); }, ...extra,
   };
   vm.runInNewContext(script, context);
@@ -69,7 +70,9 @@ function setup(extra = {}) {
     const { app, context } = setup();
     let body;
     context.fetch = async (url, opts) => {
-      body = JSON.parse(opts.body);
+      if (url.endsWith('/me')) return { ok: true, status: 200, text: async () => JSON.stringify({
+        user_id: 'synthetic-id', username: 'synthetic', role: 'salesperson', department: '' }) };
+      if (opts.body) body = JSON.parse(opts.body);
       return { ok: true, status: 200, text: async () => JSON.stringify({ access_token: marker, role: 'salesperson' }) };
     };
     app.loginPassword = 'synthetic-password';
@@ -84,7 +87,7 @@ function setup(extra = {}) {
     const { app, context } = setup();
     let aborted = 0;
     app.token = marker; app.sessionId = 's'; app.loginPassword = marker;
-    app._abort = { abort: () => aborted++ }; app.messages = ['private']; app.myApprovals = ['private'];
+    app.streamAbort = { abort: () => aborted++ }; app.messages = ['private']; app.myApprovals = ['private'];
     context.fetch = async () => ({ status: 401 });
     await assert.rejects(app.api('/synthetic'));
     assert.equal(app.token, ''); assert.equal(app.loginPassword, ''); assert.equal(app.sessionId, '');

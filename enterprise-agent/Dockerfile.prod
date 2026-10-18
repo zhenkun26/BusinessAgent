@@ -81,6 +81,7 @@ RUN /opt/venv/bin/python -m pip uninstall -y pip
 
 # 应用代码
 COPY app ./app
+COPY scripts/verify_frontend_assets.py ./deploy/verify_frontend_assets.py
 COPY deploy/init.sql ./deploy/init.sql
 COPY deploy/schema_manifest.json deploy/demo_seed.sql ./deploy/
 COPY deploy/migrations ./deploy/migrations
@@ -93,6 +94,9 @@ RUN python -c "import psycopg; from langgraph.checkpoint.postgres.aio import Asy
 
 # C19: import only; real key/signature/TLS acceptance remains an isolated runtime gate.
 RUN python -B -c "import cryptography; from jwt.algorithms import RSAAlgorithm"
+
+# C20: verify bundled browser assets without browser startup or external access.
+RUN python -I -B deploy/verify_frontend_assets.py app/static
 
 EXPOSE 8000
 
