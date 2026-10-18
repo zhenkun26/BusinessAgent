@@ -1,19 +1,8 @@
-"""Milvus 三级降级链(对应 v3 方案 P0-3)
+"""Vector retrieval, bounded Milvus keyword scan, then PostgreSQL fulltext/ILIKE.
 
-降级顺序:
-1. 向量检索(主):Milvus HNSW
-2. BM25 检索(降级 1):Milvus 2.4+ 内置 BM25,或 PostgreSQL 全文检索
-3. PostgreSQL LIKE(降级 2):兜底,关键词模糊匹配
-
-触发条件:
-- 主路径异常(Milvus 连接失败/超时)→ BM25
-- BM25 异常或不可用 → PG LIKE
-- 全部失败 → 返回空 + 告警
-
-W3 实现要点:
-- 向量检索走 EnterpriseRAGRetriever(已封装)
-- BM25/PG LIKE 走 KeywordRetriever(本模块)
-- DegradationChain 统一调度,记录命中的 stage
+Keyword scan scores matched terms over at most 500 authorized rows; it is not BM25.
+PostgreSQL combines tsvector matching/ranking with an escaped ILIKE alternative.
+A valid empty result is distinct from backend failure.
 """
 
 import json
@@ -36,20 +25,21 @@ class DegradationResult:
     """降级链结果"""
 
     results: list[SearchResult]
-    stage: str  # "vector" | "bm25" | "like" | "none"
+    stage: str  # vector | keyword_scan | pg_fulltext_like | none | failed
     latency_ms: int
     error: Optional[str] = None
 
 
+class KeywordResults(list[SearchResult]):
+    """List-compatible results carrying the algorithm used for this invocation."""
+
+    def __init__(self, results: list[SearchResult], stage: str) -> None:
+        super().__init__(results)
+        self.stage = stage
+
+
 class KeywordRetriever:
-    """关键词检索器(BM25 + PG LIKE 兜底)
-
-    - 第一级:从 Milvus 全表扫描 + 关键词匹配(模拟 BM25)
-    - 第二级:PostgreSQL tsvector 全文检索(documents.search_vector,第三级降链)
-
-    简化实现:对 collection 做 query 关键词扫描,返回包含关键词的 chunks。
-    适合 Milvus 不可用时的降级,不追求高准确率,只求"有结果"。
-    """
+    """Bounded keyword scan with PostgreSQL fulltext/ILIKE fallback."""
 
     def __init__(self):
         from app.config import get_settings
@@ -72,21 +62,18 @@ class KeywordRetriever:
             logger.warning(f"关键词提取为空,query={query!r}")
             return []
 
-        # 第一级降级:Milvus 全表扫描 + Python 层关键词匹配
         try:
             results = visible_results(self._scan_via_milvus(
                 keywords, top_k, user_role, dept_namespace, doc_types))
             if results:
-                return results
-            return await self._fallback_pg_tsvector(
-                keywords, top_k, user_role, dept_namespace, doc_types)
+                return KeywordResults(results, 'keyword_scan')
         except RetrievalAccessError:
             raise
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"Milvus 关键词扫描失败: {e}")
-            return await self._fallback_pg_tsvector(
-                keywords, top_k, user_role, dept_namespace, doc_types
-            )
+        except Exception:
+            logger.error('RETRIEVAL_KEYWORD_SCAN_UNAVAILABLE')
+        results = await self._fallback_pg_tsvector(
+            keywords, top_k, user_role, dept_namespace, doc_types)
+        return KeywordResults(results, 'pg_fulltext_like')
 
     @staticmethod
     def _extract_keywords(query: str) -> list[str]:
@@ -211,7 +198,7 @@ class KeywordRetriever:
             dept_namespace: 当前用户部门(命名空间过滤)
 
         Returns:
-            带 ts_rank 排序的检索结果;查询失败或库不可用时返回空列表
+            带 ts_rank 排序的检索结果;查询失败或库不可用时抛出固定错误
         """
         scope = resolve_scope(user_role, dept_namespace, doc_types)
         terms = [checked_string(term, 512) for term in keywords[:8]]
@@ -264,7 +251,7 @@ class KeywordRetriever:
                 """), params)).fetchall()
         except Exception:  # Database failure never removes filters or returns raw errors.
             logger.error('RETRIEVAL_DATABASE_UNAVAILABLE')
-            return []
+            raise RuntimeError('RETRIEVAL_DATABASE_UNAVAILABLE') from None
 
         results: list[SearchResult] = []
         for row in rows:
@@ -352,33 +339,36 @@ class DegradationChain:
             if (uses_remote_profile(self.keyword_retriever._settings)
                     and isinstance(e, RemoteModelError)):
                 raise
-            logger.error(f"向量检索异常,降级到关键词: {e}")
+            logger.error('RETRIEVAL_VECTOR_UNAVAILABLE')
 
-        # 2. 降级 1:BM25 / 关键词
+        # 2. Keyword scan / PostgreSQL fulltext and ILIKE
         try:
             results = await self.keyword_retriever.retrieve_by_keywords(
                 query=query, top_k=top_k, user_role=user_role,
                 dept_namespace=dept_namespace, doc_types=doc_types,
             )
+            stage = getattr(results, "stage", "keyword_scan")
             results = visible_results([result for result in results if scope.allows_result(result)])
             if results:
                 ms = int((time.time() - start) * 1000)
-                logger.info(f"BM25 降级命中: {len(results)} 条, cost={ms}ms")
+                logger.info(f"{stage}: {len(results)} results, cost={ms}ms")
                 return DegradationResult(
                     results=results,
-                    stage="bm25",
+                    stage=stage,
                     latency_ms=ms,
                 )
         except RetrievalAccessError:
             raise
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"BM25 降级异常: {e}")
+        except Exception:  # An outage is not evidence that the knowledge base is empty.
+            logger.error('RETRIEVAL_FALLBACK_UNAVAILABLE')
+            return DegradationResult([], 'failed', int((time.time() - start) * 1000),
+                                     'RETRIEVAL_FALLBACK_UNAVAILABLE')
 
-        # 3. 全部失败
+        # 3. Valid empty result
         ms = int((time.time() - start) * 1000)
         return DegradationResult(
             results=[],
             stage="none",
             latency_ms=ms,
-            error="所有检索路径均失败",
+            error=None,
         )

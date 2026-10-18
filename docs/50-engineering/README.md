@@ -6,6 +6,7 @@
 
 | 文档 | 位置 | 用途 |
 |---|---|---|
+| RAG 质量与指标 | [rag-quality.md](rag-quality.md) | C17 冻结语料、固定分母、引用/拒答/权限与运行边界 |
 | 分析数据适配 | [analysis-data.md](analysis-data.md) | C16 provider 一致取数、分页快照、权限与确定性统计 |
 | 知识发布与索引一致性 | [knowledge-publication.md](knowledge-publication.md) | C15 版本化发布、重试与可见性 |
 | 审批执行状态 | [approval-execution.md](approval-execution.md) | C11 条件决策、一次领取与结果核对 |

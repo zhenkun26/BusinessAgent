@@ -434,3 +434,22 @@ Add migration v6 without rewriting v1-v5. Retain failed publications and dead ta
 An admin may explicitly retry a dead knowledge job using the same immutable plan;
 no generic queue reset or automatic mutation replay. Add guarded deactivation and
 metadata status routes. This does not change C10 checkpoint fencing or C21 audit replay.
+
+## C17 quality evidence and execution boundary
+
+Use a versioned, standard-library metric core and a separate explicit runtime CLI.
+Freeze input/source hashes and IDs; keep 122 primary cases and six supplemental ACL
+controls separately denominated. Missing evidence remains a row with zero credit.
+Normal-answer coverage uses all eligible cases, failures/skips included. Mechanical
+keyword, citation-index and refusal-marker checks are proxies, never factual accuracy.
+Manual semantic citation/refusal review and accepted C02 profile remain mandatory.
+Capture the actual KnowledgeAgent degradation call and final decision, without duplicate
+retrieval or a parallel prompt implementation. Preserve role, source/chunk IDs, stage,
+status, safe failure code, attribution, prompts/config and source hashes. Exact source
+identity replaces substring title hits. Runtime requires an isolated published corpus,
+read-only preflight, existing Milvus collection and a fresh output file; no auto ingest,
+reset, schema creation or report overwrite. Offline default never imports the app.
+Keep vector, bounded keyword scan and PG fulltext/ILIKE stages distinct. A database
+outage must not become a successful no-answer refusal. Do not tune retrieval thresholds
+or prompts without measured full-corpus failures. Report v2 is not comparable to the
+old success-only metric and does not grant merge, release or enterprise UAT acceptance.

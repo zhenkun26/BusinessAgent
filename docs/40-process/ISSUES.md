@@ -143,8 +143,9 @@
 <a id="c17"></a>
 #### C17 · P1 · RAG 质量与指标口径
 
-- **现状/证据**：[run_eval.py](../../enterprise-agent/eval/run_eval.py)保留 122 条评测，生成失败单独计数但不进入覆盖率分母；[degradation.py](../../enterprise-agent/app/rag/degradation.py)部分名为 BM25 的路径实际为关键词匹配。
+- **现状/证据**：[run_eval.py](../../enterprise-agent/eval/run_eval.py)历史实现保留 122 条评测，生成失败单独计数但不进入覆盖率分母（本轮修正）；[degradation.py](../../enterprise-agent/app/rag/degradation.py)此前部分名为 BM25 的路径实际为关键词匹配（本轮更名）。
 - **缺口/原因**：质量指标容易被误读为全样本事实正确率，检索命名与行为不完全一致。
+- **本轮增量**：122 条原样本与九份来源冻结；新增 6 条独立权限对照。失败/跳过/未执行进入固定分母，评测捕获实际 KnowledgeAgent 最终输出；引用编号/拒答特征只作机械代理，语义审核待真实运行。降级改为实际关键词扫描/PG 全文与 ILIKE，库故障不再伪装无答案。29 项专项 + 112 项相关回归 PASS；C17 整项与完整 RAG **BLOCKED**，未声称覆盖率达标。见[契约](../50-engineering/rag-quality.md)与[交付记录](阶段性总结_C17RAG质量与指标口径.md)。
 - **验收**：保留全部样本和来源，明确分母、失败/跳过与逐样本归因；关键词覆盖 ≥0.85，同时核对引用正确性、无答案拒答和跨部门负例；不能靠排除失败样本或改宽预期制造通过；按实际算法命名；在 C02 已验收 profile 上复测。
 
 <a id="c18"></a>

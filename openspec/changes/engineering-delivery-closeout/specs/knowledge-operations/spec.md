@@ -36,3 +36,38 @@ retrieval before reranking or generation using current PostgreSQL visibility and
 #### Scenario: Retrieval store failure
 - **WHEN** current publication visibility cannot be established
 - **THEN** retrieval fails closed without exposing vector, keyword or cached legacy content
+
+### Requirement: 答案质量必须有可度量的目标值
+The evaluation SHALL retain every frozen case and its source provenance. Normal-answer
+keyword coverage SHALL use all eligible cases, including zero credit for failed, empty,
+skipped or missing answers. A target of 0.85 SHALL NOT mean factual correctness.
+Primary and supplemental role controls SHALL have separate explicit denominators.
+Citation correctness, no-answer refusal and cross-department negatives SHALL be reviewed
+on the accepted C02 profile before quality acceptance; offline doubles SHALL NOT satisfy it.
+
+#### Scenario: Generation failure or omitted case
+- **WHEN** generation fails, is skipped, or evidence for an expected case is missing
+- **THEN** its row and denominator contribution remain, with zero answer credit and attribution
+
+#### Scenario: Mechanical checks pass
+- **WHEN** keywords and citation indexes meet their numerical checks
+- **THEN** semantic review and real profile acceptance remain separately required
+
+### Requirement: 低覆盖样本必须做失效模式分析
+The evaluator SHALL distinguish retrieval failure, retrieval miss, retrieved-context keyword
+gap, generation failure and generation keyword gap per sample. Backend outages SHALL NOT
+be counted as correct no-answer refusals. Reported retrieval stages SHALL name the actual
+vector, bounded keyword-scan or PostgreSQL fulltext/ILIKE algorithms, not claim BM25.
+
+#### Scenario: Empty knowledge versus unavailable backend
+- **WHEN** the backend fails instead of returning a valid empty result
+- **THEN** the agent returns a service failure and the evaluator grants no refusal credit
+
+### Requirement: RAG 链路变更必须执行回归评测
+RAG changes SHALL preserve the frozen evaluation set and run relevant offline regressions.
+Full-corpus runtime regression and semantic review SHALL precede integration acceptance.
+Unavailable runtime resources SHALL leave C17 and complete RAG acceptance BLOCKED.
+
+#### Scenario: Offline-only delivery
+- **WHEN** injected regression tests pass without the actual C02 services and published corpus
+- **THEN** only offline implementation evidence is recorded and whole-item acceptance stays open

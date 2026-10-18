@@ -57,13 +57,16 @@ PARTITIONS = [
 ]
 
 
-async def init_milvus(recreate: bool = False):
+async def init_milvus(recreate: bool = False, *, require_existing: bool = False) -> None:
     """初始化 Milvus 连接与 Collection
 
     Args:
         recreate: 开发期可传 True 强制 drop 重建(如 dim 变更后)
+        require_existing: Evaluation guard; never create or recreate shared artifacts.
     """
     global _collection
+    if require_existing and recreate:
+        raise ValueError('MILVUS_READ_ONLY_CONFLICT')
     settings = get_settings()
 
     connections.connect(
@@ -86,6 +89,8 @@ async def init_milvus(recreate: bool = False):
 
     # 集合不存在则创建
     if not utility.has_collection(collection_name):
+        if require_existing:
+            raise RuntimeError('MILVUS_EXISTING_COLLECTION_REQUIRED')
         logger.info(
             f"创建 Milvus Collection: {collection_name}, dim={settings.embedding_dim}"
         )

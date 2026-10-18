@@ -2,7 +2,7 @@
 
 W3 完整实现：
 - EnterpriseRAGRetriever 两阶段检索(向量召回 + Rerank)
-- DegradationChain Milvus 三级降级(向量 → BM25 → PG LIKE)
+- DegradationChain Milvus 三级降级(向量 → 关键词扫描 → PG 全文/ILIKE)
 - ConfidenceDecider 场景化阈值(P1-2)
 - LLM 生成答案(DeepSeek/OpenAI 兼容)
 - 答案附来源(可追溯)
@@ -129,7 +129,7 @@ class KnowledgeAgent:
 
         try:
             scope = resolve_scope(self.user_role, self.user_dept)
-            # 1. 降级链检索(向量 → BM25 → PG LIKE)
+            # 1. 降级链检索(向量 → 关键词扫描 → PG 全文/ILIKE)
             # 检索用扩展后的 query(embedding 需要完整语义);自评/日志仍用原 query
             from app.graph.history import expand_query_with_history
 
@@ -140,6 +140,9 @@ class KnowledgeAgent:
                 dept_namespace=self.user_dept,
                 top_k=self.rerank_top_k,
             )
+
+            if deg_result.error:
+                raise RuntimeError('RETRIEVAL_UNAVAILABLE')
 
             results = [result for result in deg_result.results if scope.allows_result(result)]
             stage = deg_result.stage

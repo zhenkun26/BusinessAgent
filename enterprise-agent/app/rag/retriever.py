@@ -44,7 +44,7 @@ class RetrievalResult:
     top_score: float  # Top-1 分数
     scene: str  # 识别出的场景
     latency_ms: int
-    stage: str  # "vector" | "rerank" | "bm25" | "like"  命中的检索阶段(降级链用)
+    stage: str  # "vector" | "rerank"; fallback algorithms belong to DegradationResult
 
 
 # 政策场景共享优先的平局噪声带(见 retrieve 中的说明)

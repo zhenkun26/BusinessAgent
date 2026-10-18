@@ -253,10 +253,11 @@ class RetrievalAuthorizationTests(unittest.IsolatedAsyncioTestCase):
         self.factory.assert_not_called()
         self.collection.query.assert_not_called()
 
-    async def test_pg_failure_returns_no_documents(self) -> None:
+    async def test_pg_failure_raises_fixed_error_without_documents(self) -> None:
         self.db.execute.side_effect = RuntimeError('synthetic DB outage')
-        self.assertEqual(await self.keyword._fallback_pg_tsvector(
-            ['policy'], 5, 'salesperson', 'dept_sales'), [])
+        with self.assertRaisesRegex(RuntimeError, '^RETRIEVAL_DATABASE_UNAVAILABLE$'):
+            await self.keyword._fallback_pg_tsvector(
+                ['policy'], 5, 'salesperson', 'dept_sales')
 
     def test_missing_or_malformed_result_acl_is_denied(self) -> None:
         scope = self.policy.resolve_scope('admin', None)
@@ -365,7 +366,7 @@ class RetrievalAuthorizationTests(unittest.IsolatedAsyncioTestCase):
                                    threshold_used=.7, reason='test')
         owner = SimpleNamespace(user_role='salesperson', user_dept='dept_sales', rerank_top_k=5,
             degradation_chain=SimpleNamespace(run=AsyncMock(return_value=SimpleNamespace(
-                results=self.fixture(), stage='vector'))),
+                results=self.fixture(), stage='vector', error=None))),
             _generate_answer=AsyncMock(return_value=('safe answer', .9)),
             decider=SimpleNamespace(decide=lambda **kw: decision),
             _apply_decision=lambda answer, decision: (answer, ''))

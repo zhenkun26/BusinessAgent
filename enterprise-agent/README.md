@@ -186,7 +186,7 @@ enterprise-agent/
 
 - [x] **W2** Docker Compose 环境 + 本地 Embeddings(bge-m3) + BGE Reranker + 三层模型分层(DeepSeek v4-pro / v4-flash / qwen3.5:4b)
 - [x] **W3** RAG 两阶段检索(向量召回 + BGE 精排) + 场景化置信度决策 + LLM 降级(DeepSeek v4-pro→qwen3.5:4b)
-- [x] **W4** RAG 评测体系(命中率/覆盖率/延迟 P95) + 评测数据集
+- [x] **W4（历史）** RAG 评测体系与数据集；当前入口采用 [C17 质量契约](../docs/50-engineering/rag-quality.md)，保留 122 条原样本、固定分母，默认离线，实际质量与完整运行验收 BLOCKED。
 
 ### 阶段二: 多 Agent 协同(W5-W8) ✅
 
@@ -223,7 +223,7 @@ enterprise-agent/
 | 能力 | 实现 |
 |------|------|
 | RAG 两阶段检索 | 向量粗排(1024×n) + BGE Reranker 精排(top=5) |
-| 三级降级链 | LLM(primary: v4-pro→qwen3.5:4b;lite: qwen3.5:4b→v4-flash,初始化降级 + 工具选择/意图分类输出不可用时运行时回退) / 检索(向量→BM25→PG LIKE) / Checkpointer 按 C10 固定后端、故障不回退 |
+| 三级降级链 | LLM(primary: v4-pro→qwen3.5:4b;lite: qwen3.5:4b→v4-flash,初始化降级 + 工具选择/意图分类输出不可用时运行时回退) / 检索(向量→最多 500 行关键词扫描→PG 全文/ILIKE，非 BM25) / Checkpointer 按 C10 固定后端、故障不回退 |
 | 模型分层 | DeepSeek v4-pro(推理) / qwen3.5:4b 本地(轻量任务主路径:分类/抽取/grounded 生成) / v4-flash(云端降级) |
 | 多 Agent 并行 | LangGraph Send API fan-out + planner/dispatcher 动态路由 |
 | 数据分析 | AnalysisAgent：跟随 CRM provider、完整分页快照、按权限取数、整数金额聚合与确定性报告；真实运行 BLOCKED |

@@ -156,3 +156,14 @@ CRM-provider-aligned analysis, versioned paginated reference read contract, curr
 authorization, validated integer money and deterministic reports with provenance.
 No new dependencies, live calls, deployment or migration. Runtime/full RAG acceptance
 remains BLOCKED; C10 stays open and C21 audit replay deferred. Stop locally before C17.
+
+## Authorized C17 increment
+
+C16 `bb81833` was pushed and the identical remote branch verified. Implement C17 only:
+freeze the original 122 cases and nine sources; add a separate role-control suite;
+make full eligible denominators, missing/failed/skipped states and evidence explicit;
+evaluate the actual KnowledgeAgent and name retrieval algorithms truthfully.
+No live model calls, ingestion, stores, installations or runtime acceptance this turn.
+Quality tuning requires real per-case diagnosis; no widened labels or deleted samples.
+C02/full RAG/runtime acceptance stays BLOCKED, C10 open, audit replay C21. Stop after
+the local C17 commit before push or C18 full integration.

@@ -357,3 +357,19 @@
   and strict CLI BLOCKED. [C16 record](阶段性总结_C16分析数据适配.md).
 - **Delivery**: C15 `0c0c5f9` pushed/verified; C16 local only, stop before C17.
   C15 full RAG remains BLOCKED; C10 write race open; audit replay remains C21.
+
+
+## 34. C17: fixed-denominator RAG evidence and truthful retrieval states
+
+- **Decision**: Preserve all 122 cases/nine sources, hash their provenance, and separately
+  score six department controls. Failed/skipped/missing answers remain in the denominator.
+  Capture the actual KnowledgeAgent invocation/final decision; do not duplicate generation.
+- **Semantics**: Keyword, citation-reference and refusal-marker checks are mechanical
+  proxies. Human semantic review and accepted C02 runtime evidence remain required.
+  Rename fallback stages by actual algorithms; outages cannot count as no-answer refusals.
+- **Safety**: Default CLI is offline; runtime needs explicit opt-in, exact published corpus,
+  existing collection and new report path. No auto-ingest/reset/migration/overwrite.
+- **Evidence**: 29 focused + 112 related offline cases PASS. Full runtime/RAG, full pytest
+  and strict OpenSpec CLI remain BLOCKED. [C17 record](阶段性总结_C17RAG质量与指标口径.md).
+- **Delivery**: C16 `bb81833` pushed/verified; C17 local only. Stop before C18 full integration.
+  C10 write race remains open; non-deleting audit replay remains C21.
