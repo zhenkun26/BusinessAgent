@@ -8,7 +8,7 @@
 <a id="engineering-closeout"></a>
 ### 工程交付收尾差距 C01–C25（2026-10-17）
 
-本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，C01 配置已独立提交推送但运行验收 BLOCKED；C02 已有模型契约与离线实现，libpq5 已获批并补入配方，外部模型方案已确认，真实 API/Linux 验收仍 BLOCKED；C03 增量 fc8da91 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属离线增量已实现，真实 HTTP/PG 验收 BLOCKED；其余未实施。现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
+本节是当前工程收尾问题与逐项验收的唯一事实源。调查基线为 `153f78651217eec7544b064446344d27b36085f1`，以下整项均为 **open**；C24 已完成安全入口前置，C01 配置已独立提交推送但运行验收 BLOCKED；C02 已有模型契约与离线实现，libpq5 已获批并补入配方，外部模型方案已确认，真实 API/Linux 验收仍 BLOCKED；C03 增量 fc8da91 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属离线增量已实现，真实 HTTP/PG 验收 BLOCKED；后续 C05–C18 离线增量见各条目。原始现状来自 E0 静态调查，后续局部交付在对应条目追加，不能视为完整运行时验收。P0/P1 均属于本次工程交付必须处理的范围。
 
 每项日期均为 2026-10-17，计划修复按对应缺口执行，修复与验证记录待逐项实施后补充。源码链接相对本文件；工程验收遵守[交付基线](../50-engineering/engineering-delivery-baseline.md)的证据等级与记录模板，执行依赖以 [ROADMAP](ROADMAP.md#engineering-closeout-stages) 为准。历史 fixed 条目保留当时证据，不自动覆盖本轮新发现。
 
@@ -157,6 +157,8 @@
 - **前置交付（2026-10-17）**：已冻结 [business-reference-v1](../50-engineering/reference-business-contract.md)：13 类接口、持久操作 ID/原子回执、未知结果查询、版本化补偿、受控邮件捕获与 20 项未来验收场景，并映射当前适配器/stub 缺口到 C12/C14/C13/C11 与 S5。仅静态文档/规格检查 PASS，未改应用代码或启动服务；20 项运行场景均 **BLOCKED**。4.1 前置完成，5.4/C18 整项及真实提供方任务保持 open。C10 租约竞态继续留在 C10；后续 C12/C14 状态见各自条目。见[阶段记录](阶段性总结_C18参考契约前置.md)。
 
 <a id="c19"></a>
+- **实施增量（2026-10-18）**：C17 `cd49d78` 已推送并核验。C18 提供独立 CRM/工单/邮件服务、SQLite 原子副作用/回执与条件补偿、按 run/身份隔离、独立控制端口、故障注入、隔离镜像/Compose 配方、admin 只读证据与真实登录/对话/审批/恢复采集入口。45 项专项 + 162 项相关回归 PASS，均为内存 SQLite/注入依赖的离线验证。完整 R01–R20、物理持久化/网络/进程故障和应用运行验收 **BLOCKED**；C18/5.4 整项 open。C10 写入竞态不关闭，审计回写留 C21，完整 RAG 与既有阻塞保留。见[实施与验收指南](../50-engineering/reference-integration.md)及[交付记录](阶段性总结_C18完整参考HTTP业务集成.md)。本地提交后暂停，C18 推送/C19 待确认。
+
 #### C19 · P1 · 受控 IdP 的 SSO 完整链路
 
 - **现状/证据**：[auth.py](../../enterprise-agent/app/api/auth.py)已有 OIDC callback/验签/账户映射和[单测](../../enterprise-agent/tests/test_sso_auth.py)，尚缺浏览器与独立 IdP 的完整验收。

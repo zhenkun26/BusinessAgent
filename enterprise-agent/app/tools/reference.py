@@ -120,7 +120,9 @@ async def request(target_config: dict, method: str, path: str, *, body: dict | N
     from app.config import get_settings
     settings = get_settings()
     token = getattr(settings, f"{target_config['service']}_api_token")
-    headers = {"X-Reference-Run-Id": target_config["run_id"]}
+    headers = {"X-Reference-Run-Id": target_config["run_id"], "Accept": "application/json"}
+    if method != "GET":
+        headers["Content-Type"] = "application/json"
     if operation_id:
         headers["Idempotency-Key"] = "ba-ref-v1:" + valid_uuid(operation_id)
     if compensates_operation_id:

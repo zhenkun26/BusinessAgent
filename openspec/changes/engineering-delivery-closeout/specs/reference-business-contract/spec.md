@@ -48,3 +48,46 @@ The project SHALL retain C10's lease-expiry write race and real-runtime blockers
 #### Scenario: Reference prework is committed locally
 - **WHEN** the prework increment is ready for review
 - **THEN** further push, implementation, deployment and any live business call require their own user authorization
+
+### Requirement: Independent reference services retain transactional effects
+The reference implementation SHALL expose B01-B13 and crm-analysis-v1 from separate
+CRM, ticket and mail processes with persistent per-service storage, strict requests,
+run/principal grants, atomic effects and terminal receipts, retained rejections and
+version-checked compensation. It SHALL have no SMTP or automatic data reset/deletion.
+
+#### Scenario: Same operation recurs after an uncertain response
+- **WHEN** a matching key/fingerprint is retried or queried under the same store identity
+- **THEN** the original receipt is returned or an uncommitted pending transaction is safely completed without duplicating a committed effect
+
+#### Scenario: Incompatible ledger identity
+- **WHEN** startup sees a mismatched store identity, service or schema
+- **THEN** startup fails without overwriting records or claiming safe recovery
+
+### Requirement: Reference controls are isolated and explicit
+The service SHALL provide authenticated control-v1 on a separate listener for fresh-run
+provisioning, retained evidence and operation/attempt/phase-scoped faults. Business tokens,
+user headers and natural-language payloads SHALL NOT grant operator controls.
+
+#### Scenario: Unauthorized reset or fault installation
+- **WHEN** a business caller attempts operator actions or a reset
+- **THEN** the request is denied without disclosing records or changing business state
+
+### Requirement: C18 evidence distinguishes implementation from full-path acceptance
+The project SHALL provide an opt-in login/chat/approval/resume transcript runner and
+reference-ledger evidence capture. It SHALL retain all R01-R20 statuses and require
+independent process, persistence, transport fault and application audit/Saga/queue evidence
+before closing C18. No offline test or transcript-only observation SHALL grant full PASS.
+
+#### Scenario: Local implementation passes injected tests
+- **WHEN** service/client contracts pass against in-memory SQLite and transport doubles
+- **THEN** only the implementation subtask is complete, runtime/full RAG stay BLOCKED, C10 stays open and audit replay remains C21
+
+### Requirement: Reference observation is bounded and does not grant execution authority
+The application SHALL restrict reference configuration and per-session correlation endpoints
+to current administrators, omit credentials and business/audit payloads, parameterize queries,
+and enforce row/time bounds. The collector SHALL verify expected store/run identities and
+stable fixture hashes before further business messages and preserve missing evidence.
+
+#### Scenario: Evidence identity changes or an approval is ambiguous
+- **WHEN** a store identity or fixture hash differs, or more than one approval matches
+- **THEN** the collector stops without choosing another ledger or arbitrary approval, retains BLOCKED cases, and never repairs audit records or grants execution authority

@@ -1,7 +1,8 @@
 # Controlled business reference contract
 
 Profile: **business-reference-v1**. Frozen design, 2026-10-17, C18 prework.
-**Target service contract: independent services are not implemented or accepted.**
+**C18 service implementation candidate exists; independent runtime acceptance remains BLOCKED.**
+See [implementation, isolation and evidence guide](reference-integration.md) (2026-10-18).
 C12 now supplies an offline-verified forward adapter candidate; see [C12 operations](tool-operation-safety.md).
 Source baseline: C10 `a57bd4ed001d86d2da304e890d01da1e7e76db41`.
 
@@ -290,9 +291,9 @@ stub does not pass these cases. No waiver of C10, browser/SSO, Milvus/JWT/PG/Lin
 enterprise-resource blockers. `formal_uat=false`, `release_evidence=false`,
 `release_allowed=false` remain mandatory.
 
-## 8. Current-code gap and handoff
+## 8. Historical source-baseline gap and handoff
 
-| Current evidence at source baseline | Gap relative to this target | Next owner |
+| Historical evidence at C10 source baseline | Gap relative to this target | Next owner |
 | --- | --- | --- |
 | [CRM](../../enterprise-agent/app/tools/crm.py) builds keys from execution/request plus index default, permits absent task ID | Durable per-action identity, collision prevention, strict receipt and money/projection mapping | C12 |
 | [Ticket](../../enterprise-agent/app/tools/ticket.py) creates a random key suffix; update has no key and records empty old_values | Stable forward/update IDs, GET/version precondition, before-image and conditional compensation | C12 then C13 |

@@ -4,6 +4,8 @@
 
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统。
 
+参考 HTTP 集成的隔离配方、鉴权/故障控制和应用证据入口见[工程指南](../docs/50-engineering/reference-integration.md)。独立服务代码已提供，完整应用运行验收仍 BLOCKED；普通开发启动不自动启用这些服务。
+
 ## 快速开始
 
 ### 1. 环境准备

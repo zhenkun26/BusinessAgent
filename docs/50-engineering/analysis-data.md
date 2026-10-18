@@ -3,6 +3,9 @@
 C16 offline candidate, 2026-10-17. Actual CRM/PostgreSQL/JWT/API/SSE/Linux
 acceptance remains **BLOCKED**. This is not enterprise-source or report-quality evidence.
 
+C18 now supplies an [independent CRM service candidate](reference-integration.md);
+its in-memory contract checks do not close the real snapshot or application acceptance gate.
+
 ## Application behavior
 
 Analysis uses QueryOrderTool's effective provider: CRM_TOOL_PROVIDER when set,

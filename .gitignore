@@ -21,6 +21,7 @@ env/
 .env.local
 .env.*.local
 .env.prod
+.env.reference
 
 # 运行时数据与日志
 logs/

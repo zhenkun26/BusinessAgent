@@ -534,3 +534,32 @@ async def list_knowledge_publications(
         WHERE p.document_id = :did ORDER BY p.created_at DESC LIMIT 50"""),
         {'did': document_id})).mappings().all()
     return _envelope([{**dict(row), 'publication_id': str(row['publication_id'])} for row in rows])
+
+
+@router.get("/reference-profile")
+async def get_reference_profile(
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+) -> dict[str, Any]:
+    """Credential-free configuration preflight; never runtime acceptance evidence."""
+    from app.config import get_settings
+    from app.core.reference_evidence import configuration
+    from app.tools.base import get_tool
+
+    return _envelope(configuration(get_settings(), get_tool))
+
+
+@router.get("/reference-evidence/{session_id}")
+async def get_reference_evidence(
+    session_id: str,
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Bounded IDs/states/hashes, without tool payloads, credentials or audit summaries."""
+    import asyncio
+    from app.core.reference_evidence import collect
+
+    try:
+        async with asyncio.timeout(10):
+            return _envelope(await collect(db, session_id))
+    except Exception:
+        raise HTTPException(503, "REFERENCE_EVIDENCE_UNAVAILABLE") from None

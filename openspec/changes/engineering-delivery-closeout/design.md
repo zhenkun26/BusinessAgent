@@ -11,7 +11,8 @@ explicit order-status/time semantics. Customer lifetime revenue is unavailable, 
 order-amount substitute. Deterministic plans support known customer IDs and explicit ISO
 date intervals; unsupported time semantics fail closed. Render tables directly and preserve
 them through multi-agent aggregation; no LLM-generated numerical report or extra-data loop.
-Actual reference service implementation and runtime verification remain C18/BLOCKED.
+At C16 delivery, reference service implementation was deferred to C18. The authorized C18
+candidate is specified below; complete runtime verification remains BLOCKED.
 
 用户希望练手项目形成可执行的企业应用工程交付，当前没有企业现场资源。S0 使用本轮及前一轮代码调查，基线为 `153f786`；静态发现须在对应实施项补充可复现验证，不能直接标为运行时测试失败或已修复。
 
@@ -453,3 +454,42 @@ Keep vector, bounded keyword scan and PG fulltext/ILIKE stages distinct. A datab
 outage must not become a successful no-answer refusal. Do not tune retrieval thresholds
 or prompts without measured full-corpus failures. Report v2 is not comparable to the
 old success-only metric and does not grant merge, release or enterprise UAT acceptance.
+
+## C18 independent reference implementation
+
+Implement an isolated standard-library HTTP service package, deployed as three separate
+processes from one reference image with per-service SQLite databases and distinct credentials. Share no
+application adapter implementation. Use transactions for business state and receipts,
+retained before-images/tombstones, exact wire validation and run/principal isolation.
+A pending operation has no committed effect because effect and terminal receipt share
+one transaction; same-key recovery is safe only under matching store identity/schema.
+PERSIST journal, memory temporary storage, no WAL cleanup/reset/delete/vacuum endpoints.
+No claim of production database HA or general exactly-once behavior.
+
+Freeze control-v1 on a separate authenticated listener: append-only run provisioning,
+operation/attempt/phase-scoped faults and bounded evidence reads. No business-header or
+natural-language fault trigger. Service credentials and operator credential are separate;
+reference mail is a captured record only, with allowlisted recipients/attachment IDs and
+an internal Docker network without public ports or egress. Application authority remains
+C05/C11; external captured mail still requires actual approval plus requester resume.
+
+Provide business-reference-v1 B01-B13 and the crm-analysis-v1 snapshot extension against
+immutable seeded customer/order records. Snapshots bind run/principal/range and retain
+source identity; task/ticket/mail effects cannot silently alter source analytics.
+Keep the frozen R01-R20 matrix as runtime acceptance. Provide an opt-in application-entry
+transcript runner (login/message/approval/resume) with independent service evidence and
+separate operator observations for restart, concurrent faults and application
+PG/audit/queue/Saga correlation. It cannot grant full PASS from tool-only service tests
+or response text. Known operation IDs are required before arming targeted faults; no
+production planner bypass or unscoped next-request fault shortcut is introduced.
+Offline tests use actual in-memory SQLite and injected transport, not disk durability,
+real sockets, actual JWT/PG/LLM or deployment acceptance. All runtime cases remain open.
+
+The application exposes two admin-only, read-only observation endpoints: reference-profile
+returns credential-free configuration booleans and run identity; reference-evidence returns
+bounded per-session operation/request hashes and approval/Saga/queue/audit metadata, omitting
+payloads and credentials. Reads are parameterized, time/row bounded and explicitly non-atomic.
+The collector checks expected service/store UUIDs and stable fixture hashes before business
+messages. These identities do not attest an image or backup freshness. Missing audit is never
+repaired (C21), and collector OBSERVED never closes a runtime case. SQLite uses PERSIST/FULL
+and memory temporary storage; physical crash/savepoint retention is an unexecuted Linux gate.

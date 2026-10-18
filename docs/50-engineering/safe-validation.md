@@ -46,6 +46,8 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `app/observability/audit.py` | 缓存消费成功后 `os.remove` | 不导入/执行应用；C21 处理审计保留与恢复 |
 | `eval/run_c12_tool_operation_safety.py` | 实际动作存储/网关/HTTP/回执/审批建单/Saga 函数；SQL、HTTP、身份全注入，audit hook 禁止网络/文件写入/删除/子进程 | C12 专项审查允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c12_tool_operation_safety.py`；不加入五函数白名单，不证明真实 PG/HTTP/完整恢复 |
 | `eval/run_c14_queue_reliability.py` | 实际队列/producer/worker/路由函数；SQL、模型、Milvus、身份替身；audit hook 拒绝网络、文件写入/删除及子进程 | C14 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c14_queue_reliability.py`；不加入五函数白名单，不证明真实锁/故障/进程/框架 |
+| `eval/run_c18_reference_integration.py` | 独立服务真实代码与内存 SQLite；应用/HTTP/PG/身份注入；audit hook 拒绝文件数据库、网络、文件修改/删除及子进程 | C18 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c18_reference_integration.py`；不扩展五函数白名单，不启动 listener/Docker/运行采集器；R01–R20 BLOCKED |
+| `reference_service.server` / `reference_service.acceptance --execute` | 独立端口、持久 DB、故障控制；实际应用登录/对话/审批/恢复会写业务记录并可能调用付费 LLM；采集器仅新建证据文件，不覆盖/清理 | 本轮只审阅配方/代码；不执行。隔离运行须按 reference-integration.md 处理前置与审计删除路径，C21 未解决 |
 | `eval/run_c17_rag_quality.py` | 实际指标、降级、Agent/评测编排；SQL/模型注入；audit hook 拒绝网络、文件修改/删除及子进程 | C17 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c17_rag_quality.py`；不扩展五函数白名单，不执行 `run_eval --execute`；真实质量 BLOCKED |
 | `eval/run_c16_analysis_data.py` | 实际分析/参考查询/身份/图函数；SQL/HTTP 注入；audit hook 拒绝网络、写入/删除、子进程 | C16 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c16_analysis_data.py`；不加入五函数白名单，不替代真实参考服务/PG/JWT/API/SSE 验收 |
 | `eval/run_c15_knowledge_publication.py` | 实际发布/入库/可见性/检索/路由函数；SQL/向量/模型替身；audit hook 拒绝网络、写入/删除、子进程 | C15 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c15_knowledge_publication.py`；不加入五函数白名单，不替代真实 PG/Milvus 或完整 RAG 质量验收 |

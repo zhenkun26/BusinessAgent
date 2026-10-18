@@ -373,3 +373,20 @@
   and strict OpenSpec CLI remain BLOCKED. [C17 record](阶段性总结_C17RAG质量与指标口径.md).
 - **Delivery**: C16 `bb81833` pushed/verified; C17 local only. Stop before C18 full integration.
   C10 write race remains open; non-deleting audit replay remains C21.
+
+## 35. C18: independent retained reference services and observation-only acceptance collector
+
+- **Need**: tool stubs cannot prove independent state, versioned compensation or whole-application behavior.
+- **Choice**: three stdlib HTTP processes with separate SQLite stores, atomic effects/receipts,
+  authenticated run grants and a separate operator listener. Default collector is plan-only;
+  explicit execution uses login/chat/approval/resume and records app/provider correlation.
+- **Alternatives**: in-process mocks remain useful for offline checks but cannot close C18.
+  Adding a new web/database framework is unnecessary for the bounded reference environment.
+- **Tradeoffs**: single replica, coarse writer lock, fixed synthetic fixtures, bounded evidence,
+  no vendor/SMTP/HA claims. Physical durability, journal retention and real network behavior
+  require isolated Linux evidence; settings and in-memory SQLite do not prove them.
+- **Verification**: 45 focused + 162 related offline cases PASS. Every R01–R20 case stays
+  BLOCKED until the frozen semantic/runtime oracle is met. OBSERVED transcript steps do not
+  count as PASS. C10 fencing and C21 audit replay remain separately unresolved.
+- **Revisit**: failures in physical retention/restart, capacity or full application correlation
+  require a reviewed adjustment, not relaxed criteria or replacement/deletion of old evidence.

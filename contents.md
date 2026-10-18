@@ -188,4 +188,6 @@ C15 离线增量：[发布契约](docs/50-engineering/knowledge-publication.md)�
 
 C16 离线增量：[分析契约](docs/50-engineering/analysis-data.md)、[交付记录](docs/40-process/阶段性总结_C16分析数据适配.md)；来源一致、分页快照与确定性统计，`bb81833` 已推送，真实运行 BLOCKED；C17 见下文。
 
-C17 离线增量：[RAG 质量契约](docs/50-engineering/rag-quality.md)、[交付记录](docs/40-process/阶段性总结_C17RAG质量与指标口径.md)；固定分母与真实链路入口，本地交付，完整 RAG/语义审核 BLOCKED；C18 完整集成等待确认。
+C17 离线增量：[RAG 质量契约](docs/50-engineering/rag-quality.md)、[交付记录](docs/40-process/阶段性总结_C17RAG质量与指标口径.md)；固定分母与真实链路入口，`cd49d78` 已推送，完整 RAG/语义审核 BLOCKED；C18 见下文。
+
+C18 完整集成离线候选：[实施/隔离/验收指南](docs/50-engineering/reference-integration.md)、[交付记录](docs/40-process/阶段性总结_C18完整参考HTTP业务集成.md)、[专项入口](enterprise-agent/eval/run_c18_reference_integration.py)；45 项专项及 162 项回归 PASS，R01–R20/真实运行/完整 RAG BLOCKED，C10 open，C21 延后；本地交付后暂停，C19 待确认。

@@ -1,0 +1,13 @@
+{
+  "schema": "reference-transcript-v1",
+  "steps": [
+    {"id": "query", "case": "R01", "action": "message", "text": "查询客户 C001 和订单 O001，说明订单金额和币种。"},
+    {"id": "crm_create", "case": "R02", "action": "message", "text": "为客户 C001 创建标题为 reference-follow-up 的跟进任务，优先级 1，分配给我。"},
+    {"id": "ticket_create", "case": "R02", "action": "message", "text": "创建一张标题为 reference-ticket 的普通优先级工单，描述为合成参考验证，类别 general。"},
+    {"id": "ticket_update", "case": "R02", "action": "message", "session_step": "ticket_create", "text": "将刚创建的 reference-ticket 工单状态改为 resolved，添加备注 reference-update。"},
+    {"id": "internal_mail", "case": "R16", "action": "message", "text": "向 employee@reference.invalid 发送内部邮件，主题 reference-internal，正文为合成参考验证，不添加附件。"},
+    {"id": "external_mail", "case": "R17", "action": "message", "text": "向 customer@reference.invalid 发送外部邮件，主题 reference-external，正文为合成参考验证，不添加附件，请提交审批。"},
+    {"id": "approve", "case": "R17", "action": "decide", "session_step": "external_mail", "decision": "approved"},
+    {"id": "resume", "case": "R17", "action": "resume", "session_step": "external_mail"}
+  ]
+}

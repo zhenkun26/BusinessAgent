@@ -167,3 +167,13 @@ No live model calls, ingestion, stores, installations or runtime acceptance this
 Quality tuning requires real per-case diagnosis; no widened labels or deleted samples.
 C02/full RAG/runtime acceptance stays BLOCKED, C10 open, audit replay C21. Stop after
 the local C17 commit before push or C18 full integration.
+
+## Authorized C18 implementation increment (2026-10-18)
+
+C17 `cd49d78` was pushed and the identical remote branch verified. Implement C18's
+independent controlled CRM/ticket/mail services, persistent reference ledger, isolated
+build/deployment recipe, application-entry evidence harness and offline verification.
+Use Python's declared-runtime standard library; no new dependency or service installation.
+Do not start services, call APIs/models, migrate current stores, delete files or send mail.
+Full R01-R20 execution, real runtime/full RAG remain BLOCKED. Preserve C10's write race
+and C21 audit replay. Stop after the local C18 increment before its push or C19.

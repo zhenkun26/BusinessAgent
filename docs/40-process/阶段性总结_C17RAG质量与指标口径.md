@@ -62,3 +62,10 @@ existing migration, business record, data volume or historical evidence was chan
 `formal_uat=false`, `release_evidence=false`, `release_allowed=false`.
 
 Stop after the local C17 commit. C17 push and C18 full integration require the next confirmation.
+
+## Subsequent authorized handoff — 2026-10-18
+
+C17 `cd49d788ed4ecea00e9db22d414917f91f32a886` was pushed to
+`origin/codex/delivery-ci-gates` and the remote head was verified. The user separately
+authorized C18; see [its delivery record](阶段性总结_C18完整参考HTTP业务集成.md).
+C17/full RAG acceptance remains BLOCKED; this does not change the historical offline results.
