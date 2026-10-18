@@ -135,8 +135,9 @@
 <a id="c16"></a>
 #### C16 · P1 · 分析数据适配一致
 
-- **现状/证据**：[analysis.py](../../enterprise-agent/app/agents/analysis.py)调用 get_all_orders/customers；[crm.py](../../enterprise-agent/app/tools/crm.py)这些函数仍返回内置样例，切 HTTP provider 不切换分析来源。
-- **缺口/原因**：工具查询与分析报表的数据提供方不一致。
+- **原始证据**：分析直接读取内置样例，切 HTTP provider 不切换分析来源；LLM 报告可能改写数字，财务仍读取客户 ID 全集。
+- **当前增量**：[分析适配](../../enterprise-agent/app/tools/analysis_data.py)跟随 CRM provider，校验完整分页快照并重查身份；Python 整数聚合与确定性报告贯通汇总，不读取无权限客户目录。33 项专项 + 149 项相关回归 PASS，见[契约](../50-engineering/analysis-data.md)与[记录](阶段性总结_C16分析数据适配.md)。
+- **剩余缺口**：真实参考服务/PG/JWT/API/SSE/Linux 验收 BLOCKED，C16 整项 open。当前只支持明确订单金额/数量、ISO 日期与正向状态筛选；收入/排名/行业/相对时间明确不支持。独立参考服务扩展待 C18，现有工具级权限不代表部门行级隔离。C15 完整 RAG、C10 竞态与 C21 审计边界不变。
 - **验收**：替换参考 CRM 数据后，查询与 Python 聚合数字一致变化；空数据、分页、字段异常、权限和服务故障有明确结果；LLM 不能替造数值；输出注明数据来源和时间范围，Mock 模式显式标识。
 
 <a id="c17"></a>

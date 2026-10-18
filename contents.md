@@ -184,4 +184,6 @@ C13 离线增量：[Saga 契约](docs/50-engineering/saga-recovery.md)、[交付
 
 C11 离线增量：[审批契约](docs/50-engineering/approval-execution.md)、[交付记录](docs/40-process/阶段性总结_C11审批领取与执行状态.md)；原子领取、过期和执行状态候选 `8bb6241` 已推送，运行 BLOCKED；C15 见下文。
 
-C15 离线增量：[发布契约](docs/50-engineering/knowledge-publication.md)、[交付记录](docs/40-process/阶段性总结_C15知识发布与索引一致性.md)；版本化发布与检索可见性候选完成，本地提交，运行及完整 RAG BLOCKED；C16 等待确认。
+C15 离线增量：[发布契约](docs/50-engineering/knowledge-publication.md)、[交付记录](docs/40-process/阶段性总结_C15知识发布与索引一致性.md)；版本化发布与检索可见性候选 `0c0c5f9` 已推送，运行及完整 RAG BLOCKED；C16 见下文。
+
+C16 离线增量：[分析契约](docs/50-engineering/analysis-data.md)、[交付记录](docs/40-process/阶段性总结_C16分析数据适配.md)；来源一致、分页快照与确定性统计，本地交付，真实运行 BLOCKED；C17 等待确认。

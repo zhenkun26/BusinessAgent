@@ -64,12 +64,14 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 4.5.1 Implement guarded decisions, one-way execution claims, expiry, truthful result states, atomic audit events, UI labels and offline verification. 34 focused + 210 related cases PASS; local only.
   - [ ] 4.5.2 Verify real PostgreSQL/JWT/API/browser concurrency, timeout races and crash recovery in isolated Linux. <!-- BLOCKED; C10/C21 unchanged -->
 
-## 5. S5：数据与参考集成（C15 离线增量完成、运行阻塞；C16 待确认）
+## 5. S5：数据与参考集成（C15 已推送；C16 离线增量完成、运行阻塞；C17 待确认）
 
 - [ ] 5.1 C15 知识发布与索引一致性。
   - [x] 5.1.1 Implement immutable publication records, deterministic chunk upsert, atomic activation, retrieval visibility guards, retained retry/deactivation, documentation and offline verification. 36 focused + 148 related tests PASS; local only.
   - [ ] 5.1.2 Verify real PostgreSQL/Milvus concurrency, partial writes, restarts, indexing visibility and full RAG regression in isolated Linux. <!-- BLOCKED; C10/C21 unchanged -->
 - [ ] 5.2 C16 分析数据适配。
+  - [x] 5.2.1 Implement CRM-provider-aligned snapshot reads, current authorization, bounded pagination, exact aggregation and deterministic reporting with docs/offline tests. 33 focused + 149 related cases PASS; local only.
+  - [ ] 5.2.2 Verify real reference CRM/PG/JWT/API/SSE/Linux snapshots, query/analysis agreement and failure/permission behavior. <!-- BLOCKED; C10 open, C21 deferred, C15 full RAG unchanged -->
 - [ ] 5.3 C17 RAG 质量与指标口径。
 - [ ] 5.4 C18 完整参考 HTTP 集成。 <!-- BLOCKED: business-reference-v1 R01-R20 require independent persistent services and complete application evidence; prework is not acceptance -->
 - [ ] 5.5 C19 受控 IdP 的 SSO 完整链路。

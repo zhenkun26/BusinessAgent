@@ -15,6 +15,8 @@
 
 ### New Capabilities
 
+- `analysis-data`: C16 provider-aligned snapshot reads, bounded aggregation and deterministic reporting.
+
 - `engineering-delivery`: 工程交付范围、逐项验收证据、顺序推进及与企业现场生产验证的隔离规则。
 - `deployment-artifacts`: C01 的同摘要镜像部署、生产入口路由、流式透传与内部指标边界。
 
@@ -146,3 +148,11 @@ C11 `8bb6241` was pushed and verified on the same remote branch. Implement C15 o
 versioned publication, index/ledger visibility, guarded retry and deactivation, with
 docs/offline tests. No dependencies, live calls, migrations or deletion. C10 remains
 open, C21 audit replay deferred. Stop after local delivery before C16; no C15 push.
+
+## Authorized C16 increment
+
+C15 `0c0c5f9` was pushed and the same remote branch verified. Implement C16 only:
+CRM-provider-aligned analysis, versioned paginated reference read contract, current
+authorization, validated integer money and deterministic reports with provenance.
+No new dependencies, live calls, deployment or migration. Runtime/full RAG acceptance
+remains BLOCKED; C10 stays open and C21 audit replay deferred. Stop locally before C17.

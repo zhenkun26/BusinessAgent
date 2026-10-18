@@ -46,6 +46,9 @@ async def agent_executor_node(state: AgentState) -> AgentState:
         # knowledge 支持多轮上下文(指代消解 + 答案生成带历史);其余 agent 签名不变
         if subtask.task_type == TaskType.KNOWLEDGE:
             result = await agent.run(subtask.description, history=state.get("history"))
+        elif subtask.task_type == TaskType.ANALYSIS:
+            # A model-generated subtask must not broaden dates/entities from the user request.
+            result = await agent.run(user_input.message)
         else:
             result = await agent.run(subtask.description)
 
@@ -88,7 +91,7 @@ def _get_agent(task_type: TaskType, user_input: UserInput):
 
         agent = KnowledgeAgent(user_role=role, user_dept=dept)
     elif task_type == TaskType.ANALYSIS:
-        agent = AnalysisAgent(user_role=role, user_dept=dept)
+        agent = AnalysisAgent(user_role=role, user_dept=dept, user_id=user_input.user_id)
     elif task_type in (TaskType.EXECUTION, TaskType.APPROVAL):
         # ExecutionAgent 需要用户身份与会话信息(审批建单/审计用)
         agent = ExecutionAgent(

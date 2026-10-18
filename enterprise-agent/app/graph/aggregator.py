@@ -5,7 +5,7 @@
 
 策略(大模型 + 小模型分层):
 1. 单 Agent 结果：直接采用(不调 LLM)
-2. 多 Agent 结果：用 primary 大模型汇总(需要理解 + 整合能力)
+2. 多 Agent 结果：通常用 primary 汇总；含分析结果时直接保留各结果，避免改写数字
 3. 失败结果：标记并降低综合置信度
 4. needs_replan 传播：任一子 Agent 标记重规划，则整体重规划
 
@@ -126,7 +126,12 @@ async def _aggregate(state: AgentState) -> AgentState:
 
     # 构造汇总输入
     agent_answers = _format_agent_answers(results)
-    final_answer = await _llm_aggregate(user_input.message, agent_answers)
+    if any(r.agent_name == 'analysis' for r in results):
+        # Preserve computed analysis facts and failures; no numerical model rewrite.
+        final_answer = "\n\n".join(r.output.get('answer') or '子任务未返回可用结果。'
+                                   for r in results)
+    else:
+        final_answer = await _llm_aggregate(user_input.message, agent_answers)
 
     # 合并 sources
     all_sources: list[RetrievalSource] = []

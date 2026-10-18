@@ -106,9 +106,11 @@ all synthetic. Order `amount_minor` is an integer, currency is a three-letter co
 status is pending/completed/cancelled/refunded, item fields are `sku`, `name`, `qty`
 (positive integer), `price_minor` (nonnegative integer). `include_items=0` omits items.
 This exact money format differs from existing fixture `amount` floats; C12 maps tool
-output explicitly, and C16 owns future analysis/summary consistency. No new CRM
-analytics endpoint or dashboard claim is included; C16 must extend/version the profile
-before testing analysis facts against these same source records.
+output explicitly. C16 adds the separately versioned `crm-analysis-v1` read extension:
+GET `/analysis/orders` and `/analysis/customers`, with bounded pagination under one
+immutable run-bound snapshot. The adapter is offline-only; service implementation and
+acceptance remain C18. See [analysis contract](analysis-data.md) for exact fields,
+snapshot/range semantics, permissions, limits and runtime evidence requirements.
 
 CRM title 1–200 characters, description at most 2000, priority integer 0–5. Assignee
 must be a seeded user; resolve the application's default requester before hashing.

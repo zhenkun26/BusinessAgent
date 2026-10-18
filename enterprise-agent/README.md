@@ -101,7 +101,7 @@ curl -X POST http://localhost:8000/api/v1/chat/message \
   -H "Content-Type: application/json" \
   -d '{"message": "请告诉我销售政策"}'
 
-# 数据分析(AnalysisAgent)
+# 数据分析(AnalysisAgent；当前支持订单金额/数量，不推算累计销售额)
 curl -X POST http://localhost:8000/api/v1/chat/message \
   -H "Authorization: Bearer <your-token>" \
   -H "Content-Type: application/json" \
@@ -206,7 +206,7 @@ enterprise-agent/
 
 - [x] **整体联调** 真实基础设施(Milvus + PG + Redis + Ollama + DeepSeek)端到端 17 项测试全通过,修复 4 个联调 bug(SQLAlchemy text() / checkpointer reducer 残留 / Aggregator 错误掩盖 / JSONB ANY)
 - [x] **P1-1** `.env` 修正 VECTOR_STORE_PROVIDER=milvus(向量检索名实相符)
-- [x] **P1-2** AnalysisAgent 完整实现(lite LLM 解析分析计划 → Python 真实聚合 → primary LLM 报告,支持对比分析 + 最多 2 轮多跳补充,planner 新增 data_analysis 意图)
+- [x] **P1-2（历史）** AnalysisAgent 曾实现 LLM 计划/报告与多跳；当前 C16 候选已改为 provider 一致取数、整数聚合和确定性报告，支持边界见[分析契约](../docs/50-engineering/analysis-data.md)，运行验收 BLOCKED。
 - [x] **P1-3** 审批流与 chat 打通(高风险工具 send_email_external 自动建单挂起 → 批准后服务端执行 prefill_payload,decide/resume/batch 三路径)
 - [x] **P1-4** 审计日志接线(AuditLogger 改造为 SQLAlchemy 存储,chat/tool/approval/auth/建单/反馈 6 类事件落 audit_logs)
 - [x] **P1-5** 知识库反馈循环(/feedback 落 user_feedback,点踩+评论自动生成 documents draft 知识候选)
@@ -226,7 +226,7 @@ enterprise-agent/
 | 三级降级链 | LLM(primary: v4-pro→qwen3.5:4b;lite: qwen3.5:4b→v4-flash,初始化降级 + 工具选择/意图分类输出不可用时运行时回退) / 检索(向量→BM25→PG LIKE) / Checkpointer 按 C10 固定后端、故障不回退 |
 | 模型分层 | DeepSeek v4-pro(推理) / qwen3.5:4b 本地(轻量任务主路径:分类/抽取/grounded 生成) / v4-flash(云端降级) |
 | 多 Agent 并行 | LangGraph Send API fan-out + planner/dispatcher 动态路由 |
-| 数据分析 | AnalysisAgent:LLM 计划解析 + Python 真实聚合 + 对比/多跳,RBAC 按角色取数 |
+| 数据分析 | AnalysisAgent：跟随 CRM provider、完整分页快照、按权限取数、整数金额聚合与确定性报告；真实运行 BLOCKED |
 | 断点恢复 | Redis Checkpointer + interrupt 人机共治 + 可重置 reducer(跨轮不串结果) |
 | Saga 补偿 | 多步骤工具执行 + 失败反向回滚 |
 | RBAC 权限 | 5 角色 × 8 工具矩阵 + 命名空间文档隔离 + 工具层二次校验 |

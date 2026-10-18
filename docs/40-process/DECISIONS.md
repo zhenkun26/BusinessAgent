@@ -340,3 +340,20 @@
   RAG regression and strict CLI BLOCKED. [C15 record](阶段性总结_C15知识发布与索引一致性.md).
 - **Delivery**: C11 `8bb6241` pushed/verified; C15 local only. Stop before C16. C10 write race
   remains open; non-deleting audit replay remains C21; enterprise UAT/release not authorized.
+
+
+## 33. C16: provider-aligned snapshots and deterministic analytics
+
+- **Decision**: Follow the effective CRM provider; version the read extension as
+  crm-analysis-v1, require complete bounded pages and current database authorization.
+  Finance never reads customer records; the existing tool-level permission scope remains.
+- **Facts**: Integer minor-unit totals by currency; explicit order/date/status semantics.
+  No lifetime-revenue proxy, model-written numerical report or numerical rewrite during
+  aggregation. The original user message controls supported date/entity selection.
+- **Limits**: Bounded parser and order amount/count scope; unsupported metrics/periods
+  return explicit errors. Independent service snapshots and full application behavior
+  require C18 runtime evidence, not injected transport tests.
+- **Evidence**: 33 focused + 149 related offline cases PASS; live runtime, full pytest
+  and strict CLI BLOCKED. [C16 record](阶段性总结_C16分析数据适配.md).
+- **Delivery**: C15 `0c0c5f9` pushed/verified; C16 local only, stop before C17.
+  C15 full RAG remains BLOCKED; C10 write race open; audit replay remains C21.

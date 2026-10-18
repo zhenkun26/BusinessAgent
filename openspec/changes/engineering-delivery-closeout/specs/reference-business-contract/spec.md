@@ -1,5 +1,15 @@
 ## ADDED Requirements
 
+### Requirement: Analysis extension preserves query-source identity
+The reference CRM SHALL provide the separately versioned crm-analysis-v1 read schema
+over the same customer/order records as B01/B02. Pages SHALL bind run, immutable snapshot,
+UTC as-of, date range and complete counts. Expired or invalid snapshots SHALL fail rather
+than silently restart. Service implementation and full application acceptance remain C18.
+
+#### Scenario: Analytics adapter passes injected transport checks
+- **WHEN** C16 tests validate complete pages and matching query aggregates offline
+- **THEN** only the adapter candidate has evidence; independent service and enterprise acceptance remain BLOCKED
+
 ### Requirement: Reference contract is versioned and separate from vendor acceptance
 The project SHALL freeze a named CRM/ticket/mail reference profile with explicit routes, fields, authorization, receipts and isolated service addresses before C12 implementation. It SHALL label target behavior separately from current adapters and retain real-provider confirmation tasks.
 

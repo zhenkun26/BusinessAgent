@@ -1,5 +1,18 @@
 ## Context
 
+C16 design: use the effective CRM tool provider for analysis; extend business-reference-v1
+with the separately versioned `crm-analysis-v1` read schema. Read bounded orders/customers
+pages under one stable run-bound snapshot, rejecting incomplete/duplicate/changing data.
+Refresh the caller's database identity before reads and delivery. Finance reads only orders;
+customer IDs come from authorized orders, never a hidden customer-directory read. The
+reference profile retains existing single-organization tool-level permissions; no claim
+of department row-level isolation is added. Sum integer minor units by currency and expose
+explicit order-status/time semantics. Customer lifetime revenue is unavailable, not an
+order-amount substitute. Deterministic plans support known customer IDs and explicit ISO
+date intervals; unsupported time semantics fail closed. Render tables directly and preserve
+them through multi-agent aggregation; no LLM-generated numerical report or extra-data loop.
+Actual reference service implementation and runtime verification remain C18/BLOCKED.
+
 用户希望练手项目形成可执行的企业应用工程交付，当前没有企业现场资源。S0 使用本轮及前一轮代码调查，基线为 `153f786`；静态发现须在对应实施项补充可复现验证，不能直接标为运行时测试失败或已修复。
 
 本地存在 556 项既有文件模式差异，内容基线干净。S0 沿用 `codex/delivery-ci-gates`，只提交本轮文档内容，不纳入权限变化。OpenSpec CLI 本机不可用，按仓库 spec-driven 格式手工创建，严格校验记录为 BLOCKED，不安装工具替代用户决策。
