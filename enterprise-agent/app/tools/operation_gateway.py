@@ -1,4 +1,4 @@
-"""Persisted forward action gateway; recovery writes and Saga ownership belong to C13/C14."""
+"""Persisted forward action gateway with Saga dispatch ownership."""
 from __future__ import annotations
 
 import asyncio
@@ -54,7 +54,7 @@ def _result(row: dict, *, data: dict | None = None, error: str | None = None) ->
         return ToolResult(False, name, {}, error=error or "ACTION_OUTCOME_UNKNOWN", side_effects=evidence)
     evidence["operation"] = data["operation"]
     output = {key: value for key, value in data.items() if key != "operation"}
-    # Until C13, do not let legacy inverse methods overwrite provider state.
+    # Inverse writes require the verified durable Saga recovery path.
     compensation = {"provider": "http", "operation_id": str(row["operation_id"]),
                     "requires_durable_compensation": True}
     return ToolResult(True, name, output, side_effects=evidence, compensation_data=compensation)
@@ -75,6 +75,10 @@ async def _reconcile(store: OperationStore, row: dict) -> Any:
                             raise OperationError("REFERENCE_RECEIPT_INVALID")
                         await store.finish(oid, "committed", verified)
                         return _result(row, data=verified)
+                    if reference.rejected(data, row):
+                        await store.finish(oid, "rejected", data)
+                        from app.tools.base import ToolResult
+                        return ToolResult(False, row["intent"]["tool"], {}, error="ACTION_REJECTED")
                     operation = data.get("operation", {})
                     if (operation.get("operation_id") != oid
                             or operation.get("run_id") != row["intent"]["target"]["run_id"]
@@ -138,6 +142,8 @@ async def invoke_action(tool: Any, params: dict, context: dict) -> Any:
             if intent["target"]["provider"] == "mock":
                 return ToolResult(**current["receipt"])
             return _result(current, data=reference.receipt(current["receipt"], current))
+        if current["state"] == "rejected":
+            return ToolResult(False, tool.name, {}, error="ACTION_REJECTED")
         if intent["target"]["provider"] == "mock":
             return _result(current, error="MOCK_OUTCOME_UNKNOWN")
         return await _reconcile(store, current)

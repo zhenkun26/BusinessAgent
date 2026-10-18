@@ -394,6 +394,8 @@ class ExecutionAgent:
                     ],
                     "approval_ids": approval_ids,
                     "pending_approval_tools": [p.tool for p in approval_plans],
+                    "saga_id": getattr(result, "saga_id", None),
+                    "saga_state": getattr(result, "state", None),
                     "saga_compensated": getattr(result, "compensated", False),
                     "saga_errors": getattr(result, "compensation_errors", []),
                     "outputs": getattr(result, "outputs", {}),

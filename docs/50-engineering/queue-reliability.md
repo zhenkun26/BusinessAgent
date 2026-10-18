@@ -10,7 +10,7 @@ existing dependencies and lets the business transition and enqueue share one com
 Migration v3 adds jobs and consumer progress; v1/v2 bytes remain immutable. Apply only
 through the [explicit bootstrap workflow](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)
 in a separately authorized isolated candidate. No migration was executed this round.
-API and worker both require manifest v3 before accepting work.
+C13 adds journal migration v4; API and worker now require manifest v4 before accepting work.
 
 Each job has a UUID, unique logical scope, frozen payload hash, attempt count, state,
 owner token, database-clock deadline and safe error code. Success and failure rows
@@ -26,8 +26,10 @@ writes are not extra copies of business content or bearer credentials.
 | running -> done | Handler succeeds and matching unexpired owner commits acknowledgment |
 | expired leased -> pending | Same ID/input, delay `min(300, 5 * 2^(attempts-1))` seconds |
 | expired leased -> dead | Four claims exhausted; `TASK_LEASE_EXHAUSTED` |
-| expired running -> dead | `TASK_OUTCOME_UNKNOWN`; do not requeue |
-| handler error -> dead | Fixed terminal code or `TASK_OUTCOME_UNKNOWN`; no automatic side-effect retry |
+| expired running -> dead (knowledge) | `TASK_OUTCOME_UNKNOWN`; do not requeue |
+| expired running -> pending/dead (Saga) | Reconcile through retained operation claims; fourth attempt becomes `TASK_LEASE_EXHAUSTED` |
+| Saga handler unresolved -> pending/dead | Same task/operation IDs, 30-second delay; four-claim budget, no mutation resend |
+| handler error -> dead (knowledge) | Fixed terminal code or `TASK_OUTCOME_UNKNOWN`; no automatic side-effect retry |
 
 Claims whose responses are lost remain leased and recoverable. Dispatch whose commit
 response is lost never invokes the handler, but conservatively remains running until
@@ -92,10 +94,14 @@ check **both queue kinds for the current worker**, not any historical fresh row.
 Compose still disables the inherited API HTTP probe; consumer freshness is separate
 from Docker health and full C21 readiness/alerts.
 
-Saga dispatch returns `C13_REQUIRED` without calling legacy compensation. There is
-still no durable Saga business producer/step/inverse identity; C13 must supply these
-and reuse C12 operation IDs before safe recovery can be enabled. The available queue
-can carry retained identities, but C14 does not invent missing IDs or claim Saga replay.
+C13 now supplies an atomic Saga producer, journal and independently retained inverse IDs.
+The worker accepts only a UUID journal reference, reconciles original effects, cancels
+undispatched forward actions and applies verified inverses in reverse order. Only this
+handler may retry after dispatch, because previously claimed writes are queried rather
+than replayed. Terminal manual reasons become dead jobs; unknown results get a bounded
+retry and remain visible after exhaustion. See [Saga recovery](saga-recovery.md).
+Admin `GET /api/v1/admin/sagas/{saga_id}` joins safe Saga/step and recovery-job metadata.
+Legacy rows and arbitrary compensation payloads are refused, not silently imported.
 
 The legacy audit cache flusher deletes files. This worker no longer invokes it; files
 remain untouched and unsynchronized until C21 delivers a reviewed non-deleting path.
@@ -121,9 +127,9 @@ All following rows are **BLOCKED**, not proven by SQL doubles:
 | Cold independent worker | Correct models/schema/tools/Milvus initialization; actual knowledge API -> job -> vector/ledger |
 | Expiry, stale owner, timeout, SIGTERM | No late queue acknowledgment; inspect actual effects; do not infer external fencing |
 | Exhaustion / malformed task | Queryable safe failure, no raw payload/credential diagnostics |
-| Saga recovery | Requires C13 producer, retained forward/inverse IDs and independent reference receipts |
+| Saga recovery | C13 offline candidate implemented; real journal/queue/HTTP crash recovery and independent reference receipts still required |
 | Audit recovery / system readiness | Requires C21 non-deleting replay and full health/alert evidence |
 
-C14 remains open. C10 race, C13 HTTP compensation, C15 publication consistency, C18
+C14 remains open. C10 race, C13 live compensation acceptance, C15 publication consistency, C18
 independent services, all prior runtime/browser/SSO/history blockers and enterprise
 UAT/release gates remain unchanged.

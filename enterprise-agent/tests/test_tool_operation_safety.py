@@ -39,6 +39,10 @@ class Role(str, Enum):
 class Database:
     """SQL orchestration double: no claims about PostgreSQL isolation or syntax."""
     def __init__(self):
+        self.runs = {}
+        self.steps = {}
+        self.jobs = {}
+        self.clock = 0
         self.executions = {}
         self.operations = {}
         self.commits = 0
@@ -59,6 +63,8 @@ class Database:
             raise RuntimeError('synthetic failure')
         self.sql.append((sql, deepcopy(args)))
         row = None
+        if 'saga_' in sql or 'task_jobs' in sql or 'FOR UPDATE OF e' in sql or "execution_id = :sid" in sql:
+            return self.saga_query(sql, args)
         if 'INSERT INTO tool_executions' in sql:
             self.executions.setdefault(args['scope'], dict(execution_id=args['eid'], scope_key=args['scope'],
                 plan_hash=args['hash'], owner_id=args['owner'], session_id=args['sid'], calls=json.loads(args['calls'])))
@@ -89,8 +95,81 @@ class Database:
         else:
             raise AssertionError(sql)
         result = NS(returns_rows=True)
-        result.mappings = lambda: NS(first=lambda: deepcopy(row))
+        result.mappings = lambda: NS(first=lambda: deepcopy(row), all=lambda: [deepcopy(row)] if row else [])
         return result
+
+    def saga_query(self, sql, a):
+        rows = []
+        sid = a.get('sid')
+        run = self.runs.get(sid)
+        if 'FOR UPDATE OF e' in sql:
+            oid = a['oid']
+            op = self.operations.get(oid)
+            rows = [e for e in self.executions.values() if op and e['execution_id'] == op['execution_id']]
+        elif 'SELECT s.*' in sql:
+            op = self.operations[a['oid']]
+            r = self.runs.get(op['execution_id'])
+            rows = [{**r, 'lease_live': r['lease_until'] is not None and r['lease_until'] > self.clock}] if r else []
+        elif 'INSERT INTO saga_runs' in sql:
+            if not run:
+                self.runs[sid] = dict(saga_id=sid, context=json.loads(a['context']), plan_hash=a['hash'],
+                    state='forward', owner_token=a['owner'], lease_until=self.clock+a['lease'], error_code=None)
+                rows = [dict(saga_id=sid)]
+        elif 'INSERT INTO saga_steps' in sql:
+            self.steps[(sid,a['slot'])] = dict(saga_id=sid, slot=a['slot'], operation_id=a['oid'],
+                definition=json.loads(a['definition']), result=None, compensation_id=a['cid'],
+                compensation_state='prepared', compensation_request=None, compensation_receipt=None)
+        elif 'INSERT INTO task_jobs' in sql:
+            self.jobs.setdefault(a['scope'], dict(task_id=a['tid'], queue_name=a['queue'],
+                scope_key=a['scope'], payload=json.loads(a['payload']), payload_hash=a['hash'],
+                state='pending', available_at=self.clock, error_code=None))
+        elif sql.startswith('SELECT * FROM task_jobs'):
+            rows = [self.jobs[a['scope']]] if a['scope'] in self.jobs else []
+        elif sql.startswith('SELECT') and 'FROM saga_steps' in sql:
+            rows = [v for (s,i),v in sorted(self.steps.items()) if s==sid]
+        elif sql.startswith('SELECT') and 'FROM saga_runs' in sql:
+            if run:
+                if 'FOR UPDATE' not in sql or (run['owner_token']==a['owner'] and
+                        run['lease_until'] is not None and run['lease_until']>self.clock and
+                        run['state'] in ('forward','aborting')):
+                    rows = [run]
+        elif 'UPDATE saga_runs SET owner_token = :owner' in sql:
+            if run and run['state'] in ('forward','aborting') and (
+                    run['lease_until'] is None or run['lease_until']<=self.clock):
+                run.update(owner_token=a['owner'], lease_until=self.clock+a['lease']); rows=[run]
+        elif 'UPDATE saga_runs SET owner_token = NULL' in sql:
+            run.update(owner_token=None, lease_until=None, error_code='SAGA_OUTCOME_UNKNOWN')
+        elif "UPDATE saga_runs SET state = 'aborting'" in sql:
+            run['state']='aborting'
+        elif 'UPDATE saga_runs SET state = :state' in sql:
+            run.update(state=a['state'],error_code=a['error'],owner_token=None,lease_until=None)
+        elif 'UPDATE saga_runs SET' in sql:
+            run['lease_until']=self.clock+a['lease']
+        elif "UPDATE tool_operations SET state = 'rejected'" in sql:
+            for op in self.operations.values():
+                if op['execution_id']==sid and op['state']=='prepared': op['state']='rejected'
+        elif 'UPDATE saga_steps SET result' in sql:
+            self.steps[(sid,a['slot'])]['result']=json.loads(a['result'])
+        elif 'compensation_request = CAST' in sql:
+            step=self.steps[(sid,a['slot'])]
+            if step['compensation_state']=='prepared' and step['compensation_request'] is None:
+                step.update(compensation_state='dispatched',compensation_request=json.loads(a['request']))
+                rows=[step]
+        elif 'UPDATE saga_steps SET compensation_state' in sql:
+            step=self.steps[(sid,a['slot'])]
+            if step['compensation_state'] in ('dispatched','unknown'):
+                step.update(compensation_state=a['state'],compensation_receipt=json.loads(a['receipt']))
+                rows=[step]
+        elif 'UPDATE task_jobs SET available_at' in sql:
+            job=self.jobs[a['scope']]
+            if job['state']=='pending':job['available_at']=self.clock+a['lease']
+        elif 'UPDATE task_jobs SET state' in sql:
+            job=self.jobs[a['scope']]
+            if job['state']=='pending':job.update(state=a['state'],error_code=a['error'])
+        else:
+            raise AssertionError(sql)
+        return NS(returns_rows=True, mappings=lambda:NS(first=lambda:deepcopy(rows[0]) if rows else None,
+                                                        all=lambda:deepcopy(rows)))
 
 
 class SafetyTests(unittest.IsolatedAsyncioTestCase):
@@ -128,6 +207,9 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         sys.modules['app.tools'].reference=self.ref
         self.base=load('app.tools.base','app/tools/base.py')
         self.gateway=load('app.tools.operation_gateway','app/tools/operation_gateway.py')
+        self.queue=load('app.core.task_queue','app/core/task_queue.py')
+        self.saga_store=load('app.core.saga_store','app/core/saga_store.py')
+        self.recovery=load('app.core.saga_retry','app/core/saga_retry.py')
         self.saga=load('app.tools.saga','app/tools/saga.py')
         base=self.base
         class Tool(base.BaseTool):
@@ -354,19 +436,24 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(self.ops.OperationError):self.ref.resource_id(value)
 
     async def test_saga_unknown_stops_downstream_and_compensation(self):
-        await self.prepare();self.mode='unknown'
+        plans=[NS(tool='create_ticket',params={'title':str(i)},operation_id=None) for i in range(2)]
+        await self.gateway.prepare_calls(plans,self.context)
+        self.mode='unknown'
         coordinator=self.saga.SagaCoordinator(self.context)
-        coordinator.add_step('one','create_ticket',{'title':'test'},operation_id=self.context['operation_id'])
-        coordinator.add_step('two','create_ticket',{'title':'later'},operation_id=str(uuid.uuid4()))
-        coordinator._compensate=AsyncMock()
+        for i,p in enumerate(plans):coordinator.add_step(str(i),p.tool,p.params,operation_id=p.operation_id)
         result=await coordinator.execute()
         self.assertFalse(result.success or result.compensated)
-        coordinator._compensate.assert_not_awaited();self.assertEqual(self.send_count,1)
+        self.assertEqual(self.send_count,1)
+        self.assertEqual(result.state,'aborting')
+        self.assertEqual(self.db.operations[plans[1].operation_id]['state'],'rejected')
 
     async def test_missing_compensation_evidence_is_failure(self):
-        step=self.saga.SagaStep('one','create_ticket',{},result=self.base.ToolResult(True,'create_ticket',{}))
-        result=await self.saga.SagaCoordinator(self.context)._compensate([step])
-        self.assertTrue(result);self.assertEqual(step.status,self.saga.SagaStepStatus.COMPENSATION_FAILED)
+        coordinator=self.saga.SagaCoordinator(self.context)
+        coordinator.add_step('one','create_ticket',{},operation_id=str(uuid.uuid4()))
+        result=await coordinator.execute()
+        self.assertFalse(result.success or result.compensated)
+        self.assertEqual(result.error,'SAGA_RECOVERY_REQUIRED')
+        self.ref.request.assert_not_awaited()
 
     def source_function(self, path, name, owner=None, **namespace):
         tree=ast.parse((ROOT/path).read_text())
@@ -512,7 +599,7 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         def short_budget(seconds):
             self.assertEqual(seconds,30)
             return timeout(.005)
-        with patch.object(self.gateway.asyncio,'timeout',side_effect=short_budget):
+        with patch.object(self.gateway,'asyncio',NS(timeout=short_budget,sleep=asyncio.sleep)):
             result=await self.tool.invoke({'title':'test'},self.context)
         self.assertFalse(result.success);self.assertEqual(self.send_count,1)
         self.assertEqual(self.db.operations[oid]['state'],'unknown')

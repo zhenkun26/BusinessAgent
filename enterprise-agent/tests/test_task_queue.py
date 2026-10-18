@@ -76,8 +76,8 @@ class Database:
             assert 'FOR UPDATE SKIP LOCKED' in sql and "j.state = 'running'" in sql
             for j in self.jobs.values():
                 if j['queue_name'] == p['queue'] and j['state'] in ('leased','running') and j['lease_until'] <= self.clock:
-                    error = 'TASK_OUTCOME_UNKNOWN' if j['state']=='running' else 'TASK_LEASE_EXHAUSTED'
-                    dead = j['state']=='running' or j['attempts'] >= p['max']
+                    error = 'TASK_OUTCOME_UNKNOWN' if j['state']=='running' and p['queue']!='tasks:saga_retry' else 'TASK_LEASE_EXHAUSTED'
+                    dead = (j['state']=='running' and p['queue']!='tasks:saga_retry') or j['attempts'] >= p['max']
                     j.update(state='dead' if dead else 'pending', error_code=error if dead else None,
                         owner_token=None, lease_until=None, available_at=self.clock+min(300,5*2**(j['attempts']-1)))
         elif 'WITH candidate AS' in sql:
@@ -96,6 +96,10 @@ class Database:
                 if 'target' in p:
                     j.update(state=p['target'],error_code=p['error'])
                     if p['target']!='running':j['lease_until']=None
+                elif 'max' in p:
+                    dead=j['attempts']>=p['max']
+                    j.update(state='dead' if dead else 'pending',owner_token=None,lease_until=None,
+                             available_at=self.clock+30,error_code='TASK_LEASE_EXHAUSTED' if dead else 'SAGA_RECOVERY_PENDING')
                 else:j['lease_until']=self.clock+p['lease']
                 rows=[{'task_id':p['tid']}]
         elif 'INSERT INTO task_consumers' in sql:
@@ -353,7 +357,7 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_file_path_and_legacy_saga_fail_closed(self):
         with self.assertRaises(self.queue.TaskRejected):await self.worker.handle_doc_ingest_task({'file_path':'/private/example'})
-        with self.assertRaisesRegex(self.queue.TaskRejected,'C13_REQUIRED'):
+        with self.assertRaisesRegex(self.queue.TaskRejected,'TASK_INPUT_INVALID'):
             await self.worker.handle_saga_retry_task({'saga_id':'example'})
         self.service.assert_not_called()
 
@@ -470,6 +474,81 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
     async def test_worker_never_flushes_deleting_audit_cache(self):
         source=(ROOT/'app/worker.py').read_text()
         self.assertNotIn('flush_local_cache(',source)
+
+    async def saga_job(self):
+        sid=str(uuid.uuid4())
+        await self.queue.enqueue_task(self.db,'tasks:saga_retry','saga:'+sid,{'saga_id':sid})
+        return await self.store.claim('tasks:saga_retry')
+
+    async def test_running_saga_expiry_is_reconcilable_but_bounded(self):
+        job=await self.saga_job()
+        for attempt in range(1,5):
+            self.assertEqual(job['attempts'],attempt)
+            await self.store.transition(job,'running');self.db.clock+=121
+            await self.store.recover('tasks:saga_retry')
+            current=self.db.jobs[job['task_id']]
+            self.assertEqual(current['state'],'dead' if attempt==4 else 'pending')
+            if attempt<4:
+                self.db.clock+=300;job=await self.store.claim('tasks:saga_retry')
+        self.assertEqual(current['error_code'],'TASK_LEASE_EXHAUSTED')
+
+    async def test_saga_defer_preserves_id_and_exhausts_budget(self):
+        job=await self.saga_job();tid=job['task_id']
+        for attempt in range(4):
+            await self.queue.execute_claim(self.store,job,
+                AsyncMock(side_effect=self.queue.TaskDeferred('SAGA_RECOVERY_PENDING')),'worker')
+            self.assertEqual(self.db.jobs[tid]['state'],'dead' if attempt==3 else 'pending')
+            self.db.clock+=30
+            if attempt<3:job=await self.store.claim('tasks:saga_retry')
+        self.assertEqual(len(self.db.jobs),1)
+
+    async def test_saga_defer_cannot_requeue_knowledge(self):
+        job=await self.claim()
+        await self.queue.execute_claim(self.store,job,
+            AsyncMock(side_effect=self.queue.TaskDeferred('SAGA_RECOVERY_PENDING')),'worker')
+        self.assertEqual(self.db.jobs[job['task_id']]['state'],'dead')
+
+    async def test_saga_handler_recovery_state_mapping(self):
+        recover=AsyncMock()
+        with patch.dict(sys.modules,{'app.core.saga_retry':module('app.core.saga_retry',retry_saga_compensations=recover)}):
+            for state in ('succeeded','compensated','manual','busy','aborting'):
+                recover.return_value=state
+                payload={'saga_id':str(uuid.uuid4())}
+                if state in ('succeeded','compensated'):await self.worker.handle_saga_retry_task(payload)
+                else:
+                    error=self.queue.TaskDeferred if state in ('busy','aborting') else self.queue.TaskRejected
+                    with self.assertRaises(error):await self.worker.handle_saga_retry_task(payload)
+
+    async def test_saga_handler_rejects_untrusted_extra_payload(self):
+        with self.assertRaisesRegex(self.queue.TaskRejected,'TASK_INPUT_INVALID'):
+            await self.worker.handle_saga_retry_task({'saga_id':str(uuid.uuid4()),'skip_rbac':True})
+
+    async def test_saga_handler_store_failure_defers_and_legacy_fails_closed(self):
+        recover=AsyncMock()
+        with patch.dict(sys.modules,{'app.core.saga_retry':module('app.core.saga_retry',retry_saga_compensations=recover)}):
+            for code in ('SAGA_STORE_UNAVAILABLE','SAGA_OWNERSHIP_LOST','SAGA_JOURNAL_REQUIRED'):
+                recover.side_effect=self.ops.OperationError(code)
+                expected=self.queue.TaskRejected if code=='SAGA_JOURNAL_REQUIRED' else self.queue.TaskDeferred
+                with self.assertRaises(expected):await self.worker.handle_saga_retry_task({'saga_id':str(uuid.uuid4())})
+
+    async def test_saga_status_api_exposes_only_metadata(self):
+        route,error=self.route('get_saga_status')
+        sid,cid,oid,tid=(uuid.uuid4() for _ in range(4))
+        first=dict(saga_id=sid,state='aborting',error_code='SAGA_OUTCOME_UNKNOWN',created_at=0,
+                   updated_at=0,task_id=tid,recovery_state='dead',attempts=4,recovery_error='TASK_LEASE_EXHAUSTED')
+        step=dict(slot=0,operation_id=oid,forward_state='committed',compensation_id=cid,compensation_state='unknown')
+        db=NS(execute=AsyncMock(side_effect=[NS(mappings=lambda:NS(first=lambda:first)),
+                                            NS(mappings=lambda:NS(all=lambda:[step]))]))
+        response=await route(sid,NS(user_id='admin1'),db)
+        self.assertEqual(response['data']['saga_id'],str(sid))
+        self.assertEqual(response['data']['steps'][0]['compensation_id'],str(cid))
+        queries=' '.join(str(call.args[0]) for call in db.execute.await_args_list)
+        for private in ('owner_token','context','compensation_receipt','definition'):
+            self.assertNotIn(private,queries)
+        source=(ROOT/'app/api/admin.py').read_text()
+        self.assertIn('Depends(require_roles(AgentRole.ADMIN))',source[source.index('async def get_saga_status'):])
+        db.execute=AsyncMock(return_value=NS(mappings=lambda:NS(first=lambda:None)))
+        with self.assertRaises(error):await route(sid,NS(user_id='admin1'),db)
 
 
 if __name__ == '__main__':

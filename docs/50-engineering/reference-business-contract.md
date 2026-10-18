@@ -306,3 +306,41 @@ Prework is complete when B01–B13, identity/failure/compensation rules, R01–R
 gap map are frozen with static links checked. C12 implementation was authorized on 2026-10-17; its delivery is recorded separately; C18 S5 and real vendor tasks remain unchecked. Version this profile
 before making incompatible endpoint, identity, retention or receipt changes; never
 silently weaken it to fit an implementation or passing fixture.
+
+
+## C13 inverse receipt precision
+
+The C13 client candidate freezes the following details of B10–B13. Independent services
+must implement them before runtime acceptance; this section is not an implementation of
+those services and does not change R01–R20 from BLOCKED.
+
+| Action | Inverse effect | Expected status | Projection |
+| --- | --- | --- | --- |
+| CRM task creation | `deleted` | 200 | retained task tombstone, matching task ID/version |
+| Ticket creation | `closed` | 200 | status closed, closure_reason saga_compensation |
+| Ticket update | `restored` | 200 | retained before status/priority/assignee, append-only comment evidence |
+| Internal mail capture | `recalled` | 200 | message_id and receipt_state recalled |
+| External mail capture | `recall_requested` | 202 | message_id and receipt_state recall_requested; incomplete compensation |
+
+Every inverse operation receipt has exactly the common identity/run/service/hash/state,
+resource_id, after_version, created_at/completed_at, effect and compensates_operation_id
+fields. Its version equals the original forward after_version + 1. It carries no new
+before-image. Mail inverse envelopes contain only message_id, receipt_state and operation;
+object envelopes contain task/ticket and operation. Created/complete timestamps are UTC.
+
+An update's retained before-image must include ticket_id, version, status, priority,
+assignee (nullable) and comments. Restore results retain original comments, preserve each
+forward-added comment's ID/text with superseded_by equal to the inverse UUID, and append
+an explanation linked by compensates_operation_id. Before-image values are restored by
+the service, never supplied as arbitrary replacement data by the client.
+
+A provable no-effect rejection query returns exactly `{operation, result: null}`. The
+operation has the common bound identity/run/service/hash, state rejected, the matching
+forward link (null for forward), resource_id null, after_version null, effect none, UTC
+created_at/completed_at and a fixed error_code: VERSION_CONFLICT, VALIDATION_REJECTED,
+AUTHORIZATION_DENIED or UNSUPPORTED. All required fields must be present; a raw HTTP error,
+missing record or incomplete receipt never proves rejection. A service that knows a
+resource identity but cannot satisfy this no-effect envelope leaves the client unresolved.
+
+The client invokes these inverses only through the durable Saga journal and current
+actor/target checks. No real HTTP request was made in C13's offline verification.

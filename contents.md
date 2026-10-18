@@ -178,4 +178,6 @@ C18 前置详情：[参考契约](docs/50-engineering/reference-business-contrac
 
 C12 离线增量：[操作契约](docs/50-engineering/tool-operation-safety.md)、[交付记录](docs/40-process/阶段性总结_C12工具幂等与安全重试.md)；真实运行 BLOCKED；C12 已推送，C14 离线候选见下文。
 
-C14 离线增量：[队列契约](docs/50-engineering/queue-reliability.md)、[交付记录](docs/40-process/阶段性总结_C14队列可靠性与Worker初始化.md)；真实运行与 Saga 恢复 BLOCKED，C13 等待确认。
+C14 离线增量：[队列契约](docs/50-engineering/queue-reliability.md)、[交付记录](docs/40-process/阶段性总结_C14队列可靠性与Worker初始化.md)；C14 `59a5c14` 已推送，真实运行验收 BLOCKED；C13 候选见下文。
+
+C13 离线增量：[Saga 契约](docs/50-engineering/saga-recovery.md)、[交付记录](docs/40-process/阶段性总结_C13Saga持久化与故障恢复.md)；持久日志、队列恢复与 HTTP 补偿候选完成，真实运行 BLOCKED；C11 等待确认。

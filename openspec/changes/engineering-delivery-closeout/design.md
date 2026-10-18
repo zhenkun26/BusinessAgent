@@ -360,3 +360,17 @@ import require a separate authorized plan. Redis remains for checkpoint/cancella
 
 Offline tests exercise actual orchestration with injected SQL/handlers/services. Real SQL
 locking, process death, PostgreSQL/Redis outages, Milvus and Linux acceptance remain BLOCKED.
+
+## C13 design: durable inverse identities and conservative restart
+
+The authorized C13 increment supersedes C14's C13_REQUIRED placeholder. Implement the
+contract in `docs/50-engineering/saga-recovery.md`: new versioned Saga journal and atomic
+recovery jobs; exact C12 plan binding; database ownership and guarded action claims;
+no automatic forward continuation after restart; original-ID reconciliation before
+reverse-order compensation; separate persisted inverse UUID/request/receipt per action.
+All five reference inverse shapes are supported, with strict forward linkage and frozen
+versions. Unknown outcomes and recall requests cannot report complete compensation.
+Saga-only bounded queue retry is safe only through these retained dispatch claims;
+knowledge jobs keep C14's conservative policy. Legacy Saga rows are not converted.
+No new dependency, live service, migration execution or filesystem deletion. C10/C21
+remain outside this increment. Real acceptance and OpenSpec CLI remain BLOCKED.

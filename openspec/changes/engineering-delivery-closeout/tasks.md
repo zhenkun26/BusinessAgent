@@ -48,7 +48,7 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 3.3.1 Implement explicit backend policy, lifecycle/provisioning, failure semantics, offline tests and documentation. 27 focused and 139 related tests PASS; this does not solve lease-expiry write fencing.
   - [ ] 3.3.2 Verify actual saver versions, two-process/restart durability, TTL, same-session writes and outages on isolated Linux. <!-- BLOCKED; no real services or current-store operations -->
 
-## 4. S4：执行一致性与恢复（C18 契约前置已推送；C12 已推送；C14 离线增量完成，运行与依赖验收阻塞；后续待确认）
+## 4. S4：执行一致性与恢复（C18 契约前置已推送；C12 已推送；C14 已推送；C13 离线增量完成，真实运行阻塞；C11 待确认）
 
 - [x] 4.1 C18 前置部分：冻结参考系统幂等、失败和补偿契约，C18 完整验收留 S5。 business-reference-v1 documents 13 interface rows, durable identity/receipts, compensation and 20 future cases; static checks only, no runtime implementation or acceptance.
 - [ ] 4.2 C12 工具幂等与安全重试。
@@ -58,6 +58,8 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 4.3.1 Implement transactional jobs, guarded ownership/recovery, producer/status routes, worker initialization and offline validation. 43 focused + 112 related offline tests PASS; full Saga/audit recovery remains C13/C21.
   - [ ] 4.3.2 Verify real PostgreSQL concurrency, process crashes, outages, Milvus ingestion and Linux startup; integrate Saga recovery after C13. <!-- BLOCKED; not closed by doubles -->
 - [ ] 4.4 C13 Saga 持久化与故障恢复。
+  - [x] 4.4.1 Implement a versioned Saga journal, atomic recovery jobs, linked HTTP inverse identities, conservative restart reconciliation, offline tests and delivery records. 34 focused + 185 related tests PASS; real acceptance remains BLOCKED.
+  - [ ] 4.4.2 Verify PostgreSQL locking/crashes, independent reference HTTP services, response loss, inverse conflicts and worker restart in isolated Linux. <!-- BLOCKED; C10 fencing and C21 audit replay remain separate -->
 - [ ] 4.5 C11 审批原子领取、过期与执行状态。
 
 ## 5. S5：数据与参考集成（待逐项授权）

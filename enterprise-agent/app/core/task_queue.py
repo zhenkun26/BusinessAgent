@@ -19,6 +19,7 @@ MAX_ATTEMPTS = 4
 SAFE_ERRORS = frozenset({
     "TASK_OUTCOME_UNKNOWN", "TASK_LEASE_EXHAUSTED", "TASK_INPUT_INVALID",
     "TASK_DOCUMENT_CHANGED", "TASK_AUTHORIZATION_DENIED", "TASK_EMPTY_RESULT", "C13_REQUIRED",
+    "SAGA_MANUAL_REQUIRED", "SAGA_RECOVERY_PENDING",
 })
 
 
@@ -31,6 +32,10 @@ class TaskRejected(RuntimeError):
 
     def __init__(self, code: str) -> None:
         super().__init__(code if code in SAFE_ERRORS else "TASK_OUTCOME_UNKNOWN")
+
+
+class TaskDeferred(RuntimeError):
+    """Saga-only reconciliation may safely run again within the retained attempt budget."""
 
 
 def validate_job(queue_name: str, scope: str, payload: dict[str, Any]) -> str:
@@ -79,15 +84,15 @@ class TaskStore:
             raise QueueUnavailable("TASK_STORE_UNAVAILABLE") from None
 
     async def recover(self, queue_name: str) -> None:
-        # Running is deliberately never requeued: an effect may have escaped the process.
+        # Only the durable Saga handler can reconcile a running task without replaying writes.
         await self.query("""WITH expired AS (
             SELECT task_id FROM task_jobs WHERE queue_name = :queue
             AND state IN ('leased', 'running') AND lease_until <= clock_timestamp()
             ORDER BY lease_until LIMIT 100 FOR UPDATE SKIP LOCKED
         ) UPDATE task_jobs j SET
-            state = CASE WHEN j.state = 'running' OR attempts >= :max THEN 'dead'
+            state = CASE WHEN (j.state = 'running' AND :queue <> 'tasks:saga_retry') OR attempts >= :max THEN 'dead'
                          ELSE 'pending' END,
-            error_code = CASE WHEN j.state = 'running' THEN 'TASK_OUTCOME_UNKNOWN'
+            error_code = CASE WHEN j.state = 'running' AND :queue <> 'tasks:saga_retry' THEN 'TASK_OUTCOME_UNKNOWN'
                          WHEN attempts >= :max THEN 'TASK_LEASE_EXHAUSTED' ELSE NULL END,
             available_at = clock_timestamp() + LEAST(300, 5 * power(2, attempts - 1))
                            * interval '1 second',
@@ -124,6 +129,21 @@ class TaskStore:
                 "tid": job["task_id"], "owner": job["owner_token"], "source": source,
                 "target": target, "error": error_code,
             })
+        return bool(rows)
+
+    async def defer(self, job: dict[str, Any]) -> bool:
+        if job['queue_name'] != 'tasks:saga_retry':
+            return await self.transition(job, 'dead', error_code='TASK_OUTCOME_UNKNOWN')
+        rows = await self.query("""UPDATE task_jobs SET
+            state = CASE WHEN attempts >= :max THEN 'dead' ELSE 'pending' END,
+            error_code = CASE WHEN attempts >= :max THEN 'TASK_LEASE_EXHAUSTED'
+                             ELSE 'SAGA_RECOVERY_PENDING' END,
+            owner_token = NULL, lease_until = NULL,
+            available_at = clock_timestamp() + 30 * interval '1 second',
+            updated_at = clock_timestamp()
+            WHERE task_id = :tid AND owner_token = :owner AND state = 'running'
+            AND lease_until > clock_timestamp() RETURNING task_id""", {
+                'tid': job['task_id'], 'owner': job['owner_token'], 'max': MAX_ATTEMPTS})
         return bool(rows)
 
     async def renew(self, job: dict[str, Any]) -> bool:
@@ -173,10 +193,15 @@ async def execute_claim(store: TaskStore, job: dict[str, Any],
             await renewal  # Propagate store/ownership loss; leave the job for recovery.
         try:
             await execution
+        except TaskDeferred:
+            await store.defer(job)
         except TaskRejected as exc:
             await store.transition(job, "dead", error_code=str(exc))
         except Exception:
-            await store.transition(job, "dead", error_code="TASK_OUTCOME_UNKNOWN")
+            if job["queue_name"] == "tasks:saga_retry":
+                await store.defer(job)
+            else:
+                await store.transition(job, "dead", error_code="TASK_OUTCOME_UNKNOWN")
         else:
             if not await store.transition(job, "done"):
                 raise QueueUnavailable("TASK_LEASE_LOST")

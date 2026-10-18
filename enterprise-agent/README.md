@@ -43,7 +43,7 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 上述运行步骤仍待隔离环境验收，不能对当前数据库直接执行。C03 的离线预览为 `python -B -m app.core.db_bootstrap plan`，不会连接数据库。[数据库初始化手册](deploy/DATABASE_BOOTSTRAP.md)区分空库、旧库副本、管理员与显式开发演示种子；任一步失败应停止，不继续启动 API/worker。
 
-后台任务：知识审核改为 PostgreSQL 同事务入队，返回 `202` 与 `task_id`；独立 worker 处理后通过管理员任务接口查询结果。迁移清单现要求 v3；运行中结果不明的任务保留待核对，不自动重放。Saga 恢复等待 C13，审计缓存非删除回写等待 C21；完整运行验收仍 BLOCKED，见[队列与 worker 契约](../docs/50-engineering/queue-reliability.md)。
+后台任务：知识审核改为 PostgreSQL 同事务入队，返回 `202` 与 `task_id`；独立 worker 处理后通过管理员任务接口查询结果。迁移清单现要求 v4；知识任务派发后结果不明保留待核对。Saga 使用持久日志与独立补偿 ID，重启后核对原动作再逆序补偿，不补跑正向动作或重复已领取的写入；详见 [Saga 恢复契约](../docs/50-engineering/saga-recovery.md)。审计缓存非删除回写等待 C21；完整运行验收仍 BLOCKED，见[队列与 worker 契约](../docs/50-engineering/queue-reliability.md)。
 
 认证要求：生产 API/worker 必须同时启用 `AUTH_REQUIRE_PASSWORD=true` 和 `AUTH_CHECK_DB=true`。身份库故障返回 503，禁用/删除账户返回 401；审批执行使用双方当前权限。详细约定见[认证与运行时授权契约](../docs/50-engineering/runtime-authorization.md)。
 

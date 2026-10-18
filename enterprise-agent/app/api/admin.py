@@ -174,6 +174,32 @@ async def list_task_consumers(
     return _envelope({"items": [dict(row) for row in rows]})
 
 
+@router.get("/sagas/{saga_id}")
+async def get_saga_status(
+    saga_id: uuid.UUID,
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Retained recovery evidence metadata, excluding context, payloads and receipts."""
+    row = (await db.execute(text("""SELECT s.saga_id, s.state, s.error_code,
+        s.created_at, s.updated_at, j.task_id, j.state AS recovery_state,
+        j.attempts, j.error_code AS recovery_error
+        FROM saga_runs s LEFT JOIN task_jobs j ON j.scope_key = 'saga:' || s.saga_id::text
+        WHERE s.saga_id = :sid"""), {"sid": str(saga_id)})).mappings().first()
+    if row is None:
+        raise HTTPException(404, "SAGA_NOT_FOUND")
+    steps = (await db.execute(text("""SELECT s.slot, s.operation_id, o.state AS forward_state,
+        s.compensation_id, s.compensation_state FROM saga_steps s
+        JOIN tool_operations o USING (operation_id) WHERE s.saga_id = :sid ORDER BY s.slot"""),
+        {"sid": str(saga_id)})).mappings().all()
+    result = dict(row)
+    result["saga_id"] = str(result["saga_id"])
+    result["task_id"] = str(result["task_id"]) if result["task_id"] is not None else None
+    result["steps"] = [{**dict(step), "operation_id": str(step["operation_id"]),
+                        "compensation_id": str(step["compensation_id"])} for step in steps]
+    return _envelope(result)
+
+
 @router.post("/knowledge-candidates/{document_id}/reject")
 async def reject_knowledge_candidate(
     document_id: str,

@@ -18,6 +18,12 @@
       "name": "task_jobs",
       "file": "003_task_jobs.sql",
       "sha256": "509c51e084a35a657491cae09709d4f930a6c958ff1d54fdbeb06571bcd0b8a2"
+    },
+    {
+      "version": 4,
+      "name": "saga_journal",
+      "file": "004_saga_journal.sql",
+      "sha256": "00b28bf3f460525713a0ec19a378cf783c43850ace1787f95b3e92fc05e12376"
     }
   ],
   "columns": {
@@ -476,6 +482,64 @@
       "last_seen": {
         "type": "timestamptz"
       }
+    },
+    "saga_runs": {
+      "saga_id": {
+        "type": "uuid"
+      },
+      "context": {
+        "type": "jsonb"
+      },
+      "plan_hash": {
+        "type": "varchar"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "owner_token": {
+        "type": "uuid"
+      },
+      "lease_until": {
+        "type": "timestamptz"
+      },
+      "error_code": {
+        "type": "varchar"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      },
+      "updated_at": {
+        "type": "timestamptz"
+      }
+    },
+    "saga_steps": {
+      "saga_id": {
+        "type": "uuid"
+      },
+      "slot": {
+        "type": "int4"
+      },
+      "operation_id": {
+        "type": "uuid"
+      },
+      "definition": {
+        "type": "jsonb"
+      },
+      "result": {
+        "type": "jsonb"
+      },
+      "compensation_id": {
+        "type": "uuid"
+      },
+      "compensation_state": {
+        "type": "varchar"
+      },
+      "compensation_request": {
+        "type": "jsonb"
+      },
+      "compensation_receipt": {
+        "type": "jsonb"
+      }
     }
   },
   "indexes": {
@@ -510,7 +574,8 @@
     "idx_tool_operations_slot": true,
     "idx_task_jobs_scope": true,
     "idx_task_jobs_poll": false,
-    "idx_task_jobs_expired": false
+    "idx_task_jobs_expired": false,
+    "idx_saga_runs_recovery": false
   },
   "legacy_columns": {
     "users": {

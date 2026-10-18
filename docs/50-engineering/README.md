@@ -6,6 +6,7 @@
 
 | 文档 | 位置 | 用途 |
 |---|---|---|
+| Saga 与故障恢复 | [saga-recovery.md](saga-recovery.md) | C13 持久日志、关联补偿与恢复边界 |
 | 队列与 worker | [queue-reliability.md](queue-reliability.md) | C14 PostgreSQL 任务、202 契约、恢复与依赖阻塞 |
 | 工程交付基线 | [engineering-delivery-baseline.md](engineering-delivery-baseline.md) | 单组织单机支持边界、参考集成、验收证据与工程完成条件 |
 | 离线安全验证入口 | [safe-validation.md](safe-validation.md) | C24 前置：允许范围、副作用审查、执行方式、输出状态与限制 |

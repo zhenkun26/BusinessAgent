@@ -280,23 +280,15 @@ class DiagnosticSafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assert_safe(audit.log_tool_call.await_args.kwargs)
 
     async def test_compensation_failure_does_not_leak_into_agent_results(self) -> None:
-        result = SimpleNamespace(success=False, output={'token': MARKER},
-                                 error='Bearer ' + MARKER, side_effects={'password': MARKER})
-        tool = SimpleNamespace(category='action', compensate=AsyncMock(return_value=result))
-        namespace = dict(SagaStep=Any, ToolCategory=SimpleNamespace(QUERY='query'),
-                         SagaStepStatus=SimpleNamespace(COMPENSATED='compensated',
-                                                       COMPENSATION_FAILED='failed'),
-                         get_tool=lambda name: tool, logger=self.log,
-                         redact_value=self.redaction.redact_value)
-        compensate = function('app/tools/saga.py', '_compensate', namespace, 'SagaCoordinator')
-        step = SimpleNamespace(step_id='step1', tool_name='synthetic',
-                               result=SimpleNamespace(compensation_data={'action': 'rollback'}))
-        errors = await compensate(SimpleNamespace(), [step])
-        self.assert_safe(errors)
-        self.assert_safe(vars(step.compensation_result))
-        tool.compensate.side_effect = RuntimeError(MARKER)
-        errors = await compensate(SimpleNamespace(), [step])
-        self.assertEqual(errors, ['COMPENSATION_FAILED: step_id=step1'])
+        class OperationError(RuntimeError):
+            pass
+        store = SimpleNamespace(abort=AsyncMock(side_effect=OperationError(MARKER)), finish=AsyncMock())
+        recover = function('app/core/saga_retry.py', 'recover_owned',
+                           dict(SagaStore=Any, OperationError=OperationError, OperationStore=Mock()))
+        state = await recover(store, 'synthetic-saga', 'synthetic-owner')
+        self.assertEqual(state, 'manual')
+        self.assert_safe(store.finish.await_args.args)
+        self.assertEqual(store.finish.await_args.args[-1], 'SAGA_MANUAL_REQUIRED')
         self.assert_safe(self.log.mock_calls)
 
     def test_tracing_does_not_export_exception_message(self) -> None:

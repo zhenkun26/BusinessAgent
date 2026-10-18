@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
+import asyncio
 import hashlib
 import json
 from typing import Any, Iterator
@@ -58,6 +59,19 @@ def approved_calls(user_id: str, approval_id: str, calls: list[dict]) -> Iterato
 def approval_authorized(context: dict, calls: list[dict]) -> bool:
     return _approval_scope.get() == (
         context.get("user_id"), context.get("approval_id"), fingerprint(calls))
+
+
+_saga_scope: ContextVar[tuple[str, str] | None] = ContextVar('saga_dispatch_scope', default=None)
+
+
+@contextmanager
+def saga_dispatch(saga_id: str, owner: str) -> Iterator[None]:
+    """Internal capability; never accepted from request/queue payloads."""
+    token = _saga_scope.set((saga_id, owner))
+    try:
+        yield
+    finally:
+        _saga_scope.reset(token)
 
 
 class OperationStore:
@@ -127,10 +141,32 @@ class OperationStore:
         return row
 
     async def claim(self, operation_id: str) -> bool:
-        row = await self._query("""UPDATE tool_operations SET state = 'dispatched'
-            WHERE operation_id = :oid AND state = 'prepared' AND request IS NOT NULL
-            RETURNING operation_id""", {"oid": operation_id})
-        return row is not None
+        from sqlalchemy import text
+        try:
+            async with asyncio.timeout(10):
+                async with self.factory() as session:
+                    # Serialize Saga attachment and dispatch using the execution row.
+                    await session.execute(text("""SELECT e.execution_id FROM tool_executions e
+                        JOIN tool_operations o USING (execution_id) WHERE o.operation_id = :oid
+                        FOR UPDATE OF e"""), {'oid': operation_id})
+                    run = (await session.execute(text("""SELECT s.*,
+                        (s.lease_until > clock_timestamp()) AS lease_live FROM saga_runs s
+                        JOIN tool_operations o ON o.execution_id = s.saga_id
+                        WHERE o.operation_id = :oid FOR UPDATE OF s"""),
+                        {'oid': operation_id})).mappings().first()
+                    if run is not None and (run['state'] != 'forward' or not run['lease_live']
+                            or _saga_scope.get() != (str(run['saga_id']), str(run['owner_token']))):
+                        raise OperationError('SAGA_DISPATCH_DENIED')
+                    result = await session.execute(text("""UPDATE tool_operations SET state = 'dispatched'
+                        WHERE operation_id = :oid AND state = 'prepared' AND request IS NOT NULL
+                        RETURNING operation_id"""), {'oid': operation_id})
+                    claimed = result.mappings().first() is not None
+                    await session.commit()
+                    return claimed
+        except OperationError:
+            raise
+        except Exception:
+            raise OperationError('ACTION_STORE_UNAVAILABLE') from None
 
     async def finish(self, operation_id: str, state: str, receipt: dict | None) -> None:
         if state not in {"committed", "rejected", "unknown"}:

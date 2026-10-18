@@ -58,3 +58,13 @@ outside this increment. C10 lease-expiry write fencing is not closed; HTTP compe
 remains deferred to C13. C13 and C11 were not advanced. All prior real JWT/PostgreSQL/
 API/SSE/Linux/LangGraph/Milvus/Redis/browser/SSO/history blockers remain in force.
 `formal_uat=false`, `release_evidence=false`, `release_allowed=false`.
+
+
+## Subsequent authorized handoff
+
+C14 commit `59a5c14fbd41969438afea99f7c59d30b2e35a75` was pushed and verified on
+`origin/codex/delivery-ci-gates` on 2026-10-17. The following authorized
+[C13 increment](阶段性总结_C13Saga持久化与故障恢复.md) supplies the Saga producer,
+linked HTTP compensation and bounded reconciliation candidate. This updates the earlier
+C13_REQUIRED handoff; it does not retroactively turn C14 offline evidence into live
+acceptance. C14 real acceptance remains BLOCKED, C10 remains open and audit replay stays C21.

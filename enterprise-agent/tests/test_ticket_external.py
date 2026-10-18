@@ -53,7 +53,7 @@ class _RecordingAuditLogger:
         self.events.append(kwargs)
 
 
-# ============ 2.3 Legacy Saga routine fails closed; queue dispatch is blocked pending C13============
+# ============ 2.3 Legacy Saga IDs cannot authorize C13 recovery ============
 
 
 @pytest.mark.asyncio
@@ -62,7 +62,7 @@ async def test_should_raise_for_worker_retry_when_ticket_compensation_fails(
     fake_session_factory,
 ):
     """Given 失败 Saga 含 create_ticket 补偿动作且外部系统 5xx,
-    When the legacy routine is invoked directly, Then it raises and retains failed; C14 does not dispatch it"""
+    When its legacy ID is supplied, Then recovery rejects before reading or executing it"""
     saga_row = FakeRow(
         saga_id="saga_ticket_001",
         status="failed",
@@ -87,12 +87,10 @@ async def test_should_raise_for_worker_retry_when_ticket_compensation_fails(
     tool.provider_override = "http"
     monkeypatch.setattr("app.tools.base.get_tool", lambda tool_name: tool)
 
-    with pytest.raises(RuntimeError, match="补偿仍有失败"):
+    with pytest.raises(RuntimeError, match="ACTION_IDENTITY_INVALID"):
         await retry_saga_compensations("saga_ticket_001")
 
-    update_params = session.executed_params[-1]
-    assert update_params["status"] == "failed"
-    assert "create_ticket" in update_params["results"]
+    assert session.executed_params == []
 
 
 @pytest.mark.asyncio
@@ -128,10 +126,10 @@ async def test_worker_cannot_report_compensated_without_durable_inverse(
     tool.provider_override = "http"
     monkeypatch.setattr("app.tools.base.get_tool", lambda tool_name: tool)
 
-    with pytest.raises(RuntimeError, match="补偿仍有失败"):
+    with pytest.raises(RuntimeError, match="ACTION_IDENTITY_INVALID"):
         await retry_saga_compensations("saga_ticket_002")
     assert closed == {}
-    assert session.executed_params[-1]["status"] == "failed"
+    assert session.executed_params == []
 
 
 # ============ 3.2 审计本地缓存回写(工单场景)============

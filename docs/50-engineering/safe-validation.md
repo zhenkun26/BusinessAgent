@@ -46,6 +46,7 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `app/observability/audit.py` | 缓存消费成功后 `os.remove` | 不导入/执行应用；C21 处理审计保留与恢复 |
 | `eval/run_c12_tool_operation_safety.py` | 实际动作存储/网关/HTTP/回执/审批建单/Saga 函数；SQL、HTTP、身份全注入，audit hook 禁止网络/文件写入/删除/子进程 | C12 专项审查允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c12_tool_operation_safety.py`；不加入五函数白名单，不证明真实 PG/HTTP/完整恢复 |
 | `eval/run_c14_queue_reliability.py` | 实际队列/producer/worker/路由函数；SQL、模型、Milvus、身份替身；audit hook 拒绝网络、文件写入/删除及子进程 | C14 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c14_queue_reliability.py`；不加入五函数白名单，不证明真实锁/故障/进程/框架 |
+| `eval/run_c13_saga_recovery.py` | 实际 Saga 日志/协调/恢复/回执代码；SQL/HTTP/身份替身；audit hook 禁止网络、文件写入/删除及子进程 | C13 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c13_saga_recovery.py`；不加入五函数白名单，不证明真实 PG/HTTP/进程故障 |
 | `eval/run_c10_checkpoint_durability.py` | 实际 checkpoint 生命周期、历史/API 函数；saver/框架/SQL 全部注入替身，audit hook 禁止文件写入/删除/网络/子进程 | C10 专项审查允许：Python 3.11+ `-I -B` 从根目录运行；不连接存储、不执行 schema setup、不证明真实持久化 |
 | `eval/run_c09_cross_process_state.py` | 实际协调/Prompt/图入口/SSO 函数与独立模块实例；Redis/Lua/SQL 为共享内存替身，审计钩子禁止写入/删除/网络 | C09 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c09_cross_process_state.py`；不加入五函数白名单，不证明真实进程隔离、TTL、Lua、HTTP/SSE/SSO |
 | `eval/run_c08_request_context.py` | 实际图节点、历史与执行上下文代码；框架/模型/存储为替身，审计钩子禁止写入/删除/网络；并发仅在内存事件循环 | C08 单独审查允许：根目录 `python3 -I -B enterprise-agent/eval/run_c08_request_context.py`；不加入五函数白名单，不代表真实 LangGraph/JWT/SQL/API/SSE 验收 |

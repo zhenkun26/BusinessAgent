@@ -1,4 +1,4 @@
-"""Independent retained-job worker. Full Saga recovery remains blocked on C13."""
+"""Independent retained-job worker with durable Saga reconciliation."""
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +16,7 @@ from app.config import get_settings, validate_production_settings
 from app.core.approval_timeout import scan_expired_approvals
 from app.core.database import init_db, close_db
 from app.core.knowledge_jobs import handle_knowledge_job
-from app.core.task_queue import TaskRejected, consume_tasks
+from app.core.task_queue import TaskDeferred, TaskRejected, consume_tasks
 
 
 async def handle_doc_ingest_task(payload: dict[str, Any]) -> None:
@@ -25,8 +25,25 @@ async def handle_doc_ingest_task(payload: dict[str, Any]) -> None:
 
 
 async def handle_saga_retry_task(payload: dict[str, Any]) -> None:
-    """Never replay legacy compensation without C13's durable inverse identity."""
-    raise TaskRejected("C13_REQUIRED")
+    """Only a retained UUID journal may authorize inverse work."""
+    from app.core.tool_operations import OperationError, valid_uuid
+    if not isinstance(payload, dict) or set(payload) != {'saga_id'}:
+        raise TaskRejected('TASK_INPUT_INVALID')
+    try:
+        valid_uuid(payload['saga_id'])
+    except OperationError:
+        raise TaskRejected('TASK_INPUT_INVALID') from None
+    from app.core.saga_retry import retry_saga_compensations
+    try:
+        state = await retry_saga_compensations(payload['saga_id'])
+    except OperationError as exc:
+        if str(exc) in {'SAGA_STORE_UNAVAILABLE', 'ACTION_STORE_UNAVAILABLE', 'SAGA_OWNERSHIP_LOST'}:
+            raise TaskDeferred('SAGA_RECOVERY_PENDING') from None
+        raise TaskRejected('SAGA_MANUAL_REQUIRED') from None
+    if state in {'busy', 'aborting'}:
+        raise TaskDeferred('SAGA_RECOVERY_PENDING')
+    if state not in {'succeeded', 'compensated'}:
+        raise TaskRejected('SAGA_MANUAL_REQUIRED')
 
 
 async def maintenance() -> None:

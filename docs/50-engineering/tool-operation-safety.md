@@ -107,8 +107,9 @@ memory. It cannot prove provider persistence or complete restart recovery.
 Legacy HTTP compensation cannot establish an independent durable inverse identity,
 so CRM/ticket/mail inverse methods now return `DURABLE_COMPENSATION_REQUIRED` without
 HTTP writes. Missing evidence is failure, not a successful no-op. Compensation errors
-are not displayed as a completed rollback. C13 must implement the frozen linked-ID,
-versioned compensation contract after C14; no inverse endpoint is implemented here.
+are not displayed as a completed rollback. C13 now implements the linked-ID/versioned
+HTTP inverse path exclusively through its verified [Saga journal](saga-recovery.md).
+Unjournaled direct compensation stays denied; real provider acceptance is still BLOCKED.
 
 Reviewed offline command, from repository root (Python 3.11+):
 
@@ -126,4 +127,5 @@ service harness, audit-cache cleanup, migrations or live API tests automatically
 
 See [C12 delivery record](../40-process/阶段性总结_C12工具幂等与安全重试.md)
 for counts and acceptance gaps. C10 fencing, C18 R01–R20, all earlier runtime/browser/
-SSO/history blockers, enterprise UAT and release remain open. C14 is not started.
+SSO/history blockers, enterprise UAT and release remain open. C14/C13 offline candidates
+are implemented; real queue/Saga integration remains BLOCKED.

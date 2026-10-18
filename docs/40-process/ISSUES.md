@@ -104,14 +104,15 @@
 
 - **原始证据/校正**：旧 CRM 键依赖默认索引、工单每次新随机后缀、邮件无 send 键，通用 HTTP 会重试写入。最初的 request_id 秒级碰撞描述已过时，C08 已使用完整 UUID；C12 处理持久逻辑动作身份。
 - **当前增量**：[动作存储](../../enterprise-agent/app/core/tool_operations.py) 持久化执行/动作 UUID；[网关](../../enterprise-agent/app/tools/operation_gateway.py) 冻结计划/请求、当前权限与审批授权、原子一次发送；[HTTP](../../enterprise-agent/app/tools/http_adapter.py) 禁止写重试、限定总时限；[参考适配](../../enterprise-agent/app/tools/reference.py) 严格回执、版本条件与结果查询。新增迁移 v2 未执行，原 v1 不变。41 项 C12 与 94 项相关离线测试 PASS，详细见 [阶段记录](阶段性总结_C12工具幂等与安全重试.md)。
-- **剩余缺口**：真实 PG 并发/崩溃、HTTP/服务重启与 API/SSE/Linux 尚未验收，C12 整项 open/BLOCKED。领取后发送前崩溃不自动重发，需核对；旧审批缺 ID 拒绝；HTTP 补偿暂时拒绝，等待 C13 持久补偿身份。C14 离线队列候选已另行推进但完整恢复未验收，C13 Saga、C11 审批状态仍未完成；旧审批 API 失败状态问题仍在 C11。
+- **剩余缺口**：真实 PG 并发/崩溃、HTTP/服务重启与 API/SSE/Linux 尚未验收，C12 整项 open/BLOCKED。领取后发送前崩溃不自动重发，需核对；旧审批缺 ID 拒绝；HTTP 补偿已由 C13 持久日志路径实现，真实运行仍未验收。C14 队列与 C13 Saga 离线候选已推进但完整恢复未验收，C11 审批状态仍未完成；旧审批 API 失败状态问题仍在 C11。
 - **验收**：每个逻辑动作有持久唯一 ID；同动作重试复用键，不同动作不共享键；响应丢失/5xx/重启重放至多产生一次外部动作；缺少幂等或查询契约时禁止盲目重试非幂等写入；缺回执不能显示成功；工具网关校验所需角色和审批执行授权。必须补独立参考服务台账与真实 PG 证据，不能以替身测试关闭。
 
 <a id="c13"></a>
 #### C13 · P1 · Saga 持久化与故障恢复
 
-- **现状/证据**：[saga.py](../../enterprise-agent/app/tools/saga.py)主要在内存顺序执行和逆向补偿；[saga_retry.py](../../enterprise-agent/app/core/saga_retry.py)读取 saga_transactions，但应用未发现对应生产写入；重试补偿顺序也需统一。
-- **缺口/原因**：恢复消费者与实际执行记录未接通，进程崩溃后无法依靠内存恢复。
+- **原始证据**：旧 Saga 仅内存执行，worker 读取没有生产端的 `saga_transactions`，补偿缺持久身份和一致顺序。
+- **当前增量**：[持久日志](../../enterprise-agent/app/core/saga_store.py) 绑定 C12 整体计划并同事务创建 C14 恢复任务；[恢复](../../enterprise-agent/app/core/saga_retry.py) 取消未发送动作、原 ID 核对结果后逆序补偿；HTTP 五类补偿有独立 UUID、原版本和关联回执，外部撤回申请不算补偿完成。迁移 v4 未执行。34 项专项 + 185 项相关离线回归 PASS，见[阶段记录](阶段性总结_C13Saga持久化与故障恢复.md)及[契约](../50-engineering/saga-recovery.md)。
+- **剩余缺口**：真实 PG 锁/双进程/崩溃、HTTP 独立台账及 Linux/API/SSE 验收 BLOCKED，C13 整项 open；旧记录不自动导入，mock 恢复无持久证据转人工，未知结果/耗尽任务/同资源版本冲突不自动重发。C10 竞态、C11 审批状态与 C21 审计回写保持原边界。
 - **验收**：真实执行写入事务/步骤/操作 ID/结果与补偿状态；每个关键崩溃点重启后可恢复；按依赖逆序补偿且重试不重复副作用；无法撤回或补偿失败保持人工处理状态，不能报告回滚成功；审计可关联原始执行。
 
 <a id="c14"></a>
@@ -119,7 +120,7 @@
 
 - **原始证据**：旧队列 BRPOP 后处理并丢弃超限消息，无业务生产入口；worker 未完整初始化工具与 Milvus。
 - **当前增量**：[task_queue.py](../../enterprise-agent/app/core/task_queue.py) 改为 PostgreSQL 保留任务、所有权/时限确认、领取前重试和结果不明转人工核对；知识审核同事务入队并返回 202，管理员可查任务/失败/心跳；[worker.py](../../enterprise-agent/app/worker.py) 完整初始化、监督消费者与关闭资源。43 项专项 + 112 项相关离线回归 PASS，见[阶段记录](阶段性总结_C14队列可靠性与Worker初始化.md)。迁移 v3 未执行。
-- **剩余缺口**：真实 SQL/双进程/故障/Milvus/Linux 验收 BLOCKED；Saga 生产记录与补偿身份待 C13，当前拒绝执行；审计非删除回写待 C21，知识发布一致性待 C15。旧 Redis List 未搬迁/删除；运行中未知结果不自动重放，dead 不代表写入停止或回滚。C14 整项 open。
+- **剩余缺口**：真实 SQL/双进程/故障/Milvus/Linux 验收 BLOCKED；C13 已提供持久 Saga 生产记录、补偿身份和有界恢复候选，真实验收未完成；审计非删除回写待 C21，知识发布一致性待 C15。旧 Redis List 未搬迁/删除；知识任务运行中未知结果不自动重放；Saga 仅通过持久操作领取保护恢复，dead 不代表写入停止或回滚。C14 整项 open。
 - **验收**：实际业务生产任务并由独立 worker 消费；取出前后/执行中崩溃、Redis 断连重连、超限失败均可追踪恢复或进入可查询失败队列；结合幂等避免重复副作用；干净启动能执行文档入库与 Saga 恢复，消费者失活可被探测。
 
 <a id="c15"></a>

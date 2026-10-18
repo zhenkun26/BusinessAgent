@@ -125,3 +125,10 @@ C12 `21b5287` was pushed and its same-name remote branch verified. Implement C14
 offline only, using existing PostgreSQL dependencies and an additive migration.
 Keep live acceptance BLOCKED, C10 fencing open and HTTP compensation deferred to C13.
 Stop after local delivery; C14 push and subsequent work require confirmation.
+
+## Authorized C13 increment
+
+Persist Saga execution and recovery evidence, connect C14's transactional worker to
+the journal, and implement previously deferred linked HTTP compensation. Deliver offline
+verification and explicit live blockers, then stop before C11. C14 commit `59a5c14` was
+pushed to the same remote branch; C13 remains local pending separate push authorization.

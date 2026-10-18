@@ -291,3 +291,21 @@
 - **Evidence**: [C14 record](阶段性总结_C14队列可靠性与Worker初始化.md), 43 focused and
   112 related tests PASS. C12 `21b5287` pushed; C14 local only. Runtime, strict CLI,
   enterprise UAT/release remain BLOCKED. Stop before C13 until user confirmation.
+
+## 30. C13: retain inverse identities and abort interrupted plans conservatively
+
+- **Problem**: in-memory Saga execution could not produce trusted worker recovery evidence;
+  legacy inverse calls could not bind a durable action identity or prove an unknown outcome.
+- **Decision**: journal exact C12 plans and C14 recovery jobs atomically, lease the run,
+  cancel prepared forward actions after interruption, reconcile all uncertain originals,
+  then compensate in reverse order with distinct retained UUIDs and frozen preconditions.
+  Current actor permission and target are revalidated; original approved-send evidence
+  permits only its linked inverse, never a new send or persisted approval capability.
+- **Tradeoff**: no blind forward continuation, inverse resend, version refresh or legacy
+  conversion. Unknown outcomes, non-durable mock recovery and external recall requests
+  remain unresolved/manual. Saga-only queue retry is capped at four claims; knowledge
+  ingestion keeps its no-replay policy. No exactly-once or C10 checkpoint fencing claim.
+- **Verification**: 34 C13 and 185 related offline tests PASS; runtime/strict CLI BLOCKED.
+  [C13 record](阶段性总结_C13Saga持久化与故障恢复.md). C14 `59a5c14` pushed; C13 local only.
+- **Revisit**: isolated crash/locking/provider evidence may justify a separately reviewed
+  continuation policy. C11 approval state and C21 audit replay remain separate. Stop at C13.
