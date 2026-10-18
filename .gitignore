@@ -22,6 +22,7 @@ env/
 .env.*.local
 .env.prod
 .env.reference
+.env.sso
 
 # 运行时数据与日志
 logs/

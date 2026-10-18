@@ -91,6 +91,9 @@ USER 65534:65534
 # Imports only: no connection, migration or model inference.
 RUN python -c "import psycopg; from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver"
 
+# C19: import only; real key/signature/TLS acceptance remains an isolated runtime gate.
+RUN python -B -c "import cryptography; from jwt.algorithms import RSAAlgorithm"
+
 EXPOSE 8000
 
 # 健康检查(无 curl,用标准库 urllib;区分存活与就绪见 K8s 探针)

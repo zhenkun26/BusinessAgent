@@ -390,3 +390,22 @@
   count as PASS. C10 fencing and C21 audit replay remain separately unresolved.
 - **Revisit**: failures in physical retention/restart, capacity or full application correlation
   require a reviewed adjustment, not relaxed criteria or replacement/deletion of old evidence.
+
+## 36. C19: fixed asymmetric SSO profile and independent retained issuer
+
+- **Need**: callback doubles cannot establish browser/IdP integration; token-selected
+  algorithms, key fallback and normalized subjects create avoidable identity ambiguity.
+- **Choice**: fixed RS256/unique RSA kid, strict claims, verified bounded HTTPS and S256
+  bound to shared once-only state. Use exact issuer/subject mapping and a local salesperson
+  default; remote role/department claims never grant authority. Supply an independent
+  single-client TLS issuer with retained SQLite codes and authenticated scoped controls.
+- **Approval**: user approved PyJWT[crypto], cryptography 50.0.2, required cffi/pycparser pins
+  and image import probes; no local install/build/key/signature/real IdP execution.
+- **Tradeoffs**: stricter HTTPS/algorithm/default-role configuration; old in-flight states
+  must restart login. Historical normalized identities require operator investigation.
+  Synthetic fixtures and a custom bounded reference server do not certify an enterprise IdP.
+- **Verification**: 37 focused + 136 related offline cases PASS. S01–S16, real cryptography,
+  browser/TLS/PG/Redis/process/disk acceptance remain BLOCKED. Plan/report output cannot
+  certify operator claims. C18 R01–R20, C10 fencing, C21 audit and full RAG remain unchanged.
+- **Revisit**: real browser/crypto/retention failures require a reviewed correction; enterprise
+  provider differences belong to the separate integration change, not hidden profile relaxation.

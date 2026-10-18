@@ -15,6 +15,8 @@
 
 ### New Capabilities
 
+- `controlled-sso`: C19 independent retained issuer, strict RS256/PKCE identity mapping and isolated browser acceptance.
+
 - `analysis-data`: C16 provider-aligned snapshot reads, bounded aggregation and deterministic reporting.
 
 - `engineering-delivery`: 工程交付范围、逐项验收证据、顺序推进及与企业现场生产验证的隔离规则。
@@ -177,3 +179,24 @@ Use Python's declared-runtime standard library; no new dependency or service ins
 Do not start services, call APIs/models, migrate current stores, delete files or send mail.
 Full R01-R20 execution, real runtime/full RAG remain BLOCKED. Preserve C10's write race
 and C21 audit replay. Stop after the local C18 increment before its push or C19.
+
+## Authorized C19 increment — 2026-10-18
+
+C18 bd04a120daf6695f5b735bcd73733c0e2def07b1 is pushed and remote-verified. Implement
+C19 only: independent controlled OIDC issuer, strict application verification/mapping,
+private TLS deployment and retained browser acceptance procedures/evidence, with offline
+checks. Real browser/IdP/JWT/PG/Redis/Linux and full RAG remain BLOCKED; C18 R01–R20,
+C10 fencing and C21 audit replay remain open. Stop at a local commit before push/C20.
+
+Dependency approval required before editing dependency manifests: existing PyJWT is
+installed without its crypto extra; the production lock has no cryptography backend.
+RS256 signing/verification needs PyJWT[crypto] and an explicit reviewed cryptography pin
+(with its declared transitive dependencies). Proposed scope is dependency declarations
+and image import probes only; no local installation, image build, key generation or
+real signing/API/browser execution. Do not replace asymmetric verification with HS256
+or custom cryptography to avoid this approval. Independent work can proceed meanwhile.
+
+Approval received on 2026-10-18: add PyJWT[crypto], cryptography==50.0.2, cffi==2.1.1
+and pycparser==3.11 declarations and import probes. PyPI metadata confirms the dependency
+edges; resolution, installation, build, vulnerability scan and real cryptography are unrun.
+The existing PyJWT pin stays 2.15.0. This supersedes the approval-pending state above.

@@ -493,3 +493,31 @@ The collector checks expected service/store UUIDs and stable fixture hashes befo
 messages. These identities do not attest an image or backup freshness. Missing audit is never
 repaired (C21), and collector OBSERVED never closes a runtime case. SQLite uses PERSIST/FULL
 and memory temporary storage; physical crash/savepoint retention is an unexecuted Linux gate.
+
+## C19 controlled OIDC reference design — 2026-10-18
+
+The user approved adding PyJWT[crypto], cryptography==50.0.2 and required transitive
+pins plus image import checks, without installation/build/signing/live IdP execution.
+Use a separate retained SQLite-backed issuer with environment-provided synthetic user
+credentials, RSA private keys and distinct operator/client secrets. Provide HTTPS
+/discovery, /authorize, /authenticate, /token, /jwks and private operator evidence/key
+rotation/fault controls. Exact client/redirect bindings, S256 PKCE, hashed one-use codes,
+short expiry and browser-bound form submission are mandatory. No arbitrary redirect,
+automatic key generation, public reset, cleanup or enterprise IdP impersonation.
+
+Application verification pins RS256 independently of token headers, exact nonempty kid,
+RSA signing public keys, unique matching key and validated issuer/audience/azp/nonce/time.
+Fetch only configured HTTPS endpoints with bounded JSON and no redirects; token exchange
+is not retried blindly. Keep the raw issuer/sub identity exact, reject overlength or
+malformed identity instead of truncating, and never link by email/username. New accounts
+use salesperson and configured default department only, never remote role/department
+claims or privileged defaults; existing local role/disable state remains authoritative.
+Extend shared single-use state with a PKCE verifier; old nonce-only state cannot satisfy
+the new callback. Missing Redis or crypto fails closed, without weakening local login.
+
+Provide isolated TLS/CA/hostname recipes using existing Python/Nginx images, and a
+browser/operator scenario record with all SSO runtime cases BLOCKED by default. Offline
+source/in-memory storage/crypto-double checks are explicitly not real signatures or a
+browser. Real rotation, restart, JWT/PG/Redis, browser handoff and deny cases require the
+same application candidate and independent issuer; no claims of OIDC certification,
+enterprise federation, UAT or release. C18 R01-R20, full RAG, C10 and C21 remain unchanged.

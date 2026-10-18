@@ -145,6 +145,8 @@ class CrossProcessStateTests(unittest.IsolatedAsyncioTestCase):
             'app.core.database': module('app.core.database', get_session_factory=lambda: self.factory),
             'app.prompts.defaults': module('app.prompts.defaults', DEFAULT_PROMPTS={'planner': 'default'}),
         }))
+        self.stack.enter_context(patch.dict(sys.modules, {
+            'app.security.oidc': load('c19_oidc', 'app/security/oidc.py')}))
         self.runtime_a = load('c09_runtime_a', 'app/core/runtime_state.py')
         self.runtime_b = load('c09_runtime_b', 'app/core/runtime_state.py')
         self.stack.enter_context(patch.dict(sys.modules, {'app.core.runtime_state': self.runtime_a}))
@@ -328,7 +330,7 @@ class CrossProcessStateTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_sso_http_matching_cookie_success_then_replay_denied(self) -> None:
         ns = self.auth_functions()
-        state, _ = await self.runtime_a.register_sso_state()
+        state, _ = await self.runtime_a.register_sso_state(verifier='v' * 43)
         request = SimpleNamespace(cookies={'sso_state': state}, headers={})
         first = await ns['sso_callback'](request, code='code', state=state, db=None)
         second = await ns['sso_callback'](request, code='code', state=state, db=None)

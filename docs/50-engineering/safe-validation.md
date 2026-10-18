@@ -46,6 +46,8 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `app/observability/audit.py` | 缓存消费成功后 `os.remove` | 不导入/执行应用；C21 处理审计保留与恢复 |
 | `eval/run_c12_tool_operation_safety.py` | 实际动作存储/网关/HTTP/回执/审批建单/Saga 函数；SQL、HTTP、身份全注入，audit hook 禁止网络/文件写入/删除/子进程 | C12 专项审查允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c12_tool_operation_safety.py`；不加入五函数白名单，不证明真实 PG/HTTP/完整恢复 |
 | `eval/run_c14_queue_reliability.py` | 实际队列/producer/worker/路由函数；SQL、模型、Milvus、身份替身；audit hook 拒绝网络、文件写入/删除及子进程 | C14 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c14_queue_reliability.py`；不加入五函数白名单，不证明真实锁/故障/进程/框架 |
+| `eval/run_c19_controlled_sso.py` | 实际 IdP/claims/state/mapping 代码，内存 SQLite、JWT/HTTP/PG 替身；audit hook 禁止文件 DB、网络、文件写入/删除、子进程 | C19 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c19_controlled_sso.py`；不加载真实密码学后端或启动服务，不扩展五函数白名单 |
+| `reference_idp.server` / `.acceptance` | server 真实 TLS/签名/持久 DB；acceptance 默认只输出 BLOCKED 计划，可只读校验 64 KiB 脱敏观察 JSON，但不认证结果 | server 本轮不执行；运行须单独授权并复审 C21/文件保留；acceptance 无网络、无写入，真实 S01–S16 BLOCKED |
 | `eval/run_c18_reference_integration.py` | 独立服务真实代码与内存 SQLite；应用/HTTP/PG/身份注入；audit hook 拒绝文件数据库、网络、文件修改/删除及子进程 | C18 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c18_reference_integration.py`；不扩展五函数白名单，不启动 listener/Docker/运行采集器；R01–R20 BLOCKED |
 | `reference_service.server` / `reference_service.acceptance --execute` | 独立端口、持久 DB、故障控制；实际应用登录/对话/审批/恢复会写业务记录并可能调用付费 LLM；采集器仅新建证据文件，不覆盖/清理 | 本轮只审阅配方/代码；不执行。隔离运行须按 reference-integration.md 处理前置与审计删除路径，C21 未解决 |
 | `eval/run_c17_rag_quality.py` | 实际指标、降级、Agent/评测编排；SQL/模型注入；audit hook 拒绝网络、文件修改/删除及子进程 | C17 专项允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c17_rag_quality.py`；不扩展五函数白名单，不执行 `run_eval --execute`；真实质量 BLOCKED |

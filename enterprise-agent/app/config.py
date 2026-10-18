@@ -143,6 +143,7 @@ class Settings(BaseSettings):
     sso_token_url: str = ""
     sso_jwks_url: str = ""
     sso_redirect_uri: str = ""
+    sso_ca_bundle: str = ""  # Controlled CA bundle; TLS verification stays enabled.
     sso_scopes: str = "openid profile email"
     sso_department_claim: str = "department"
     sso_default_role: str = "salesperson"
@@ -242,6 +243,13 @@ def validate_production_settings(settings: Optional[Settings] = None) -> list[st
         for field_name in required_sso_fields:
             if not getattr(settings, field_name).strip():
                 violations.append(f"SSO_ENABLED=true 时必须配置 {field_name}")
+        from app.security.oidc import OIDCError, configuration
+        try:
+            configuration(settings)
+        except OIDCError:
+            violations.append(
+                "SSO_CONFIGURATION_INVALID: HTTPS, RS256 profile and least privilege required"
+            )
     return violations
 
 

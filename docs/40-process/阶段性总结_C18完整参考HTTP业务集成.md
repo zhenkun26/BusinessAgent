@@ -78,3 +78,10 @@ removed; no dependency was installed or added. The 556 existing mode-only change
 The final-commit/source-hash receipt is retained under ignored `enterprise-agent/eval/results/`.
 `formal_uat=false`, `release_evidence=false`, `release_allowed=false`.
 Stop after the C18 local commit; wait for confirmation before pushing it or starting C19.
+
+## Subsequent authorized handoff — 2026-10-18
+
+C18 `bd04a120daf6695f5b735bcd73733c0e2def07b1` was pushed to the same
+`origin/codex/delivery-ci-gates` branch and verified with the remote ref. The user then
+authorized C19 only. This supersedes the earlier local-only stopping point, without
+closing R01–R20, real runtime/full RAG, C10 fencing or C21 audit replay.
