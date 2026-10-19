@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = runpy.run_path(str(ROOT / 'tests/test_task_queue.py'))
-Base, Database, load, module = (BASE[k] for k in ('QueueTests', 'Database', 'load', 'module'))
+Base, Database, load, module = (BASE[k] for k in ('QueueFixture', 'Database', 'load', 'module'))
 
 
 def result(rows):

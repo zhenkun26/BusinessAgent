@@ -19,7 +19,7 @@ BASE = runpy.run_path(str(ROOT / 'tests/test_request_context.py'))
 load, module, extract = (BASE[k] for k in ('load', 'module', 'extract'))
 
 
-class AnalysisTests(BASE['RequestContextTests']):
+class AnalysisTests(BASE['RequestContextFixture']):
     def setUp(self):
         super().setUp()
         self.settings = NS(tool_provider='mock', crm_tool_provider='', tool_reference_profile='business-reference-v1',

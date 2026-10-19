@@ -122,7 +122,8 @@ class Database:
         return NS(returns_rows=True,mappings=lambda:NS(first=lambda:rows[0] if rows else None,all=lambda:rows))
 
 
-class QueueTests(unittest.IsolatedAsyncioTestCase):
+class QueueFixture(unittest.IsolatedAsyncioTestCase):
+    """Shared setup and helpers only; concrete suites own their test methods."""
     def setUp(self):
         self.stack=ExitStack();self.addCleanup(self.stack.close)
         self.db=Database()
@@ -185,6 +186,14 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
             HTTPException=HTTPError,_envelope=lambda data,**kw:dict(data=data,**kw))
         exec(compile(ast.fix_missing_locations(tree),'admin.py','exec'),scope)
         return scope[name],HTTPError
+
+    async def saga_job(self):
+        sid=str(uuid.uuid4())
+        await self.queue.enqueue_task(self.db,'tasks:saga_retry','saga:'+sid,{'saga_id':sid})
+        return await self.store.claim('tasks:saga_retry')
+
+
+class QueueTests(QueueFixture):
 
     async def test_enqueue_same_scope_retains_id_and_has_no_implicit_commit(self):
         first=await self.enqueue();second=await self.enqueue()
@@ -477,11 +486,6 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
     async def test_worker_never_flushes_deleting_audit_cache(self):
         source=(ROOT/'app/worker.py').read_text()
         self.assertNotIn('flush_local_cache(',source)
-
-    async def saga_job(self):
-        sid=str(uuid.uuid4())
-        await self.queue.enqueue_task(self.db,'tasks:saga_retry','saga:'+sid,{'saga_id':sid})
-        return await self.store.claim('tasks:saga_retry')
 
     async def test_running_saga_expiry_is_reconcilable_but_bounded(self):
         job=await self.saga_job()

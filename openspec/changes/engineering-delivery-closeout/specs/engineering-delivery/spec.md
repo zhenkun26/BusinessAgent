@@ -102,3 +102,7 @@ the candidate and reviewed source identity, and retain skipped/unavailable check
 #### Scenario: 输出中可能包含敏感数据
 - **WHEN** 原始报告细节或异常消息带凭证、地址或业务文本
 - **THEN** 入口只输出受控状态、计数与哈希，不持久化原文或环境变量；失败原因使用固定错误码
+
+#### Scenario: CI collection or regression fails
+- **WHEN** the candidate CI cannot collect or pass the complete unit-test suite
+- **THEN** repair stale test contracts or implementation defects, retain all tests and security assertions, record exact local and remote verification separately, and keep runtime acceptance blocked

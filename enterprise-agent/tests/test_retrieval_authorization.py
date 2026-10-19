@@ -58,7 +58,8 @@ class Scores:
         return [0.9] * self.size
 
 
-class RetrievalAuthorizationTests(unittest.IsolatedAsyncioTestCase):
+class RetrievalAuthorizationFixture(unittest.IsolatedAsyncioTestCase):
+    """Shared setup and helpers only; concrete suites own their test methods."""
     def setUp(self) -> None:
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
@@ -135,6 +136,9 @@ class RetrievalAuthorizationTests(unittest.IsolatedAsyncioTestCase):
         return [memory.search([1], 20, f), self.vs.MilvusVectorStore().search([1], 20, f),
                 self.keyword._scan_via_milvus(['policy'], 20, role, dept, types),
                 await self.keyword._fallback_pg_tsvector(['policy'], 20, role, dept, types)]
+
+
+class RetrievalAuthorizationTests(RetrievalAuthorizationFixture):
 
     async def test_role_department_matrix_matches_all_four_paths(self) -> None:
         matrix = [('salesperson', 'dept_sales', {'shared_company', 'dept_sales'}),

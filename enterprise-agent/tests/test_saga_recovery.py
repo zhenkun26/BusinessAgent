@@ -13,7 +13,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = runpy.run_path(str(ROOT / 'tests/test_tool_operation_safety.py'))
-Base = BASE['SafetyTests']
+Base = BASE['SafetyFixture']
 
 
 class RecoveryTests(Base):

@@ -70,10 +70,12 @@ class SafeValidationTests(unittest.TestCase):
             ("os.system", (b"probe",)), ("ctypes.dlopen", ("probe",)),
             ("open", ("probe", None, os.O_RDWR)),
         ]
-        with safe.ReadOnlyGuard():
+        with safe.ReadOnlyGuard() as guard:
             for event, args in events:
                 with self.subTest(event=event), self.assertRaises(safe.SafetyError):
-                    sys.audit(event, *args)
+                    # Unit-test policy without emitting fake process-wide OS events.
+                    # Real audit-hook installation is exercised by retained write-denial tests.
+                    guard.audit(event, args)
 
     def test_record_collision_keeps_original_bytes(self) -> None:
         root = self.retained / uuid4().hex
@@ -150,10 +152,13 @@ class SafeValidationTests(unittest.TestCase):
                 safe.run_checks(root, ["uat-plan"])
 
     def test_suppressed_validator_error_cannot_hide_side_effect_denial(self) -> None:
+        target = self.retained / (uuid4().hex + ".txt")
+        target.write_text("preserved", encoding="utf-8")
+
         def validator(*args: object) -> dict:
             print("SYNTHETIC_PRIVATE_OUTPUT")
             try:
-                sys.audit("os.remove", "probe", -1)
+                target.write_text("must not overwrite", encoding="utf-8")
             except safe.SafetyError:
                 pass
             return {"overall_status": "passed", "checks": [{"passed": True}]}
@@ -165,6 +170,7 @@ class SafeValidationTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
         self.assertEqual(report["overall_status"], "BLOCKED")
         self.assertNotIn("SYNTHETIC_PRIVATE_OUTPUT", json.dumps(report))
+        self.assertEqual(target.read_text(encoding="utf-8"), "preserved")
 
     def test_cli_reports_pass_blocked_and_record_collision(self) -> None:
         root = self.fixture_root()

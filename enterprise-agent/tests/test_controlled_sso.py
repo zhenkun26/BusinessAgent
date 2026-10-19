@@ -463,7 +463,7 @@ class MappingTests(unittest.IsolatedAsyncioTestCase):
         self.issue.assert_not_called()
 
 
-class FlowTests(BASE['CrossProcessStateTests']):
+class FlowTests(BASE['CrossProcessStateFixture']):
     async def test_shared_state_pkce_consumed_once_and_old_state_not_accepted(self):
         state, nonce = await self.runtime_a.register_sso_state(verifier='v' * 43)
         binding = await self.runtime_b.consume_sso_state(state, with_verifier=True)

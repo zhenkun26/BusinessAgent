@@ -204,4 +204,4 @@ C23 离线候选：[容量契约](docs/50-engineering/capacity-evidence.md)、[�
 
 C24 最终候选离线部分：[验证契约与映射](docs/50-engineering/final-candidate-verification.md)、[交付记录](docs/40-process/阶段性总结_C24最终候选离线验证.md)、[固定汇总入口](enterprise-agent/scripts/final_candidate.py)；789 项测试 PASS、1 项 PyYAML 跳过/BLOCKED、7 个分发文件 PASS；全部真实运行矩阵与完整 RAG 继续 BLOCKED，C10 open。C24 `d8a26b5` 已推送并核验，C25 见下文。
 
-C25 离线核对：[交付状态与支持映射](docs/50-engineering/delivery-status.md)、[阶段记录](docs/40-process/阶段性总结_C25离线交付核对.md)；版本/tag/主规格不变，C24 CI 收集 FAIL 与运行 BLOCKED 分开记录。C25 整项 open，文档本地提交后暂停，不合并、发布或归档。
+C25 离线核对：[交付状态与支持映射](docs/50-engineering/delivery-status.md)、[阶段记录](docs/40-process/阶段性总结_C25离线交付核对.md)；版本/tag/主规格不变，C24 CI 收集 FAIL 与运行 BLOCKED 分开记录。C25 `fe2ae78` 已推送；后续 [CI pytest 修复](docs/40-process/ci-pytest-repair.md) 本地完整 871 tests + 225 subtests PASS、零跳过，修复推送与远端复验待确认。C25 整项 open，不合并、发布或归档。

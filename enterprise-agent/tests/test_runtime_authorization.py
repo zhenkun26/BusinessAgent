@@ -146,7 +146,8 @@ class Database:
         self.row=deepcopy(self.saved_row);self.events=deepcopy(self.saved_events)
 
 
-class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
+class RuntimeAuthorizationFixture(unittest.IsolatedAsyncioTestCase):
+    """Shared setup and helpers only; concrete suites own their test methods."""
     async def asyncSetUp(self) -> None:
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
@@ -262,6 +263,9 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(caught.exception.status_code, code)
             self.audit.log.assert_not_awaited()
         self.assert_no_effects()
+
+
+class RuntimeAuthorizationTests(RuntimeAuthorizationFixture):
 
     async def test_identity_outage_denies_and_recovery_uses_current_role(self) -> None:
         self.db.fail_users = True

@@ -198,7 +198,7 @@ class MetricTests(unittest.TestCase):
         with self.assertRaises(ValueError): runner.validate_published_corpus(MANIFEST, rows[:-1])
 
 
-class PipelineTests(BASE['RetrievalAuthorizationTests']):
+class PipelineTests(BASE['RetrievalAuthorizationFixture']):
     async def test_actual_scan_and_pg_labels(self):
         self.set_rows(self.fixture())
         primary = Mock(retrieve=Mock(return_value=NS(results=[], latency_ms=0)))

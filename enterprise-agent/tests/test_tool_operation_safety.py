@@ -172,7 +172,8 @@ class Database:
                                                         all=lambda:deepcopy(rows)))
 
 
-class SafetyTests(unittest.IsolatedAsyncioTestCase):
+class SafetyFixture(unittest.IsolatedAsyncioTestCase):
+    """Shared setup and helpers only; concrete suites own their test methods."""
     def setUp(self):
         self.stack=ExitStack()
         self.addCleanup(self.stack.close)
@@ -279,6 +280,41 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         if self.mode=='invalid':
             return True,{},None,{'status':201}
         return True,self.receipt(oid),None,{'status':200 if method=='PATCH' else 201}
+
+    def source_function(self, path, name, owner=None, **namespace):
+        tree=ast.parse((ROOT/path).read_text())
+        if owner:tree=next(n for n in tree.body if getattr(n,'name',None)==owner)
+        node=next(n for n in tree.body if getattr(n,'name',None)==name)
+        node.decorator_list=[]
+        ns={'Any':object,**namespace}
+        exec(compile('from __future__ import annotations\n'+ast.unparse(node),path,'exec'),ns)
+        return ns[name]
+
+    def install_transport(self, responses):
+        calls=[]; httpx=sys.modules['httpx']
+        class Response:
+            def __init__(self,status,body,headers=None):
+                self.status_code=status;self.body=body
+                self.headers=headers or {'X-Reference-Profile':'business-reference-v1'}
+            async def aiter_bytes(self):
+                for chunk in self.body:yield chunk
+        @asynccontextmanager
+        async def client(**kwargs):
+            self.assertFalse(kwargs['follow_redirects'])
+            @asynccontextmanager
+            async def stream(method,url,**options):
+                calls.append((method,deepcopy(options)))
+                status,body=responses.pop(0)
+                if status=='timeout':
+                    await asyncio.sleep(1)
+                if status=='error':raise httpx.HTTPError()
+                yield Response(status,body)
+            yield NS(stream=stream)
+        httpx.AsyncClient=client
+        return calls
+
+
+class SafetyTests(SafetyFixture):
 
     async def test_persisted_distinct_ids_for_identical_action_slots(self):
         plans=[NS(tool='create_ticket',params={'title':'test'},operation_id=None) for _ in range(2)]
@@ -456,15 +492,6 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.error,'SAGA_RECOVERY_REQUIRED')
         self.ref.request.assert_not_awaited()
 
-    def source_function(self, path, name, owner=None, **namespace):
-        tree=ast.parse((ROOT/path).read_text())
-        if owner:tree=next(n for n in tree.body if getattr(n,'name',None)==owner)
-        node=next(n for n in tree.body if getattr(n,'name',None)==name)
-        node.decorator_list=[]
-        ns={'Any':object,**namespace}
-        exec(compile('from __future__ import annotations\n'+ast.unparse(node),path,'exec'),ns)
-        return ns[name]
-
     async def test_actual_single_and_saga_entry_preserve_operation_ids(self):
         plan=await self.prepare()
         single=self.source_function('app/agents/execution.py','_invoke_single',
@@ -561,29 +588,6 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         record=self.audit.log_tool_call.await_args.kwargs
         self.assertEqual(record['payload']['side_effects']['operation_id'],self.context['operation_id'])
         self.assertEqual(record['payload']['side_effects']['operation'],result.side_effects['operation'])
-
-    def install_transport(self, responses):
-        calls=[]; httpx=sys.modules['httpx']
-        class Response:
-            def __init__(self,status,body,headers=None):
-                self.status_code=status;self.body=body
-                self.headers=headers or {'X-Reference-Profile':'business-reference-v1'}
-            async def aiter_bytes(self):
-                for chunk in self.body:yield chunk
-        @asynccontextmanager
-        async def client(**kwargs):
-            self.assertFalse(kwargs['follow_redirects'])
-            @asynccontextmanager
-            async def stream(method,url,**options):
-                calls.append((method,deepcopy(options)))
-                status,body=responses.pop(0)
-                if status=='timeout':
-                    await asyncio.sleep(1)
-                if status=='error':raise httpx.HTTPError()
-                yield Response(status,body)
-            yield NS(stream=stream)
-        httpx.AsyncClient=client
-        return calls
 
     async def test_pending_reconciliation_budget_expires_without_resend(self):
         await self.prepare();self.mode='unknown'

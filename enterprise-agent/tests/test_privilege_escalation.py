@@ -22,6 +22,8 @@ from loguru import logger
 
 from app.config import get_settings
 from app.rag.degradation import KeywordRetriever
+from app.rag.publication_visibility import publication_scope
+from app.security.retrieval_policy import resolve_scope
 from app.security.rbac import (
     AgentRole,
     can_access_namespace,
@@ -71,22 +73,23 @@ async def test_should_filter_other_dept_namespace_in_pg_degradation(
     """Given 销售用户(dept_sales)经 PG tsvector 降级链检索, When 执行查询,
     Then SQL 强制命名空间隔离(本部门 + shared_company)与角色过滤,
     不可能取到其他部门文档(降级链口径与主路径一致)"""
-    session = FakeSession(responses=[FakeResult([])])
+    session = FakeSession(responses=[FakeResult([]), FakeResult([])])
     monkeypatch.setattr(
         "app.core.database.get_session_factory", fake_session_factory(session)
     )
 
     retriever = KeywordRetriever()
-    results = await retriever._fallback_pg_tsvector(
-        ["报销", "流程"], top_k=5, user_role="salesperson", dept_namespace="dept_sales"
-    )
+    async with publication_scope(resolve_scope("salesperson", "dept_sales")):
+        results = await retriever._fallback_pg_tsvector(
+            ["报销", "流程"], top_k=5, user_role="salesperson", dept_namespace="dept_sales"
+        )
 
     assert results == []
     assert session.executed_sql, "降级链应执行 PG 查询"
-    sql = session.executed_sql[0]
+    sql = session.executed_sql[1]
     assert "dept_namespace IN" in sql and "jsonb_array_elements_text" in sql
     assert "access_roles @>" in sql
-    params = session.executed_params[0]
+    params = session.executed_params[1]
     assert json.loads(params["namespaces"]) == ["dept_sales", "shared_company"]
     assert params["role"] == '["salesperson"]'
 

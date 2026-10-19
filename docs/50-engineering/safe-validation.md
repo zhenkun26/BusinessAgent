@@ -74,7 +74,7 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | C01–C03 独立测试、`test_dockerfile_prod.py` | 已复审只读源文件与 AST/依赖注入；Dockerfile 三函数只做文本断言；不导入生产设置或安装 PyYAML | C24 固定汇总允许 `-I -B`；缺失 PyYAML 的检查仍 skip/BLOCKED |
 | `tests/test_final_candidate.py` | 子进程全注入；在新建 `eval/results/c24-tests-<uuid>/` 写入保留合成夹具，hook 拒绝网络/真实子进程/删除及夹具外写入 | C24 允许独立执行；不清理，不覆盖既有证据 |
 | 其他 eval / scripts | 可能启动应用、模型、写 DB/向量库、网络或覆盖报告 | 默认不允许，逐项审查，不能仅凭脚本名认定安全 |
-| 全量 pytest | 项目 conftest 本身为内存 mock，但插件、cache、tmp_path 生命周期不在五函数审查范围内 | 本轮不运行；入口测试用独立 unittest，夹具追加保留 |
+| 全量 pytest | 2026-10-19 后续授权已审阅完整 tests；专用诊断 runner 禁用自动插件/cache/默认临时清理，显式 asyncio、保留夹具、禁网/删除及限定写入/只读 Git；不属于五函数白名单 | 本轮本地 871 tests + 225 subtests PASS、零跳过；源码/运行器/环境与限制见 [CI 修复记录](../40-process/ci-pytest-repair.md)。原始 pytest 命令仍须审查环境和插件，不能自动继承本次安全结论 |
 
 五份函数模块的 SHA-256 固化在入口 `REVIEWED`。源码修改必须复审导入、文件/网络/进程副作用，再更新哈希与对应测试；不能提供“自动信任当前源码”的开关。验证输入固定为两份计划与 fixture，报告记录输入和源码哈希；执行前后哈希变化会阻断结果。
 

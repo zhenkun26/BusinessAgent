@@ -15,7 +15,7 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[1]
 BASE=runpy.run_path(str(ROOT/'tests/test_runtime_authorization.py'))
-Base=BASE['RuntimeAuthorizationTests'];Database=BASE['Database'];Model=BASE['Model']
+Base=BASE['RuntimeAuthorizationFixture'];Database=BASE['Database'];Model=BASE['Model']
 HTTPException=BASE['HTTPException'];load=BASE['load'];module=BASE['module']
 
 

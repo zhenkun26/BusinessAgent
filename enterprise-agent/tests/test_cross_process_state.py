@@ -114,7 +114,8 @@ class Response:
         self.cookies[name] = (value, kwargs)
 
 
-class CrossProcessStateTests(unittest.IsolatedAsyncioTestCase):
+class CrossProcessStateFixture(unittest.IsolatedAsyncioTestCase):
+    """Shared setup and helpers only; concrete suites own their test methods."""
     def setUp(self) -> None:
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
@@ -161,6 +162,40 @@ class CrossProcessStateTests(unittest.IsolatedAsyncioTestCase):
         async with lease.watch():
             entered.set()
             await asyncio.Event().wait()
+
+    def auth_functions(self) -> dict:
+        settings = SimpleNamespace(sso_authorize_url='https://idp.example.test/auth',
+            sso_client_id='test', sso_redirect_uri='https://app.example.test/callback',
+            sso_scopes='openid', is_dev=False, sso_issuer='https://idp.example.test')
+        ns = dict(secrets=secrets, _SSO_STATE_TTL_SECONDS=600, _require_sso_config=Mock(),
+            _register_sso_state=self.runtime_a.register_sso_state,
+            _consume_sso_state=self.runtime_b.consume_sso_state,
+            RuntimeStateUnavailable=self.runtime_b.RuntimeStateUnavailable,
+            get_settings=lambda: settings, HTTPException=self.c04.HTTPException,
+            JSONResponse=Response, RedirectResponse=Response, Depends=lambda x: None,
+            get_db=Mock(), get_audit_logger=lambda: SimpleNamespace(log=AsyncMock()),
+            _exchange_sso_code=AsyncMock(return_value={'id_token': 'synthetic'}),
+            _verify_id_token=AsyncMock(return_value={'sub': 'test'}),
+            _find_or_provision_sso_user=AsyncMock(return_value=(SimpleNamespace(user_id='u'), False)),
+            _issue_token=Mock(return_value=SimpleNamespace(model_dump=lambda: {'user_id': 'u'})),
+            urlencode=urlencode, urlsplit=urlsplit, urlunsplit=urlunsplit)
+        # Both process module exception types represent the same application class in production.
+        ns['RuntimeStateUnavailable'] = (self.runtime_a.RuntimeStateUnavailable,
+                                         self.runtime_b.RuntimeStateUnavailable)
+        tree = ast.parse((ROOT / 'app/api/auth.py').read_text())
+        selected = []
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in {
+                '_sso_error', '_append_query', 'sso_login', 'sso_callback',
+            }:
+                node.decorator_list = []
+                selected.append(ast.unparse(node))
+        exec(compile('from __future__ import annotations\n'+'\n'.join(selected),
+                     '<actual-auth-functions>', 'exec'), ns)
+        return ns
+
+
+class CrossProcessStateTests(CrossProcessStateFixture):
 
     async def test_other_worker_cancel_reaches_owner(self) -> None:
         lease = await self.cancel_a.reserve_session('session')
@@ -287,37 +322,6 @@ class CrossProcessStateTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(self.runtime_b.RuntimeStateUnavailable):
             await self.runtime_b.consume_sso_state('a' * 43)
         self.assertEqual(self.store.values, {})
-
-    def auth_functions(self) -> dict:
-        settings = SimpleNamespace(sso_authorize_url='https://idp.example.test/auth',
-            sso_client_id='test', sso_redirect_uri='https://app.example.test/callback',
-            sso_scopes='openid', is_dev=False, sso_issuer='https://idp.example.test')
-        ns = dict(secrets=secrets, _SSO_STATE_TTL_SECONDS=600, _require_sso_config=Mock(),
-            _register_sso_state=self.runtime_a.register_sso_state,
-            _consume_sso_state=self.runtime_b.consume_sso_state,
-            RuntimeStateUnavailable=self.runtime_b.RuntimeStateUnavailable,
-            get_settings=lambda: settings, HTTPException=self.c04.HTTPException,
-            JSONResponse=Response, RedirectResponse=Response, Depends=lambda x: None,
-            get_db=Mock(), get_audit_logger=lambda: SimpleNamespace(log=AsyncMock()),
-            _exchange_sso_code=AsyncMock(return_value={'id_token': 'synthetic'}),
-            _verify_id_token=AsyncMock(return_value={'sub': 'test'}),
-            _find_or_provision_sso_user=AsyncMock(return_value=(SimpleNamespace(user_id='u'), False)),
-            _issue_token=Mock(return_value=SimpleNamespace(model_dump=lambda: {'user_id': 'u'})),
-            urlencode=urlencode, urlsplit=urlsplit, urlunsplit=urlunsplit)
-        # Both process module exception types represent the same application class in production.
-        ns['RuntimeStateUnavailable'] = (self.runtime_a.RuntimeStateUnavailable,
-                                         self.runtime_b.RuntimeStateUnavailable)
-        tree = ast.parse((ROOT / 'app/api/auth.py').read_text())
-        selected = []
-        for node in tree.body:
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in {
-                '_sso_error', '_append_query', 'sso_login', 'sso_callback',
-            }:
-                node.decorator_list = []
-                selected.append(ast.unparse(node))
-        exec(compile('from __future__ import annotations\n'+'\n'.join(selected),
-                     '<actual-auth-functions>', 'exec'), ns)
-        return ns
 
     async def test_sso_http_cookie_mismatch_does_not_consume_even_on_idp_error(self) -> None:
         ns = self.auth_functions()

@@ -1,6 +1,8 @@
-"""应用入口测试:健康检查 / X-Request-ID 透传 / URL 容错 / CORS"""
+"""应用入口测试:健康检查 / server-owned request IDs / URL 容错 / CORS"""
 
 from __future__ import annotations
+
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,22 +13,29 @@ from app.main import create_app
 
 def test_should_serve_health_and_attach_request_id():
     """Given 应用创建成功, When 请求 /health,
-    Then 返回 healthy 且响应携带 X-Request-ID(透传/生成)"""
+    Then return health and a server-owned X-Request-ID"""
     app = create_app()
     client = TestClient(app)
 
     resp = client.get("/health", headers={"X-Request-ID": "trace-abc123"})
 
     assert resp.status_code == 200
-    assert resp.headers.get("X-Request-ID") == "trace-abc123"
+    first_id = resp.headers["X-Request-ID"]
+    assert UUID(first_id).version == 4
+    assert first_id != "trace-abc123"
 
     resp2 = client.get("/health")
-    assert resp2.headers.get("X-Request-ID")  # 未透传时自动生成
+    assert UUID(resp2.headers["X-Request-ID"]).version == 4
+    assert resp2.headers["X-Request-ID"] != first_id
 
 
-def test_should_redirect_markdown_asterisk_url():
+def test_should_redirect_markdown_asterisk_url(monkeypatch):
     """Given 用户复制带 ** 的 URL, When 请求 /ui**,
     Then 307 重定向到 /ui(防 404 打不开)"""
+    from app.middleware import rate_limit
+
+    monkeypatch.setattr(rate_limit, "_use_redis", False)
+    monkeypatch.setattr(rate_limit, "_memory_limiter", rate_limit.InMemoryRateLimiter())
     app = create_app()
     client = TestClient(app, follow_redirects=False)
 

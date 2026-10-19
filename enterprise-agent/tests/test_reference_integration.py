@@ -397,7 +397,7 @@ class ReferenceTests(unittest.TestCase):
             handler.server.service.handle.assert_not_called()
 
 
-class AdapterTests(BASE['SafetyTests']):
+class AdapterTests(BASE['SafetyFixture']):
     def setUp(self):
         super().setUp()
         self.settings.tool_reference_principal = 'application'

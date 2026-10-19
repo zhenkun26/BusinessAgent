@@ -79,7 +79,8 @@ class FakeGraph:
         return self
 
 
-class RequestContextTests(unittest.IsolatedAsyncioTestCase):
+class RequestContextFixture(unittest.IsolatedAsyncioTestCase):
+    """Shared setup and helpers only; concrete suites own their test methods."""
     def setUp(self) -> None:
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
@@ -160,6 +161,9 @@ class RequestContextTests(unittest.IsolatedAsyncioTestCase):
     async def history_for(self, rows: list, **kw: Any) -> list:
         return await self.history.load_recent_history('session-a', checkpointer=self.saver(rows),
                                                       user_input=self.user(), **kw)
+
+
+class RequestContextTests(RequestContextFixture):
 
     def test_fresh_agents_for_every_type_and_dispatch(self) -> None:
         for kind in self.kind:

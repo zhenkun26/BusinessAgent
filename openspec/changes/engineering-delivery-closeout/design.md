@@ -692,3 +692,20 @@ pending or unrun candidate checks remain BLOCKED. Neither historical green CI no
 C24 offline receipt proves the new commit's CI or E2/E3. Preserve 556 mode-only differences,
 snapshot tracked content/modes, commit only documents, then rerun the existing fixed C24
 entry to bind the final documentation candidate without editing its source allowlist.
+
+## CI repair design — 2026-10-19
+
+Tests must target the current shared redaction and authorization contracts, rather
+than revive removed private helpers or bypass checks. Diagnose subsequent collection
+and execution failures against production source. Full pytest uses explicit asyncio
+plugin loading, retained fixture paths, no automatic cache/temporary cleanup, and
+network/deletion guards for local execution. Isolate settings from host credentials.
+Keep test selection complete; no new skips, xfails or reduced assertions to hide
+failures. Review each affected C24 source-manifest entry before refreshing its hash.
+
+The discovered collection mismatch is structural: pytest does not honor unittest
+load_tests selection, so derived suites accidentally inherited unrelated concrete cases.
+Extract fixture-only bases and preserve all 440 original test methods in their owner
+suites; never solve this with collection hooks, skips or marker exclusions. Full local
+pytest additionally verifies published-snapshot admission, explicit unavailable errors,
+server-owned request IDs and the UUID Saga recovery contract.

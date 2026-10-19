@@ -1,7 +1,7 @@
 # Engineering delivery status and handover
 
 Reviewed: 2026-10-19. Change: `engineering-delivery-closeout`.
-**Conclusion: offline reconciliation delivered; NOT_ACCEPTED_FOR_RELEASE.**
+**Conclusion: offline reconciliation and local CI test repair delivered; NOT_ACCEPTED_FOR_RELEASE.**
 C01–C25 remain open as whole acceptance items. No real enterprise users, formal UAT,
 grey release or production approval are established. C10 lease-expiry write fencing is
 an unresolved implementation defect, not merely missing environment evidence.
@@ -12,7 +12,8 @@ an unresolved implementation defect, not merely missing environment evidence.
 | --- | --- |
 | Working branch | `codex/delivery-ci-gates`; reuse existing integration roles |
 | C24 pushed candidate | `d8a26b5726cb7ffce6747b677804c7c3403bd763`, same-name origin verified |
-| C25 increment | Documentation only, local commit; exact hash in delivery response and post-commit receipt |
+| C25 pushed increment | `fe2ae78b5102cc9cc2c4e08e4939da20fd53720e`, same-name origin verified |
+| CI repair increment | Local test/fixture/documentation repair; exact final hash in delivery response and local receipts; push awaits confirmation |
 | Main at inspection | Local/main, origin/main and remote main all `065bdf7b31ce1fb6f9007a7e8851be36bfc2280f`; ancestor of C24 |
 | Source/package version | `app/__init__.py` and `pyproject.toml`: `1.3.0`; closeout changes remain Unreleased |
 | Historical tag | `v1.3.0` resolves locally to `731864087d081c58324e17824c79a0afffc385a1`; it does not identify this candidate |
@@ -40,18 +41,24 @@ Read-only GitHub observations on 2026-10-19:
   is **FAIL**: both Python 3.11 and 3.13 test jobs failed, production image build skipped.
   Both fail collection at `tests/test_security_hardening.py`, which imports removed
   `_redact_url` from `app.graph.checkpointer` (`ImportError`). Local source confirms that
-  stale import; the full suite has not run past collection, so further failures are unknown.
+  stale import. Subsequent local full-suite repair is recorded below; the old run remains FAIL.
 - [C23 CI run 39202178839](https://github.com/zhenkun26/BusinessAgent/actions/runs/39202178839)
   also failed collection in that file. This is observed failure, not an unrun BLOCKED check.
-- The local C25 commit has no remote CI run until separately authorized push. Its CI
-  verification is BLOCKED. C24's result and the `main` badge cannot be relabelled as C25 PASS.
-  CI/runtime/dependency fixes are not implemented in this documentation increment.
+- [C25 CI run 39205591288](https://github.com/zhenkun26/BusinessAgent/actions/runs/39205591288)
+  at pushed `fe2ae78` also fails the same import in Python 3.11/3.13 (logs verified).
+- The separately authorized local CI repair passes **871 tests + 225 subtests, zero skips**,
+  with **73.40% local line coverage**. It replaces stale contracts and separates shared
+  fixtures from test classes; all 440 original test bodies across the 13 fixture-related
+  files remain identical. No CI gate, production behavior or dependency declaration changed.
+  See [repair record and environment](../40-process/ci-pytest-repair.md).
+- The repair commit is not pushed; its remote CI/build/scans remain **BLOCKED**.
+  Local macOS Python 3.13 evidence does not establish Linux/Python 3.11 or image acceptance.
 
 The fixed offline inventory does not collect this legacy pytest file. Its 789 passing cases
 and CI collection failure measure different scopes; neither cancels the other. Retain the
-failure explicitly in [ISSUES C24/C25](../40-process/ISSUES.md#c24). Repair the suite's
-current-contract expectations, review its side effects and run the applicable integration
-checks under a separately confirmed scope; do not simply exclude it to make CI green.
+failure explicitly in [ISSUES C24/C25](../40-process/ISSUES.md#c24). The local repair now
+covers the complete pytest suite separately, without skips or collection exclusions;
+remote checks must still rerun on the repaired commit after push authorization.
 
 ## Support and migration map
 
@@ -142,7 +149,9 @@ cannot be closed with reference-environment success.
 
 | Gate | Status | Evidence required before changing the status |
 | --- | --- | --- |
-| C24 remote full pytest | **FAIL** | Fix/review stale legacy collection and subsequent failures, rerun supported Python jobs; do not suppress tests |
+| C24/C25 pushed full pytest | **FAIL (historical runs)** | Preserve original failure; local repair does not rewrite previous CI evidence |
+| Local repaired full pytest | **PASS** | 871 tests + 225 subtests, zero skips; source-bound local receipt, macOS Python 3.13 |
+| Repaired remote full pytest | **BLOCKED** | Authorized push and successful Python 3.11/3.13 jobs on the exact repair commit |
 | C10 lease-expiry write fencing | **OPEN** | Implement enforceable write ownership and verify late writers across actual processes/storage |
 | L01–L16 / D01–D16 / O01–O16 / B01–B16 / S01–S16 / R01–R20 | **BLOCKED** | Exact isolated Linux candidate, independent services/observers, faults and each matrix's acceptance evidence |
 | Real runtime and full RAG / historical credentials | **BLOCKED** | Actual store/model/identity/browser chain, fixed corpus/semantic review, separately authorized historical handling |
@@ -150,7 +159,7 @@ cannot be closed with reference-environment success.
 | C25 full reconciliation / engineering acceptance | **OPEN / BLOCKED** | Reconcile final accepted commit/image/runtime evidence, review and remaining P0/P1 issues |
 | Enterprise UAT / grey / production | **BLOCKED** | Real resources, ownership, external contracts, observation and approval in their independent changes |
 
-The next scope should be explicitly selected: address the known CI collection failure and
-C10 implementation defect, then authorized isolated runtime verification and strict tooling.
-This table is a handover plan, not authorization to execute it. Do not merge, release,
-deploy, synchronize specs or archive. C25 ends with a local documentation commit and waits.
+The next confirmation is whether to push the local CI repair and observe its remote jobs.
+C10 implementation repair and isolated runtime/strict-tooling acceptance remain separate
+pending work. Do not merge, release, deploy, synchronize specs or archive. This increment
+ends at a reviewed local commit and waits for user confirmation.

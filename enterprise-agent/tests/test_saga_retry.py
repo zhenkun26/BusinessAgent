@@ -1,98 +1,82 @@
-"""Saga 补偿重试测试(规格 5.6)"""
+"""Current retained-journal retry entry; external receipts are covered by C13/C18."""
 
 from __future__ import annotations
 
-import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.core.saga_retry import retry_saga_compensations
+from app.core import saga_retry
+from app.core.tool_operations import OperationError
 
-from conftest import FakeResult, FakeRow, FakeSession
+SAGA_ID = "00000000-0000-4000-8000-000000000013"
+
+
+def journal(monkeypatch: pytest.MonkeyPatch) -> tuple[SimpleNamespace, AsyncMock]:
+    """Two confirmed actions under an owned v1 journal, never legacy free-form actions."""
+    steps = [dict(slot=slot, operation_id=str(slot), definition={"action": True})
+             for slot in range(2)]
+    store = SimpleNamespace(
+        load=AsyncMock(return_value={"state": "aborting", "steps": steps, "context": {}}),
+        acquire=AsyncMock(return_value=True), abort=AsyncMock(), renew=AsyncMock(),
+        finish=AsyncMock(), release=AsyncMock(),
+    )
+    operations = SimpleNamespace(load=AsyncMock(side_effect=lambda oid: {
+        "operation_id": oid, "state": "committed", "receipt": {},
+        "intent": {"target": {"provider": "http"}},
+    }))
+    inverse = AsyncMock(return_value="committed")
+    monkeypatch.setattr(saga_retry, "SagaStore", lambda: store)
+    monkeypatch.setattr(saga_retry, "OperationStore", lambda: operations)
+    monkeypatch.setattr(saga_retry.reference, "receipt", Mock())
+    monkeypatch.setattr(saga_retry, "compensate_step", inverse)
+    return store, inverse
 
 
 @pytest.mark.asyncio
-async def test_should_mark_saga_compensated_when_all_actions_rollback(
-    monkeypatch,
-    fake_session_factory,
-):
-    """Given 失败事务含已执行动作, When 重试补偿,
-    Then 调用各工具 compensate 且事务置 compensated"""
-    saga_row = FakeRow(
-        saga_id="saga_001",
-        status="failed",
-        executed_actions=[
-            {"tool": "create_crm_task", "compensation_data": {"task_id": "CT-1"}},
-            {"tool": "send_email_internal", "compensation_data": {"message_id": "INT-1"}},
-        ],
-        compensation_results=None,
-    )
-    session = FakeSession(
-        responses=[FakeResult([saga_row]), FakeResult(), FakeResult()]
-    )
-    monkeypatch.setattr(
-        "app.core.database.get_session_factory",
-        fake_session_factory(session),
-    )
-    compensated: list[str] = []
+async def test_should_mark_saga_compensated_when_all_actions_rollback(monkeypatch: pytest.MonkeyPatch) -> None:
+    store, inverse = journal(monkeypatch)
 
-    class FakeTool:
-        def __init__(self, tool_name):
-            self.name = tool_name
+    assert await saga_retry.retry_saga_compensations(SAGA_ID) == "compensated"
 
-        async def compensate(self, compensation_data):
-            compensated.append(self.name)
-            from app.tools.base import ToolResult
-
-            return ToolResult(success=True, tool_name=self.name, output={})
-
-    def fake_get_tool(tool_name):
-        return FakeTool(tool_name)
-
-    monkeypatch.setattr("app.tools.base.get_tool", fake_get_tool)
-
-    await retry_saga_compensations("saga_001")
-
-    assert compensated == ["create_crm_task", "send_email_internal"]
-    update_params = session.executed_params[1]
-    assert update_params["status"] == "compensated"
+    owner = store.acquire.await_args.args[1]
+    assert [c.args[3]["slot"] for c in inverse.await_args_list] == [1, 0]
+    assert all(c.args[:3] == (store, SAGA_ID, owner) for c in inverse.await_args_list)
+    store.abort.assert_awaited_once_with(SAGA_ID, owner)
+    store.finish.assert_awaited_once_with(SAGA_ID, owner, "compensated")
+    store.release.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_should_raise_and_keep_failed_when_compensation_still_fails(
-    monkeypatch,
-    fake_session_factory,
-):
-    """Given 补偿动作仍失败, When 重试补偿,
-    Then 抛异常(任务队列按退避重试)且状态保持 failed"""
-    saga_row = FakeRow(
-        saga_id="saga_002",
-        status="failed",
-        executed_actions=[
-            {"tool": "send_email_internal", "compensation_data": {"message_id": "INT-2"}},
-        ],
-        compensation_results=None,
-    )
-    session = FakeSession(
-        responses=[FakeResult([saga_row]), FakeResult(), FakeResult()]
-    )
-    monkeypatch.setattr(
-        "app.core.database.get_session_factory",
-        fake_session_factory(session),
-    )
+async def test_should_retain_aborting_when_compensation_is_unconfirmed(monkeypatch: pytest.MonkeyPatch) -> None:
+    store, inverse = journal(monkeypatch)
+    inverse.return_value = "unknown"
 
-    class FailingTool:
-        name = "send_email_internal"
+    assert await saga_retry.retry_saga_compensations(SAGA_ID) == "aborting"
 
-        async def compensate(self, compensation_data):
-            raise RuntimeError("外部系统不可达")
+    owner = store.acquire.await_args.args[1]
+    inverse.assert_awaited_once()
+    assert inverse.await_args.args[3]["slot"] == 1
+    store.finish.assert_not_awaited()
+    store.release.assert_awaited_once_with(SAGA_ID, owner)
 
-    monkeypatch.setattr(
-        "app.tools.base.get_tool", lambda tool_name: FailingTool()
-    )
 
-    with pytest.raises(RuntimeError, match="补偿仍有失败"):
-        await retry_saga_compensations("saga_002")
+@pytest.mark.asyncio
+async def test_should_deny_legacy_saga_before_loading_or_executing(monkeypatch: pytest.MonkeyPatch) -> None:
+    store, inverse = journal(monkeypatch)
+    with pytest.raises(OperationError, match="^ACTION_IDENTITY_INVALID$"):
+        await saga_retry.retry_saga_compensations("saga_001")
+    store.load.assert_not_awaited()
+    store.acquire.assert_not_awaited()
+    inverse.assert_not_awaited()
 
-    update_params = session.executed_params[1]
-    assert update_params["status"] == "failed"
+
+@pytest.mark.asyncio
+async def test_should_not_execute_when_journal_is_owned_elsewhere(monkeypatch: pytest.MonkeyPatch) -> None:
+    store, inverse = journal(monkeypatch)
+    store.acquire.return_value = False
+    assert await saga_retry.retry_saga_compensations(SAGA_ID) == "busy"
+    store.abort.assert_not_awaited()
+    inverse.assert_not_awaited()
+    store.finish.assert_not_awaited()

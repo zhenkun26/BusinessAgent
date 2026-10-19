@@ -271,3 +271,13 @@ observed failures and missing verification separately. Leave application version
 main specifications and archive directories unchanged. End at a local commit and wait;
 no C25 push, merge, release, deployment, spec synchronization or archive is authorized.
 All L/D/O/B/S/R/runtime/full-RAG gates stay BLOCKED; C10 write fencing remains open.
+
+## Authorized CI repair — 2026-10-19
+
+C25 `fe2ae78` was pushed to the same-name remote and verified. The user authorized
+repairing the stale `_redact_url` test import and subsequent full-pytest failures,
+without skipping tests or weakening security contracts. Review existing test side
+effects, use installed declared dependencies where available, retain test fixtures,
+and distinguish local full-suite evidence from remote CI/build/scans. No filesystem
+deletion, live services, new dependency, merge, release or archive. Preserve runtime/
+full-RAG BLOCKED and C10 fencing open; end at a reviewed local commit and wait.

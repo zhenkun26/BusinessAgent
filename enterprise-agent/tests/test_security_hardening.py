@@ -8,7 +8,7 @@ from app.observability.retained import RetainedStore
 
 import pytest
 
-from app.graph.checkpointer import _redact_url
+from app.security.redaction import REDACTED, redact_text
 from app.observability.audit import AuditLogger
 from app.rag.degradation import KeywordRetriever
 
@@ -17,13 +17,13 @@ from conftest import FakeResult, FakeRow, FakeSession
 
 def test_should_redact_password_from_redis_url():
     """Given 含密码的 redis URL, When 日志脱敏,
-    Then 密码被替换为 ***"""
+    Then credentials are removed using the shared redaction policy"""
     url = "redis://:V5lOkygYvgaD6ZZ8rmqJAcO7@localhost:6379/0"
 
-    redacted = _redact_url(url)
+    redacted = redact_text(url)
 
     assert "V5lOkygYvgaD6ZZ8rmqJAcO7" not in redacted
-    assert "redis://:***@localhost:6379/0" == redacted
+    assert f"redis://{REDACTED}@localhost:6379/0" == redacted
 
 
 def test_should_escape_quote_and_backslash_in_milvus_expr_value():
