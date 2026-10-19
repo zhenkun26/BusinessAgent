@@ -1,7 +1,7 @@
 # CI pytest collection and regression repair
 
 Date: 2026-10-19. Change: `engineering-delivery-closeout`, task 7.2.3.
-Status: `b8c4457` pushed; remote pytest/security scans PASS; image context repaired, follow-up CI pending. NOT_ACCEPTED_FOR_RELEASE.
+Status: remote follow-up complete; `0d1a7ce` CI PASS. NOT_ACCEPTED_FOR_RELEASE.
 
 ## Authorization and Git
 
@@ -153,3 +153,33 @@ requires the next CI run; isolated service deployment remains BLOCKED.
 
 Image-context validation: all four image contract cases PASS; fixed offline inventory
 790 tests and seven assets PASS, one existing PyYAML check BLOCKED; failed entries zero.
+
+
+### Verified remote outcome
+
+[Run 39209313444](https://github.com/zhenkun26/BusinessAgent/actions/runs/39209313444)
+for head `0d1a7ce2c26bedc4894c957c875648f131eb2993` is **PASS** across all three jobs:
+
+- Linux Python 3.11 and 3.13: **872 tests + 225 subtests each, zero skips/xfails**;
+  45 existing warnings; line coverage reported as 75% (5934/7944 and 5933/7944).
+- Both Gitleaks steps PASS; the added step explicitly scans through event head `0d1a7ce`.
+  Both pip-audit runs report no known vulnerabilities under the unchanged policy.
+- Production `INSTALL_ML=0` image build PASS, including final non-root PostgreSQL checkpoint
+  and RSA dependency imports and all seven browser distribution/license files.
+- Trivy HIGH/CRITICAL gate PASS with zero findings under the existing `ignore-unfixed`
+  setting and unchanged vulnerability exemptions. This is not a claim of no possible
+  vulnerabilities or coverage of lower severities.
+- The PR merge ref used for the image tag is `6ae256b91480154718d4e866f41fb20dfb52e232`;
+  the source head is `0d1a7ce`. BuildKit reports image manifest
+  `sha256:3078b20d6ec8065eb0ac92bb4a6131a23aba735af7093423433807c9ef3d1a49`
+  and config `sha256:955d2612947f1f6523c8aad35da56002ef167943f5d9a8f0120a8c6cfe6d4c6f`.
+  These are CI-only build identities, not a published or deployed release. GHCR login and
+  publish steps were correctly unexecuted for this PR event; no test was skipped.
+
+The documentation follow-up records this exact successful code candidate. Its own new
+commit/run must be reported separately after push; this record does not predict that result.
+The two earlier failed runs remain FAIL. All 817 pre-existing tracked files preserve modes;
+unrelated bytes and 556 historical mode-only differences are unchanged. Runtime/full RAG,
+L/D/O/B/S/R matrices, historical credential handling and OpenSpec strict remain BLOCKED;
+C10 fencing and whole C24/C25 acceptance remain open. Stop for user confirmation without
+merge, release, deployment, spec synchronization or archive.

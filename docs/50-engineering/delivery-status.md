@@ -1,7 +1,7 @@
 # Engineering delivery status and handover
 
 Reviewed: 2026-10-19. Change: `engineering-delivery-closeout`.
-**Conclusion: offline reconciliation and remote pytest repair delivered; image context repair pending CI; NOT_ACCEPTED_FOR_RELEASE.**
+**Conclusion: offline reconciliation and remote CI repair delivered; NOT_ACCEPTED_FOR_RELEASE.**
 C01–C25 remain open as whole acceptance items. No real enterprise users, formal UAT,
 grey release or production approval are established. C10 lease-expiry write fencing is
 an unresolved implementation defect, not merely missing environment evidence.
@@ -13,20 +13,21 @@ an unresolved implementation defect, not merely missing environment evidence.
 | Working branch | `codex/delivery-ci-gates`; reuse existing integration roles |
 | C24 pushed candidate | `d8a26b5726cb7ffce6747b677804c7c3403bd763`, same-name origin verified |
 | C25 pushed increment | `fe2ae78b5102cc9cc2c4e08e4939da20fd53720e`, same-name origin verified |
-| CI repair increment | `b8c4457542781029333de8c3c930437fb28ef51a` pushed; scanner follow-up `16c882b5df9bc8c49a171619da56a280b61946fd` pushed |
+| CI repair increment | `b8c4457542781029333de8c3c930437fb28ef51a` pushed; scanner follow-up `16c882b` and image-context fix `0d1a7ce2c26bedc4894c957c875648f131eb2993` pushed |
 | Main at inspection | Local/main, origin/main and remote main all `065bdf7b31ce1fb6f9007a7e8851be36bfc2280f`; ancestor of C24 |
 | Source/package version | `app/__init__.py` and `pyproject.toml`: `1.3.0`; closeout changes remain Unreleased |
 | Historical tag | `v1.3.0` resolves locally to `731864087d081c58324e17824c79a0afffc385a1`; it does not identify this candidate |
 | Database schema | Ordered migrations v1–v7 with pinned checksums; startup does not apply them |
-| Image | No current accepted image/digest; build/import/deployment evidence BLOCKED |
+| Image | CI-only build/import/Trivy PASS at `0d1a7ce`; digest in repair record; deployment acceptance BLOCKED |
 | Document versions | Older v1.5/v3.7 headers identify document revisions/history, not application releases |
 | OpenSpec | 15 main specs, 15 archived changes, three active changes; current deltas remain active/unsynchronized |
 | Local preservation | 556 existing mode-only differences retained; excluded from the task commit |
 
 Do not bump a version, move a tag or infer a release from a local documentation commit.
 A source version cannot distinguish unreleased builds: use commit + image digest + schema
-checksums + model/fixture identity for future runtime acceptance. No images were built or
-promoted, no PR merged, and no specifications synchronized or archived in this increment.
+checksums + model/fixture identity for future runtime acceptance. A CI-only image was built
+and scanned; no image was published or deployed, no PR merged,
+and no specifications synchronized or archived in this increment.
 
 ## Git and CI observation
 
@@ -57,14 +58,20 @@ Read-only GitHub observations on 2026-10-19:
   Scanner follow-up `16c882b` adds only exact historical fingerprints and a complete
   event-head scan. Run 39208901960 passes both test/security jobs but fails Docker COPY
   because the build context excludes two required scripts. Narrow context exceptions and
-  one additional regression are implemented; their image rerun is pending. Runtime acceptance
-  is unchanged.
+  one additional regression are implemented in `0d1a7ce`.
+- [CI 39209313444](https://github.com/zhenkun26/BusinessAgent/actions/runs/39209313444)
+  on `0d1a7ce` is **PASS**: each Python version runs **872 tests + 225 subtests, zero skips**,
+  Gitleaks and pip-audit pass, production image build/non-root imports/assets pass, and
+  Trivy HIGH/CRITICAL reports zero findings under its unchanged policy. No image is published.
+  See the repair record for PR merge-ref/image digest identities and retained limitations.
 
-The fixed offline inventory does not collect this legacy pytest file. Its 789 passing cases
+The historical fixed offline inventory did not collect this legacy pytest file. Its 789
+passing cases
 and CI collection failure measure different scopes; neither cancels the other. Retain the
 failure explicitly in [ISSUES C24/C25](../40-process/ISSUES.md#c24). The local repair now
 covers the complete pytest suite separately, without skips or collection exclusions;
-the subsequent scanner repair requires its own remote CI result.
+the image-context regression increases the current fixed inventory to 790 passing tests
+plus its one separately BLOCKED PyYAML check; full remote pytest has zero skipped tests.
 
 ## Support and migration map
 
@@ -157,11 +164,12 @@ cannot be closed with reference-environment success.
 | --- | --- | --- |
 | C24/C25 pushed full pytest | **FAIL (historical runs)** | Preserve original failure; local repair does not rewrite previous CI evidence |
 | Local repaired full pytest | **PASS** | 871 tests + 225 subtests, zero skips; source-bound local receipt, macOS Python 3.13 |
-| Repaired remote full pytest | **PASS** | `b8c4457`: Linux Python 3.11/3.13 each 871 tests + 225 subtests, zero skips |
+| Repaired remote full pytest | **PASS** | `0d1a7ce`: Linux Python 3.11/3.13 each 872 tests + 225 subtests, zero skips |
 | C10 lease-expiry write fencing | **OPEN** | Implement enforceable write ownership and verify late writers across actual processes/storage |
 | L01–L16 / D01–D16 / O01–O16 / B01–B16 / S01–S16 / R01–R20 | **BLOCKED** | Exact isolated Linux candidate, independent services/observers, faults and each matrix's acceptance evidence |
 | Real runtime and full RAG / historical credentials | **BLOCKED** | Actual store/model/identity/browser chain, fixed corpus/semantic review, separately authorized historical handling |
-| Current image, dependency imports/scans, final CI and OpenSpec strict | **BLOCKED** | Current-build evidence and strict CLI results; skipped image jobs do not pass |
+| CI image build, dependency imports and security scans | **PASS** | Run 39209313444 at `0d1a7ce`; CI-only image, not deployment acceptance |
+| OpenSpec strict | **BLOCKED** | CLI unavailable; manual structure checks do not substitute for strict validation |
 | C25 full reconciliation / engineering acceptance | **OPEN / BLOCKED** | Reconcile final accepted commit/image/runtime evidence, review and remaining P0/P1 issues |
 | Enterprise UAT / grey / production | **BLOCKED** | Real resources, ownership, external contracts, observation and approval in their independent changes |
 

@@ -218,7 +218,7 @@
 - **剩余缺口**：全量 pytest/真实依赖、当前镜像构建/扫描/CI、OpenSpec strict、L/D/O/B/S/R、真实运行/完整 RAG/历史凭证验收全部 BLOCKED；C10 写入竞态不关闭。C24/7.1 整项 open，仅完成 7.1.1 离线部分；C24 `d8a26b5` 已按后续授权推送并核验，C25 离线核对见下项。
 - **CI 复核（2026-10-19）**：[C24 run 39204305429](https://github.com/zhenkun26/BusinessAgent/actions/runs/39204305429) 的 Python 3.11/3.13 均 FAIL：`tests/test_security_hardening.py` 导入已移除的 `app.graph.checkpointer._redact_url`，pytest 收集终止；镜像构建 skipped。这不在固定离线清单内，789 PASS 不覆盖该失败。后续须按当前契约修复并审查全量测试；本轮仅记录，不抑制用例或改 CI。
 
-- **CI 修复后续增量（2026-10-19）**：陈旧导入、夹具继承重复收集及请求 ID/发布可见性/检索失败/Saga/错误码旧断言已修复；本地完整 pytest **871 tests + 225 subtests PASS、零跳过**，覆盖率 73.40%。未修改 CI 规则、未新增 skip/xfail，未改生产代码；历史远端 FAIL 保留；`b8c4457` 已推送，远端双版本各 871 tests + 225 subtests PASS、零跳过；Gitleaks 的 16 个源码哈希误报已逐条核验，精确指纹与完整事件范围修复 `16c882b` 已推送，双版本测试/扫描 PASS，镜像上下文修复后 CI 待核验。详见[记录](ci-pytest-repair.md)。
+- **CI 修复后续增量（2026-10-19）**：陈旧导入、夹具继承重复收集及请求 ID/发布可见性/检索失败/Saga/错误码旧断言已修复；本地完整 pytest **871 tests + 225 subtests PASS、零跳过**，覆盖率 73.40%。该测试修复未修改 CI 规则、未新增 skip/xfail，未改生产代码；历史远端 FAIL 保留；`b8c4457` 已推送，远端双版本各 871 tests + 225 subtests PASS、零跳过；Gitleaks 的 16 个源码哈希误报已逐条核验，精确指纹与完整事件范围修复 `16c882b` 已推送，镜像上下文修复 `0d1a7ce` 已推送，远端 CI 39209313444 全部 PASS（双版本各 872 tests + 225 subtests、零跳过；密钥/依赖扫描、镜像构建/导入/Trivy PASS）。详见[记录](ci-pytest-repair.md)。
 
 <a id="c25"></a>
 #### C25 · P1 · Git、文档、OpenSpec 与交付结论
@@ -229,7 +229,7 @@
 
 
 - **离线交付（2026-10-19）**：核对 C01–C24 提交/阶段记录及支持契约，统一双语 README、修复后端五个导航断链、区分历史手册/当前候选、纠正模型/schema v7/分析/checkpoint/审计说明；CHANGELOG 在 Unreleased 记录兼容性变化。版本仍 1.3.0，旧 tag 与候选不同；15 主规格/15 归档/3 active change 保持不变。见[交付状态与证据映射](../50-engineering/delivery-status.md)及[阶段记录](阶段性总结_C25离线交付核对.md)。
-- **Git/CI/结论**：C25 `fe2ae78` 已按后续授权推送并核验；[C25 CI](https://github.com/zhenkun26/BusinessAgent/actions/runs/39205591288) 同样收集 FAIL。后续修复 `b8c4457` 已推送，双版本远端 pytest PASS；扫描后续修复 `16c882b` 已推送，双版本测试/扫描 PASS，镜像上下文修复后 CI 待核验，运行/严格校验仍 BLOCKED；工程交付结论为 **尚未通过验收，不可放行**。C10 open，L/D/O/B/S/R/真实运行/完整 RAG 阻塞保留，C25 整项 open；不合并、发布、部署、同步或归档，等待确认。
+- **Git/CI/结论**：C25 `fe2ae78` 已按后续授权推送并核验；[C25 CI](https://github.com/zhenkun26/BusinessAgent/actions/runs/39205591288) 同样收集 FAIL。后续修复 `b8c4457` 已推送，双版本远端 pytest PASS；扫描后续修复 `16c882b` 已推送，镜像上下文修复 `0d1a7ce` 已推送，远端 CI 39209313444 全部 PASS（双版本各 872 tests + 225 subtests、零跳过；密钥/依赖扫描、镜像构建/导入/Trivy PASS），运行/严格校验仍 BLOCKED；工程交付结论为 **尚未通过验收，不可放行**。C10 open，L/D/O/B/S/R/真实运行/完整 RAG 阻塞保留，C25 整项 open；不合并、发布、部署、同步或归档，等待确认。
 
 ### I-12 备份恢复演练：MinIO 备份缺口发现与收口（2026-08-05 发现，2026-08-06 复演关闭）
 
