@@ -281,3 +281,11 @@ effects, use installed declared dependencies where available, retain test fixtur
 and distinguish local full-suite evidence from remote CI/build/scans. No filesystem
 deletion, live services, new dependency, merge, release or archive. Preserve runtime/
 full-RAG BLOCKED and C10 fencing open; end at a reviewed local commit and wait.
+
+## Authorized remote CI follow-up — 2026-10-19
+
+The user authorized pushing `b8c4457` to `origin/codex/delivery-ci-gates`,
+following its exact-head CI and repairing subsequent failures without skipping
+tests or weakening gates. Record remote tests, security scans and image builds
+separately from real runtime/full RAG acceptance. Keep C10 fencing open. No merge,
+release, deployment, tag, spec synchronization or archive; pause after this increment.

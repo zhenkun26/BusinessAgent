@@ -709,3 +709,13 @@ Extract fixture-only bases and preserve all 440 original test methods in their o
 suites; never solve this with collection hooks, skips or marker exclusions. Full local
 pytest additionally verifies published-snapshot admission, explicit unavailable errors,
 server-owned request IDs and the UUID Saga recovery contract.
+
+
+## Remote secret-scan follow-up — 2026-10-19
+
+Verify false positives against immutable source bytes before recording exact historical
+fingerprints. Do not ignore a manifest path or all SHA-256-like values. Exercise a fresh
+same-path synthetic credential to prove new findings still block. The upstream action
+has an unpaginated PR commit list; independently scan the complete validated event range,
+including merge diffs. Scanner failures remain blocking and PR comment permissions are
+not expanded. Real runtime acceptance and C10 are independent of CI success.

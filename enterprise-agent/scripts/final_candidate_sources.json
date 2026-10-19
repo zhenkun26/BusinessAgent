@@ -2,7 +2,7 @@
   "schema": "c24-reviewed-sources-v1",
   "review": "Fixed entry points and their dependency boundaries reviewed; other files are identity-only, never executable by this inventory. Manual re-review required after drift.",
   "sources": {
-    ".github/workflows/ci.yml": "384cd6bdd18b6e49d7292dc74fce65ab49992060d73cb50a03bd7ed3e3721f20",
+    ".github/workflows/ci.yml": "25dd0dd42d1e30b8390d928051ad5ca455287ace8bab075cf9505d815cd08eaf",
     "enterprise-agent/.dockerignore": "007793e13ec1183603edd6709767630ce163dfa1258dbcb32b028e9b634bd9cd",
     "enterprise-agent/.env.example": "fa6f0302123ebc0ca48888c07cb7463611ee69e02888a25a7baa456c34336d6a",
     "enterprise-agent/.gitignore": "aeb9479c4c0396fa8466a6b8a2399bc744eb7f688cf22dc68853f2a6919a57db",

@@ -106,6 +106,7 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 7.2.1 Reconcile Git provenance, bilingual entry points, current/historical documentation, source/schema/version identities, active delta scope and offline delivery conclusion. Record C24 remote CI collection FAIL explicitly; docs-only local commit, no release/archive.
   - [ ] 7.2.2 Resolve remaining CI/P0/P1/runtime gates and reconcile the final accepted commit/image with strict validation and independent E2/E3 evidence. <!-- BLOCKED; pushed C25 CI FAIL; local repair PASS is not remote CI acceptance; C10 remains open; no merge/release/sync/archive authorized -->
 - [x] 7.2.3 Repair stale CI collection and subsequent full-suite failures without skipping tests. Local full pytest: 871 tests and 225 subtests PASS, zero skips; 73.40% line coverage. C25 fe2ae78 pushed; repair commit remains local. Remote CI/build/scans and runtime/full RAG remain BLOCKED; C10 open.
+- [ ] 7.2.4 Push `b8c4457` to the same-name remote, follow exact-head CI and repair exposed failures without skipping tests or weakening gates. Record tests/scans/image evidence; preserve runtime/full RAG BLOCKED and C10 open; no merge/release/archive.
 
 - [ ] 7.3 运行 OpenSpec 严格校验，完成 delta 同步及归档前检查；仅在所有工程验收满足且用户确认后归档，真实企业两个 change 继续独立管理。
 

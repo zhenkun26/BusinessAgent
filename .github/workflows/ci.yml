@@ -57,6 +57,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+
+      # The action lists only the first page of PR commits. Verify the actual event head too.
+      - name: 验证完整事件提交范围（gitleaks）
+        shell: bash
+        env:
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          SCAN_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          [[ "$SCAN_HEAD" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          git cat-file -e "$SCAN_HEAD^{commit}"
+          SCAN_RANGE="$SCAN_HEAD"
+          if [[ -n "$SCAN_BASE" && "$SCAN_BASE" != "0000000000000000000000000000000000000000" ]]; then
+            [[ "$SCAN_BASE" =~ ^[0-9a-f]{40}$ ]] || exit 1
+            git cat-file -e "$SCAN_BASE^{commit}"
+            SCAN_RANGE="$SCAN_BASE..$SCAN_HEAD"
+          fi
+          gitleaks git --redact --config .gitleaks.toml \
+            --log-opts="--full-history -m $SCAN_RANGE" --exit-code=2
 
       # ---- security-hardening-plus 3.1:依赖漏洞扫描(未豁免条目阻断) ----
       - name: 依赖漏洞扫描（pip-audit）

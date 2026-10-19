@@ -1,7 +1,7 @@
 # CI pytest collection and regression repair
 
 Date: 2026-10-19. Change: `engineering-delivery-closeout`, task 7.2.3.
-Status: local repair delivered; remote verification pending. NOT_ACCEPTED_FOR_RELEASE.
+Status: `b8c4457` pushed; remote pytest PASS, Gitleaks false positives repaired; follow-up CI pending. NOT_ACCEPTED_FOR_RELEASE.
 
 ## Authorization and Git
 
@@ -90,3 +90,46 @@ The pre-edit snapshot covers 816 tracked files; all unrelated content and all mo
 preserved, including 556 historical mode-only differences. Runtime/full RAG remain BLOCKED;
 C10 lease-expiry writing remains an unresolved implementation defect. C24/C25 whole items
 and the independent enterprise integration/UAT changes stay open. Wait for confirmation.
+
+
+## Remote CI follow-up — 2026-10-19
+
+The user subsequently authorized pushing `b8c4457542781029333de8c3c930437fb28ef51a`,
+following remote CI and repairing exposed failures. The same-name remote hash was verified.
+[Run 39208343449](https://github.com/zhenkun26/BusinessAgent/actions/runs/39208343449)
+passed **871 tests and 225 subtests, zero skips**, on both Linux Python 3.11 and 3.13.
+Reported line coverage was 75% (5934/7944 and 5933/7944 respectively). Both jobs then failed
+Gitleaks; pip-audit and Docker/Trivy did not execute. This run remains FAIL.
+
+All 16 findings are source SHA-256 values in the C24 manifest at `d8a26b5`.
+For every finding, the manifest line was parsed and its value independently recomputed
+from the referenced file's Git blob at that exact commit; all matched. `.gitleaksignore`
+records only those immutable commit/path/rule/line fingerprints, following the
+[upstream fingerprint mechanism](https://github.com/gitleaks/gitleaks#gitleaksignore).
+No whole-file, directory, hash-pattern or rule exception was added. Existing scanner
+rules, vulnerability exemptions and test selection are unchanged.
+
+The action's actual log range ended at `fe2ae78`, omitting the event head `b8c4457`.
+Upstream `ScanPullRequest` lists only the first API page of commits. Add a second blocking
+CLI scan using validated event base/head SHAs, complete history and merge diffs. A missing
+or invalid ref fails; a new branch/manual event scans all history reachable from its head.
+Disable automatic PR comments, retaining read-only token permissions and scan failure.
+The reviewed workflow hash alone was refreshed in the C24 source manifest.
+
+Local Gitleaks 8.24.3 (same version as CI) was downloaded into a fresh retained directory;
+the release checksum was verified, with no dependency declaration or global install.
+The full `065bdf7..b8c4457` range passes with the 16 fingerprints. A fresh synthetic API-key
+value under the same manifest path still returns exit 2 with one finding. Evidence is
+retained under `enterprise-agent/eval/results/gitleaks-followup-1a722c4c56ad4ddd98d20ed964e97bc9/`;
+reports redact values. No real credential was used or historical credential disposal claimed.
+The diagnostic attempt to override fingerprints with an empty file also loaded the root
+ignore file; it was not treated as a valid negative control. The remote pre-fix scan supplies
+the observed 16-finding baseline.
+
+Follow-up CI, pip-audit and production image/Trivy remain pending at this commit.
+Runtime/full RAG and all L/D/O/B/S/R acceptance matrices remain BLOCKED; C10 stays open.
+No merge, publication, deployment, tag, spec synchronization or archive is authorized.
+
+Pre-commit checks: workflow YAML and shell syntax PASS; invalid head/base and absent commit
+fail closed (3/3). Fixed C24 inventory: 789 tests and seven assets PASS, one existing PyYAML
+check BLOCKED; no failed entry. Dirty pre-commit candidate binding is explicitly BLOCKED.
