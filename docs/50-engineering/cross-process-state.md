@@ -112,4 +112,4 @@ Use isolated ports, Redis database, PostgreSQL, candidate image and test identit
 Route requests explicitly to both worker endpoints and retain redacted request IDs,
 version evidence, signal timing and zero-effect assertions. Do not switch the current
 deployment or execute restart/fault tests without authorization. C01–C08 blockers,
-OpenSpec strict validation and full runtime tests remain; C10 has not started.
+OpenSpec strict validation and full runtime tests remain; C10 now provides an explicit checkpoint candidate, but lease-expiry write fencing remains unresolved.

@@ -258,3 +258,16 @@ without changing intended deployment values. Do not run full pytest/plugins, liv
 models, browsers, load or cleanup. L/D/O/B/S/R, runtime/full RAG and historical-credential
 acceptance remain BLOCKED; C10 lease-expiry fencing remains open. C24 is not fully closed;
 C25, C24 push, merge, release, spec synchronization and archive await authorization.
+
+## Authorized C25 offline reconciliation — 2026-10-19
+
+Subsequent authorization pushes C24 `d8a26b5` to the same-name remote (verified), then
+permits C25 Git/documentation/OpenSpec/delivery-conclusion work that can be completed
+offline. Reconcile bilingual entry points, current model/schema/state/operation contracts,
+navigation and unreleased version identity; retain historical evidence with explicit scope.
+Inspect PR/CI metadata read-only, without dispatching or changing CI. Do not fix runtime
+behavior or dependency/security/CI failures under this documentation increment. Record
+observed failures and missing verification separately. Leave application version/tags,
+main specifications and archive directories unchanged. End at a local commit and wait;
+no C25 push, merge, release, deployment, spec synchronization or archive is authorized.
+All L/D/O/B/S/R/runtime/full-RAG gates stay BLOCKED; C10 write fencing remains open.

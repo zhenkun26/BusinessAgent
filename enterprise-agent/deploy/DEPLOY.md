@@ -1,7 +1,7 @@
 # 生产部署指南
 
 > 适用：智多星 v1.3.0；候选提交与镜像摘要必须另行记录。
-> 部署方式：Linux 单机 Docker Compose；工程候选配置，不代表已完成生产验收。
+> 部署方式：Linux 单机 Docker Compose；工程候选配置，不代表已完成生产验收。当前版本、schema、提交与证据关系见[交付状态](../../docs/50-engineering/delivery-status.md)。
 > 更新日期：2026-10-17（C01 配置、C02/C03 离线增量已实现；真实 API/PostgreSQL/Linux 验收 BLOCKED）
 >
 > C01 已统一镜像引用和访问入口；模型 profile、数据库初始化、多进程状态分别由 C02/C03/C09 验收。当前不能仅凭本指南宣称完整系统可交付。当前 C22 已提供保留式恢复候选，真实运行及 D01–D16 验收仍 BLOCKED；历史演练不能替代当前结果。
@@ -209,7 +209,7 @@ curl -k -I https://localhost/ui/
 curl -k https://localhost/health
 # 期望：healthy，version 与候选应用版本一致
 
-# 4. 就绪检查：不能仅看 HTTP 200，当前状态码语义修复由 C21 承接
+# 4. 就绪检查：不能仅看 HTTP 200，C21 候选必需依赖失败返回 503；实际 O01–O16 验收仍 BLOCKED
 curl -k https://localhost/ready
 # 核对 components 下 db/redis/milvus/checkpointer/tools/workers/audit；全部 healthy 才是 200，否则 503
 
@@ -351,7 +351,9 @@ limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s;
 limit_req zone=api_limit burst=60 nodelay;
 ```
 
-### 7.4 清理
+### 7.4 历史清理命令（不属于当前操作流程）
+
+以下仅保留历史命令供识别，**当前非删除规则下不得执行**。保留式恢复与回退只按 §5 和 [C22 契约](../../docs/50-engineering/retained-recovery.md)；容器/卷/镜像回收不在本轮授权中。
 
 ```bash
 # 停止全部服务(保留数据)

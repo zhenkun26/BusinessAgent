@@ -66,8 +66,9 @@ implementation. Its allowlist is exactly the three `@reference.invalid` addresse
 
 Use a new reviewed host/project and fresh application databases/volumes. Do not reuse current
 or enterprise state. C01/C02/C03 readiness, actual model credentials and a reviewed non-deleting
-audit execution path remain prerequisites. Existing audit cache consumption can remove files;
-C21 remains deferred, so this guide does not authorize starting that path now. Application chat
+audit execution path remain prerequisites. Historical JSON cache paths require separate review;
+C21 now provides retained audit/replay; O01–O16 runtime acceptance remains BLOCKED, so this
+guide does not authorize starting that path now. Application chat
 may call the configured paid LLM. No deployment or paid call was made for this increment.
 
 1. Review `deploy/Dockerfile.reference`, build it from `enterprise-agent/`, resolve the image to

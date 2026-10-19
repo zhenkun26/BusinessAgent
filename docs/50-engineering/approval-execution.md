@@ -69,13 +69,15 @@ Notifications run after commit. A notification failure cannot roll back a decisi
 relabel execution. The current internal-mail helper supports mock recording only and
 refuses HTTP configuration; `mock_recorded` is not inbox delivery, and missing receipts
 record `unavailable`. Durable real notification delivery remains a separate runtime/
-integration gap; this increment does not claim it. Audit cache replay remains C21.
+integration gap; this increment does not claim it. C21 provides retained audit replay;
+real O01–O16 replay acceptance remains BLOCKED.
 
 ## Schema and rollout boundary
 
 [Migration 005](../../enterprise-agent/deploy/005_approval_execution.sql) adds execution
-identity, claim, deadline, fixed error and last-observation columns plus indexes. The
-manifest now requires v1–v5 before API/worker startup. No implicit DDL, historical token
+identity, claim, deadline, fixed error and last-observation columns plus indexes.
+C11 introduced v5; the current complete manifest requires v1–v7 before API/worker startup.
+No implicit DDL, historical token
 migration or historical status rewrite occurs. Apply only through the explicitly
 approved [bootstrap procedure](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md) in
 an isolated Linux/PostgreSQL copy. This turn did not execute migrations or access stores.

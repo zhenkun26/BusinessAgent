@@ -97,12 +97,14 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 6.4.1 Implement frozen plan, bounded mixed runner, independent business checks, separate timings and offline reporting/tests. 42 focused + 186 related cases PASS; no live load. C23 `6de94c6` subsequently pushed and verified.
   - [ ] 6.4.2 Confirm actual workload/thresholds then execute L01–L16 in isolated Linux, including >=30 minutes, semantics, queue/resource/recovery and cost evidence. <!-- BLOCKED; D/O/B/S/R/full RAG and C10 unchanged -->
 
-## 7. S7：最终候选收口（C24 离线部分完成；完整验收阻塞；C25 待授权）
+## 7. S7：最终候选收口（C24 离线部分完成；完整验收阻塞；C25 离线部分完成；整项 open）
 
 - [ ] 7.1 C24 最终候选自动化、参考环境与人工验收回归。
-  - [x] 7.1.1 Review fixed offline entries, repair stale fixtures/YAML scalar quoting, add source/candidate-bound retained receipts and acceptance mapping. 789 tests PASS, one PyYAML skip/BLOCKED; seven assets PASS; five readiness functions execute with real gates BLOCKED. Local commit only.
+  - [x] 7.1.1 Review fixed offline entries, repair stale fixtures/YAML scalar quoting, add source/candidate-bound retained receipts and acceptance mapping. 789 tests PASS, one PyYAML skip/BLOCKED; seven assets PASS; five readiness functions execute with real gates BLOCKED. C24 `d8a26b5` subsequently pushed and verified; full CI collection FAIL recorded in C25.
   - [ ] 7.1.2 Verify the exact image/dependencies, full application/E2/E3 and all L/D/O/B/S/R/full-RAG/historical gates; retain C10 fencing unresolved until implemented and verified. <!-- BLOCKED; full pytest/current build/scans/CI/OpenSpec strict are not provided by E0/E1 -->
 - [ ] 7.2 C25 Git/文档/版本/支持边界一致性检查与交付结论。
+  - [x] 7.2.1 Reconcile Git provenance, bilingual entry points, current/historical documentation, source/schema/version identities, active delta scope and offline delivery conclusion. Record C24 remote CI collection FAIL explicitly; docs-only local commit, no release/archive.
+  - [ ] 7.2.2 Resolve remaining CI/P0/P1/runtime gates and reconcile the final accepted commit/image with strict validation and independent E2/E3 evidence. <!-- BLOCKED; CI collection currently FAIL; C10 remains open; no merge/release/sync/archive authorized -->
 - [ ] 7.3 运行 OpenSpec 严格校验，完成 delta 同步及归档前检查；仅在所有工程验收满足且用户确认后归档，真实企业两个 change 继续独立管理。
 
 逐项验收唯一入口：[ISSUES C01–C25](../../../docs/40-process/ISSUES.md#engineering-closeout)。

@@ -1,6 +1,6 @@
 # C02 external model profile
 
-Status (2026-10-17): selected and implemented for offline review; **real API and isolated Linux acceptance BLOCKED**. C01 runtime acceptance remains BLOCKED. Neither service startup nor a provider inference call was performed in this increment. C03 is not authorized.
+Status (2026-10-17): selected and implemented for offline review; **real API and isolated Linux acceptance BLOCKED**. C01 runtime acceptance remains BLOCKED. Neither service startup nor a provider inference call was performed in this increment. Subsequent C03–C24 offline increments are recorded in [delivery status](../../docs/50-engineering/delivery-status.md); actual initialization/model/deployment acceptance is still BLOCKED.
 
 ## Selected contract
 
@@ -11,7 +11,7 @@ Status (2026-10-17): selected and implemented for offline review; **real API and
 | Embedding | Beijing Bailian `text-embedding-v4`, explicitly 1024 dimensions, float vectors |
 | Reranking | Beijing Bailian `qwen3-rerank`, DashScope HTTP API |
 | Default LLM | Official DeepSeek `deepseek-flash`: knowledge answers, classification, extraction, helper calls |
-| Complex LLM | Official DeepSeek `deepseek-v4-pro`: decomposition, analytical reports and complex aggregation |
+| Complex LLM | Official DeepSeek `deepseek-v4-pro`: decomposition and complex aggregation; C16 analysis reports are deterministic Python output |
 | Vector collection | `enterprise_knowledge_bailian_v4_1024_v1`, separate from all previous BGE data |
 | Production image | Python 3.13, `INSTALL_ML=0`, existing HTTP/LangChain stack and approved Debian `libpq5` |
 | Processes | One API process plus one worker; 2 GiB budget each, **not a measured minimum** |

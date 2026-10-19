@@ -1,5 +1,17 @@
 ## ADDED Requirements
 
+### Requirement: Delivery reconciliation identifies the unreleased candidate honestly
+The project SHALL distinguish source version, schema version, Git candidate, image identity,
+historical evidence and current acceptance; bilingual entry points SHALL agree on current contracts.
+
+#### Scenario: Offline documentation reconciliation finishes before runtime acceptance
+- **WHEN** current documentation, version identities and evidence links are reconciled offline
+- **THEN** record that bounded work as complete while C25 and release acceptance remain open; retain runtime blockers and observed CI failures
+
+#### Scenario: A historical manual conflicts with a current contract
+- **WHEN** an old example describes automatic initialization, model defaults, state fallback or cleanup
+- **THEN** label the historical scope and direct current operations to the reviewed contract without rewriting past test evidence as current acceptance
+
 ### Requirement: Final candidate offline receipts preserve evidence boundaries
 The project SHALL execute only explicitly reviewed offline entries, bind results to
 the candidate and reviewed source identity, and retain skipped/unavailable checks.

@@ -18,7 +18,7 @@ BusinessAgent uses a Planner to break requests into subtasks, delegates them to 
 The project covers the path from a natural-language request to business execution:
 
 - For questions, retrieve knowledge accessible to the user and provide source information.
-- For analysis, calculate statistics in Python and use a model to explain the results.
+- For analysis, read a snapshot from the CRM provider and calculate and render a deterministic report in Python.
 - For business operations, check tool permissions and apply human approval where required.
 - When a multistep operation fails, run Saga compensation for supported steps and record the outcome.
 
@@ -33,13 +33,13 @@ The shipped sample documents and interface are primarily in Chinese; the request
 | Scenario | Example request | Workflow |
 | --- | --- | --- |
 | Enterprise knowledge Q&A | “What are the company's travel reimbursement rules?” | Retrieve knowledge, compose an answer, and return sources |
-| Business data analysis | “Rank customers by their total order value.” | Parse an analysis plan, aggregate data in Python, and generate a report |
+| Business data analysis | “Rank customers by their total order value.” | Read an authorized CRM snapshot, aggregate in Python, and render a deterministic report |
 | Business record lookup | “Look up customer C001.” | Check role permissions before calling a business tool |
 | Business operations | “Create a support ticket for customer C001.” | Extract parameters, check permissions, and call the ticket tool |
 | Approval collaboration | “Send a follow-up email to an external customer.” | Create an approval request according to operation rules for an authorized reviewer |
 | Combined requests | “Look up the customer and explain the company's after-sales policy.” | Dispatch subtasks to different agents and aggregate the results |
 
-> Business tools use the Mock provider by default, and analysis currently reads built-in sample data.
+> Business tools default to Mock. Analysis uses the same CRM provider: built-in samples for Mock, controlled snapshot endpoints for HTTP.
 > These examples demonstrate workflows. Connecting real business systems requires adapter configuration and integration testing.
 
 ## Core capabilities
@@ -55,7 +55,7 @@ The shipped sample documents and interface are primarily in Chinese; the request
 
 - Document loading for Markdown, PDF, DOCX, and TXT.
 - Milvus vector retrieval followed by reranking.
-- Local BGE-M3 embeddings and a BGE Reranker by default.
+- The supplied `.env.example` selects Beijing Bailian `text-embedding-v4` (1024 dimensions) and `qwen3-rerank`; local BGE remains a development option.
 - Role and department namespace filtering in the retrieval path.
 - Source information, confidence-based decisions, and fallback paths for retrieval failures.
 
@@ -70,7 +70,7 @@ The shipped sample documents and interface are primarily in Chinese; the request
 ### State management and observability
 
 - Checkpoints to save conversation state and support recovery.
-- A Redis → PostgreSQL → memory checkpoint fallback chain.
+- Explicit Redis or PostgreSQL checkpoints that fail closed on outages; memory requires an explicit development choice.
 - SSE events for execution progress and response text.
 - Audit logs, token usage collection, Prometheus metrics, and OpenTelemetry tracing.
 - APIs for prompt versioning, knowledge candidate review, and user administration.
@@ -90,7 +90,7 @@ flowchart TD
     P -->|Direct response| G[Aggregator]
 
     K --> R[RAG · Milvus · Reranker]
-    A --> D[Sample Data · Python Aggregation]
+    A --> D[CRM Snapshot · Python Aggregation]
     E --> T[Tool Gateway · RBAC]
     T --> H[Approval / Saga / Business Adapters]
 
@@ -106,8 +106,8 @@ flowchart TD
 | --- | --- |
 | API and interaction | FastAPI, Web UI, SSE |
 | Agent orchestration | LangGraph, LangChain |
-| Model access | OpenAI-compatible API, Ollama |
-| Retrieval and reranking | Milvus, BGE-M3, BGE Reranker |
+| Model access | DeepSeek Flash by default, Pro for complex tasks; Ollama for development only |
+| Retrieval and reranking | Milvus, Beijing Bailian text-embedding-v4, qwen3-rerank |
 | Business data and state | PostgreSQL, Redis Stack |
 | Security and workflows | JWT, RBAC, human approval, Saga |
 | Observability | OpenTelemetry, Prometheus, audit logs |
@@ -117,16 +117,17 @@ flowchart TD
 
 These steps target local development on macOS / Linux.
 Infrastructure runs through Docker Compose; the API and Worker run on the host.
+The engineering target is isolated single-host Linux Compose. These procedures await runtime acceptance and require separate data, accounts and an API budget; do not apply them to current business environments.
 
 ### 1. Prerequisites
 
 - Python 3.11+
 - Git
 - Docker and Docker Compose
-- An available model service: a cloud API or Ollama with a model already installed
-- Network access to download local embedding and reranking models, or existing model files
+- Separate credentials, access and budget for Beijing Bailian embedding/reranking and DeepSeek
+- Model/data/role settings from the [model profile](enterprise-agent/deploy/MODEL_PROFILE.md); verify provider aliases again during real acceptance
 
-Local BGE models must be downloaded on first use. Startup time depends on the network and hardware.
+The selected profile needs no local model downloads. Legacy BGE/Ollama paths are outside the first production candidate.
 
 ### 2. Get the code and install dependencies
 
@@ -138,13 +139,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 python -m pip install -r deploy/requirements-prod.txt
-
-# Additional dependencies for local BGE models and document loading
-python -m pip install \
-  "langchain-community>=0.4" \
-  "langchain-huggingface>=1.0" \
-  "sentence-transformers>=3.0.0" \
-  "torch>=2.2.0"
 ```
 
 ### 3. Configure environment variables
@@ -157,25 +151,18 @@ Edit `.env` and review these settings:
 
 | Setting | Purpose |
 | --- | --- |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | Access to the cloud model service |
-| `PRIMARY_LLM_MODEL`, `LITE_LLM_MODEL` | Model names actually available from your provider |
-| `LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL` | Configuration for Ollama, when used |
-| `POSTGRES_*`, `REDIS_*`, `MILVUS_*` | Connection settings matching the running services |
-| `JWT_SECRET_KEY` | Your own randomly generated secret |
-| `HF_HOME` | A model cache directory writable by your local user |
-| `TOOL_PROVIDER` | Keep `mock` for the initial walkthrough |
+| `MODEL_PROFILE` | Keep `bailian-deepseek-v1` for the selected candidate |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `PRIMARY_LLM_MODEL`, `LITE_LLM_MODEL` | DeepSeek credentials and profile-defined model names |
+| `EMBEDDING_API_KEY`, `RERANKER_API_KEY` | Independent Beijing Bailian credentials; keep endpoints/dimension/collection aligned |
+| `POSTGRES_*`, `REDIS_*`, `MILVUS_*` | Match the isolated infrastructure |
+| `JWT_SECRET_KEY`, `AUTH_REQUIRE_PASSWORD`, `AUTH_CHECK_DB` | Random secret; password and database identity checks enabled |
+| `TOOL_PROVIDER`, `CRM_TOOL_PROVIDER` | Mock for initial synthetic data; explicitly configure HTTP reference services separately |
+| `MODEL_STARTUP_PROBES_ENABLED` | False initially; production startup refuses until paid probes are explicitly authorized |
 
-For a host-based setup, you can use:
-
-```dotenv
-HF_HOME=./.cache/huggingface
-```
-
-To use local language models, start Ollama separately and prepare the configured model.
-The Compose command below starts only the database and retrieval dependencies.
-
-Do not commit credentials from `.env`. The development Compose configuration is intended for local use.
-See the deployment documentation for production configuration.
+Do not commit credentials from `.env`. The selected profile uses external models. Optional
+local ML experiments use the separately declared `deploy/requirements-ml.txt`; they are not
+required for this candidate. See the [deployment guide](enterprise-agent/deploy/DEPLOY.md)
+for the immutable image, explicit migration and production configuration.
 
 ### 4. Start infrastructure
 
@@ -184,19 +171,13 @@ docker compose up -d etcd minio milvus-standalone postgres redis
 docker compose ps
 ```
 
-Wait for the services to become ready. PostgreSQL runs the initialization script when it first uses a new data volume.
-For existing databases, refer to the operations guide for upgrades and migrations.
+Wait for readiness. PostgreSQL no longer auto-runs application initialization SQL. Explicitly migrate to schema v7, check status and bootstrap an administrator before starting the application. Use the [database guide](enterprise-agent/deploy/DATABASE_BOOTSTRAP.md); legacy adoption is allowed only on an authorized isolated copy.
+
+`python -B -m app.core.db_bootstrap plan` is an offline preview. Real PostgreSQL/API/Linux and model acceptance remain BLOCKED; model calls and ingestion require separate authorization.
 
 ### 5. Import sample knowledge and start services
 
-Import a sample policy document:
-
-```bash
-python -m app.rag.ingest \
-  "eval/sample_docs/财务报销制度.md" \
-  --type policy \
-  --ns shared_company
-```
+Use the authorized upload/review/publication flow in the [knowledge publication contract](docs/50-engineering/knowledge-publication.md), with `eval/sample_docs/财务报销制度.md` as a synthetic input. Historical direct ingestion commands do not establish current publication visibility. Real ingestion calls external models and writes stores; it has not been executed for this candidate.
 
 Start the API:
 
@@ -223,7 +204,7 @@ The Worker handles background tasks, including document ingestion, approval time
 | Dependency status | http://localhost:8000/ready |
 | Prometheus metrics | http://localhost:8000/metrics |
 
-The local development interface provides role-based demo entry points. Try this question against the Chinese sample policy:
+Sign in with an explicitly bootstrapped account; `/me` verifies its current role. There is no default password or role-based login bypass. Try this question against the Chinese sample policy:
 
 > 公司的差旅报销有哪些规定？
 
@@ -239,29 +220,20 @@ retrieval services, models, and their configuration.
 
 ## Verification and tests
 
-Run unit tests from `enterprise-agent/`:
+From the repository root, use the reviewed offline inventory:
 
 ```bash
-python -m pip install pytest pytest-asyncio pytest-cov fakeredis
-PYTHONPATH=. python -m pytest tests/
+python3 -I -B enterprise-agent/scripts/final_candidate.py
+# Explicitly run reviewed entries and retain a fresh receipt:
+python3 -I -B enterprise-agent/scripts/final_candidate.py --execute --record candidate-001
 ```
 
-The repository also provides verification scripts for orchestration, state recovery,
-tool execution, Milvus, and tracing:
-
-```bash
-python -m eval.run_w5_e2e
-python -m eval.run_w6_checkpoint
-python -m eval.run_w7_execution
-python -m eval.run_w9_milvus
-python -m eval.run_w9_tracing
-```
-
-Their prerequisites differ. Review each script and the relevant environment settings before running it.
-
-CI includes Python 3.11 / 3.13 unit tests, secret scanning, dependency vulnerability scanning,
-production image builds, and image scanning. See [GitHub Actions](https://github.com/zhenkun26/BusinessAgent/actions)
-for the latest results.
+See [verification scope and side effects](docs/50-engineering/final-candidate-verification.md).
+The executed sweep returns 2 while real gates remain BLOCKED. Full pytest/plugins and
+historical W5–W9 scripts require separate dependency and side-effect review; the fixed
+inventory does not claim to cover every test or real service. Never infer current acceptance
+from historical CI results or the `main` badge above. Candidate-specific PR/CI evidence and
+remaining gates are recorded in the [delivery status](docs/50-engineering/delivery-status.md).
 
 ## Current status and limitations
 
@@ -270,12 +242,14 @@ The repository also contains automated tests, technical verification, and delive
 
 Current boundaries:
 
-- Analysis uses built-in customer and order samples; a real analytics data source still needs integration.
+- Analysis follows the CRM provider with bounded snapshots and deterministic reports; real HTTP analytics acceptance remains BLOCKED.
 - Business tools default to Mock mode. Adapter code alone does not establish acceptance against real systems.
 - Real CRM, email, and SSO integration still requires interface contracts, test environments, and integration evidence.
 - Formal UAT, security acceptance against real systems, staged rollout, and production approval remain incomplete.
-- Subtask dependency scheduling, multitenancy, and long-term memory remain planned work.
-- When checkpoints fall back to memory, state does not survive a process restart.
+- Only independent subtasks run in parallel; identified dependencies are rejected. General DAG scheduling, multitenancy and long-term memory are outside this candidate.
+- Checkpoints do not automatically fall back. Two-process persistence and lease-expiry write fencing remain unresolved acceptance gates.
+- Single-organization, single-host Linux Compose is the target; Kubernetes/multihost HA, measured capacity and production readiness are not accepted claims.
+- The source version remains 1.3.0 with unreleased changes; commit/image/schema identities must be recorded separately. All L/D/O/B/S/R runtime matrices and full RAG remain BLOCKED.
 
 See the [ROADMAP](docs/40-process/ROADMAP.md) for detailed progress and outstanding work.
 

@@ -1,6 +1,6 @@
 # Hello，智多星——企业知识工作流 Agent
 
-> 当前版本:v1.3.0(2026-08-06 生产就绪与全量更名;版本单一事实源见 `app/__init__.py`,变更记录见根目录 `CHANGELOG.md`)
+> 源码版本:v1.3.0；收尾变更未发布，当前提交不等同于历史 v1.3.0 tag。版本单一事实源见 `app/__init__.py`；当前支持与验收边界见[交付状态](../docs/50-engineering/delivery-status.md)。
 
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统。
 
@@ -56,7 +56,7 @@ docker compose --profile monitoring up -d prometheus grafana jaeger
 
 知识发布：先记录不可见版本，固定 chunk ID 写索引，完整确认后原子激活；检索在重排前核对当前版本。旧版本、部分写入及停用内容不可进入新检索请求，历史无版本记录内容需显式重导。管理员可查询发布记录、显式重试 dead 知识任务或停用文档，见[发布契约](../docs/50-engineering/knowledge-publication.md)。真实运行与完整 RAG 验收仍 BLOCKED。
 
-后台任务：知识审核改为 PostgreSQL 同事务入队，返回 `202` 与 `task_id`；独立 worker 处理后通过管理员任务接口查询结果。迁移清单现要求 v6；知识任务派发后结果不明保留待核对。Saga 使用持久日志与独立补偿 ID，重启后核对原动作再逆序补偿，不补跑正向动作或重复已领取的写入；详见 [Saga 恢复契约](../docs/50-engineering/saga-recovery.md)。审计缓存非删除回写等待 C21；完整运行验收仍 BLOCKED，见[队列与 worker 契约](../docs/50-engineering/queue-reliability.md)。
+后台任务：知识审核改为 PostgreSQL 同事务入队，返回 `202` 与 `task_id`；独立 worker 处理后通过管理员任务接口查询结果。迁移清单现要求 v7；知识任务派发后结果不明保留待核对。Saga 使用持久日志与独立补偿 ID，重启后核对原动作再逆序补偿，不补跑正向动作或重复已领取的写入；详见 [Saga 恢复契约](../docs/50-engineering/saga-recovery.md)。C21 已提供保留式审计回写候选，O01–O16 真实持久化与故障验收仍 BLOCKED；完整运行验收仍 BLOCKED，见[队列与 worker 契约](../docs/50-engineering/queue-reliability.md)。
 
 认证要求：生产 API/worker 必须同时启用 `AUTH_REQUIRE_PASSWORD=true` 和 `AUTH_CHECK_DB=true`。身份库故障返回 503，禁用/删除账户返回 401；审批执行使用双方当前权限。详细约定见[认证与运行时授权契约](../docs/50-engineering/runtime-authorization.md)。
 
@@ -260,12 +260,12 @@ enterprise-agent/
 
 ## 关联文档
 
-- [v3 产品方案](../企业知识工作流Agent产品方案_v3_整合版.md)
+- [v3 产品方案](../docs/10-product-plan/企业知识工作流Agent产品方案_v3_整合版.md)
 - [部署文档](deploy/DEPLOY.md)
-- [阶段性总结(W2-W6)](../阶段性总结_W2-W6.md)
-- [阶段性总结(W7-W9 + 整体联调)](../阶段性总结_W7-W9_联调.md)
-- [产品文档](../产品文档.md)
-- [使用案例手册](../使用案例手册.md)
+- [阶段性总结(W2-W6)](../docs/40-process/阶段性总结_W2-W6.md)
+- [阶段性总结(W7-W9 + 整体联调)](../docs/40-process/阶段性总结_W7-W9_联调.md)
+- [产品文档](../docs/20-product/产品文档.md)
+- [使用案例手册](../docs/30-guides/使用案例手册.md)
 
 ## 技术栈
 
@@ -278,9 +278,9 @@ enterprise-agent/
 | FastAPI | 0.115+ | Web 框架 |
 | PostgreSQL | 16 | 业务/审计存储 |
 | Redis | 7 (redis-stack-server) | Checkpointer / 缓存 / 限流 |
-| Ollama | latest | 本地小模型托管(qwen3.5:4b) |
-| BGE-M3 | local | Embeddings(1024维) |
-| BGE Reranker | local | 精排重排序 |
+| DeepSeek | profile 规定的 Flash/Pro 别名 | 默认及复杂任务；需运行时核对实际返回模型 |
+| 百炼 text-embedding-v4 | Beijing API | Embeddings，显式 1024 维 |
+| 百炼 qwen3-rerank | Beijing API | 精排重排序；本地 BGE/Ollama 仅开发备选 |
 | OpenTelemetry | 1.x | 全链路追踪 |
 | Jaeger | 1.60 | Trace 可视化 |
 | Prometheus | latest | 指标采集 |

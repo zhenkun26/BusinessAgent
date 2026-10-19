@@ -671,3 +671,24 @@ collisions. Report overall acceptance BLOCKED even when all available offline ch
 pass. Post-commit rerun binds evidence to the delivered local commit without a circular
 documentation commit. Whole pytest, actual dependency imports, image/scanner/CI results,
 OpenSpec strict, E2/E3/E4 and C10 are explicit uncovered gates.
+
+## C25 offline delivery reconciliation — 2026-10-19
+
+Use the current source and schema manifest as authority for present behavior; use ISSUES
+for acceptance and ROADMAP/tasks for sequencing. Root READMEs describe current setup and
+support boundaries in both languages, not chronological progress logs. Older detailed
+manuals keep their historical examples and measurements but prominently route current
+operations to reviewed engineering contracts; correct conflicting current instructions.
+Record a source-to-document matrix and an explicit NOT_ACCEPTED_FOR_RELEASE conclusion.
+
+Application version 1.3.0 remains the existing source/tag baseline, not a tag for the
+closeout candidate. Schema v7, document revision labels, Git commits and image digests are
+different identities. Update Unreleased only; do not invent a new release or image digest.
+The active change's deltas remain unsynchronized while runtime requirements are open.
+Static structure checks cannot replace the unavailable OpenSpec CLI strict validation.
+
+PR/CI metadata is a time-bound read-only observation. A failed job remains FAIL; missing,
+pending or unrun candidate checks remain BLOCKED. Neither historical green CI nor the
+C24 offline receipt proves the new commit's CI or E2/E3. Preserve 556 mode-only differences,
+snapshot tracked content/modes, commit only documents, then rerun the existing fixed C24
+entry to bind the final documentation candidate without editing its source allowlist.
