@@ -68,6 +68,8 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `scripts/verify_frontend_assets.py` | 标准库只读 HTML/manifest/JS/licenses，校验路径、SHA-256/SRI 与本地引用；无应用导入、网络、写入/删除 | C20 允许根目录 `python3.13 -I -B enterprise-agent/scripts/verify_frontend_assets.py enterprise-agent/app/static`；镜像构建有同入口配方但本轮未构建；不等于漏洞扫描或浏览器加载证据 |
 | `eval/run_c05_runtime_authorization.py` | 标准库执行 C05 实际源代码/启动函数；注入 JWT/框架/DB/工具，无真实连接、文件写入或清理 | C05 单独审查允许：仓库根目录 `python3 -I -B enterprise-agent/eval/run_c05_runtime_authorization.py`；不加入五函数白名单，不代表真实密码学/HTTP/PG 验收 |
 | `eval/run_c04_session_ownership.py` | 标准库加载 C04 unittest；依赖注入，内存数据库/图/审计，无真实网络、文件写入或清理 | C04 单独审查允许：仓库根目录执行 `python3 -I -B enterprise-agent/eval/run_c04_session_ownership.py`；不加入原五函数白名单，不代表真实 HTTP/PG 验收 |
+| `eval/run_c23_capacity_evidence.py` | 标准库加载 C23 实际计划/报告/SSE/采集器代码；注入时钟/HTTP，独立参考服务仅内存 SQLite；audit hook 禁止 socket、子进程、磁盘 DB、文件修改/删除 | C23 仅授权 `python3.13 -I -B enterprise-agent/eval/run_c23_capacity_evidence.py`；不加入五函数白名单，不执行真实负载 |
+| `eval/run_capacity.py` / `eval/run_load_test.sh` | 无 execute 时只读计划；summarize 只读保留报告；显式执行会创建新输出目录、调用 HTTPS/参考 API/付费模型并持久写会话/审批/审计/邮件 sink | 本轮不执行 runtime；需先按 C23 冻结计划和隔离边界重新审查并明确授权。旧 k6 仅历史入口，不受安全白名单覆盖 |
 | 其他 eval / scripts | 可能启动应用、模型、写 DB/向量库、网络或覆盖报告 | 默认不允许，逐项审查，不能仅凭脚本名认定安全 |
 | 全量 pytest | 项目 conftest 本身为内存 mock，但插件、cache、tmp_path 生命周期不在五函数审查范围内 | 本轮不运行；入口测试用独立 unittest，夹具追加保留 |
 

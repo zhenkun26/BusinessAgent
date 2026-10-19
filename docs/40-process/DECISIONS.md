@@ -470,3 +470,20 @@
   RTO <=1h/RPO <=24h remain BLOCKED. Twelve-hour cadence is proposed, never enabled here.
 - **Boundary**: C21 `40c10d8` pushed/verified. C22 local commit only, then wait; no C23,
   deployment or release. Prior O/B/S/R/full RAG/historical gates and C10 remain unresolved.
+
+## 40. C23: frozen workload with conservative capacity claims
+
+- **Need**: historical k6 measured a health-heavy short ramp and a response-shape oracle;
+  its renderer could mark absent thresholds passing. That cannot establish current capacity.
+- **Choice**: explicit plan hash before execution, fixed private HTTPS/reference targets,
+  open-loop arrivals with bounded lanes, preserved dropped/missing/error denominators,
+  current-identity approval/resume and independent receipt checks. Separate first token,
+  complete HTTP phases, workflow and drain observations; retain exclusive per-slot files.
+- **Limits**: a proposed 1800-second 216/72/72 mix is an initial load point, not approved
+  measured capacity. Mechanical oracles do not establish semantics. Queue/execution timing,
+  per-process resources, backlog recovery, provider costs and actual identity need L01–L16.
+  Preserve historical p95 <=2s/p99 <=5s/error <0.5%; no post-hoc threshold relaxation.
+- **Verification**: 42 focused + 186 related offline tests PASS. Injected HTTP/clocks and
+  in-memory reference ledger only; no new dependency, real load, Docker or paid call.
+- **Boundary**: C22 d70c1b4 pushed/verified. C23 local commit only, then wait before push/C24;
+  L/D/O/B/S/R/runtime/full RAG remain BLOCKED and C10 fencing remains open.

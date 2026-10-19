@@ -286,3 +286,11 @@ enterprise-agent/
 | Prometheus | latest | 指标采集 |
 
 当前已选择并实现 [`bailian-deepseek-v1`](deploy/MODEL_PROFILE.md)：百炼北京 `text-embedding-v4`（1024 维）与 `qwen3-rerank`、DeepSeek Flash 默认与 Pro 复杂任务。CI/default 镜像不含本地 ML 依赖；真实 API 与 Linux 部署验收仍 **BLOCKED**。本机用于开发，付费启动探针默认关闭，C02 整项尚未验收。
+
+
+### 规定负载与容量验证
+
+容量验证入口为 `eval/run_capacity.py`（`eval/run_load_test.sh` 转发至该入口）。先按
+[容量契约](../docs/50-engineering/capacity-evidence.md) 冻结实际环境、模型、数据和负载，
+计划校验默认不执行请求；真实运行需显式授权与匹配的计划摘要。历史 k6/health 流量
+不能代表当前业务容量；队列耗时、资源曲线和恢复须单独采集，不以离线结果替代实测。

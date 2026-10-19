@@ -15,6 +15,8 @@
 
 ### New Capabilities
 
+- `capacity-evidence`: C23 frozen mixed workloads, separate timing and bounded capacity claims.
+
 - `retained-recovery`: C22 cold backup plans, new-volume restore, source resumption and evidence-bound rollback.
 
 - `runtime-observability`: C21 dependency readiness, retained audit replay, process-complete metrics and controlled alert delivery.
@@ -235,3 +237,12 @@ remote branch. Implement current-version backup/recovery/rollback entry points, 
 and offline fault tests. No real backup, stop/start, restore, Docker, database or external API
 execution on this host. C22 ends at a local commit, then waits; no C23 or new dependencies.
 Prior O/B/S/R/full-RAG gates remain BLOCKED and C10 writing remains open.
+
+
+## Authorized C23 increment — 2026-10-19
+
+C22 `d70c1b4` was pushed and the same-name remote hash verified. Implement C23 frozen
+workload validation, opt-in mixed application measurement, fail-closed offline reporting
+and tests. No real load, API/model call, deployment, installation or deletion this turn.
+C23 ends at a local commit; D/O/B/S/R/runtime/full RAG stay BLOCKED and C10 remains open.
+No C24 final candidate, merge, release or C23 push is authorized.

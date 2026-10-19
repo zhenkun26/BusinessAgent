@@ -617,3 +617,34 @@ the beginning of quiescence, and RTO through independently verified service/busi
 not extraction completion. RTO <= 1h / RPO <= 24h stay BLOCKED pending D01–D16. Rollback needs
 an explicitly compatible schema plus retained old image, or a separate full snapshot clone;
 never overwrite source state or run older applications on newer schema. No downgrade DDL.
+
+
+## C23 frozen capacity evidence design — 2026-10-19
+
+Provide a standard-library runner, plan validator and pure report functions. Draft plans
+contain unresolved hardware/image/data identities and cannot execute. Execution requires
+an explicit flag and the exact canonical plan digest confirmed before the run. The target
+is the fixed internal application/reference network; no arbitrary URLs, provisioning,
+cleanup, application startup or credential persistence. Existing service readiness and
+synthetic fixture/identity provisioning are operator prerequisites, never inferred.
+
+Use a deterministic open-loop arrival schedule for at least 1800 seconds with a frozen
+Q&A/analysis/approved-mail mix and bounded concurrent work. Do not count health traffic.
+Each scheduled slot remains in the denominator, including missed launches, errors, 429s
+and incomplete requests. No automatic business retry or new key after uncertainty.
+Each flow uses a fresh session. Approval follows requester chat, distinct approver decision
+and requester resume; independent reference receipt and application evidence are mandatory.
+
+Measure client monotonic full response and first nonempty user-facing SSE token separately;
+headers/progress/final alone do not establish TTFT. Record bounded template-labelled HTTP
+phases separately from total workflow latency, including failures. Fixed nearest-rank
+percentiles use completed timed attempts; expose missing/censored samples and fixed total
+failure denominator. Retain p95 <=2s, p99 <=5s, error <0.5% historical baseline without
+post-hoc relaxation. Missing observations, semantic review, actual queue timings, resource
+time series, quota/cost and backlog recovery keep full acceptance BLOCKED.
+
+Persist only allowlisted counters, statuses, elapsed times and hashes. No answers, prompts,
+credentials, raw provider records or exception text in measured outputs. Write records
+exclusively to a fresh retained directory; interrupted runs cannot become PASS. Plan
+identities are declarations until independently verified. No measured maximum capacity or
+monthly SLA claim from one load point; all L01–L16 runtime cases remain BLOCKED this turn.

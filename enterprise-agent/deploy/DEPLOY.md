@@ -449,3 +449,15 @@ find /var/lib/docker/containers -name "*.log" -mtime +7 -delete
 4. 服务实例 > 10 个，Compose 管理变复杂
 
 届时可参考 v3 方案附录的 K8s 清单，但**当前阶段 Compose 已足够**。
+
+## C23 capacity candidate
+
+Use the [frozen capacity contract](../../docs/50-engineering/capacity-evidence.md) before
+performance work. `eval/run_load_test.sh` now delegates to `eval/run_capacity.py` and requires
+an explicit plan; no default load or Docker fallback is performed. The draft rejects unresolved
+hardware/image/data/oracle fields. Live execution additionally requires the reviewed plan digest,
+a new retained output directory, private TLS and separately authorized isolated accounts/models.
+`deploy/Dockerfile.capacity` reuses the application image; package it only after build approval.
+L01–L16, real 30-minute load, resource/queue recovery and actual provider cost remain BLOCKED.
+Historical health-throughput/k6 reports cannot certify current capacity. No cleanup commands
+are supplied. Keep actual runtime output private and link sanitized evidence from the C23 record.

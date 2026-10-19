@@ -1,0 +1,8 @@
+# Build only after isolated-environment authorization; reuse the reviewed application image.
+ARG BUSINESSAGENT_IMAGE
+FROM ${BUSINESSAGENT_IMAGE}
+WORKDIR /app
+COPY capacity ./capacity
+USER 65534:65534
+HEALTHCHECK NONE
+ENTRYPOINT ["python", "-B", "-m", "capacity.runner"]
