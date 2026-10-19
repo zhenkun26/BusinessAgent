@@ -108,7 +108,7 @@ with session status, not a full transcript or independent proof of business exec
   terminal event; neither network abort nor the cancel button claims business rollback.
 - Failed lists clear stale rows and show unavailable, distinct from a confirmed empty list.
   Documents never fall back to seeded records. System status is labelled observations;
-  C21 must separately fix readiness and auditing.
+  C21 now provides a separate [readiness/audit candidate](runtime-observability.md), still awaiting O01–O16.
 
 ## API-only administration procedure
 
@@ -174,8 +174,8 @@ Do not export raw bearer tokens, cookies, passwords, response bodies with privat
 Record missing evidence as BLOCKED; failed behavior as FAIL. A generated checklist is not evidence.
 
 No browser, application, TLS, real JWT/PG/Redis/Milvus/LangGraph/API/SSE, Docker or paid model
-was executed here. Review the existing audit-cache filesystem deletion before any application
-launch under the no-deletion policy; its non-deleting replay belongs to C21. C10 lease-expiry
+was executed here. C21 replaces the old deleting cache consumer with retained replay. Review and verify its
+physical filesystem behavior before any application launch; O01–O16 are still BLOCKED. C10 lease-expiry
 writing is still unresolved. S01–S16, R01–R20, full RAG and earlier real runtime/historical
 credential gates stay BLOCKED. Full pytest, strict OpenSpec CLI and image/advisory scans were
 not run. Reference browser success would still not accept enterprise SSO/UAT or production.

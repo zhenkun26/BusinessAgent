@@ -67,7 +67,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates tzdata libpq5 \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /app/logs /data && chown -R 65534:65534 /app /data
+    && mkdir -p /app/logs /data/observability /data/monitor /data/receiver && chown -R 65534:65534 /app /data
 
 # 安全加固：移除 pip（运行时不需要），消除其 vendor 的 msgpack/pkg_resources 旧版本漏洞
 # Trivy 阻断的 GHSA-6v7p-g79w-8964 / CVE-2025-47273 均来自 pip 内部捆绑，无法通过升级 pip 修复
@@ -82,8 +82,8 @@ RUN /opt/venv/bin/python -m pip uninstall -y pip
 # 应用代码
 COPY app ./app
 COPY scripts/verify_frontend_assets.py ./deploy/verify_frontend_assets.py
-COPY deploy/init.sql ./deploy/init.sql
-COPY deploy/schema_manifest.json deploy/demo_seed.sql ./deploy/
+COPY deploy/*.sql ./deploy/
+COPY deploy/schema_manifest.json ./deploy/
 COPY deploy/migrations ./deploy/migrations
 
 USER 65534:65534

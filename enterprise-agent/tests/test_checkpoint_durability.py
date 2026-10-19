@@ -374,6 +374,7 @@ class CheckpointDurabilityTests(unittest.IsolatedAsyncioTestCase):
             'app.graph.checkpointer': module('app.graph.checkpointer',
                 get_checkpointer=init_cp, reset_checkpointer=close_cp),
             'app.core.database': module('app.core.database', close_db=close_db),
+            'app.observability.service': module('app.observability.service', replay_loop=AsyncMock()),
             'app.observability.audit': module('app.observability.audit', init_audit_logger=Mock()),
             'app.tools.base': module('app.tools.base', init_all_tools=Mock()),
             'app.prompts': module('app.prompts', refresh_prompt_cache=AsyncMock(),
@@ -381,7 +382,7 @@ class CheckpointDurabilityTests(unittest.IsolatedAsyncioTestCase):
         }
         tree = ast.parse((ROOT / 'app/main.py').read_text())
         node = next(n for n in tree.body if getattr(n, 'name', None) == 'lifespan')
-        ns = dict(asynccontextmanager=asynccontextmanager, get_settings=lambda: settings,
+        ns = dict(asyncio=asyncio, asynccontextmanager=asynccontextmanager, get_settings=lambda: settings,
                   validate_production_settings=lambda _: [], logger=self.log,
                   init_db=AsyncMock(), init_milvus=AsyncMock())
         source = 'from __future__ import annotations\n' + ast.unparse(node)

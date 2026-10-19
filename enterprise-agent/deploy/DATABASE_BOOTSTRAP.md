@@ -26,8 +26,8 @@ Managed v2 adds retained tool executions/operations; v3 adds `task_jobs` and
 `saga_runs` and `saga_steps` for retained recovery; legacy `saga_transactions` is preserved
 and not converted to executable input. C11 v5 adds retained approval execution identities, claims, observation deadlines
 and reconciliation indexes. C15 v6 adds immutable knowledge generations and active/pending document pointers.
-API/worker startup requires all six versions.
-No migration is applied implicitly; real v3/v4/v5/v6 migration acceptance is still BLOCKED.
+C21 v7 adds audit event/correlation identities and task origin IDs; API/worker startup requires all seven versions.
+No migration is applied implicitly; real v3/v4/v5/v6/v7 migration acceptance is still BLOCKED.
 Do not run an older application against newer migration history.
 
 `schema_migrations` records version, name, checksum and application time.
@@ -157,7 +157,7 @@ columns/types/widths, password NOT NULL and valid index names/uniqueness flags m
 Failure disposes the unpublished pool and aborts before audit/queue work. Database
 health rechecks the same contract. This does not validate all constraint definitions,
 index expressions, ownership, defaults, sequences or data quality; C03 live checks
-must inspect these. C21 still owns full HTTP readiness and continuous health semantics.
+must inspect these. C21 provides the [readiness and retained-audit candidate](../../docs/50-engineering/runtime-observability.md); real O01–O16 acceptance remains BLOCKED.
 The C02 model startup gate currently runs before the schema gate; use the standalone
 CLI for database acceptance to avoid paid calls.
 

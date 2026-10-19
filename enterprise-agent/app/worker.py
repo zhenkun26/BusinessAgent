@@ -52,7 +52,7 @@ async def maintenance() -> None:
             await scan_expired_approvals()
         except Exception:
             logger.error("WORKER_APPROVAL_SCAN_FAILED")
-        # Audit cache flush currently deletes files. Recovery stays with C21.
+        # Audit replay runs in its own supervised child.
         await asyncio.sleep(60)
 
 
@@ -71,7 +71,9 @@ async def main() -> None:
     try:
         await verify_model_startup(settings)
         await init_db()
-        init_audit_logger()
+        audit = init_audit_logger()
+        from app.observability.tracing import init_tracing
+        init_tracing(service_name="enterprise-agent-worker")
         init_all_tools()
         if settings.vector_store_provider == "milvus":
             from app.core.milvus_client import init_milvus
@@ -80,6 +82,9 @@ async def main() -> None:
         elif settings.vector_store_provider != "memory" or settings.app_env != "dev":
             raise RuntimeError("WORKER_VECTOR_PROFILE_REJECTED")
         worker_id = str(uuid.uuid4())
+        from app.observability.service import replay_loop, serve_worker_observations
+        children.append(asyncio.create_task(replay_loop(audit), name="worker-audit-replay"))
+        children.append(asyncio.create_task(serve_worker_observations(worker_id), name="worker-observations"))
         for queue, handler in (("tasks:doc_ingest", handle_doc_ingest_task),
                                ("tasks:saga_retry", handle_saga_retry_task)):
             children.append(asyncio.create_task(

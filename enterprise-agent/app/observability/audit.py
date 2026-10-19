@@ -1,196 +1,104 @@
-"""审计日志器(P1-10 容错设计,对应 v3 方案 12.4 节)"""
+"""Retained audit delivery with stable event IDs and non-deleting replay."""
+from __future__ import annotations
 
+import asyncio
+from datetime import datetime, timezone
 import json
 import os
-import time
-from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
+import uuid
 
 from loguru import logger
 from sqlalchemy import text
 
+from app.observability.correlation import snapshot
+from app.observability.retained import RetainedStore
 from app.security.redaction import redact_value
 
 
 class AuditLogger:
-    """审计日志器
+    def __init__(self, local_cache_path: str = 'logs/audit', store: Any = None) -> None:
+        self.unretained = 0
+        self.store = store or RetainedStore(os.environ.get(
+            'OBSERVABILITY_STORE_PATH', local_cache_path + '/retained.sqlite3'))
 
-    特性(P1-10):
-    - PostgreSQL 写入失败不阻塞业务
-    - 本地缓存兜底
-    - 连续失败触发告警
-
-    存储方式:复用 app.core.database 的 SQLAlchemy async 会话工厂,
-    与全项目 DB 访问方式保持一致(不再依赖 asyncpg pool)。
-    """
-
-    def __init__(
-        self,
-        local_cache_path: str = "logs/audit",
-        max_failures_before_alert: int = 5,
-    ):
-        self.local_cache = local_cache_path
-        self.max_failures = max_failures_before_alert
-        self.consecutive_failures = 0
-
-    async def log(
-        self,
-        event_type: str,
-        session_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        tool_name: Optional[str] = None,
-        input_summary: Optional[str] = None,
-        output_summary: Optional[str] = None,
-        success: Optional[bool] = None,
-        latency_ms: Optional[int] = None,
-        payload: Optional[dict] = None,
-    ):
-        """写入审计日志(失败不阻塞业务)"""
-        record = {
-            "event_type": event_type,
-            "session_id": session_id,
-            "user_id": user_id,
-            "tool_name": tool_name,
-            "input_summary": input_summary or "",
-            "output_summary": output_summary or "",
-            "success": success,
-            "latency_ms": latency_ms,
-            "payload": payload,
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-
-        record = redact_value(record)
-        record["input_summary"] = record["input_summary"][:500]
-        record["output_summary"] = record["output_summary"][:500]
-
-        # 尝试写入 PG(SQLAlchemy async session;未初始化或写失败则走本地兜底)
+    async def log(self, event_type: str, session_id: Optional[str] = None,
+                  user_id: Optional[str] = None, tool_name: Optional[str] = None,
+                  input_summary: Optional[str] = None, output_summary: Optional[str] = None,
+                  success: Optional[bool] = None, latency_ms: Optional[int] = None,
+                  payload: Optional[dict] = None) -> None:
+        record = redact_value({
+            'event_id': str(uuid.uuid4()), 'event_type': event_type,
+            'session_id': session_id, 'user_id': user_id, 'tool_name': tool_name,
+            'input_summary': input_summary or '', 'output_summary': output_summary or '',
+            'success': success, 'latency_ms': latency_ms, 'payload': payload,
+            'occurred_at': datetime.now(timezone.utc).isoformat(), **snapshot(),
+        })
+        record['input_summary'] = record['input_summary'][:500]
+        record['output_summary'] = record['output_summary'][:500]
+        retained = await self._write_local_cache(record)
         try:
-            from app.core.database import get_session_factory
+            await self._write_database(record)
+            if retained:
+                await asyncio.to_thread(self.store.acknowledge, record['event_id'])
+        except Exception:
+            logger.warning('AUDIT_DATABASE_WRITE_FAILED')
+            if not retained:
+                self.unretained += 1
+                logger.error('AUDIT_EVENT_UNRETAINED')
 
-            factory = get_session_factory()
-            async with factory() as session:
-                await session.execute(
-                    text(
-                        "INSERT INTO audit_logs (event_type, session_id, user_id, "
-                        "tool_name, input_summary, output_summary, success, "
-                        "latency_ms, payload) "
-                        "VALUES (:event_type, :session_id, :user_id, :tool_name, "
-                        ":input_summary, :output_summary, :success, :latency_ms, "
-                        "CAST(:payload AS JSONB))"
-                    ),
-                    {
-                        "event_type": record["event_type"],
-                        "session_id": record["session_id"],
-                        "user_id": record["user_id"],
-                        "tool_name": record["tool_name"],
-                        "input_summary": record["input_summary"],
-                        "output_summary": record["output_summary"],
-                        "success": record["success"],
-                        "latency_ms": record["latency_ms"],
-                        "payload": (
-                            json.dumps(record["payload"], ensure_ascii=False)
-                            if record["payload"] is not None
-                            else None
-                        ),
-                    },
-                )
+    async def _write_database(self, record: dict[str, Any]) -> None:
+        from app.core.database import get_session_factory
+        params = {**record, 'payload': json.dumps(record.get('payload'), ensure_ascii=False)}
+        params['occurred_at'] = datetime.fromisoformat(record['occurred_at'])
+        async with asyncio.timeout(5):
+            async with get_session_factory()() as session:
+                await session.execute(text("""INSERT INTO audit_logs
+                    (event_id,event_type,session_id,user_id,tool_name,input_summary,output_summary,
+                     success,latency_ms,payload,occurred_at,request_id,trace_id,task_id)
+                    VALUES (:event_id,:event_type,:session_id,:user_id,:tool_name,:input_summary,
+                     :output_summary,:success,:latency_ms,CAST(:payload AS JSONB),
+                     :occurred_at,:request_id,:trace_id,:task_id)
+                    ON CONFLICT (event_id) DO NOTHING"""), params)
                 await session.commit()
-            self.consecutive_failures = 0
-            return
-        except Exception as e:
-            logger.warning("AUDIT_DATABASE_WRITE_FAILED")
-            self.consecutive_failures += 1
 
-        # 兜底:写本地缓存
-        await self._write_local_cache(record)
-
-        # 连续失败告警
-        if self.consecutive_failures >= self.max_failures:
-            await self._send_alert(
-                f"审计日志连续失败 {self.consecutive_failures} 次"
-            )
-            self.consecutive_failures = 0  # 重置避免重复告警
-
-    async def _write_local_cache(self, record: dict):
-        """本地缓存兜底"""
+    async def _write_local_cache(self, record: dict[str, Any]) -> bool:
         try:
-            record = redact_value(record)
-            os.makedirs(self.local_cache, exist_ok=True)
-            # 文件名用纳秒时间戳:同秒同 event_type 的多条记录不会互相覆盖
-            filename = (
-                f"{self.local_cache}/{time.time_ns()}_"
-                f"{record['event_type']}.json"
-            )
-            with open(filename, "w", encoding="utf-8") as f:
-                json.dump(record, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.error("AUDIT_LOCAL_WRITE_FAILED")
+            await asyncio.to_thread(self.store.append, 'audit', record['event_id'],
+                                    redact_value(record))
+            return True
+        except Exception:
+            logger.error('AUDIT_LOCAL_WRITE_FAILED')
+            return False
 
     async def flush_local_cache(self) -> int:
-        """将本地缓存审计逐条回写 PG(worker 启动时调用)
-
-        数据库故障期间 audit_logs 写入本地缓存;恢复后回写避免审计丢失。
-        回写成功即删除对应缓存文件;失败保留并在下次重试。
-
-        Returns:
-            成功回写并删除的条数
-        """
-        from app.core.database import get_session_factory
-
-        if not os.path.isdir(self.local_cache):
-            return 0
+        """Bounded replay; retain both original events and acknowledgements permanently."""
         try:
-            factory = get_session_factory()
-        except Exception as e:  # noqa: BLE001
-            logger.warning("AUDIT_REPLAY_DATABASE_UNAVAILABLE")
+            records = await asyncio.to_thread(self.store.pending, 'audit')
+        except Exception:
+            logger.error('AUDIT_REPLAY_STORE_UNAVAILABLE')
             return 0
-
-        synced_count = 0
-        for filename in sorted(os.listdir(self.local_cache)):
-            if not filename.endswith(".json"):
-                continue
-            file_path = os.path.join(self.local_cache, filename)
+        synced = 0
+        for item in records:
             try:
-                with open(file_path, encoding="utf-8") as f:
-                    record = redact_value(json.load(f))
-                async with factory() as session:
-                    await session.execute(
-                        text(
-                            "INSERT INTO audit_logs (event_type, session_id, user_id, "
-                            "tool_name, input_summary, output_summary, success, "
-                            "latency_ms, payload) "
-                            "VALUES (:event_type, :session_id, :user_id, :tool_name, "
-                            ":input_summary, :output_summary, :success, :latency_ms, "
-                            "CAST(:payload AS JSONB))"
-                        ),
-                        {
-                            "event_type": record.get("event_type", "unknown"),
-                            "session_id": record.get("session_id"),
-                            "user_id": record.get("user_id"),
-                            "tool_name": record.get("tool_name"),
-                            "input_summary": (record.get("input_summary") or "")[:500],
-                            "output_summary": (record.get("output_summary") or "")[:500],
-                            "success": record.get("success"),
-                            "latency_ms": record.get("latency_ms"),
-                            "payload": (
-                                json.dumps(record.get("payload"), ensure_ascii=False)
-                                if record.get("payload") is not None
-                                else None
-                            ),
-                        },
-                    )
-                    await session.commit()
-                os.remove(file_path)
-                synced_count += 1
-            except Exception as e:  # noqa: BLE001 单条失败保留文件,下次重试
-                logger.warning("AUDIT_REPLAY_FAILED")
-        if synced_count:
-            logger.info(f"审计缓存回写完成: {synced_count} 条")
-        return synced_count
+                await self._write_database(redact_value(item['body']))
+                await asyncio.to_thread(self.store.acknowledge, item['event_id'])
+                synced += 1
+            except Exception:
+                logger.warning('AUDIT_REPLAY_FAILED')
+                try:
+                    await asyncio.to_thread(self.store.defer, item['event_id'])
+                except Exception:
+                    logger.error('AUDIT_REPLAY_STORE_UNAVAILABLE')
+        return synced
 
-    async def _send_alert(self, message: str):
-        """告警(实际接入告警系统)"""
-        logger.error(f"[AUDIT ALERT] {message}")
+    async def health(self) -> dict[str, Any]:
+        try:
+            stats = await asyncio.to_thread(self.store.stats)
+            return {**stats, 'status': 'healthy' if not self.unretained else 'unhealthy',
+                    'unretained': self.unretained}
+        except Exception:
+            return {'status': 'unhealthy', 'unretained': self.unretained}
 
     # ============ 便捷方法 ============
 
@@ -246,7 +154,7 @@ class AuditLogger:
         )
 
 
-# 全局单例
+
 _audit_logger: Optional[AuditLogger] = None
 
 
@@ -258,7 +166,6 @@ def get_audit_logger() -> AuditLogger:
 
 
 def init_audit_logger() -> AuditLogger:
-    """初始化审计日志器(应用启动时调用,init_db 之后)"""
     global _audit_logger
     _audit_logger = AuditLogger()
     return _audit_logger

@@ -121,16 +121,13 @@ def get_tracer():
 
 def instrument_fastapi(app):
     """FastAPI 应用 instrumentation(在 create_app 后调用)"""
-    if _tracer is None:
-        return
-
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
         FastAPIInstrumentor.instrument_app(app)
         logger.info("FastAPI instrumentation 已启用")
-    except Exception as e:
-        logger.warning(f"FastAPI instrumentation 失败: {e}")
+    except Exception:
+        logger.warning("FASTAPI_INSTRUMENTATION_UNAVAILABLE")
 
 
 # ============ 便捷装饰器 ============

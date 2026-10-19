@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import ast
-from contextlib import ExitStack, asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager, nullcontext
 from copy import deepcopy
 import json
 from pathlib import Path
@@ -145,7 +145,9 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
             'app.security.rbac':module('app.security.rbac',AgentRole=NS(ADMIN='admin'),resolve_active_user=self.resolve),
             'app.rag.ingest':module('app.rag.ingest',MilvusIngestService=self.service),
             'app.rag.model_profile':module('app.rag.model_profile',verify_model_startup=self.verify),
-            'app.observability.audit':module('app.observability.audit',init_audit_logger=self.init_audit),
+            'app.observability.audit':module('app.observability.audit',init_audit_logger=self.init_audit, get_audit_logger=lambda:NS(log=AsyncMock())),
+            'app.observability.tracing':module('app.observability.tracing',init_tracing=Mock(),traced_span=lambda *a:nullcontext()),
+            'app.observability.service':module('app.observability.service',replay_loop=AsyncMock(),serve_worker_observations=AsyncMock()),
             'app.tools.base':module('app.tools.base',init_all_tools=self.init_tools),
             'app.core.milvus_client':module('app.core.milvus_client',init_milvus=self.init_milvus,close_milvus=self.close_milvus),
             'app.core.approval_timeout':module('app.core.approval_timeout',scan_expired_approvals=AsyncMock()),
@@ -153,6 +155,7 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         redaction=load('app.security.redaction','app/security/redaction.py')
         redaction.install_log_redaction=Mock()
         self.ops=load('app.core.tool_operations','app/core/tool_operations.py')
+        load('app.observability.correlation','app/observability/correlation.py')
         self.queue=load('app.core.task_queue','app/core/task_queue.py')
         self.knowledge=load('app.core.knowledge_jobs','app/core/knowledge_jobs.py')
         self.worker=load('app.worker','app/worker.py')

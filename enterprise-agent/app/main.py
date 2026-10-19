@@ -1,7 +1,7 @@
 """FastAPI 主应用入口"""
 
 from contextlib import asynccontextmanager
-import uuid
+import asyncio
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +19,7 @@ from app import __version__
 from app.core.database import init_db
 from app.core.milvus_client import init_milvus
 from app.middleware.rate_limit import rate_limit_middleware
-from app.observability.metrics import metrics_middleware
+from app.observability.metrics import MetricsMiddleware
 
 
 @asynccontextmanager
@@ -61,10 +61,8 @@ async def lifespan(app: FastAPI):
             )
 
     # 初始化 OpenTelemetry tracing(启动早期,捕获后续所有 span)
-    from app.observability.tracing import init_tracing, instrument_fastapi
+    from app.observability.tracing import init_tracing
     tracing_enabled = init_tracing(service_name="enterprise-agent")
-    if tracing_enabled:
-        instrument_fastapi(app)
     logger.info(f"OpenTelemetry tracing: {'已启用' if tracing_enabled else '未启用'}")
 
     # 初始化数据库连接池
@@ -74,11 +72,14 @@ async def lifespan(app: FastAPI):
     from app.graph.checkpointer import get_checkpointer, reset_checkpointer
     from app.core.database import close_db
 
+    audit_replay = None
     try:
         await get_checkpointer()
         # 初始化审计日志器(写 PG,失败本地兜底;需在 init_db 之后)
         from app.observability.audit import init_audit_logger
-        init_audit_logger()
+        audit = init_audit_logger()
+        from app.observability.service import replay_loop
+        audit_replay = asyncio.create_task(replay_loop(audit), name="api-audit-replay")
         logger.info("审计日志器已初始化")
 
         # 初始化 Milvus(集合不存在则创建;memory 后端跳过)
@@ -104,6 +105,9 @@ async def lifespan(app: FastAPI):
 
         yield
     finally:
+        if audit_replay is not None:
+            audit_replay.cancel()
+            await asyncio.gather(audit_replay, return_exceptions=True)
         try:
             await reset_checkpointer()
         finally:
@@ -144,18 +148,6 @@ def create_app() -> FastAPI:
             return RedirectResponse(clean_path, status_code=307)
         return await call_next(request)
 
-    @app.middleware("http")
-    async def trace_request_id(request, call_next):
-        """全链路请求 ID:透传/生成 X-Request-ID,响应头回写
-
-        排障时按 request_id 聚合日志与审计;缺失时生成 uuid4。
-        """
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
-        request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
-
     cors_origins = [
         origin.strip()
         for origin in settings.cors_allow_origins.split(",")
@@ -178,9 +170,6 @@ def create_app() -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
-    # 指标采集中间件
-    app.middleware("http")(metrics_middleware)
 
     # 限流中间件(Redis 优先,内存降级;async/await 无回调)
     app.middleware("http")(rate_limit_middleware)
@@ -207,18 +196,9 @@ def create_app() -> FastAPI:
 
     @app.get("/ready", tags=["运维"])
     async def ready():
-        from app.core.database import check_db_health
-        from app.core.milvus_client import check_milvus_health
-        from app.graph.checkpointer import get_checkpointer_backend
-        from app.tools.base import list_tools
-
-        checkpointer_backend = get_checkpointer_backend() or "未初始化"
-        return {
-            "db": await check_db_health(),
-            "milvus": await check_milvus_health(),
-            "checkpointer": checkpointer_backend,
-            "tools_count": len(list_tools()),
-        }
+        from app.observability.readiness import collect_readiness
+        result = await collect_readiness()
+        return JSONResponse(result, status_code=200 if result['status'] == 'ready' else 503)
 
     @app.get("/metrics", tags=["运维"], include_in_schema=False)
     async def metrics():
@@ -226,6 +206,8 @@ def create_app() -> FastAPI:
         from fastapi import Response
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+        from app.observability.readiness import collect_readiness
+        await collect_readiness()
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     @app.exception_handler(RequestValidationError)
@@ -241,6 +223,10 @@ def create_app() -> FastAPI:
             logger.error("REQUEST_FAILED")
             return JSONResponse(status_code=500, content={"detail": "REQUEST_FAILED"})
 
+    # Register before Starlette builds its middleware stack; the SDK starts in lifespan.
+    from app.observability.tracing import instrument_fastapi
+    instrument_fastapi(app)
+    app.add_middleware(MetricsMiddleware)  # Outermost user middleware covers full response sending.
     return app
 
 

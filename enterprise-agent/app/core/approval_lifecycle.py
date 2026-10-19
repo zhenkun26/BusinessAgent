@@ -23,11 +23,12 @@ async def load_locked(db: Any, approval_id: str) -> Any:
 
 
 async def event(db: Any, row: Any, actor: str, state: str) -> None:
+    from app.observability.correlation import snapshot
     await db.execute(text('''INSERT INTO audit_logs
         (event_type, session_id, user_id, success, payload)
         VALUES ('approval_transition', :sid, :uid, :success, CAST(:payload AS JSONB))'''), {
             'sid': row.session_id, 'uid': actor, 'success': state == 'executed',
-            'payload': canonical({'approval_id': row.approval_id, 'new_status': state,
+            'payload': canonical({**snapshot(), 'approval_id': row.approval_id, 'new_status': state,
                 'decided_by': row.approver_id, 'execution_id': str(row.execution_id) if
                 row.execution_id else None, 'execution_authorization': 'requester_confirmation_required'})})
 

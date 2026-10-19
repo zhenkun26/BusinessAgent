@@ -194,4 +194,6 @@ C18 完整集成离线候选：[实施/隔离/验收指南](docs/50-engineering/
 
 C19 离线候选：[受控 SSO 指南](docs/50-engineering/controlled-sso.md)、[交付记录](docs/40-process/阶段性总结_C19受控IdP与SSO完整链路.md)、[专项入口](enterprise-agent/eval/run_c19_controlled_sso.py)；37 项专项及 136 项相关回归 PASS，S01–S16/真实签名/浏览器/Linux BLOCKED，C10/C21 及此前运行边界保留；`4afe54b` 已推送并核验，C20 见下文。
 
-C20 离线候选：[浏览器交付指南](docs/50-engineering/browser-delivery.md)、[交付记录](docs/40-process/阶段性总结_C20浏览器角色流程与前端交付.md)、[专项入口](enterprise-agent/tests/test_browser_delivery.cjs)、[资源检查](enterprise-agent/scripts/verify_frontend_assets.py)；45 项专项及 134 项相关回归 PASS，B01–B16/S01–S16/R01–R20/真实运行/完整 RAG BLOCKED，C10/C21 边界不变；本地提交后暂停，推送/C21 待确认。
+C20 离线候选：[浏览器交付指南](docs/50-engineering/browser-delivery.md)、[交付记录](docs/40-process/阶段性总结_C20浏览器角色流程与前端交付.md)、[专项入口](enterprise-agent/tests/test_browser_delivery.cjs)、[资源检查](enterprise-agent/scripts/verify_frontend_assets.py)；45 项专项及 134 项相关回归 PASS，B01–B16/S01–S16/R01–R20/真实运行/完整 RAG BLOCKED，C10/C21 边界不变；`44bfcb0` 已按后续授权推送并核验；C21 见下文。
+
+C21 离线候选：[运行可观测性契约](docs/50-engineering/runtime-observability.md)、[交付记录](docs/40-process/阶段性总结_C21就绪审计指标与告警.md)、[专项入口](enterprise-agent/eval/run_c21_runtime_observability.py)；45 项专项及 362 项相关回归 PASS，另 1 项 PyYAML 检查跳过；O01–O16/B01–B16/S01–S16/R01–R20/真实运行/完整 RAG BLOCKED，C10 写入竞态不关闭。仅本地提交、不推送，C22 待确认。

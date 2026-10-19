@@ -15,6 +15,7 @@
 | 工程交付基线 | [engineering-delivery-baseline.md](engineering-delivery-baseline.md) | 单组织单机支持边界、参考集成、验收证据与工程完成条件 |
 | 离线安全验证入口 | [safe-validation.md](safe-validation.md) | C24 前置：允许范围、副作用审查、执行方式、输出状态与限制 |
 | 工具幂等与重试 | [tool-operation-safety.md](tool-operation-safety.md) | C12 动作身份、持久发送与回执；真实运行 BLOCKED |
+| 运行可观测性候选 | [runtime-observability.md](runtime-observability.md) | 就绪、保留式审计、关联、指标、受控告警与 O01–O16 运行阻塞 |
 | 浏览器交付候选 | [browser-delivery.md](browser-delivery.md) | 固定本地依赖、角色/UI/API-only 边界与 B01–B16 运行阻塞 |
 | 受控 SSO 候选 | [controlled-sso.md](controlled-sso.md) | 独立 IdP、严格验签/PKCE/身份映射与 S01–S16 运行阻塞 |
 | 完整参考 HTTP 候选 | [reference-integration.md](reference-integration.md) | 独立服务、隔离部署配方、应用证据与 R01–R20 运行阻塞 |

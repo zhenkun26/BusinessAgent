@@ -4,7 +4,7 @@
 # - 资源限制(deploy.resources):CPU/内存上限,防止单容器拖垮整机
 # - 日志驱动(logging):json-file + 大小限制,防磁盘写爆
 # - 重启策略(restart):unless-stopped,异常自动拉起
-# - 健康检查:API 使用镜像探针;worker 专用探针待 C14/C21,不复用 HTTP 探针
+# - 健康检查:API 使用镜像存活探针;worker 使用独立 8001/ready 就绪探针
 # - 端口:仅暴露必要端口(API/监控),内部服务不对外
 # - 时区:统一 Asia/Shanghai
 # - 应用产物:API/worker 同一摘要镜像,不挂载宿主源码
@@ -210,6 +210,9 @@ services:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
       TZ: Asia/Shanghai
+      OBSERVABILITY_STORE_PATH: /data/observability/state.sqlite3
+    volumes:
+      - audit_state:/data/observability
     depends_on:
       milvus-standalone:
         condition: service_healthy
@@ -245,6 +248,9 @@ services:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
       TZ: Asia/Shanghai
+      OBSERVABILITY_STORE_PATH: /data/observability/state.sqlite3
+    volumes:
+      - audit_state:/data/observability
     depends_on:
       milvus-standalone:
         condition: service_healthy
@@ -253,10 +259,13 @@ services:
       redis:
         condition: service_healthy
     command: python -m app.worker
-    # Dockerfile.prod checks API HTTP; the worker has no HTTP listener.
-    # A dedicated worker readiness signal is tracked by C14/C21.
+    expose: ["8001"]
     healthcheck:
-      disable: true
+      test: ["CMD", "python", "-B", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready', timeout=6)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
     logging:
       driver: json-file
@@ -378,6 +387,7 @@ services:
     profiles: ["monitoring"]
 
 volumes:
+  audit_state:
   etcd_data:
   minio_data:
   milvus_data:

@@ -24,10 +24,12 @@ SPEC.loader.exec_module(contract)
 def model() -> dict:
     api = {
         "image": "registry.example.invalid/businessagent@sha256:" + "a" * 64,
-        "volumes": [{"type": "volume", "target": "/data/hf_cache", "source": "hf_cache"}],
+        "volumes": [{"type": "volume", "target": "/data/observability", "source": "audit_state"}],
     }
+    api["environment"] = {"OBSERVABILITY_STORE_PATH": "/data/observability/state.sqlite3"}
     worker = copy.deepcopy(api)
-    worker["healthcheck"] = {"disable": True}
+    worker["healthcheck"] = {"test": ["CMD", "python", "-B", "-c",
+        "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready', timeout=6)"]}
     return {"services": {"api": api, "worker": worker}}
 
 
@@ -44,9 +46,9 @@ class DeploymentContractTests(unittest.TestCase):
         self.assertEqual(api["image"], worker["image"])
         for service in (api, worker):
             self.assertNotIn("build", service)
-            self.assertFalse(service.get("volumes"))  # C02 remote profile has no model mounts.
+            self.assertEqual(service.get("volumes"), ["audit_state:/data/observability"])
             self.assertFalse(service.get("ports"))
-        self.assertIs(worker["healthcheck"]["disable"], True)
+        self.assertEqual(worker["healthcheck"]["test"], model()["services"]["worker"]["healthcheck"]["test"])
 
     def test_accepts_shared_digest_without_code_overlay(self) -> None:
         self.assertEqual(contract.check_contract(model())["overall_status"], "PASS")
@@ -78,9 +80,22 @@ class DeploymentContractTests(unittest.TestCase):
         config["services"]["worker"]["healthcheck"] = {"disable": False}
         self.assertEqual(contract.check_contract(config)["overall_status"], "FAIL")
 
+    def test_rejects_nonshared_or_readonly_audit_volume(self) -> None:
+        for change in ({"source": "other"}, {"read_only": True}):
+            config = model()
+            config['services']['worker']['volumes'][0].update(change)
+            self.assertEqual(contract.check_contract(config)['overall_status'], 'FAIL')
+
+    def test_second_api_is_subject_to_same_artifact_contract(self) -> None:
+        config = model()
+        config['services']['api2'] = copy.deepcopy(config['services']['api'])
+        self.assertEqual(contract.check_contract(config)['overall_status'], 'PASS')
+        config['services']['api2']['image'] = 'repo:latest'
+        self.assertEqual(contract.check_contract(config)['overall_status'], 'FAIL')
+
     def test_cli_never_echoes_environment_or_invalid_input(self) -> None:
         config = model()
-        config["services"]["api"]["environment"] = {"SECRET": "SYNTHETIC_PRIVATE_VALUE"}
+        config["services"]["api"]["environment"]["SECRET"] = "SYNTHETIC_PRIVATE_VALUE"
         for content, expected in [(json.dumps(config), 0), ("SYNTHETIC_PRIVATE_VALUE", 1)]:
             with patch.object(contract.sys, "stdin", io.StringIO(content)), \
                     redirect_stdout(io.StringIO()) as output:

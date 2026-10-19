@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ast
+import sqlite3
+import asyncio
 from contextlib import ExitStack, nullcontext
 from datetime import datetime
 from enum import Enum
@@ -66,7 +68,14 @@ class DiagnosticSafetyTests(unittest.IsolatedAsyncioTestCase):
             'sqlalchemy': module('sqlalchemy', text=lambda s: s),
             'app.core.database': module('app.core.database', get_session_factory=lambda: lambda: session),
         }))
-        self.audit = load('c06_audit', 'app/observability/audit.py').AuditLogger()
+        self.stack.enter_context(patch.dict(sys.modules, {
+            'app.observability.correlation': load('c06_correlation', 'app/observability/correlation.py'),
+            'app.observability.retained': load('c06_retained', 'app/observability/retained.py'),
+        }))
+        async def inline(fn, *args, **kwargs):
+            return fn(*args, **kwargs)
+        self.stack.enter_context(patch.object(asyncio, 'to_thread', inline))
+        self.audit = load('c06_audit', 'app/observability/audit.py').AuditLogger(store=Mock())
 
     def assert_safe(self, value: Any) -> None:
         text = str(value)
@@ -149,21 +158,15 @@ class DiagnosticSafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assert_safe(self.log.mock_calls)
 
     async def test_local_cache_write_and_replay_sanitize_in_memory(self) -> None:
-        globals_ = self.audit._write_local_cache.__func__.__globals__
-        fake_os = SimpleNamespace(makedirs=Mock(), listdir=lambda _: ['synthetic.json'],
-            remove=Mock(), path=SimpleNamespace(isdir=lambda _: True, join=lambda *parts: '/'.join(parts)))
-        with patch.dict(globals_, {'os': fake_os}):
-            sink = MemoryFile()
-            with patch('builtins.open', return_value=sink):
-                await self.audit._write_local_cache({'event_type': 'synthetic', 'password': MARKER})
-            self.assert_safe(sink.getvalue())
-            legacy = {'event_type': 'synthetic', 'input_summary': 'Bearer ' + MARKER,
-                      'payload': {'token': JWT_MARKER}}
-            with patch('builtins.open', return_value=MemoryFile(json.dumps(legacy))):
-                self.assertEqual(await self.audit.flush_local_cache(), 1)
-            self.assert_safe(self.db.execute.await_args.args[1])
-            # The removal target is a Mock; no filesystem was accessed or deleted.
-            fake_os.remove.assert_called_once_with('logs/audit/synthetic.json')
+        await self.audit.log('synthetic', input_summary='Bearer ' + MARKER,
+                             payload={'token': JWT_MARKER})
+        record = self.audit.store.append.call_args.args[2]
+        self.assert_safe(record)
+        self.audit.store.pending.return_value = [{'event_id': record['event_id'], 'body': record}]
+        self.assertEqual(await self.audit.flush_local_cache(), 1)
+        self.assert_safe(self.db.execute.await_args.args[1])
+        self.audit.store.acknowledge.assert_called_with(record['event_id'])
+        self.assertNotIn('os.remove', (ROOT / 'app/observability/audit.py').read_text())
 
     async def test_http_errors_never_return_body_or_url_credentials(self) -> None:
         for status in (400, 401, 403, 422, 503):

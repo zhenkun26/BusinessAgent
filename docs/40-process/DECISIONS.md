@@ -428,3 +428,25 @@
 - **Boundary**: C19 `4afe54b` was pushed with authorization. C20 stops at a local commit;
   its push/C21 need confirmation. S01–S16/R01–R20/full RAG remain BLOCKED, C10 writing
   is still open, C21 audit replay deferred. No application launch or filesystem deletion.
+
+
+## 38. C21: retained audit, explicit readiness and bounded observations
+
+- **Need**: liveness-only readiness, deleting audit cache replay, raw-path labels and partial
+  process metrics cannot establish the current delivery contract.
+- **Choice**: bounded capability probes with 200/503; internal worker observation with supervisor
+  signal ownership; single-host shared PERSIST/FULL SQLite outbox with stable PG UUID deduplication,
+  retained acknowledgements and fair bounded replay. Historical imports require reviewed hashes and
+  reconciliation; migration 7 is additive and every manifest SQL file is packaged.
+- **Observations**: server request/task context, worker origin attributes and approval/tool links;
+  pure ASGI full-body/header timing, bounded labels, separate process scrapes, max shared gauges.
+  Remove metrics without producers. Controlled monitor/receiver retain fault/recovery identities;
+  Prometheus evaluation is separate and does not imply external notification receipt.
+- **Tradeoffs**: no distributed audit transaction or losslessness under both-storage failure;
+  unretained counters are process-local. Unbounded disk growth requires capacity supervision;
+  no cleanup. No multi-host HA, automatic OTEL parent propagation or self-monitoring guarantee.
+- **Verification**: 45 focused + 362 related offline cases PASS; one PyYAML case skipped and
+  six YAML files parsed separately with Ruby. Physical retention, faults, full traces, scrapes
+  and receiver delivery await O01–O16. Full pytest/strict OpenSpec/Compose/promtool are BLOCKED.
+- **Boundary**: C20 `44bfcb0` pushed with authorization. C21 local commit only, no push/C22;
+  prior B/S/R/full-RAG/historical gates and C10 writing remain unresolved.

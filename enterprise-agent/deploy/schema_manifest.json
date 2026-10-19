@@ -36,6 +36,12 @@
       "name": "knowledge_publication",
       "file": "006_knowledge_publication.sql",
       "sha256": "52ff47563aad423e62fdd018fccf3403bd6532dd4404e80c5caa171873ee618d"
+    },
+    {
+      "version": 7,
+      "name": "audit_identity",
+      "file": "007_audit_identity.sql",
+      "sha256": "37a67f266c8141c8faca6ff3282f1413845ed6948c952646c3568378266a1243"
     }
   ],
   "columns": {
@@ -225,6 +231,23 @@
       },
       "created_at": {
         "type": "timestamp"
+      },
+      "event_id": {
+        "type": "uuid"
+      },
+      "occurred_at": {
+        "type": "timestamptz"
+      },
+      "request_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "trace_id": {
+        "type": "varchar",
+        "length": 32
+      },
+      "task_id": {
+        "type": "uuid"
       }
     },
     "user_memories": {
@@ -504,6 +527,14 @@
       },
       "updated_at": {
         "type": "timestamptz"
+      },
+      "originating_request_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "originating_trace_id": {
+        "type": "varchar",
+        "length": 32
       }
     },
     "task_consumers": {
@@ -649,7 +680,10 @@
     "idx_approval_reconcile": false,
     "knowledge_publications_pkey": true,
     "knowledge_publications_document_id_input_hash_key": true,
-    "idx_publication_document": false
+    "idx_publication_document": false,
+    "idx_audit_event_id": true,
+    "idx_audit_request": false,
+    "idx_audit_task": false
   },
   "legacy_columns": {
     "users": {

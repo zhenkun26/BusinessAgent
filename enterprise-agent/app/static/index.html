@@ -581,9 +581,11 @@
         <div class="stat-grid">
           <div class="stat"><div class="k">数据库</div><div class="v" :class="status.db?.status==='healthy'?'ok':'bad'">{{ status.db?.status || '-' }}</div></div>
           <div class="stat"><div class="k">Milvus</div><div class="v" :class="status.milvus?.status==='healthy'?'ok':'bad'">{{ status.milvus?.status || '-' }}</div></div>
-          <div class="stat"><div class="k">文档实体数</div><div class="v">{{ status.milvus?.num_entities ?? '-' }}</div></div>
-          <div class="stat"><div class="k">Checkpointer</div><div class="v" :class="(status.checkpointer === 'redis' || status.checkpointer === 'postgres') ? 'ok' : 'bad'">{{ status.checkpointer || '-' }}</div></div>
-          <div class="stat"><div class="k">注册工具</div><div class="v">{{ status.tools_count ?? '-' }}</div></div>
+          <div class="stat"><div class="k">Redis</div><div class="v">{{ status.redis?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">Checkpointer</div><div class="v" :class="status.checkpointer?.status==='healthy' ? 'ok' : 'bad'">{{ status.checkpointer?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">工具就绪</div><div class="v">{{ status.tools?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">Worker</div><div class="v">{{ status.workers?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">待回写审计</div><div class="v">{{ status.audit?.pending ?? '-' }}</div></div>
         </div>
       </div></div>
     </div>
@@ -1270,7 +1272,7 @@ createApp({
     },
 
     // ===== component observations; C21 remains open =====
-    async loadStatus() { return this.loadView('status', '/ready', d => d); },
+    async loadStatus() { return this.loadView('status', '/ready', d => d.components); },
     async openDocsTab() {
       if (!this.isAdmin) return;
       this.refTab = 'docs'; await this.loadDocuments();

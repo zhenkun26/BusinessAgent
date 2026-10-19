@@ -19,16 +19,16 @@ groups:
     rules:
       - alert: ApiP95LatencySlaBreached
         # 核心接口 p95 超过 SLA 初值 2s
-        expr: histogram_quantile(0.95, sum(rate(agent_http_request_latency_seconds_bucket[5m])) by (le)) > 2
+        expr: histogram_quantile(0.95, sum(rate(agent_http_request_latency_seconds_bucket{path!="/api/v1/chat/stream"}[5m])) by (le)) > 2
         for: 15m
         labels:
           severity: warning
         annotations:
           summary: "API p95 延迟越过 SLA 初值(2s)"
-          basis: "SLA 口径:production-readiness 初值 p95 ≤ 2s(对话类接口以首 token 计,本指标为完整响应,更严)"
+          basis: "SLA 口径:production-readiness 初值 p95 ≤ 2s(本指标为非 SSE 完整响应;SSE 完整耗时与 TTFT 不混用)"
 
       - alert: ApiP99LatencySlaBreached
-        expr: histogram_quantile(0.99, sum(rate(agent_http_request_latency_seconds_bucket[5m])) by (le)) > 5
+        expr: histogram_quantile(0.99, sum(rate(agent_http_request_latency_seconds_bucket{path!="/api/v1/chat/stream"}[5m])) by (le)) > 5
         for: 15m
         labels:
           severity: warning
@@ -73,7 +73,7 @@ groups:
           basis: "运维口径:服务不可用即处置(DEPLOY.md 健康检查 /health)"
 
       - alert: ApiP95LatencyHigh
-        expr: histogram_quantile(0.95, sum(rate(agent_http_request_latency_seconds_bucket[5m])) by (le)) > 5
+        expr: histogram_quantile(0.95, sum(rate(agent_http_request_latency_seconds_bucket{path!="/api/v1/chat/stream"}[5m])) by (le)) > 5
         for: 10m
         labels:
           severity: critical
@@ -165,3 +165,35 @@ groups:
         annotations:
           summary: "主机内存使用率超过 90%,临近耗尽"
           basis: "运维口径:内存耗尽前置处置线(参考 DEPLOY.md 2.1 内存占用构成)"
+
+  # C21 per-process observations; the controlled monitor has a separate receiver path.
+  - name: delivery-capabilities
+    rules:
+      - alert: RequiredDependencyUnavailable
+        expr: agent_dependency_ready == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Required capability unavailable on a scraped process"
+      - alert: WorkerObservationUnavailable
+        expr: up{job="enterprise-worker"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Worker observation endpoint unavailable"
+      - alert: AuditReplayLag
+        expr: max(agent_audit_oldest_seconds) > 60
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Retained audit delivery is overdue"
+      - alert: StreamTransportAborted
+        expr: sum(rate(agent_http_outcomes_total{path="/api/v1/chat/stream",outcome!="complete"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSE transport ended before full body completion; not a business result"

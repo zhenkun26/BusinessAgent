@@ -211,7 +211,7 @@ curl -k https://localhost/health
 
 # 4. 就绪检查：不能仅看 HTTP 200，当前状态码语义修复由 C21 承接
 curl -k https://localhost/ready
-# 核对 db/milvus/checkpointer 的实际状态；未初始化或降级不能记为 ready
+# 核对 components 下 db/redis/milvus/checkpointer/tools/workers/audit；全部 healthy 才是 200，否则 503
 
 # 5. 文档与 schema
 curl -k https://localhost/docs
@@ -230,7 +230,7 @@ API 与 worker 的实际 image ID 必须一致，并与审查记录中的 regist
 
 浏览器人工验收仍必需：从 HTTPS 根路径进入 UI，完成授权测试账户登录，发起一条已批准的无副作用知识问答；开发者工具确认 `/api/v1/chat/stream` 返回事件流，观察增量事件而非结束后一次性出现；确认文档页成功加载 schema。记录实际角色、环境、首事件时间、结束状态与来源，不在截图中显示凭证。本机缺少目标运行环境，这些步骤尚未执行。
 
-worker 使用相同应用镜像但运行 `python -m app.worker`，没有 HTTP 监听；已禁用镜像中 API 的 `/health` 探针，**不表示 worker 已健康**，C14 已提供 `/api/v1/admin/task-consumers` 进度心跳查询（需 admin，45 秒内 fresh），必须核对当前 worker 的两类消费者；它不是容器健康探针。真实消费与 C21 完整就绪/告警仍待验收，见[队列契约](../../docs/50-engineering/queue-reliability.md)。新候选要求显式迁移 v3；旧 Redis List 不自动迁移或删除。
+worker 使用同一应用镜像运行 `python -m app.worker`，C21 候选新增内部 8001 的 `/health`、`/ready`、`/metrics`，容器探针只调用自己的 `/ready`。API/worker 的必需依赖失败返回 503；API 会观察共享的两类消费者，worker 只观察自己的 UUID（75 秒窗口），不替代 admin 进度查询的 45 秒 fresh 指示。新候选要求显式迁移 v7，并共享 `audit_state` 保留式审计卷。真实就绪/持久化/告警验收仍 BLOCKED；双 API 独立采集与受控接收配方见 [C21 契约](../../docs/50-engineering/runtime-observability.md)，队列规则见[队列契约](../../docs/50-engineering/queue-reliability.md)。旧 Redis List 不搬迁或删除。
 
 ### 4.4 知识数据与镜像内容边界
 

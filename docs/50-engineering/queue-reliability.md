@@ -10,7 +10,7 @@ existing dependencies and lets the business transition and enqueue share one com
 Migration v3 adds jobs and consumer progress; v1/v2 bytes remain immutable. Apply only
 through the [explicit bootstrap workflow](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)
 in a separately authorized isolated candidate. No migration was executed this round.
-C13 adds v4, C11 v5 and C15 v6; API and worker require the current manifest before work.
+C13 adds v4, C11 v5, C15 v6 and C21 v7; API and worker require the current manifest before work.
 
 Each job has a UUID, unique logical scope, frozen payload hash, attempt count, state,
 owner token, database-clock deadline and safe error code. Success and failure rows
@@ -104,9 +104,11 @@ retry and remain visible after exhaustion. See [Saga recovery](saga-recovery.md)
 Admin `GET /api/v1/admin/sagas/{saga_id}` joins safe Saga/step and recovery-job metadata.
 Legacy rows and arbitrary compensation payloads are refused, not silently imported.
 
-The legacy audit cache flusher deletes files. This worker no longer invokes it; files
-remain untouched and unsynchronized until C21 delivers a reviewed non-deleting path.
-Do not run legacy cache replay as a workaround.
+C21 now supplies a supervised retained-audit replay loop and internal worker observations
+on port 8001. New events use a shared retained volume and PG identity deduplication. Historical
+JSON files remain untouched; import requires explicit reviewed-copy reconciliation. See the
+[runtime observability contract](runtime-observability.md). Physical recovery/readiness/alerts
+remain BLOCKED; this does not accept C14/C21 or authorize a worker launch.
 
 Redis remains required for checkpoint, cancellation and SSO. Its outage cannot lose
 PostgreSQL queue rows, but can still block the application. Existing Redis Lists are

@@ -50,13 +50,16 @@ def validate_job(queue_name: str, scope: str, payload: dict[str, Any]) -> str:
 async def enqueue_task(session: Any, queue_name: str, scope: str,
                        payload: dict[str, Any]) -> dict[str, Any]:
     """Caller owns the transaction: commit together with the business transition."""
+    from app.observability.correlation import snapshot
+    correlation = snapshot()
     digest = validate_job(queue_name, scope, payload)
     await session.execute(text("""INSERT INTO task_jobs
-        (task_id, queue_name, scope_key, payload, payload_hash)
-        VALUES (:tid, :queue, :scope, CAST(:payload AS JSONB), :hash)
+        (task_id, queue_name, scope_key, payload, payload_hash, originating_request_id, originating_trace_id)
+        VALUES (:tid, :queue, :scope, CAST(:payload AS JSONB), :hash, :request_id, :trace_id)
         ON CONFLICT (scope_key) DO NOTHING"""), {
             "tid": str(uuid.uuid4()), "queue": queue_name, "scope": scope,
             "payload": canonical(payload), "hash": digest,
+            "request_id": correlation["request_id"], "trace_id": correlation["trace_id"],
         })
     row = (await session.execute(text("SELECT * FROM task_jobs WHERE scope_key = :scope"),
                                  {"scope": scope})).mappings().first()
@@ -182,8 +185,28 @@ async def execute_claim(store: TaskStore, job: dict[str, Any],
             payload = json.loads(payload)
         if validate_job(job["queue_name"], job["scope_key"], payload) != job["payload_hash"]:
             raise TaskRejected("TASK_INPUT_INVALID")
-        async with asyncio.timeout(300):
-            await handler(payload)
+        from app.observability.correlation import request_id, task_id
+        from app.observability.audit import get_audit_logger
+        from app.observability.tracing import traced_span
+        rt = request_id.set(job.get('originating_request_id') or '')
+        tt = task_id.set(str(job['task_id']))
+        audit = get_audit_logger()
+        details = {'queue': job['queue_name'], 'scope': job['scope_key'],
+                   'originating_trace_id': job.get('originating_trace_id')}
+        try:
+            with traced_span('worker.task', {'task_id': str(job['task_id']), **details}):
+                await audit.log('worker_task_started', payload=details)
+                try:
+                    async with asyncio.timeout(300):
+                        await handler(payload)
+                except BaseException:
+                    await audit.log('worker_task_interrupted', payload=details, success=False)
+                    raise
+                else:
+                    await audit.log('worker_task_handler_returned', payload=details, success=True)
+        finally:
+            task_id.reset(tt)
+            request_id.reset(rt)
 
     execution = asyncio.create_task(invoke())
     renewal = asyncio.create_task(keep_lease())

@@ -137,43 +137,40 @@ async def test_worker_cannot_report_compensated_without_durable_inverse(
 
 @pytest.mark.asyncio
 async def test_should_cache_and_resync_audit_when_db_unavailable(
-    monkeypatch,
-    tmp_path,
-    fake_session_factory,
+    monkeypatch, fake_session_factory,
 ):
-    """Given 数据库不可用, When 写工单调用审计,
-    Then 写本地缓存;数据库恢复后 flush 回写并删除缓存文件"""
-    audit = AuditLogger(local_cache_path=str(tmp_path))
-
-    def broken_factory() -> Any:
-        raise RuntimeError("database is down")
-
-    monkeypatch.setattr("app.core.database.get_session_factory", broken_factory)
-    await audit.log_tool_call(
-        tool_name="create_ticket",
-        success=True,
-        payload={"provider": "http", "idempotency_key": "ticket-req003-abcd1234"},
-    )
-
-    cached_files = list(tmp_path.glob("*.json"))
-    assert len(cached_files) == 1
-    record = json.loads(cached_files[0].read_text(encoding="utf-8"))
-    assert record["event_type"] == "tool_call"
-    assert record["tool_name"] == "create_ticket"
-    assert record["payload"]["idempotency_key"] == "ticket-req003-abcd1234"
-
-    # 数据库恢复:worker 周期调用 flush_local_cache 回写
-    session = FakeSession()
-    monkeypatch.setattr(
-        "app.core.database.get_session_factory", fake_session_factory(session)
-    )
-    synced = await audit.flush_local_cache()
-
-    assert synced == 1
-    assert list(tmp_path.glob("*.json")) == []  # 回写成功即删除(标记已同步)
-    insert_params = session.executed_params[0]
-    assert insert_params["tool_name"] == "create_ticket"
-    assert "ticket-req003-abcd1234" in insert_params["payload"]
+    """PG recovery acknowledges an immutable retained event; no file cleanup."""
+    import sqlite3
+    from app.observability.retained import RetainedStore
+    async def inline(function, *args):
+        return function(*args)
+    monkeypatch.setattr("app.observability.audit.asyncio.to_thread", inline)
+    db = sqlite3.connect(':memory:', isolation_level=None)
+    try:
+        store = RetainedStore('unused', connection=db)
+        audit = AuditLogger(store=store)
+        def broken_factory() -> Any:
+            raise RuntimeError("database is down")
+        monkeypatch.setattr("app.core.database.get_session_factory", broken_factory)
+        await audit.log_tool_call(tool_name="create_ticket", success=True,
+            payload={"provider": "http", "idempotency_key": "ticket-req003-abcd1234"})
+        pending = store.pending('audit')
+        assert len(pending) == 1
+        record = pending[0]['body']
+        assert record['event_type'] == 'tool_call'
+        assert record['tool_name'] == 'create_ticket'
+        assert record['payload']['idempotency_key'] == 'ticket-req003-abcd1234'
+        session = FakeSession()
+        monkeypatch.setattr("app.core.database.get_session_factory", fake_session_factory(session))
+        assert await audit.flush_local_cache() == 1
+        assert store.pending('audit') == []
+        assert db.execute('SELECT COUNT(*) FROM retained_events').fetchone()[0] == 1
+        params = session.executed_params[0]
+        assert params['event_id'] == record['event_id']
+        assert params['tool_name'] == 'create_ticket'
+        assert 'ticket-req003-abcd1234' in params['payload']
+    finally:
+        db.close()
 
 
 # ============ Mock implementation regression (gateway covered by C12) ============

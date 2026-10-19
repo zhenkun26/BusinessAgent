@@ -207,6 +207,7 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         sys.modules['app.tools'].reference=self.ref
         self.base=load('app.tools.base','app/tools/base.py')
         self.gateway=load('app.tools.operation_gateway','app/tools/operation_gateway.py')
+        load('app.observability.correlation', 'app/observability/correlation.py')
         self.queue=load('app.core.task_queue','app/core/task_queue.py')
         self.saga_store=load('app.core.saga_store','app/core/saga_store.py')
         self.recovery=load('app.core.saga_retry','app/core/saga_retry.py')

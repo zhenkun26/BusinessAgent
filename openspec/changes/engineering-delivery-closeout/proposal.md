@@ -15,6 +15,8 @@
 
 ### New Capabilities
 
+- `runtime-observability`: C21 dependency readiness, retained audit replay, process-complete metrics and controlled alert delivery.
+
 - `browser-delivery`: C20 pinned self-hosted assets, current-identity UI flows and truthful failure/acceptance states.
 
 - `controlled-sso`: C19 independent retained issuer, strict RS256/PKCE identity mapping and isolated browser acceptance.
@@ -213,3 +215,15 @@ actions, interrupted streams/cancellation and misleading fixture fallbacks. Docu
 administration and a complete role/browser acceptance matrix. Source/VM checks cannot close
 real browser/PG/JWT/API/SSE/Linux, S01–S16, R01–R20 or full RAG. Preserve C10/C21; stop after
 a local C20 commit, before its push or C21. No app/service launch, paid call or data cleanup.
+
+
+## Authorized C21 increment — 2026-10-18
+
+C20 `44bfcb072e2f01373cd3a0d42398ed6ffe6eba5d` was pushed and remote-verified.
+The user authorized C21 including previously deferred non-deleting audit replay. Implement
+bounded dependency readiness, a shared retained SQLite audit outbox with stable PostgreSQL
+identity, request/task correlation, per-process ASGI metrics and a controlled alert receiver.
+Use existing packages and standard-library SQLite; no new dependency, local service launch,
+real API call, migration, filesystem deletion or production notification. Record offline
+verification separately; B01–B16/S01–S16/R01–R20/full RAG/real runtime stay BLOCKED and C10
+writing stays open. Stop at a local C21 commit before push/C22.

@@ -278,6 +278,7 @@ class BaseTool(ABC):
                 audit_payload: dict = {
                     "role": role_str,
                     "provider": self._effective_provider(),
+                    "workflow_request_id": context.get("request_id"),
                 }
                 if result.side_effects:
                     audit_payload["side_effects"] = result.side_effects

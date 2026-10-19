@@ -543,3 +543,41 @@ Keep the static business examples but label them as synthetic and independent of
 data; remove the live document ledger's fixture fallback. User/knowledge mutations without UI stay
 documented authenticated API workflows. A role × flow matrix covers positive, denied, stale,
 duplicate, timeout, renderer and dependency failure cases, all runtime BLOCKED until observed.
+
+
+## C21 runtime observability design — 2026-10-18
+
+Readiness probes are bounded and return sanitized component states plus 503 if a required
+store/checkpointer/tool/worker/audit dependency is unavailable; health stays liveness only.
+No paid model calls on probes. API and worker share a retained local SQLite outbox on one
+Linux filesystem. Each connection enforces PERSIST/FULL and memory temp storage; no cleanup,
+WAL lifecycle, VACUUM or deletion. New audits are retained before PostgreSQL submission;
+a UUID unique index deduplicates retries after ambiguous commit. Acknowledgement updates the
+retained record only after commit. Batch replay is ordered/bounded with failed records deferred
+so one poison record cannot starve others. Legacy unkeyed JSON stays retained and requires
+explicit reconciliation before import; old database duplicates cannot be inferred away.
+
+Use context variables for server-generated request IDs and worker task IDs; enrich sanitized
+audit records and keep IDs out of metric labels. Pure ASGI metrics observe response start,
+last body and exceptions/disconnects using route templates, not raw paths. Scrape each API
+container and the independent worker separately; one process per container, at least two API
+containers in the isolated acceptance overlay. No shared multiprocess-file cleanup or false
+single-scrape aggregation. K8s/multi-host remain outside accepted profile.
+
+A dedicated internal monitor probes required targets and retains fault/resolution transitions
+and pending deliveries in SQLite. Fixed authenticated webhook delivery has bounded attempts
+per tick and stable event IDs; the independent receiver retains deduplicated receipts. No email,
+Slack or actual notification is sent this turn. Existing Prometheus rules remain separate;
+new component rules and accurate full-response/SSE units do not claim TTFT or measured SLA.
+Receiver/monitor image recipes reuse the application image and installed dependencies.
+Physical durability, process faults, retention, complete traces and receiver receipt/recovery
+are runtime gates; offline memory/injected checks cannot close C21 or earlier cases.
+
+C21 implementation review also moves FastAPI instrumentation before middleware-stack build,
+keeps worker signal ownership in its supervisor, packages every manifest SQL file, and updates
+the deployment checker for shared retained volumes and the worker-specific probe. Removed
+unproduced metric families are not zero-valued quality evidence. Both audit stores failing
+can lose an event; process-local unretained observation makes readiness unhealthy but is not
+repair or a durable loss inventory. The monitor cannot self-report its own outage. The frozen
+O01–O16 matrix in docs/50-engineering/runtime-observability.md remains BLOCKED. Only 6.2.1 is
+complete; 6.2, C10 and prior runtime acceptance remain open. No push or C22 this increment.

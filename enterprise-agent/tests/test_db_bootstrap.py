@@ -302,8 +302,11 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(seed.count('INSERT INTO'), 8)
         for path in ('docker-compose.yml', 'docker-compose.prod.yml'):
             self.assertNotIn('/docker-entrypoint-initdb.d/', (ROOT / path).read_text())
-        for name in ('schema_manifest.json', 'demo_seed.sql'):
-            self.assertIn('deploy/' + name, (ROOT / 'Dockerfile.prod').read_text())
+        recipe = (ROOT / 'Dockerfile.prod').read_text()
+        self.assertIn('COPY deploy/schema_manifest.json', recipe)
+        self.assertIn('COPY deploy/*.sql ./deploy/', recipe)
+        for migration in self.manifest['migrations']:
+            self.assertTrue((ROOT / 'deploy' / migration['file']).is_file())
 
     def test_cli_database_errors_never_print_credentials(self):
         config = SimpleNamespace(postgres_host='synthetic', postgres_port=5432,

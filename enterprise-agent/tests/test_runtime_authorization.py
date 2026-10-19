@@ -198,6 +198,8 @@ class RuntimeAuthorizationTests(unittest.IsolatedAsyncioTestCase):
             load('c05_redaction', 'app/security/redaction.py')}))
         self.operations = load('c05_operations', 'app/core/tool_operations.py')
         self.stack.enter_context(patch.dict(sys.modules, {'app.core.tool_operations': self.operations}))
+        self.stack.enter_context(patch.dict(sys.modules, {'app.observability.correlation':
+            load('c21_correlation', 'app/observability/correlation.py')}))
         self.lifecycle=load('c11_lifecycle','app/core/approval_lifecycle.py')
         self.original_bind=self.lifecycle.bind_execution
         self.original_observe=self.lifecycle.observe
