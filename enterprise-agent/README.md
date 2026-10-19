@@ -8,6 +8,8 @@
 
 就绪、共享保留式审计回写、内部 worker 探针、逐进程指标及受控告警的配置与 O01–O16 验收标准见 [运行可观测性契约](../docs/50-engineering/runtime-observability.md)。需要显式迁移 v7；真实运行验收仍 BLOCKED。
 
+当前版本备份/恢复/回退使用[保留式恢复契约](../docs/50-engineering/retained-recovery.md)：先审查计划、全新隔离卷恢复，真实 D01–D16 仍 BLOCKED；旧备份入口不会默认运行或清理资产。
+
 受控 SSO 的独立 IdP、PKCE/RS256/身份映射及 HTTPS 配方见[工程指南](../docs/50-engineering/controlled-sso.md)。仅离线候选，真实签名/浏览器/部署验收 BLOCKED；默认关闭。
 前端固定本地依赖、角色流程及 API-only 管理边界见[浏览器交付指南](../docs/50-engineering/browser-delivery.md)。从同源 `/ui/` 访问；B01–B16 真实浏览器验收仍 BLOCKED。
 

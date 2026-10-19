@@ -4,7 +4,7 @@
 > 部署方式：Linux 单机 Docker Compose；工程候选配置，不代表已完成生产验收。
 > 更新日期：2026-10-17（C01 配置、C02/C03 离线增量已实现；真实 API/PostgreSQL/Linux 验收 BLOCKED）
 >
-> C01 已统一镜像引用和访问入口；模型 profile、数据库初始化、多进程状态分别由 C02/C03/C09 验收。当前不能仅凭本指南宣称完整系统可交付。历史备份/恢复/清理章节含破坏性操作，**不属于本轮可执行验收步骤**；先遵守仓库非删除要求与 C22 复审。
+> C01 已统一镜像引用和访问入口；模型 profile、数据库初始化、多进程状态分别由 C02/C03/C09 验收。当前不能仅凭本指南宣称完整系统可交付。当前 C22 已提供保留式恢复候选，真实运行及 D01–D16 验收仍 BLOCKED；历史演练不能替代当前结果。
 
 ---
 
@@ -240,65 +240,30 @@ worker 使用同一应用镜像运行 `python -m app.worker`，C21 候选新增�
 
 ## 五、备份与恢复
 
-### 5.1 自动备份脚本
+### 5.1 当前 C22 候选入口
 
-备份脚本已入库：`scripts/backup.sh`（每日 pg_dump + etcd snapshot + MinIO/milvus 数据卷
-整卷 tar，保留 7 天，产出 `backups/pg_<时间戳>.sql.gz`、`etcd_<时间戳>.db`、
-`minio_<时间戳>.tar.gz`、`milvus_<时间戳>.tar.gz`，可用 `BACKUP_DIR` / `RETAIN_DAYS` /
-`COMPOSE_FILES` / `COMPOSE_PROJECT` / `STOP_MILVUS` 环境变量覆盖默认值）：
+当前使用 [保留式备份恢复契约](../../docs/50-engineering/retained-recovery.md)及
+`scripts/recovery.py`。`backup.sh` 仅转发显式参数；不再默认执行备份或删除历史资产。
+控制器先生成审查计划，真实执行必须匹配计划摘要和隔离 project；本机没有执行 Docker、
+停服、备份或恢复。D01–D16 全部 BLOCKED，C22 整项仍 open。
 
-```bash
-scripts/backup.sh
-```
+### 5.2 备份范围与周期
 
-> 备份覆盖说明（2026-08-05 首次恢复演练发现缺口、2026-08-06 补齐并复演验证，ISSUES I-12）：
-> Milvus 可恢复 = etcd 元数据 + MinIO 对象（向量数据本体）+ milvus 本地卷（rocksmq）三件套，
-> 缺一不可。整卷 tar 是运行中系统的近一致快照，需严格一致时设 `STOP_MILVUS=1`（短暂中断检索）。
+候选采用停写后的完整物理卷快照：PG 集群、Redis、etcd/MinIO/Milvus、共享审计及启用的
+参考服务、IdP、监控持久卷。每份归档有文件级哈希/权限清单；配置、镜像、密钥版本和加密
+保管需要独立记录。拟定每 12 小时一次并监测最新完整副本年龄，但**没有安装或启用定时任务**。
+RPO ≤24h 不能由计划或文件时间证明；停服窗口、容量与安全保管须先在隔离环境验证。
 
-### 5.2 配置定时任务
+### 5.3 恢复、回退与历史边界
 
-```bash
-chmod +x scripts/backup.sh
+只向全新 `c22-restore-*` project 的新卷恢复，拒绝覆盖/清库/清卷。使用控制器生成的
+`restored-volumes.compose.json` 映射所有外部卷，并用 `deploy/docker-compose.dr-drill.yml`
+限制应用自动启动；先核对原始镜像/配置与隔离卷，再显式启动指定存储服务。
+字节恢复不会启动 API/worker，也不证明 PG 逻辑内容、Milvus 真实检索或外部副作用安全。
+核对、激活、RTO/RPO 与 image/schema 回退步骤以 C22 契约为准；不得自动重放复制出的未知任务。
 
-# 添加 crontab
-crontab -e
-
-# 每日凌晨 2 点备份
-0 2 * * * /opt/enterprise-agent/scripts/backup.sh >> /var/log/agent_backup.log 2>&1
-```
-
-### 5.3 恢复流程
-
-> 以下步骤为 2026-08-05 首次恢复演练（ISSUES I-12）实测修正版；
-> 演练用隔离环境可复用 `deploy/docker-compose.dr-drill.yml`（独立 project/端口/数据卷）。
-
-```bash
-# PostgreSQL 恢复(目标库已有 schema 时必须先清库,否则建表冲突)
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T postgres \
-  psql -U agent enterprise_agent -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-gunzip < backups/pg_20260726_020000.sql.gz | \
-  docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T postgres \
-  psql -U agent enterprise_agent
-
-# Milvus 恢复(停 Milvus → 停 etcd/minio → 清数据卷 → 恢复 etcd snapshot 与
-#             MinIO/milvus 卷数据 → 启 etcd/minio → 启 Milvus)
-# ⚠️ 在运行中的 etcd 上直接 snapshot restore 必失败(数据目录非空/被锁);
-#    只恢复 etcd 元数据不恢复 MinIO/milvus 卷,集合会 load 挂起(实测,ISSUES I-12)
-docker compose --env-file .env.prod -f docker-compose.prod.yml stop milvus-standalone etcd minio
-docker run --rm -v <project>_etcd_data:/etcd alpine sh -c 'rm -rf /etcd/* /etcd/.[!.]*'
-docker run --rm -v <project>_etcd_data:/etcd -v "$(pwd)/backups:/b:ro" \
-  quay.io/coreos/etcd:v3.5.5 \
-  etcdctl snapshot restore /b/etcd_20260726_020000.db --data-dir /etcd
-docker run --rm -v <project>_minio_data:/data -v "$(pwd)/backups:/b:ro" alpine \
-  sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/minio_20260726_020000.tar.gz -C /data'
-docker run --rm -v <project>_milvus_data:/data -v "$(pwd)/backups:/b:ro" alpine \
-  sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/milvus_20260726_020000.tar.gz -C /data'
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d etcd minio milvus-standalone
-```
-
-> 恢复后一致性核查：`/ready` 全 healthy；PG 关键表行数与备份时点比对；
-> Milvus 集合 `load` 后 `num_entities` 与备份时点比对（仅 `get_collection_stats`
-> 的数字一致不算数——它读的是元数据，segment 缺失时 load 会挂起）。
+历史 2026-08-06 演练及约 194 秒记录保留在过程档案中，仅适用于当时版本。旧清库、清卷、
+`--rm` 和销毁环境命令不再作为当前操作步骤；旧资产均保留交用户处理。
 
 ---
 

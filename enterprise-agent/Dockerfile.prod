@@ -82,6 +82,7 @@ RUN /opt/venv/bin/python -m pip uninstall -y pip
 # 应用代码
 COPY app ./app
 COPY scripts/verify_frontend_assets.py ./deploy/verify_frontend_assets.py
+COPY scripts/recovery_archive.py ./deploy/recovery_archive.py
 COPY deploy/*.sql ./deploy/
 COPY deploy/schema_manifest.json ./deploy/
 COPY deploy/migrations ./deploy/migrations

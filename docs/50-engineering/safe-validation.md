@@ -41,9 +41,10 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `run_replay` 函数 | 只处理已载入的合成 fixture，返回字典；CLI 默认写固定结果文件 | 允许函数；fixture 保留 false 安全标记，E1 合成回放不等于 E2 应用验收 |
 | `generate_uat_simulation.py` CLI | 写入指定或默认 fixture，可能覆盖既有内容 | 不纳入入口；使用现有 fixture，不重新生成 |
 | `run_ticket_acceptance.py` | 启动受控服务/调用工具，并在结束路径 `shutil.rmtree` 审计缓存 | 不直接运行；完整参考集成由 C18 前复审 |
-| `scripts/backup.sh` | 暂停服务、备份卷、`docker --rm`、`find -delete` | 不直接运行；C22 提供独立非删除路径 |
+| `scripts/backup.sh` / `scripts/recovery.py` / `recovery_archive.py` | C22 wrapper 转发显式计划；实际执行会 stop/start、创建保留容器/卷、读写完整归档，helper 以受限 root 保留 UID/GID | 本轮仅注入 Docker 与合成文件测试；不调用真实控制器、Docker 或当前数据；完整副作用/物理恢复 D01–D16 BLOCKED |
 | `run_load_test.sh` / k6 | 网络负载，容器模式含 `--rm`，会生成结果 | 不纳入；C23 确定隔离环境与负载后再审查 |
 | `app/observability/audit.py` / `retained.py` | C21 改为共享 SQLite PERSIST/FULL、PG 去重与保留式确认；真实路径仍会建目录/写 DB 和日志 | 仅内存注入测试已执行；真实文件系统/并发/崩溃副作用须 O01–O16 复验，不授权导入或启动应用 |
+| `eval/run_c22_retained_recovery.py` | 实际控制/归档代码，Docker 注入；只在新建 `eval/results/c22-tests-<uuid>/` 保留合成文件，chown 注入；hook 拒绝网络、子进程、删除/改名/链接以及夹具外写入/权限变更 | C22 允许根目录 `python3.13 -I -B enterprise-agent/eval/run_c22_retained_recovery.py`；不安装、不清理夹具、不运行 Docker/真实 DB/备份恢复；不扩展五函数白名单 |
 | `eval/run_c21_runtime_observability.py` | 实际审计/SQLite 内存/就绪/ASGI/监控接收函数；PG/HTTP/框架注入；hook 拒绝文件 DB、网络、文件写入/删除与子进程 | C21 允许根目录 `python3.13 -I -B enterprise-agent/eval/run_c21_runtime_observability.py`；不启动应用/listener/磁盘 store，不扩展五函数白名单；物理保留与真实告警 BLOCKED |
 | `app.observability.monitor` / `receiver` / `legacy_audit` | 真实运行会建目录/写保留 DB、访问内部 HTTP/监听端口，历史导入会读取可能敏感的审核副本 | 本轮均未执行；须单独隔离授权和历史凭证审核；不执行已有原始 JSON，不自动删除/清理 |
 | `eval/run_c12_tool_operation_safety.py` | 实际动作存储/网关/HTTP/回执/审批建单/Saga 函数；SQL、HTTP、身份全注入，audit hook 禁止网络/文件写入/删除/子进程 | C12 专项审查允许：根目录 `python3.13 -I -B enterprise-agent/eval/run_c12_tool_operation_safety.py`；不加入五函数白名单，不证明真实 PG/HTTP/完整恢复 |

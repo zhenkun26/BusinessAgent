@@ -15,6 +15,8 @@
 
 ### New Capabilities
 
+- `retained-recovery`: C22 cold backup plans, new-volume restore, source resumption and evidence-bound rollback.
+
 - `runtime-observability`: C21 dependency readiness, retained audit replay, process-complete metrics and controlled alert delivery.
 
 - `browser-delivery`: C20 pinned self-hosted assets, current-identity UI flows and truthful failure/acceptance states.
@@ -227,3 +229,9 @@ Use existing packages and standard-library SQLite; no new dependency, local serv
 real API call, migration, filesystem deletion or production notification. Record offline
 verification separately; B01–B16/S01–S16/R01–R20/full RAG/real runtime stay BLOCKED and C10
 writing stays open. Stop at a local C21 commit before push/C22.
+
+2026-10-18 C22 authorization: C21 `40c10d8` was pushed and verified on the same-name
+remote branch. Implement current-version backup/recovery/rollback entry points, documentation
+and offline fault tests. No real backup, stop/start, restore, Docker, database or external API
+execution on this host. C22 ends at a local commit, then waits; no C23 or new dependencies.
+Prior O/B/S/R/full-RAG gates remain BLOCKED and C10 writing remains open.

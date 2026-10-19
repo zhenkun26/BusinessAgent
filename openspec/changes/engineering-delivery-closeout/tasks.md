@@ -82,15 +82,17 @@ S0 验证：83 个本轮链接/锚点、25 个 C 项映射、8 个阶段、8 条
   - [x] 5.5.1 Implement independent retained issuer, strict RS256/PKCE/mapping, approved dependency declarations, HTTPS recipes, browser acceptance plan and offline checks. 37 focused + 136 related cases PASS; no real crypto/browser or installation.
   - [ ] 5.5.2 Verify all S01–S16 including real signing, browser handoff, PostgreSQL identity, Redis across API processes, rotation, faults and disk restart in isolated Linux. <!-- BLOCKED; R01–R20/full RAG/C10/C21 unchanged; operator reports are not acceptance -->
 
-## 6. S6：用户操作与运维（C20/C21 离线增量完成、运行阻塞；C22 待确认）
+## 6. S6：用户操作与运维（C20/C21/C22 离线增量完成、运行阻塞；C23 待确认）
 
 - [ ] 6.1 C20 浏览器角色流程与前端交付。
   - [x] 6.1.1 Pin and self-host existing browser assets with licenses/integrity, verify current identity, isolate asynchronous UI state, guard mutations, report truthful stream/action outcomes, and document UI/API-only roles. 45 focused + 134 related offline cases PASS; no browser/application launch.
   - [ ] 6.1.2 Verify B01–B16 on the delivered Linux/Nginx entry with actual browsers, all roles and independent server evidence. <!-- BLOCKED; S01–S16/R01–R20/full RAG/C10/C21 unchanged -->
 - [ ] 6.2 C21 就绪、审计、指标和告警。
-  - [x] 6.2.1 Implement bounded readiness, internal worker observations, retained audit identity/replay, reviewed legacy import, request/task correlation, process scrapes and controlled alert receipt candidate. 45 focused + 362 related offline cases PASS; one PyYAML case skipped, separate Ruby YAML parse PASS. Local commit only; no push.
+  - [x] 6.2.1 Implement bounded readiness, internal worker observations, retained audit identity/replay, reviewed legacy import, request/task correlation, process scrapes and controlled alert receipt candidate. 45 focused + 362 related offline cases PASS; one PyYAML case skipped, separate Ruby YAML parse PASS. C21 `40c10d8` pushed under subsequent authorization; real acceptance remains blocked.
   - [ ] 6.2.2 Verify O01–O16 with actual Linux processes/stores, faults, traces, Prometheus and independent firing/resolved receipts. <!-- BLOCKED; B01–B16/S01–S16/R01–R20/full RAG/historical credentials remain blocked; C10 writing remains open -->
 - [ ] 6.3 C22 备份恢复与回退。
+  - [x] 6.3.1 Provide reviewed-plan cold capture, retained archive validation, failure resumption, fresh-volume restore, rollback/window planning and documentation. 46 focused + 77 related offline cases PASS; one PyYAML case skipped. No real Docker/store/recovery execution; local commit only.
+  - [ ] 6.3.2 Execute D01–D16 on the exact isolated Linux candidate with independent PG/content/retrieval/external-effect evidence and measured RTO/RPO. <!-- BLOCKED; O/B/S/R/full RAG/historical gates preserved; C10 remains open -->
 - [ ] 6.4 C23 规定负载下的性能与容量。
 
 ## 7. S7：最终候选收口（待逐项授权）

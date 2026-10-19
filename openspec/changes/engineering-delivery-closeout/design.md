@@ -581,3 +581,39 @@ can lose an event; process-local unretained observation makes readiness unhealth
 repair or a durable loss inventory. The monitor cannot self-report its own outage. The frozen
 O01–O16 matrix in docs/50-engineering/runtime-observability.md remains BLOCKED. Only 6.2.1 is
 complete; 6.2, C10 and prior runtime acceptance remain open. No push or C22 this increment.
+
+
+## C22 retained cold recovery design — 2026-10-18
+
+Use a standard-library, plan-first controller and a packaged archive helper. Freeze a
+sanitized Docker inventory (container IDs, project/service labels, image IDs, states and
+named mounts) and current schema-manifest hash. Reject writable binds, shared writers,
+missing core volumes, anonymous state and mutable helper images. A reviewed plan digest
+and exact isolated project are mandatory before execution. Execution is not authorized
+on this host; injected command runners cover offline behavior.
+
+Capture all project named volumes, including PostgreSQL, Redis, etcd, MinIO, Milvus, audit,
+optional reference/IdP/monitor state and monitoring volumes. Cold physical snapshots require
+all source containers stopped, all writers excluded and original runtime image identities
+retained. Check stopped state before/after each copy; metadata/hash every regular file and
+directory. No live tar consistency claim, partial-DB restore or migration downgrade. External
+writers/automation and storage lifecycle require a separately reviewed isolation boundary.
+
+Always attempt to restart originally running containers after partial stop/copy failure;
+record each failure independently and retain partial artifacts. SIGKILL/host failure cannot
+run finally: a plan-bound resume command must support explicit recovery. Never start a
+container originally stopped. A restarted process is not application-ready or accepted.
+
+Restore only to a fresh target project and never-existing named volumes. Validate the complete
+bundle, schema and archive paths/types/content before any volume creation. Reject symlinks,
+hardlinks, traversal, duplicate members and unexpected targets. Retain helper containers,
+volumes, journals, partial outputs and source bytes; no rm/down/volume removal/cleanup.
+Helpers use the exact application image, no network and narrowly scoped data mounts.
+Restoration does not start applications or dispatch copied queue/Saga work. The operator must
+provision matching images/config/secrets and reconcile external effects before activation.
+
+A 12-hour cold-backup cadence is an unactivated proposal, not measured RPO. Record snapshot age from
+the beginning of quiescence, and RTO through independently verified service/business recovery,
+not extraction completion. RTO <= 1h / RPO <= 24h stay BLOCKED pending D01–D16. Rollback needs
+an explicitly compatible schema plus retained old image, or a separate full snapshot clone;
+never overwrite source state or run older applications on newer schema. No downgrade DDL.

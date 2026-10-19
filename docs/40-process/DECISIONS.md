@@ -450,3 +450,23 @@
   and receiver delivery await O01–O16. Full pytest/strict OpenSpec/Compose/promtool are BLOCKED.
 - **Boundary**: C20 `44bfcb0` pushed with authorization. C21 local commit only, no push/C22;
   prior B/S/R/full-RAG/historical gates and C10 writing remain unresolved.
+
+
+## 39. C22: reviewed cold snapshots and new-volume recovery
+
+- **Need**: the old backup script deleted retained assets, live volume tar did not establish
+  cross-store consistency, and old restore steps cleared existing schemas/volumes.
+- **Choice**: plan hash/project/schema/image binding; local named-volume inventories including
+  optional state; stopped whole-cluster archives with file hashes; independent source-resume
+  attempts on failure and explicit post-interruption resume. Retain every partial asset/helper.
+  Restore only to never-existing labelled volumes after complete validation, with generated
+  external-volume mapping and no application activation or automatic task replay.
+- **Limits**: cold outage, same image/platform/schema, no hot backup/PITR/HA/ACL/xattr/tablespaces.
+  Host writers/operator races and process-internal file lifecycle still require real review.
+  Backup data is private; encryption/custody/config/images/secrets are separate prerequisites.
+  Byte integrity and same-schema equality cannot certify business recovery or safe rollback.
+- **Verification**: 46 focused + 77 related offline cases PASS; one PyYAML skip. Docker/chown
+  injected, only retained synthetic fixtures written. D01–D16, semantic recovery and measured
+  RTO <=1h/RPO <=24h remain BLOCKED. Twelve-hour cadence is proposed, never enabled here.
+- **Boundary**: C21 `40c10d8` pushed/verified. C22 local commit only, then wait; no C23,
+  deployment or release. Prior O/B/S/R/full RAG/historical gates and C10 remain unresolved.
