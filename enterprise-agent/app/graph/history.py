@@ -3,13 +3,13 @@
 设计要点:
 - 历史来源:checkpointer 的 checkpoint 链(thread_id=conversation_id)
   alist(config) 按时间倒序产出 CheckpointTuple,取 channel_values 中
-  含非空 final_answer 的快照,提取 (user_input.message, final_answer) 对
+  含非空 final_answer 且请求归属标记匹配的快照,提取问答对
 - 加载位置:run_graph / run_graph_stream(async 上下文,与 checkpointer
   同事件循环;planner 是 sync 节点,不能碰 async checkpointer)
 - 注入方式:不改 prompt 模板(模板在 prompt_versions 表有 active 版本,
   改 defaults.py 不生效),把历史块拼进现有占位符:
   planner 意图分类拼进 {message} 槽、knowledge 答案生成拼进 {query} 槽
-- 异常静默:历史加载失败返回 [],不影响主流程
+- 读取失败:停止本次图调用,不把存储故障伪装为无历史
 
 反序列化注意(产品文档 4.2.3):恢复后 pydantic 模型可能变 dict,
 读 channel_values 时 user_input 用 dict/属性双兼容方式访问。
@@ -18,28 +18,37 @@
 from __future__ import annotations
 
 import asyncio
+from itertools import islice
 from typing import Any, Optional
 
 from loguru import logger
 
+from app.graph.checkpoint_access import CheckpointUnavailable
 
-async def load_recent_history(thread_id: str, max_turns: int = 5) -> list[dict]:
+
+async def load_recent_history(
+    thread_id: str, max_turns: int = 5, *, checkpointer: Any = None, user_input: Any = None,
+) -> list[dict]:
     """从 checkpointer 快照链加载最近 N 轮 (user, assistant) 问答对
 
     Args:
         thread_id: 会话线程 ID(= conversation_id)
         max_turns: 最多取几轮(默认 5)
+        checkpointer: 本次图执行选定的 saver;缺失时不加载
+        user_input: 当前身份/会话/请求,用于过滤历史归属
 
     Returns:
-        [{"user": ..., "assistant": ...}, ...] 按时间正序;失败/无历史返回 []
+        [{"user": ..., "assistant": ...}, ...] 按时间正序;无历史返回 [],读取失败抛固定错误
     """
+    if user_input is None or thread_id != user_input.conversation_id or max_turns <= 0:
+        return []
+    max_turns = min(max_turns, 5)
     try:
-        from app.graph.checkpointer import get_checkpointer
-
-        checkpointer, _backend = await get_checkpointer()
+        if checkpointer is None:
+            return []
         config = {"configurable": {"thread_id": thread_id}}
 
-        tuples = await _list_checkpoints(checkpointer, config)
+        tuples = await asyncio.wait_for(_list_checkpoints(checkpointer, config), timeout=5.0)
 
         pairs: list[tuple[str, str]] = []  # 倒序收集(最新在前)
         seen: set[str] = set()
@@ -47,25 +56,35 @@ async def load_recent_history(thread_id: str, max_turns: int = 5) -> list[dict]:
             checkpoint = getattr(t, "checkpoint", None) or {}
             channel_values = checkpoint.get("channel_values", {}) or {}
             final_answer = channel_values.get("final_answer")
-            user_input = channel_values.get("user_input")
-            if not final_answer or not user_input:
+            saved_input = channel_values.get("user_input")
+            request_id = channel_values.get("request_id")
+            if (not isinstance(final_answer, str) or not final_answer or not saved_input
+                    or not isinstance(request_id, str) or not request_id
+                    or request_id == user_input.request_id
+                    or channel_values.get("answer_request_id") != request_id):
                 continue
             # 反序列化后 user_input 有两种非对象形态,都要兼容:
             # 1) LangChain 序列化信封 {"lc","type":"constructor","kwargs":{...}}
             #    (Redis saver 的 JSON 反序列化不复活自定义 pydantic 类,保留信封原样)
             # 2) 普通 dict
-            if isinstance(user_input, dict):
+            if isinstance(saved_input, dict):
                 payload = (
-                    user_input.get("kwargs")
-                    if user_input.get("type") == "constructor" and isinstance(user_input.get("kwargs"), dict)
-                    else user_input
+                    saved_input.get("kwargs")
+                    if saved_input.get("type") == "constructor"
+                    and isinstance(saved_input.get("kwargs"), dict)
+                    else saved_input
                 )
-                message = payload.get("message")
             else:
-                message = getattr(user_input, "message", None)
-            if not message or message in seen:
+                payload = vars(saved_input)
+            if any(payload.get(key) != getattr(user_input, key) for key in
+                   ("user_id", "conversation_id", "role", "department")):
                 continue
-            seen.add(message)
+            if payload.get("request_id") != request_id:
+                continue
+            message = payload.get("message")
+            if not isinstance(message, str) or not message or request_id in seen:
+                continue
+            seen.add(request_id)
             pairs.append((message, final_answer))
             if len(pairs) >= max_turns:
                 break
@@ -75,24 +94,31 @@ async def load_recent_history(thread_id: str, max_turns: int = 5) -> list[dict]:
         if history:
             logger.info(f"多轮历史加载: thread_id={thread_id}, {len(history)} 轮")
         return history
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"多轮历史加载失败(忽略,按无历史处理): {type(e).__name__}: {e}")
-        return []
+    except Exception:
+        raise CheckpointUnavailable() from None
 
 
-async def _list_checkpoints(checkpointer: Any, config: dict) -> list:
+async def _list_checkpoints(checkpointer: Any, config: dict, limit: int = 100) -> list:
     """枚举 checkpoint 链(async/sync saver 双兼容,按时间倒序)"""
     alist = getattr(checkpointer, "alist", None)
     if alist is not None:
         out = []
-        async for t in alist(config):
-            out.append(t)
+        iterator = alist(config, limit=limit)
+        try:
+            async for t in iterator:
+                out.append(t)
+                if len(out) >= limit:
+                    break
+        finally:
+            close = getattr(iterator, "aclose", None)
+            if close is not None:
+                await close()
         return out
     # 同步 saver(PostgresSaver):list() 放线程里跑
     list_fn = getattr(checkpointer, "list", None)
     if list_fn is None:
         return []
-    return await asyncio.to_thread(lambda: list(list_fn(config)))
+    return await asyncio.to_thread(lambda: list(islice(list_fn(config, limit=limit), limit)))
 
 
 def format_history_block(history: list[dict], per_answer_chars: int = 200) -> str:

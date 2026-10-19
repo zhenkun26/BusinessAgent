@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>智多星 · 企业知识工作流 Agent</title>
-<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="/ui/vendor/vue-3.5.44/vue.global.prod.js" integrity="sha384-tORx0bXmMnTC28EYQe1coaGZKSQupXQEYDBNex8xkzJ9iqUoNy9Y+VFBhVxi4kUr" crossorigin="anonymous"></script>
+<script src="/ui/vendor/marked-18.1.1/marked.umd.js" integrity="sha384-rATToyt6602Jnq8c7w8HZwmyOUgPL7mzxX01FBWoV48ns/EgkakGozpES+PnaYOI" crossorigin="anonymous"></script>
+<script src="/ui/vendor/dompurify-3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; color: #333; }
+  [v-cloak] { display: none !important; }
   #app { height: 100vh; display: flex; flex-direction: column; }
 
   /* ===== 登录页 ===== */
@@ -250,7 +251,9 @@
 </style>
 </head>
 <body>
-<div id="app">
+<p id="boot-error" role="alert">页面正在加载；若持续显示，请检查本地页面资源并刷新。</p>
+<noscript>本页面需要 JavaScript。</noscript>
+<div id="app" v-cloak>
   <div v-if="toast" class="toast">{{ toast }}</div>
 
   <!-- ===== 登录页 ===== -->
@@ -278,9 +281,11 @@
           </div>
         </div>
       </div>
+      <p class="hint">列表仅为示例账号，须预先创建并使用实际密码登录。</p>
       <div class="manual-toggle" v-if="!showManual" @click="showManual=true">使用其他账号登录</div>
       <input v-if="showManual" v-model="loginName" placeholder="输入用户名">
       <div class="login-err">{{ loginErr }}</div>
+      <input type="password" v-model="loginPassword" autocomplete="current-password" placeholder="密码">
       <button class="btn btn-block" :disabled="logging" @click="doLogin">
         {{ logging ? '登录中…' : '登 录' }}
       </button>
@@ -291,6 +296,7 @@
     </div>
   </div>
 
+  <div v-else-if="!authReady" role="status">正在核验身份… <button @click="doLogout">退出</button></div>
   <!-- ===== 主界面 ===== -->
   <template v-else>
     <div class="topbar">
@@ -299,7 +305,7 @@
         <a :class="{active: tab==='chat'}" @click="tab='chat'">对话</a>
         <a :class="{active: tab==='approval'}" @click="openTab('approval')">审批</a>
         <a v-if="isApprover" :class="{active: tab==='prompt'}" @click="openTab('prompt')">Prompt 管理</a>
-        <a :class="{active: tab==='reference'}" @click="openTab('reference')">业务数据</a>
+        <a :class="{active: tab==='reference'}" @click="openTab('reference')">合成示例</a>
         <a :class="{active: tab==='status'}" @click="openTab('status')">系统状态</a>
       </nav>
       <div class="who">
@@ -315,8 +321,8 @@
       <div v-show="tab==='chat'" class="panel">
         <div class="chat-head">
           <span>会话</span><span class="sid">{{ sessionId ? '···' + sessionId.slice(-8) : '(发送首条消息后生成)' }}</span>
-          <button class="btn-sm btn-ghost" @click="newSession">新会话</button>
-          <button class="btn-sm btn-ghost" v-if="sessionId" @click="loadHistory">历史</button>
+          <button class="btn-sm btn-ghost" @click="newSession" :disabled="pending">新会话</button>
+          <button class="btn-sm btn-ghost" v-if="sessionId" @click="loadHistory" :disabled="pending || busy.history">历史</button>
           <span class="badge purple">{{ deptLabel }}</span>
         </div>
         <div class="chat-body" ref="chatBody">
@@ -348,7 +354,8 @@
                   <span class="badge" v-if="m.intent">{{ intentLabel(m.intent) }}</span>
                   <span class="badge" :class="m.confidence>=0.6?'green':'orange'" v-if="m.confidence!==undefined">置信度 {{ m.confidence.toFixed(2) }}</span>
                   <span class="badge gray" v-if="m.latencyMs">{{ (m.latencyMs/1000).toFixed(1) }}s</span>
-                  <span class="fb" v-if="!m.cancelled">
+                  <span class="badge orange" v-if="m.incomplete">未确认完成</span>
+                  <span class="fb" v-if="!m.cancelled && !m.incomplete && !pending">
                     <button :class="{done: m.fb==='like'}" @click="sendFeedback(m,'like')">👍</button>
                     <button :class="{done: m.fb==='dislike'}" @click="sendFeedback(m,'dislike')">👎</button>
                   </span>
@@ -364,7 +371,7 @@
           <div v-if="pending" class="pending-bar">
             <div class="spinner"></div>
             <span>{{ progressText }} {{ elapsed }}s</span>
-            <button class="btn-sm btn-danger" @click="cancelChat">取消</button>
+            <button class="btn-sm btn-danger" @click="cancelChat" :disabled="busy.cancel || cancelRequested || !sessionId">{{ cancelRequested ? '取消请求已受理' : '请求取消' }}</button>
           </div>
         </div>
 
@@ -393,7 +400,7 @@
           <button class="btn-sm btn-ghost" @click="loadApprovals">刷新</button>
           <span style="font-size:12px;color:#888;margin-left:auto">共 {{ approvals.length }} 条</span>
         </h2>
-        <div v-if="approvals.length===0" class="empty">暂无待审批请求<br><br>💡 提示:用经理身份发起「发外部邮件」即可产生审批单;init.sql 已预置 3 条批量审批(batch_2026_001)</div>
+        <div v-if="approvals.length===0" class="empty">{{ viewStatus('approvals') || '暂无待审批请求' }}</div>
         <div v-for="a in approvals" :key="a.approval_id" class="card">
           <div class="row">
             <span class="title">{{ a.summary || a.operation_type }}</span>
@@ -402,9 +409,9 @@
           </div>
           <div class="desc">审批号:{{ a.approval_id }} · {{ fmtTime(a.created_at) }}<br>操作类型:{{ a.operation_type }}</div>
           <div class="row" style="margin-top:10px">
-            <button class="btn-sm btn" @click="decide(a,'approved')">批准</button>
-            <button class="btn-sm btn-danger" @click="decide(a,'rejected')">拒绝</button>
-            <span v-if="a.result" class="badge green">{{ a.result }}</span>
+            <button class="btn-sm btn" @click="decide(a,'approved')" :disabled="busy['approval:'+a.approval_id] || uncertain['approval:'+a.approval_id]">批准</button>
+            <button class="btn-sm btn-danger" @click="decide(a,'rejected')" :disabled="busy['approval:'+a.approval_id] || uncertain['approval:'+a.approval_id]">拒绝</button>
+            <span v-if="a.result" class="badge" :class="statusClass(a.resultStatus)">{{ a.result }}</span>
           </div>
         </div>
         </template>
@@ -414,7 +421,7 @@
           <button class="btn-sm btn-ghost" @click="loadHandled">刷新</button>
           <span style="font-size:12px;color:#888;margin-left:auto">共 {{ handledApprovals.length }} 条</span>
         </h2>
-        <div v-if="handledApprovals.length===0" class="empty">暂无经手记录<br><br>💡 提示:「待我审批」里批准/拒绝过的单子会在这里留痕</div>
+        <div v-if="handledApprovals.length===0" class="empty">{{ viewStatus('handledApprovals') || '暂无经手记录' }}</div>
         <div v-for="h in handledApprovals" :key="h.approval_id" class="card">
           <div class="row">
             <span class="title">{{ h.summary || h.operation_type }}</span>
@@ -434,7 +441,7 @@
           <button class="btn-sm btn-ghost" @click="loadMine">刷新</button>
           <span style="font-size:12px;color:#888;margin-left:auto">共 {{ myApprovals.length }} 条</span>
         </h2>
-        <div v-if="myApprovals.length===0" class="empty">暂无我发起的审批<br><br>💡 提示:高风险操作(如发外部邮件)会先建审批单,审批进度在这里跟踪</div>
+        <div v-if="myApprovals.length===0" class="empty">{{ viewStatus('myApprovals') || '暂无我发起的审批' }}</div>
         <div v-for="m in myApprovals" :key="m.approval_id" class="card">
           <div class="row">
             <span class="title">{{ m.summary || m.operation_type }}</span>
@@ -448,15 +455,16 @@
             <template v-if="m.approver_id"><br>审批人:{{ m.approver_id }} · {{ fmtTime(m.decided_at) }}<span v-if="m.comment"> · 意见:{{ m.comment }}</span></template>
           </div>
           <div class="row" v-if="m.status==='approved_pending_reauth'" style="margin-top:10px">
-            <button class="btn-sm btn" @click="resume(m)">恢复执行</button>
-            <span style="font-size:12px;color:#888">审批已通过,但发起时登录已过期,点击以当前身份恢复执行</span>
+            <button class="btn-sm btn" @click="resume(m)" :disabled="busy['resume:'+m.approval_id] || uncertain['resume:'+m.approval_id]">确认执行</button>
+            <span style="font-size:12px;color:#888">审批已通过，请确认操作内容后以当前身份执行</span>
           </div>
         </div>
       </div></div>
 
       <!-- ===== Prompt 管理 ===== -->
-      <div v-show="tab==='prompt'" class="panel"><div class="page">
+      <div v-if="isApprover" v-show="tab==='prompt'" class="panel"><div class="page">
         <h2>Prompt 版本管理 <button class="btn-sm btn-ghost" @click="loadPrompts">刷新</button></h2>
+        <p role="status">{{ viewStatus('prompts') }}</p>
         <div v-for="(versions, name) in prompts" :key="name" class="card">
           <div class="row">
             <span class="title">{{ name }}</span>
@@ -469,16 +477,16 @@
             <summary style="font-size:13px;color:#2f54eb;cursor:pointer">新建版本 / 激活 / 流量</summary>
             <textarea class="area" v-model="promptDrafts[name]" placeholder="新版本内容(str.format 语法,JSON 花括号 {{}} 转义)"></textarea>
             <div class="row">
-              <button class="btn-sm btn" @click="createVersion(name)">存为 draft</button>
+              <button class="btn-sm btn" @click="createVersion(name)" :disabled="busy['prompt:'+name] || uncertain['prompt:'+name]">存为 draft</button>
               <span style="font-size:13px">激活 v</span>
               <input class="mini" v-model.number="activateVer[name]" placeholder="版本">
               <label style="font-size:12px"><input type="checkbox" v-model="archiveOthers[name]"> 归档其他(回滚勾选;A/B 不勾)</label>
-              <button class="btn-sm btn-ghost" @click="activate(name)">激活</button>
+              <button class="btn-sm btn-ghost" @click="activate(name)" :disabled="busy['prompt:'+name] || uncertain['prompt:'+name]">激活</button>
               <span style="font-size:13px">权重:</span>
               <span v-for="v in versions.filter(x=>x.status==='active')" :key="v.version" style="font-size:13px">
                 v{{ v.version }}=<input class="mini" style="width:50px" v-model.number="weights[name+'_'+v.version]" :placeholder="v.traffic_weight">
               </span>
-              <button class="btn-sm btn-ghost" @click="setTraffic(name, versions)">设流量</button>
+              <button class="btn-sm btn-ghost" @click="setTraffic(name, versions)" :disabled="busy['prompt:'+name] || uncertain['prompt:'+name]">设流量</button>
             </div>
           </details>
         </div>
@@ -486,14 +494,14 @@
 
       <!-- ===== 业务数据(客户/订单/工单参考) ===== -->
       <div v-show="tab==='reference'" class="panel"><div class="page">
-        <h2>业务数据参考
-          <span style="font-size:12px;color:#888;margin-left:auto">Mock 数据,与 CRM/工单系统 API 同源</span>
+        <h2>合成业务示例
+          <span style="font-size:12px;color:#888;margin-left:auto">静态示例，未连接当前业务系统；实际结果以受权查询为准</span>
         </h2>
         <div class="ref-tabs">
           <a :class="{active: refTab==='customers'}" @click="refTab='customers'">客户 ({{ customers.length }})</a>
           <a :class="{active: refTab==='orders'}" @click="refTab='orders'">订单 ({{ orders.length }})</a>
           <a :class="{active: refTab==='tickets'}" @click="refTab='tickets'">工单 ({{ tickets.length }})</a>
-          <a :class="{active: refTab==='docs'}" @click="openDocsTab()">知识库文档 ({{ documents.length }})</a>
+          <a v-if="isAdmin" :class="{active: refTab==='docs'}" @click="openDocsTab()">知识库文档 ({{ documents.length }})</a>
         </div>
 
         <div v-if="refTab==='customers'">
@@ -547,7 +555,8 @@
           </table>
         </div>
 
-        <div v-if="refTab==='docs'">
+        <div v-if="refTab==='docs' && isAdmin">
+          <p role="status">{{ viewStatus('documents') }}</p>
           <table class="ref-table">
             <thead><tr><th>文档ID</th><th>标题</th><th>类型</th><th>命名空间</th><th>状态</th><th>上传者</th></tr></thead>
             <tbody>
@@ -567,12 +576,16 @@
       <!-- ===== 系统状态 ===== -->
       <div v-show="tab==='status'" class="panel"><div class="page">
         <h2>系统状态 <button class="btn-sm btn-ghost" @click="loadStatus">刷新</button></h2>
+        <p role="status">{{ viewStatus('status') }}</p>
+        <p>组件观察值；完整就绪判定与告警仍待运行验收。</p>
         <div class="stat-grid">
           <div class="stat"><div class="k">数据库</div><div class="v" :class="status.db?.status==='healthy'?'ok':'bad'">{{ status.db?.status || '-' }}</div></div>
           <div class="stat"><div class="k">Milvus</div><div class="v" :class="status.milvus?.status==='healthy'?'ok':'bad'">{{ status.milvus?.status || '-' }}</div></div>
-          <div class="stat"><div class="k">文档实体数</div><div class="v">{{ status.milvus?.num_entities ?? '-' }}</div></div>
-          <div class="stat"><div class="k">Checkpointer</div><div class="v" :class="(status.checkpointer === 'redis' || status.checkpointer === 'postgres') ? 'ok' : 'bad'">{{ status.checkpointer || '-' }}</div></div>
-          <div class="stat"><div class="k">注册工具</div><div class="v">{{ status.tools_count ?? '-' }}</div></div>
+          <div class="stat"><div class="k">Redis</div><div class="v">{{ status.redis?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">Checkpointer</div><div class="v" :class="status.checkpointer?.status==='healthy' ? 'ok' : 'bad'">{{ status.checkpointer?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">工具就绪</div><div class="v">{{ status.tools?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">Worker</div><div class="v">{{ status.workers?.status || '-' }}</div></div>
+          <div class="stat"><div class="k">待回写审计</div><div class="v">{{ status.audit?.pending ?? '-' }}</div></div>
         </div>
       </div></div>
     </div>
@@ -580,17 +593,38 @@
 </div>
 
 <script>
-const { createApp } = Vue;
+const { createApp } = typeof Vue !== 'undefined' ? Vue : { createApp: () => ({ mount() {} }) };
+// One-time SSO handoff only; normal tokens never enter browser storage.
+let ssoHandoff = {};
+try {
+  const raw = sessionStorage.getItem('ea_sso_once');
+  sessionStorage.removeItem('ea_sso_once');
+  ssoHandoff = raw ? JSON.parse(raw) : {};
+  if (!ssoHandoff || typeof ssoHandoff !== 'object') ssoHandoff = {};
+} catch { ssoHandoff = {}; }
+try {
+  ['ea_token', 'ea_username', 'ea_role', 'ea_dept', 'ea_sid'].forEach(k => localStorage.removeItem(k));
+} catch { /* Storage denial must not prevent memory-only login. */ }
+
 
 createApp({
   data() {
     return {
       toast: '',
       // auth
-      token: localStorage.getItem('ea_token') || '',
-      username: localStorage.getItem('ea_username') || '',
-      role: localStorage.getItem('ea_role') || '',
-      userDept: localStorage.getItem('ea_dept') || '',
+      authEpoch: 0,
+      authReady: false,
+      userId: '',
+      sessionEpoch: 0,
+      busy: {},
+      uncertain: {},
+      loadState: {},
+      loadSequence: {},
+      cancelRequested: false,
+      token: typeof ssoHandoff.access_token === 'string' ? ssoHandoff.access_token : '',
+      username: '',
+      role: '',
+      userDept: '',
       seedUsers: [
         { username: '销售员张三', role: 'salesperson', department: 'dept_sales', label: '张三 · 销售员 · 销售部' },
         { username: '销售员王芳', role: 'salesperson', department: 'dept_sales', label: '王芳 · 销售员 · 销售部' },
@@ -604,6 +638,7 @@ createApp({
         { username: '管理员钱七', role: 'admin', department: 'shared_company' },
       ],
       loginName: '销售员张三',
+      loginPassword: '',
       loginErr: '',
       logging: false,
       pickerOpen: false,
@@ -612,15 +647,15 @@ createApp({
       tab: 'chat',
       refTab: 'customers',
       // chat
-      sessionId: localStorage.getItem('ea_sid') || '',
+      sessionId: '',
       backend: '',
       messages: [],
       draft: '',
       pending: false,
       elapsed: 0,
       progressText: '',
-      _timer: null,
-      _abort: null,
+      streamTimer: null,
+      streamAbort: null,
       // approval
       approvals: [],
       myApprovals: [],
@@ -664,19 +699,12 @@ createApp({
         { ticket_id: 'TK-EXIST005', title: 'C007 续费方案咨询', customer_id: 'C007', priority: 'normal', category: 'consultation', status: 'resolved' },
         { ticket_id: 'TK-EXIST006', title: 'C004 物流接口对接故障', customer_id: 'C004', priority: 'urgent', category: 'incident', status: 'closed' },
       ],
-      documents: [
-        { document_id: 'doc_policy_sales', title: '销售政策', doc_type: 'policy', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
-        { document_id: 'doc_policy_finance', title: '财务报销制度', doc_type: 'policy', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
-        { document_id: 'doc_manual_product', title: '产品手册', doc_type: 'manual', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
-        { document_id: 'doc_faq', title: '常见问题FAQ', doc_type: 'faq', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
-        { document_id: 'doc_policy_aftersale', title: '售后服务政策', doc_type: 'policy', dept_namespace: 'shared_company', status: 'active', uploaded_by: 'user_admin_001' },
-        { document_id: 'doc_sales_internal', title: '销售部内部报价指南', doc_type: 'policy', dept_namespace: 'dept_sales', status: 'active', uploaded_by: 'user_mgr_001' },
-        { document_id: 'doc_finance_internal', title: '财务部对账流程', doc_type: 'policy', dept_namespace: 'dept_finance', status: 'active', uploaded_by: 'user_fin_002' },
-      ],
+      documents: [],
     };
   },
   computed: {
-    isApprover() { return ['manager', 'admin'].includes(this.role); },
+    isApprover() { return this.authReady && ['manager', 'admin'].includes(this.role); },
+    isAdmin() { return this.authReady && this.role === 'admin'; },
     roleClass() {
       const m = { salesperson: 'sales', customer_service: 'cs', finance: 'fin', manager: 'mgr', admin: 'admin' };
       return m[this.role] || '';
@@ -737,10 +765,10 @@ createApp({
         { label: '查客户 C001', text: '查一下客户 C001 的信息' },
         { label: '查订单 ORD-2026-005', text: '查询订单 ORD-2026-005 的详情,包含明细' },
         { label: '建跟进任务', text: '给客户 C001 创建一个回访任务,并发内部邮件通知经理赵六' },
-        { label: '对比客户', text: '对比一下 C001 和 C002 两个客户的累计销售额' },
-        { label: '客户排名', text: '所有客户里谁的累计销售额最高,给出前三名' },
+        { label: '对比订单', text: '对比一下 C001 和 C002 两个客户的订单金额' },
+        { label: '订单汇总', text: '统计所有已完成订单的金额和数量' },
         { label: '提成政策', text: '销售提成政策是怎么规定的?' },
-        { label: '发外部邮件(需审批)', text: '给客户 C001 的联系人张经理发一封外部邮件,邮箱 zhang@huaxin-tech.com,主题:续约报价,正文:本季度续约报价请查收' },
+        { label: '发外部邮件(需审批)', text: '给客户 C001 的联系人张经理发一封外部邮件,邮箱 recipient@example.invalid,主题:续约报价,正文:本季度续约报价请查收' },
         { label: '查审批进度', text: '我的审批到哪了' },
       ];
       const cs = [
@@ -748,7 +776,7 @@ createApp({
         { label: '更新工单 TK-EXIST002', text: '把工单 TK-EXIST002 的状态更新为 resolved,备注:已确认支持批量导入' },
         { label: '售后政策', text: '退款政策是怎样的' },
         { label: 'SLA 标准', text: 'P0 故障的响应时间是多少' },
-        { label: '发外部邮件(无权演示)', text: '给外部客户 wang@external.com 发封邮件,同步续约报价' },
+        { label: '发外部邮件(无权演示)', text: '给外部客户 recipient@example.invalid 发封邮件,同步续约报价' },
         { label: '数据分析(无权演示)', text: '统计一下所有客户的订单总额' },
       ];
       const fin = [
@@ -758,11 +786,11 @@ createApp({
         { label: '转账限额', text: '资金转账的审批权限是怎么规定的' },
       ];
       const mgr = [
-        { label: '对比客户', text: '对比一下 C001 和 C002 两个客户的累计销售额' },
-        { label: '客户排名', text: '所有客户里谁的累计销售额最高,给出前三名' },
-        { label: '订单状态分布', text: '统计所有订单的状态分布,有多少笔 pending 待付款' },
+        { label: '对比订单', text: '对比一下 C001 和 C002 两个客户的订单金额' },
+        { label: '订单汇总', text: '统计所有已完成订单的金额和数量' },
+        { label: '待处理订单', text: '统计所有 pending 订单的金额和数量' },
         { label: 'Saga 三步', text: '查一下客户 C005 的信息,然后为她创建一个 urgent 工单跟踪数据分析 bug,最后发内部邮件给经理赵六说明处理进展' },
-        { label: '发外部邮件', text: '给外部客户王总 wang@external.com 发邮件,主题:续约报价,正文:本季度续约报价请查收' },
+        { label: '发外部邮件', text: '给外部客户王总 recipient@example.invalid 发邮件,主题:续约报价,正文:本季度续约报价请查收' },
         { label: '查待审批', text: '查看我待审批的批量请求' },
       ];
       const groups = [{ cat: '通用', items: common }];
@@ -780,32 +808,122 @@ createApp({
   },
   methods: {
     showToast(msg, ms = 2600) {
+      const epoch = this.authEpoch;
       this.toast = msg;
-      setTimeout(() => (this.toast = ''), ms);
+      setTimeout(() => { if (epoch === this.authEpoch && this.toast === msg) this.toast = ''; }, ms);
     },
     async api(path, opts = {}) {
-      if (location.protocol === 'file:') {
-        throw new Error('页面需通过 http://localhost:8000/ui 打开(当前为 file:// 直开,无法连接后端)');
-      }
+      if (!path.startsWith('/') || path.startsWith('//') || location.protocol === 'file:')
+        throw new Error('请通过服务地址访问页面');
       const headers = { 'Content-Type': 'application/json; charset=utf-8', ...(opts.headers || {}) };
-      if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
-      const resp = await fetch(path, { ...opts, headers });
-      if (resp.status === 401) { this.doLogout(); throw new Error('登录已过期,请重新登录'); }
-      const text = await resp.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = text; }
-      if (!resp.ok) {
-        const detail = (data && data.detail) ? data.detail : ('HTTP ' + resp.status);
-        throw new Error(detail);
+      if (this.token) headers.Authorization = 'Bearer ' + this.token;
+      const epoch = this.authEpoch, controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      let acknowledged = false;
+      try {
+        const resp = await fetch(path, { ...opts, headers, signal: controller.signal, redirect: 'error' });
+        if (epoch !== this.authEpoch) throw new Error('登录状态已变化');
+        if (resp.status === 401) { this.doLogout('登录未通过或已过期，请重新登录'); throw new Error('登录已过期，请重新登录'); }
+        if (!resp.ok) {
+          acknowledged = resp.status < 500;
+          if (resp.status === 403) this.clearProtectedViews();
+          throw new Error('请求未完成（HTTP ' + resp.status + '），请核对权限与记录');
+        }
+        const text = await resp.text();
+        if (epoch !== this.authEpoch) throw new Error('登录状态已变化');
+        if (text.length > 2097152) throw new Error('响应超出限制');
+        const data = JSON.parse(text);
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('响应格式无效');
+        return data;
+      } catch (error) {
+        const failure = new Error(error.name === 'AbortError' ? '请求超时，请核对记录' :
+          error instanceof SyntaxError ? '响应格式无效，请核对记录' : error.message);
+        failure.outcomeUnknown = !acknowledged && !['GET', 'HEAD'].includes(opts.method || 'GET');
+        throw failure;
+      } finally { clearTimeout(timer); }
+    },
+    clearProtectedViews() {
+      this.approvals = []; this.handledApprovals = []; this.prompts = {}; this.documents = [];
+      this.promptDrafts = {}; this.activateVer = {}; this.archiveOthers = {}; this.weights = {};
+      if (['prompt', 'reference'].includes(this.tab)) this.tab = 'chat';
+    },
+    async refreshIdentity() {
+      const epoch = this.authEpoch;
+      const d = await this.api('/api/v1/auth/me');
+      if (epoch !== this.authEpoch) throw new Error('登录状态已变化');
+      if (!['salesperson', 'customer_service', 'finance', 'manager', 'admin'].includes(d.role) ||
+          typeof d.user_id !== 'string' || !d.user_id || typeof d.username !== 'string' ||
+          (d.department !== null && d.department !== undefined && typeof d.department !== 'string')) {
+        this.doLogout('身份响应无效，请重新登录'); throw new Error('身份响应无效，请重新登录');
       }
-      return data;
+      if (this.authReady && (this.userId !== d.user_id || this.role !== d.role ||
+          this.userDept !== (d.department || ''))) {
+        this.doLogout('身份权限已变化，请重新登录'); throw new Error('身份权限已变化，请重新登录');
+      }
+      this.userId = d.user_id; this.username = d.username; this.role = d.role;
+      this.userDept = d.department || ''; this.authReady = true;
+      return d;
+    },
+    async authorize(roles = null) {
+      if (!this.token || !this.authReady) throw new Error('请先登录');
+      await this.refreshIdentity();
+      if (roles && !roles.includes(this.role)) throw new Error('当前身份无权执行此操作');
+    },
+    async runAction(key, work) {
+      if (this.busy[key]) return;
+      if (this.uncertain[key]) { this.showToast('上次提交结果未知，请先刷新记录核对'); return; }
+      const epoch = this.authEpoch; this.busy[key] = true;
+      try { await work(); }
+      catch (error) {
+        if (epoch === this.authEpoch) {
+          if (error.outcomeUnknown) this.uncertain[key] = true;
+          this.showToast(error.outcomeUnknown ? '提交结果未知，请刷新记录核对，勿重复提交' : error.message);
+        }
+      } finally { if (epoch === this.authEpoch) delete this.busy[key]; }
+    },
+    viewStatus(key) {
+      return { loading: '正在加载…', unavailable: '数据不可用，请刷新重试',
+        ready: '', idle: '尚未加载' }[this.loadState[key] || 'idle'];
+    },
+    async loadView(key, path, select, roles = null) {
+      const epoch = this.authEpoch, sequence = (this.loadSequence[key] || 0) + 1;
+      this.loadSequence[key] = sequence; this.loadState[key] = 'loading';
+      this[key] = ['prompts', 'status'].includes(key) ? {} : [];
+      try {
+        if (roles) await this.authorize(roles);
+        const data = select(await this.api(path));
+        if (epoch !== this.authEpoch || this.loadSequence[key] !== sequence) return;
+        if (!data || typeof data !== 'object' ||
+            (!['prompts', 'status'].includes(key) && !Array.isArray(data))) throw new Error('响应格式无效');
+        if (Array.isArray(data) && data.some(row => !row || typeof row !== 'object')) throw new Error('列表响应无效');
+        if (key === 'prompts' && (Array.isArray(data) || Object.values(data).some(rows =>
+            !Array.isArray(rows) || rows.some(row => !row || !Number.isInteger(row.version))))) throw new Error('版本列表无效');
+        this[key] = data; this.loadState[key] = 'ready';
+        const prefix = { approvals: 'approval:', myApprovals: 'resume:', prompts: 'prompt:' }[key];
+        if (prefix) for (const k of Object.keys(this.uncertain))
+          if (k.startsWith(prefix)) delete this.uncertain[k];
+      } catch (error) {
+        if (epoch === this.authEpoch && this.loadSequence[key] === sequence) {
+          this.loadState[key] = 'unavailable'; this.showToast(error.message);
+        }
+      }
     },
     renderMd(text) {
       if (!text) return '';
       // CommonMark 侧翼规则:闭合 ** 前是标点(如 %)且后紧跟中文时不算加粗,
       // 「**5%-10%**需…」会漏渲染成字面星号——先把 **x** 统一转 <strong> 再走 marked
       const pre = String(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
-      try { return DOMPurify.sanitize(marked.parse(pre)); } catch { return text; }
+      const escaped = String(text).replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+      try {
+        if (typeof marked === 'undefined' || typeof marked.parse !== 'function' ||
+            typeof DOMPurify === 'undefined' || DOMPurify.isSupported === false ||
+            typeof DOMPurify.sanitize !== 'function') return escaped;
+        const rendered = marked.parse(pre);
+        if (typeof rendered !== 'string') return escaped;
+        const clean = DOMPurify.sanitize(rendered);
+        return typeof clean === 'string' ? clean : escaped;
+      } catch { return escaped; }
     },
     fmtTime(t) {
       if (!t) return '';
@@ -843,42 +961,48 @@ createApp({
       window.location.assign('/api/v1/auth/sso/login');
     },
     async doLogin() {
+      if (this.logging || this.token) return;
       this.loginErr = '';
       if (!this.loginName.trim()) { this.loginErr = '请输入用户名'; return; }
-      this.logging = true;
+      const epoch = this.authEpoch; this.logging = true;
       try {
         const d = await this.api('/api/v1/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ username: this.loginName.trim() }),
+          method: 'POST', body: JSON.stringify({ username: this.loginName.trim(), password: this.loginPassword }),
         });
+        if (epoch !== this.authEpoch) return;
+        if (typeof d.access_token !== 'string' || !d.access_token) throw new Error('登录响应无效');
         this.token = d.access_token;
-        this.role = d.role;
-        this.username = this.loginName.trim();
-        // 优先用登录响应里的部门(非种子用户也有),fallback 到 seedUsers
-        const u = this.seedUsers.find(x => x.username === this.username);
-        this.userDept = d.department || (u ? u.department : '');
-        localStorage.setItem('ea_token', this.token);
-        localStorage.setItem('ea_role', this.role);
-        localStorage.setItem('ea_username', this.username);
-        localStorage.setItem('ea_dept', this.userDept);
+        await this.refreshIdentity();
       } catch (e) {
-        this.loginErr = e.message;
+        if (epoch === this.authEpoch) { this.doLogout(); this.loginErr = '登录未完成，请核对账号与服务状态'; }
       } finally {
-        this.logging = false;
+        if (epoch === this.authEpoch || !this.token) { this.loginPassword = ''; this.logging = false; }
       }
     },
-    doLogout() {
-      ['ea_token', 'ea_role', 'ea_username', 'ea_sid', 'ea_dept'].forEach(k => localStorage.removeItem(k));
+    doLogout(reason = '') {
+      this.authEpoch++; this.sessionEpoch++;
+      this.loginErr = typeof reason === 'string' ? reason : '';
+      this.authReady = false; this.userId = ''; this.logging = false;
+      this.busy = {}; this.uncertain = {}; this.loadState = {}; this.loadSequence = {};
+      this.cancelRequested = false; this.toast = '';
+      ssoHandoff = {};
+      this.loginPassword = '';
+      try { sessionStorage.removeItem('ea_sso_once'); } catch {}
       this.token = ''; this.role = ''; this.username = ''; this.userDept = '';
       this.messages = []; this.sessionId = '';
+      this.approvals = []; this.myApprovals = []; this.handledApprovals = [];
+      this.prompts = {}; this.promptDrafts = {}; this.status = {};
+      this.documents = []; this.draft = '';
+      this.activateVer = {}; this.archiveOthers = {}; this.weights = {};
       // 清掉进行中的请求状态,避免重登后卡在 pending-bar
       this.pending = false;
-      clearInterval(this._timer);
-      if (this._abort) { try { this._abort.abort(); } catch (e) {} }
+      clearInterval(this.streamTimer);
+      if (this.streamAbort) { try { this.streamAbort.abort(); } catch (e) {} }
       this.progressText = ''; this.elapsed = 0;
-      this.tab = 'chat';
+      this.tab = 'chat'; this.refTab = 'customers'; this.backend = '';
     },
     openTab(t) {
+      if (!this.authReady || (t === 'prompt' && !this.isApprover)) return;
       this.tab = t;
       if (t === 'approval') { this.loadApprovals(); this.loadMine(); this.loadHandled(); }
       if (t === 'prompt') this.loadPrompts();
@@ -887,8 +1011,9 @@ createApp({
 
     // ===== chat =====
     newSession() {
+      if (this.pending) return;
+      this.sessionEpoch++;
       this.sessionId = '';
-      localStorage.removeItem('ea_sid');
       this.messages = [];
       this.showToast('已开始新会话');
     },
@@ -899,145 +1024,124 @@ createApp({
     },
     async sendChat() {
       const text = this.draft.trim();
-      if (!text || this.pending) return;
-      this.messages.push({ role: 'user', text });
-      this.draft = '';
-      this.scrollBottom();
-      this.pending = true;
-      this.elapsed = 0;
-      this.progressText = '⏳ 正在规划…';
-      this._timer = setInterval(() => this.elapsed++, 1000);
-      this._abort = new AbortController();
-      const agentMsg = { role: 'agent', text: '', sources: [], intent: '' };
-      let pushed = false;
-      const ensurePush = () => { if (!pushed) { this.messages.push(agentMsg); pushed = true; } };
+      if (!text || this.pending || !this.authReady) return;
+      const epoch = this.authEpoch, generation = this.sessionEpoch;
+      const current = () => epoch === this.authEpoch && generation === this.sessionEpoch;
+      this.messages.push({ role: 'user', text }); this.draft = ''; this.pending = true;
+      delete this.uncertain.cancel;
+      this.cancelRequested = false; this.elapsed = 0; this.progressText = '正在处理…';
+      const controller = new AbortController(); this.streamAbort = controller;
+      const interval = setInterval(() => { if (current()) this.elapsed++; }, 1000);
+      this.streamTimer = interval;
+      const timeout = setTimeout(() => controller.abort(), 300000);
+      let reader, terminal = false, pushed = false;
+      let message = { role: 'agent', text: '', sources: [], intent: '', incomplete: true };
+      const show = () => { if (!pushed) { this.messages.push(message); message = this.messages[this.messages.length - 1]; pushed = true; } };
       try {
-        const body = { message: text };
-        if (this.sessionId) body.session_id = this.sessionId;
         const resp = await fetch('/api/v1/chat/stream', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer ' + this.token,
-          },
-          body: JSON.stringify(body),
-          signal: this._abort.signal,
+          method: 'POST', redirect: 'error', signal: controller.signal,
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.token },
+          body: JSON.stringify({ message: text, ...(this.sessionId ? { session_id: this.sessionId } : {}) }),
         });
-        if (resp.status === 401) { this.doLogout(); throw new Error('登录已过期,请重新登录'); }
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let buf = '';
+        if (!current()) return;
+        if (resp.status === 401) { this.doLogout(); this.loginErr = '登录已过期，请重新登录'; return; }
+        if (!resp.ok || !resp.body || !resp.headers.get('content-type')?.startsWith('text/event-stream'))
+          throw new Error('流式请求未完成');
+        reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8', { fatal: true });
+        let buffer = '', total = 0;
         while (true) {
           const { done, value } = await reader.read();
+          if (!current()) return;
           if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          let idx;
-          while ((idx = buf.indexOf('\n\n')) >= 0) {
-            const raw = buf.slice(0, idx);
-            buf = buf.slice(idx + 2);
-            const line = raw.split('\n').find(l => l.startsWith('data: '));
-            if (!line) continue;
-            const ev = JSON.parse(line.slice(6));
-            // 流式事件携带 session_id,首轮对话即可取消(不必等 final)
-            if (ev.session_id && !this.sessionId) {
-              this.sessionId = ev.session_id;
-              localStorage.setItem('ea_sid', this.sessionId);
+          total += value.byteLength;
+          if (total > 2097152) throw new Error('响应超出限制');
+          buffer += decoder.decode(value, { stream: true });
+          if (buffer.length > 262144) throw new Error('事件超出限制');
+          let boundary;
+          while ((boundary = /\r?\n\r?\n/.exec(buffer))) {
+            const raw = buffer.slice(0, boundary.index);
+            buffer = buffer.slice(boundary.index + boundary[0].length);
+            const data = raw.split(/\r?\n/).filter(l => l.startsWith('data:')).map(l => l.slice(5).trimStart()).join('\n');
+            if (!data) continue;
+            if (terminal) throw new Error('终态后收到重复事件');
+            const ev = JSON.parse(data);
+            if (!ev || typeof ev !== 'object') throw new Error('无效事件');
+            const sid = ev.session_id || (ev.type === 'final' && ev.data?.session_id);
+            if (sid) {
+              if (typeof sid !== 'string' || (this.sessionId && sid !== this.sessionId)) throw new Error('会话标识不匹配');
+              this.sessionId = sid;
             }
-            if (ev.type === 'progress') {
-              this.progressText = this.progressLabel(ev);
-            } else if (ev.type === 'token') {
-              ensurePush();
-              agentMsg.text += ev.data;
-              this.scrollBottom();
+            if (ev.type === 'progress') this.progressText = this.progressLabel(ev);
+            else if (ev.type === 'token') {
+              if (typeof ev.data !== 'string') throw new Error('无效片段');
+              show(); message.text += ev.data;
             } else if (ev.type === 'final') {
               const d = ev.data;
-              this.sessionId = d.session_id;
-              localStorage.setItem('ea_sid', this.sessionId);
-              this.backend = d.checkpointer_backend || '';
-              ensurePush();
-              if (!agentMsg.text) agentMsg.text = d.answer || '(空回复)';
-              agentMsg.sources = (d.sources || []).map(s => (s && s.kwargs) ? s.kwargs : s);
-              agentMsg.confidence = d.confidence;
-              agentMsg.intent = d.intent;
-              agentMsg.latencyMs = d.latency_ms;
-              agentMsg.cancelled = d.intent === 'cancelled';
+              if (!d || !d.session_id || typeof d.answer !== 'string' || (ev.session_id && ev.session_id !== d.session_id)) throw new Error('无效终态');
+              show(); terminal = true; message.incomplete = false; message.text = d.answer;
+              message.sources = Array.isArray(d.sources) ? d.sources.map(v => v?.kwargs || v).filter(v => v && typeof v === 'object').map(v => ({ ...v, score: Number.isFinite(v.score) ? v.score : 0 })) : [];
+              message.confidence = Number.isFinite(d.confidence) ? d.confidence : undefined;
+              message.intent = typeof d.intent === 'string' ? d.intent : '';
+              message.latencyMs = Number.isFinite(d.latency_ms) ? d.latency_ms : undefined;
+              message.cancelled = d.intent === 'cancelled'; this.backend = d.checkpointer_backend || '';
             } else if (ev.type === 'cancelled') {
-              ensurePush();
-              if (!agentMsg.text) agentMsg.text = '本次对话已取消。';
-              agentMsg.intent = 'cancelled';
-              agentMsg.cancelled = true;
+              show(); terminal = true; message.incomplete = false; message.cancelled = true;
+              message.intent = 'cancelled'; message.text += '\n本次对话已由服务端确认取消。';
             } else if (ev.type === 'error') {
-              ensurePush();
-              agentMsg.text = '❌ ' + ev.data;
-              agentMsg.intent = 'error';
-            }
+              show(); terminal = true; message.intent = 'error'; message.text += '\n服务端报告失败，请核对历史与操作记录。';
+            } else throw new Error('未知流式事件');
+            this.scrollBottom();
           }
         }
-        if (pushed && !agentMsg.text) agentMsg.text = '(无内容)';
-      } catch (e) {
-        if (!this.token) {
-          // 已登出(401 触发 doLogout 清空了 messages),不再推错误气泡
-        } else if (e.name === 'AbortError') {
-          ensurePush();
-          if (!agentMsg.text) agentMsg.text = '⚠️ 已中止等待。';
-          agentMsg.intent = agentMsg.intent || 'cancelled';
-          agentMsg.cancelled = true;
-        } else {
-          this.messages.push({ role: 'agent', text: '❌ ' + e.message, intent: 'error' });
+        if (!terminal || buffer.trim() || decoder.decode()) throw new Error('流已中断，未确认完成');
+      } catch (error) {
+        if (current() && this.token) {
+          show(); message.incomplete = true; message.cancelled = false; message.intent = 'error';
+          message.text += '\n⚠️ 未确认完成，请核对历史与操作记录，勿直接重复业务操作。';
         }
       } finally {
-        this.pending = false;
-        clearInterval(this._timer);
-        this.progressText = '';
-        this.scrollBottom();
+        clearTimeout(timeout); clearInterval(interval);
+        if (reader) { try { await reader.cancel(); } catch {} }
+        if (current()) { this.pending = false; this.streamAbort = null; this.progressText = ''; this.scrollBottom(); }
       }
     },
     async cancelChat() {
-      if (!this.sessionId) { this.showToast('无会话可取消'); return; }
-      try {
+      if (!this.pending || !this.sessionId || this.cancelRequested) return;
+      const generation = this.sessionEpoch;
+      await this.runAction('cancel', async () => {
         const d = await this.api('/api/v1/chat/cancel', {
-          method: 'POST',
-          body: JSON.stringify({ session_id: this.sessionId }),
+          method: 'POST', body: JSON.stringify({ session_id: this.sessionId }),
         });
-        this.showToast(d.cancelled ? '已请求取消' : '任务已结束或不存在');
-        if (this._abort) this._abort.abort();
-      } catch (e) {
-        this.showToast('取消失败:' + e.message);
-      }
+        if (generation !== this.sessionEpoch || !this.pending) return;
+        this.expectResult(typeof d.cancelled === 'boolean'); this.cancelRequested = d.cancelled;
+        this.showToast(d.cancelled ? '取消请求已受理，等待服务端终态' : '未找到运行任务，请核对历史');
+      });
     },
     async sendFeedback(m, type) {
-      if (!this.sessionId || m.fb) return;
-      let comment = '';
-      if (type === 'dislike') {
-        const r = window.prompt('点踩原因(将用于生成知识候选草稿):');
-        if (r === null) return; // 用户取消,不发请求
-        comment = r;
-      }
-      try {
-        await this.api('/api/v1/chat/feedback', {
-          method: 'POST',
-          body: JSON.stringify({ session_id: this.sessionId, feedback_type: type, comment }),
-        });
-        m.fb = type;
-        this.showToast(type === 'like' ? '感谢反馈' : (comment.trim() ? '已记录,负反馈将生成知识候选草稿' : '已记录点踩(未填原因,不生成草稿)'));
-      } catch (e) {
-        this.showToast('反馈失败:' + e.message);
-      }
+      if (!this.sessionId || this.pending || m.fb || m.incomplete || m.cancelled || !['like','dislike'].includes(type)) return;
+      const sid = this.sessionId, generation = this.sessionEpoch;
+      await this.runAction('feedback:' + sid + ':' + this.messages.indexOf(m), async () => {
+        const comment = type === 'dislike' ? window.prompt('反馈原因（取消则不提交）') : '';
+        if (comment === null) return;
+        const result = await this.api('/api/v1/chat/feedback', { method: 'POST',
+          body: JSON.stringify({ session_id: sid, feedback_type: type, comment }) });
+        this.expectResult(result.status === 'received');
+        if (generation !== this.sessionEpoch || sid !== this.sessionId) return;
+        m.fb = type; this.showToast('反馈已记录');
+      });
     },
     async loadHistory() {
-      try {
-        const d = await this.api('/api/v1/chat/history/' + this.sessionId);
-        if (!d.found) { this.showToast('未找到历史' + (d.session_status ? '(状态:' + d.session_status + ')' : '')); return; }
-        this.messages.push({
-          role: 'agent',
-          text: `📜 历史快照(step=${d.step}, backend=${d.checkpointer_backend}):\n\n**意图**: ${d.intent}\n\n**最近回答**: ${d.final_answer || '(无)'}`,
-          intent: 'history', confidence: d.confidence,
-        });
+      if (!this.sessionId || this.pending) return;
+      const sid = this.sessionId, generation = this.sessionEpoch;
+      await this.runAction('history', async () => {
+        const d = await this.api('/api/v1/chat/history/' + encodeURIComponent(sid));
+        if (generation !== this.sessionEpoch || sid !== this.sessionId) return;
+        if (!d.found) { this.showToast('未找到历史快照'); return; }
+        this.messages.push({ role: 'agent', intent: 'history', incomplete: true,
+          text: `历史快照（状态：${d.session_status || '未知'}）\n\n${d.final_answer || '无回答'}\n\n快照不代表本次业务执行成功。` });
         this.scrollBottom();
-      } catch (e) {
-        this.showToast('读取历史失败:' + e.message);
-      }
+      });
     },
     scrollBottom() {
       this.$nextTick(() => {
@@ -1048,38 +1152,35 @@ createApp({
 
     // ===== approval =====
     async loadApprovals() {
-      if (!this.isApprover) return;
-      try {
-        const d = await this.api('/api/v1/approvals/pending');
-        this.approvals = d.items || [];
-      } catch (e) {
-        this.showToast('加载审批列表失败:' + e.message);
-      }
+      if (!this.isApprover) { this.approvals = []; return; }
+      return this.loadView('approvals', '/api/v1/approvals/pending', d => d.items, ['manager', 'admin']);
     },
-    async loadMine() {
-      try {
-        const d = await this.api('/api/v1/approvals/mine');
-        this.myApprovals = d.items || [];
-      } catch (e) {
-        this.showToast('加载我的审批失败:' + e.message);
-      }
-    },
+    async loadMine() { return this.loadView('myApprovals', '/api/v1/approvals/mine', d => d.items); },
     async loadHandled() {
-      if (!this.isApprover) return;
-      try {
-        const d = await this.api('/api/v1/approvals/handled');
-        this.handledApprovals = d.items || [];
-      } catch (e) {
-        this.showToast('加载经手记录失败:' + e.message);
-      }
+      if (!this.isApprover) { this.handledApprovals = []; return; }
+      return this.loadView('handledApprovals', '/api/v1/approvals/handled', d => d.items, ['manager', 'admin']);
+    },
+    expectResult(valid) {
+      if (!valid) { const error = new Error('响应无效，请核对记录'); error.outcomeUnknown = true; throw error; }
+    },
+    approvalResult(d, id) {
+      this.expectResult(d.approval_id === id && ['pending','approved','rejected','timeout',
+        'approved_pending_reauth','executing','executed','execution_failed','execution_unknown',
+        'compensated','compensation_failed'].includes(d.status));
+      return this.statusLabel(d.status);
     },
     statusLabel(s) {
       const m = {
         pending: '待审批',
-        executed: '已执行',
+        executed: '执行成功',
+        executing: '执行中',
+        execution_failed: '执行失败',
+        execution_unknown: '结果待核对',
+        compensated: '执行失败·已补偿',
+        compensation_failed: '补偿未完成',
         approved: '已批准',
         rejected: '已拒绝',
-        approved_pending_reauth: '已批准·待恢复',
+        approved_pending_reauth: '已批准·待确认',
         timeout: '已超时',
       };
       return m[s] || s;
@@ -1088,6 +1189,11 @@ createApp({
       const m = {
         pending: 'orange',
         executed: 'green',
+        executing: 'purple',
+        execution_failed: 'orange',
+        execution_unknown: 'orange',
+        compensated: 'gray',
+        compensation_failed: 'orange',
         approved: 'green',
         rejected: 'gray',
         approved_pending_reauth: 'purple',
@@ -1096,109 +1202,83 @@ createApp({
       return m[s] || 'gray';
     },
     async resume(m) {
-      try {
-        const d = await this.api('/api/v1/pending-executions/' + m.approval_id + '/resume', {
-          method: 'POST',
-          body: JSON.stringify({}),
-        });
-        this.showToast(d.message || d.status);
-        this.loadMine();
-      } catch (e) {
-        this.showToast('恢复执行失败:' + e.message);
-      }
+      if (m.status !== 'approved_pending_reauth') return;
+      await this.runAction('resume:' + m.approval_id, async () => {
+        await this.authorize();
+        const d = await this.api('/api/v1/pending-executions/' + encodeURIComponent(m.approval_id) + '/resume', { method: 'POST', body: '{}' });
+        this.showToast(this.approvalResult(d, m.approval_id)); m.status = d.status;
+        await this.loadMine();
+      });
     },
     async decide(a, decision) {
-      const comment = window.prompt((decision === 'approved' ? '批准' : '拒绝') + '意见(可空):') ?? '';
-      try {
-        const d = await this.api('/api/v1/approval/' + a.approval_id + '/decide', {
-          method: 'POST',
-          body: JSON.stringify({ decision, comment }),
+      if (!this.isApprover || a.resultStatus || !['approved', 'rejected'].includes(decision)) return;
+      await this.runAction('approval:' + a.approval_id, async () => {
+        const comment = window.prompt('审批意见（取消则不提交）'); if (comment === null) return;
+        await this.authorize(['manager', 'admin']);
+        const d = await this.api('/api/v1/approval/' + encodeURIComponent(a.approval_id) + '/decide', {
+          method: 'POST', body: JSON.stringify({ decision, comment }),
         });
-        a.result = d.message || d.status;
-        this.showToast('已' + (decision === 'approved' ? '批准' : '拒绝') + ':' + (d.message || d.status));
-        setTimeout(() => { this.loadApprovals(); this.loadMine(); this.loadHandled(); }, 1200);
-      } catch (e) {
-        this.showToast('审批失败:' + e.message);
-      }
+        a.result = this.approvalResult(d, a.approval_id); a.resultStatus = d.status;
+        this.showToast(a.result);
+        await Promise.all([this.loadApprovals(), this.loadMine(), this.loadHandled()]);
+      });
     },
 
     // ===== prompts =====
     async loadPrompts() {
-      try {
-        const d = await this.api('/api/v1/prompts');
-        this.prompts = d.prompts || {};
-      } catch (e) {
-        this.showToast('加载 prompt 列表失败:' + e.message);
-      }
+      return this.loadView('prompts', '/api/v1/prompts', d => d.prompts, ['manager', 'admin']);
     },
     async createVersion(name) {
       const content = (this.promptDrafts[name] || '').trim();
-      if (!content) { this.showToast('请先填写新版本内容'); return; }
-      try {
-        const d = await this.api('/api/v1/prompts/' + name + '/versions', {
+      if (!content) { this.showToast('请先填写内容'); return; }
+      await this.runAction('prompt:' + name, async () => {
+        await this.authorize(['manager', 'admin']);
+        const d = await this.api('/api/v1/prompts/' + encodeURIComponent(name) + '/versions', {
           method: 'POST', body: JSON.stringify({ content }),
         });
-        this.showToast(`已创建 ${name} v${d.version}(draft)`);
-        this.promptDrafts[name] = '';
-        this.loadPrompts();
-      } catch (e) {
-        this.showToast('创建失败:' + e.message);
-      }
+        this.expectResult(d.name === name && d.status === 'draft' && Number.isInteger(d.version) && d.version > 0);
+        this.promptDrafts[name] = ''; this.showToast(`已创建 v${d.version}`); await this.loadPrompts();
+      });
     },
     async activate(name) {
-      const v = this.activateVer[name];
-      if (!v) { this.showToast('请输入要激活的版本号'); return; }
-      try {
-        await this.api('/api/v1/prompts/' + name + '/activate', {
-          method: 'POST',
-          body: JSON.stringify({ version: v, archive_others: !!this.archiveOthers[name] }),
+      const version = this.activateVer[name];
+      if (!Number.isInteger(version) || version < 1) { this.showToast('请输入正整数版本号'); return; }
+      await this.runAction('prompt:' + name, async () => {
+        await this.authorize(['manager', 'admin']);
+        const d = await this.api('/api/v1/prompts/' + encodeURIComponent(name) + '/activate', {
+          method: 'POST', body: JSON.stringify({ version, archive_others: !!this.archiveOthers[name] }),
         });
-        this.showToast(`已激活 ${name} v${v}`);
-        this.loadPrompts();
-      } catch (e) {
-        this.showToast('激活失败:' + e.message);
-      }
+        this.expectResult(d.name === name && d.version === version && d.status === 'active');
+        this.showToast('激活请求已处理，请核对版本列表'); await this.loadPrompts();
+      });
     },
     async setTraffic(name, versions) {
       const weights = {};
-      for (const v of versions.filter(x => x.status === 'active')) {
+      for (const v of versions.filter(v => v.status === 'active')) {
         const w = this.weights[name + '_' + v.version];
         if (w !== undefined && w !== null && w !== '') weights[String(v.version)] = Number(w);
       }
-      if (Object.keys(weights).length === 0) { this.showToast('请先填写权重'); return; }
-      try {
-        await this.api('/api/v1/prompts/' + name + '/traffic', {
+      if (!Object.keys(weights).length || Object.values(weights).some(v => !Number.isFinite(v) || v < 0) ||
+          Object.values(weights).reduce((a, b) => a + b, 0) <= 0) { this.showToast('请填写有效的非负权重'); return; }
+      await this.runAction('prompt:' + name, async () => {
+        await this.authorize(['manager', 'admin']);
+        const d = await this.api('/api/v1/prompts/' + encodeURIComponent(name) + '/traffic', {
           method: 'PUT', body: JSON.stringify({ weights }),
         });
-        this.showToast('流量权重已更新');
-        this.loadPrompts();
-      } catch (e) {
-        this.showToast('设置失败:' + e.message);
-      }
+        this.expectResult(d.name === name && d.weights && Object.keys(d.weights).length === Object.keys(weights).length &&
+          Object.entries(weights).every(([key, value]) => d.weights[key] === value));
+        this.showToast('流量请求已处理，请核对列表'); await this.loadPrompts();
+      });
     },
 
-    // ===== status =====
-    async loadStatus() {
-      try { this.status = await this.api('/ready'); }
-      catch (e) { this.showToast('加载状态失败:' + e.message); }
-    },
-
-    // ===== 知识库文档台账(真实数据,仅 admin 可读) =====
+    // ===== component observations; C21 remains open =====
+    async loadStatus() { return this.loadView('status', '/ready', d => d.components); },
     async openDocsTab() {
-      this.refTab = 'docs';
-      await this.loadDocuments();
+      if (!this.isAdmin) return;
+      this.refTab = 'docs'; await this.loadDocuments();
     },
     async loadDocuments() {
-      try {
-        const d = await this.api('/api/v1/admin/documents?limit=100');
-        if (d && d.data && Array.isArray(d.data.items)) {
-          this.documents = d.data.items;
-          return;
-        }
-      } catch (e) {
-        // 非 admin 或接口不可用:保留内置演示数据并提示
-        this.showToast('文档台账加载失败(仅 admin 可读):' + e.message);
-      }
+      return this.loadView('documents', '/api/v1/admin/documents?limit=100', d => d.data?.items, ['admin']);
     },
   },
   mounted() {
@@ -1208,9 +1288,14 @@ createApp({
       this.loginErr = '⚠️ 请通过 http://localhost:8000/ui 访问本系统(当前以 file:// 打开,无法连接后端)';
       return;
     }
-    if (this.token) this.openTab('chat');
+    const boot = document.getElementById?.('boot-error'); if (boot) boot.hidden = true;
+    const epoch = this.authEpoch;
+    if (this.token) this.refreshIdentity().catch(() => {
+      if (epoch === this.authEpoch) { this.doLogout(); this.loginErr = '身份核验失败，请重新登录'; }
+    });
   },
 }).mount('#app');
+ssoHandoff = {}; // Do not retain a second reference to the handoff credential.
 </script>
 </body>
 </html>

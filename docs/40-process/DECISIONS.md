@@ -125,3 +125,365 @@
 - **放弃**：保留每级 1-2 周与 G3 无上限的弹性写法——无法验证总窗口；提前建设 K8s/流量染色——当前单机 Compose 不具备必要条件。
 - **验证**：`enterprise-agent/eval/validate_grey_release_plan.py` 对 7 项结构、SLA 与回滚检查通过，评审结论为 `conditional`；业务观察项阈值和真实 UAT 资源仍需产品/业务负责人确认。
 - **改判条件**：负责人确认新的业务阈值或部署形态发生变化时，重新评审阶段时长与回滚证据要求。
+
+## 19. CI 必需检查与离线验收边界（2026-09-29）
+
+- **背景**：PR #1 已合并并通过扫描发布镜像，但 GitHub 尚未将现有 CI 设为必需检查；真实 UAT 与外部联调资源仍缺失。
+- **决策**：按用户授权将 main 的 Python 3.11、Python 3.13、生产镜像构建/扫描三项设为必需检查，绑定 GitHub Actions 应用并开启 strict。其余保护设置保持原值；PR #1 的管理员例外不自动延伸至后续 PR。
+- **验证**：保护设置前后比较仅 required_status_checks 改变。既有应用提交 2d4bfc1 的主分支 CI 36522224892 全绿，GATE-01 可记录该自动回归证据。离线 G0 的 16 项检查通过；UAT 执行准备度和正式放行仍为 blocked。
+- **后续条件**：用户确认外部资源暂未准备，先完成离线部分。真实 UAT、外部写操作、安全验收、灰度和生产部署须补齐最新阻塞清单的资源与授权。CI 镜像发布不代表生产部署或正式业务验收。
+- **证据**：[交付与离线推进记录](交付与离线推进记录-2026-09-29.md)、[下一步执行阻塞清单](下一步执行阻塞清单-2026-09-29.md)。
+
+<a id="engineering-delivery-decision"></a>
+## 20. 工程交付收尾与企业现场生产验证分开（2026-10-17）
+
+- **背景**：用户明确项目为练手项目，没有真实企业使用，但希望按可执行的企业应用完成工程交付；代码调查发现 25 项需验收的差距。用户本轮仅授权 S0 文档与 OpenSpec，完成后等待确认。
+- **决策**：采用[工程交付基线](../50-engineering/engineering-delivery-baseline.md)中的单组织、Linux 单机 Compose、真实基础设施、独立 worker 和一套经过实测的模型 profile；用受控 HTTP/IdP 验证完整集成；ISSUES 管 C01–C25，ROADMAP 管 S0–S7，每次经确认推进一项。基线中的具体模型版本与负载参数由对应项在执行前冻结，不预先虚构已支持或已测量结果。
+- **证据边界**：参考服务通过仅是工程证据，不能替代真实 CRM/邮件/IdP 团队契约或企业 UAT。决策 16 的企业切换要求、决策 18 的最短四周灰度与决策 19 的发布授权边界保持有效。`formal_uat=false`、`release_evidence=false`、`release_allowed=false`；既有企业任务不打勾。
+- **放弃**：用无限扩展的「企业级」清单要求本轮实现多租户/多机 HA；等待企业客户才补工程缺口；用历史通过或模拟结果冒充当前生产可用。
+- **改判条件**：真实企业资源到位、部署/组织边界改变、模型资源不满足、发现新 P0 或某验收无法满足时，先修订相应规格与验收边界并取得确认，再推进受影响项。新增依赖、推送、合并、部署等仍遵守各自授权要求。
+- **当前结论**：只完成 S0 计划文档，工程能力未按新基线验收；CLI 严格校验不可用，不能宣称 OpenSpec 校验通过。当前未归档此 change、未升级版本。
+
+
+## 21. Fail-closed identity and approval execution authorization (2026-10-17)
+
+- **Decision**: Production requires password and current-account checks. Identity-store
+  failure denies access with 503; token claims never replace failed current-account
+  resolution. Explicit development token-only mode remains outside revocation guarantees.
+- **Execution**: Approval single/batch/resume checks requester and approver current
+  permissions in the execution transaction. Resume rechecks the original approver.
+  Identity rows use shared locks in sorted order; tools run as the requester with
+  a signed, unexpired, subject-bound token. Expired signed tokens may require reauth.
+- **Tradeoff**: Identity-store availability becomes required for protected requests;
+  account changes may wait on running approval transactions. C06 credential storage
+  and C11 atomic claiming/state semantics remain separate. Already admitted work is
+  not cancelled mid-flight. No enterprise production use is asserted.
+- **Evidence**: [C05 delivery record](阶段性总结_C05认证失败闭合与运行时授权.md).
+  Offline increment passes; real JWT/HTTP/PostgreSQL/Linux acceptance is BLOCKED.
+
+
+## 22. Transient requester confirmation and redacted output (2026-10-17)
+
+- **Decision**: Approval grants permission but does not execute tools. The requester
+  explicitly resumes with current bearer credentials; current requester/original
+  approver authorization is rechecked. New graph/approval state never stores login
+  tokens. No reusable server-side delegation credential or encryption key is added.
+- **Tradeoff**: Approvals now require a requester action. Browser memory-only tokens
+  require login after reload; SSO has a single-use tab-scoped handoff. Client logout
+  is not server-side token revocation, and historical credentials still need operator
+  revocation/retention decisions. Existing data is not rewritten or deleted.
+- **Output**: Shared credential masking at owned diagnostic/persistence boundaries,
+  fixed public errors, and escaped text on Markdown/sanitizer failure. Arbitrary
+  encodings, external logging/exporters and real browser behavior need live evidence.
+- **Evidence**: [C06 delivery record](阶段性总结_C06凭证与HTML失败安全.md); offline
+  increment passes, runtime/historical acceptance remains BLOCKED. C07 not started.
+
+
+## 23. One fail-closed retrieval scope (2026-10-17)
+
+- **Decision**: Resolve ROLE_NAMESPACES with current identity before retrieval.
+  Ordinary roles receive allowed current department plus shared; missing department
+  is shared-only. Managers receive their explicit four-department grant; admins
+  have wildcard namespaces. Both still require active documents and role ACL.
+- **Encoding**: Centralize Milvus literals; bind PG JSON arrays and plain keyword
+  queries. Carry type constraints across fallback and recheck ACL metadata before
+  reranking, generation and citations. No unfiltered retrieval compatibility mode.
+- **Tradeoff**: Unknown/missing ACL rows are unavailable until corrected through
+  separately authorized data operations. Persisted misclassification, historical
+  answers and index consistency remain outside this incremental query guard.
+- **Evidence**: [C07 record](阶段性总结_C07检索权限与表达式编码.md) and
+  [matrix/acceptance contract](../50-engineering/retrieval-authorization.md).
+  Offline increment passes; real Milvus/PG/API/Linux remains BLOCKED. C08 waits.
+
+## 24. Per-task context and explicit dependency refusal (2026-10-17)
+
+- **Decision**: Create request-bearing agents per dispatch; copy identity/history
+  into each Send and carry the request ID into execution. Bind answers to requests
+  and filter history by current user/session/role/department. Bind graph cache to
+  saver identity so a replaced saver cannot supply another graph's history.
+- **Scheduling**: Only independent fan-out is supported. Reject all declared or
+  malformed dependencies before any Send; keep a terminal fixed response. Code-owned
+  prompt guidance applies even to existing activated templates without editing them.
+- **Tradeoff**: Legacy unbound history is excluded from model context without data
+  deletion. No universal DAG, semantic dependency detection, same-session concurrency
+  safety or checkpoint durability is claimed. These require distinct evidence/work.
+- **Evidence**: [C08 record](阶段性总结_C08请求上下文与子任务依赖.md), 23 focused and
+  88 related offline tests PASS. Real runtime acceptance remains BLOCKED; C09 waits.
+
+## 25. Shared ephemeral state and per-request prompt versions (2026-10-17)
+
+- **Decision**: Use existing Redis for expiring run leases/cancel signals and atomic
+  SSO nonce consumption. Compare run tokens on renew/release; require browser state
+  cookies before nonce consumption. Shared-store failure never falls back to memory.
+- **Prompt visibility**: Read committed active versions once per persistent graph
+  invocation, pin them in ContextVar, and fail the request on snapshot-read failure.
+  New requests see DB updates without cross-worker invalidation messages.
+- **Tradeoff**: Redis is now required for chat admission and SSO; prompt DB reads add
+  per-request cost. Cancellation is cooperative, leases do not fence business writes,
+  and consumed SSO state is not protected against restoring old Redis backups. No HA
+  or durable-job claim. Existing one-worker candidate remains provisional, not a
+  newly approved restriction of the C09 two-process target.
+- **Evidence**: [C09 record](阶段性总结_C09跨进程运行状态.md), 28 focused and 111
+  related offline tests PASS. Real multi-process/Redis/SQL/SSO acceptance BLOCKED;
+  C10 and C09 push await confirmation.
+
+## 26. Explicit checkpoint backend and failure semantics (2026-10-17)
+
+- **Decision**: Select one backend for each process; no automatic Redis/PG/memory
+  fallback. Memory requires explicit development mode. Own saver resources, serialize
+  initialization and probe before publication. PostgreSQL provisioning is explicit.
+- **Failure behavior**: History read failure stops graph work. Streamed final state
+  must match current request/identity; tokens are provisional. No retry/replay or
+  rollback claim after uncertain writes, no migration or cleanup of existing state.
+- **Limit**: C09 leases do not fence writes after expiry; C10 cannot close without
+  resolving/accepting the real concurrency boundary. Actual driver/schema/TTL/restart
+  and prior live acceptance stay BLOCKED. Compose worker count is unchanged.
+- **Evidence**: [C10 record](阶段性总结_C10检查点持久化与故障语义.md), 27 focused and 139
+  related offline tests PASS. C09 push was authorized and verified; C10 stays local
+  and the next C18 contract prework is not started.
+
+## 27. Freeze a controlled business reference profile before recovery work (2026-10-17)
+
+- **Decision**: Freeze [business-reference-v1](../50-engineering/reference-business-contract.md)
+  as the target for independent CRM/ticket/mail reference services. Define durable
+  per-action identity, atomic effect/receipt commits, authenticated outcome queries,
+  conditional compensation and synthetic capture-only mail. No vendor guarantee.
+- **Truthful outcomes**: Unknown write result is not rollback; pending/recall-requested
+  is not completion or actual recall. Never rekey an unknown action or silently
+  switch it to mock. Retain tombstones, original comments and receipts.
+- **Handoff**: C12 owns IDs, retries and response validation; C14 queue recovery;
+  C13 durable Saga/compensation; C11 approval claims; C18 S5 independent services and
+  complete application evidence. C16 extends the shared CRM analysis contract before
+  analytics acceptance; C19 retains IdP. C10 write races stay in C10.
+- **Evidence**: Prework is document-only; 13 interface rows and 20 future cases,
+  all live cases BLOCKED. [Delivery record](阶段性总结_C18参考契约前置.md). No new runtime
+  implementation, service startup, real recipients or current-data operations.
+
+## 28. Durable action intent and conservative dispatch (2026-10-17)
+
+- **Decision**: Persist execution and per-action UUIDs, normalized plan and target,
+  then freeze wire request/precondition before a one-way PostgreSQL dispatch claim.
+  Re-entry queries retained receipts; no automatic mutation retry or claim reclaim.
+- **Authority**: Recheck current role at the gateway and require a transient fresh
+  approval scope bound to persisted calls for external mail. Never persist bearer
+  credentials or assign replacement IDs to legacy approvals.
+- **Tradeoff**: A claim/send crash may require manual reconciliation. Disable unsafe
+  legacy HTTP compensation pending C13's durable inverse contract; unknown outcomes
+  stop downstream work. The approval state machine and queue ownership remain C11/C14.
+- **Evidence**: [C12 record](阶段性总结_C12工具幂等与安全重试.md), 41 focused and
+  94 related offline tests PASS. C18 `317aa7f` pushed; C12 remains local. Real services,
+  OpenSpec strict CLI, C10 fencing, enterprise UAT and release remain BLOCKED.
+
+## 29. Transactional jobs and conservative worker recovery (2026-10-17)
+
+- **Decision**: Use existing PostgreSQL for retained jobs, committing enqueue together
+  with document approval. Redis Lists were unused by application producers and cannot
+  give an atomic business/enqueue commit; no new broker dependency is introduced.
+- **Recovery**: Exclusive owner/deadline claims, bounded pre-dispatch retry, durable
+  dispatch before invocation and retained unknown/dead outcomes. Never blindly replay
+  ingestion or compensation after an uncertain effect. Dead is not rollback/fencing.
+- **Contract**: Knowledge approval returns 202 plus task ID, with admin status and
+  consumer-progress queries. Reject only drafts. Initialize worker dependencies before
+  consuming and supervise lifetime; stop legacy deleting audit replay pending C21.
+- **Dependencies**: C13 supplies Saga producer/inverse identity before enabling recovery;
+  C15 owns vector/ledger publication. C10 checkpoint fencing stays open. Legacy Redis
+  data is preserved and any migration requires a separate reviewed plan.
+- **Evidence**: [C14 record](阶段性总结_C14队列可靠性与Worker初始化.md), 43 focused and
+  112 related tests PASS. C12 `21b5287` pushed; C14 local only. Runtime, strict CLI,
+  enterprise UAT/release remain BLOCKED. Stop before C13 until user confirmation.
+
+## 30. C13: retain inverse identities and abort interrupted plans conservatively
+
+- **Problem**: in-memory Saga execution could not produce trusted worker recovery evidence;
+  legacy inverse calls could not bind a durable action identity or prove an unknown outcome.
+- **Decision**: journal exact C12 plans and C14 recovery jobs atomically, lease the run,
+  cancel prepared forward actions after interruption, reconcile all uncertain originals,
+  then compensate in reverse order with distinct retained UUIDs and frozen preconditions.
+  Current actor permission and target are revalidated; original approved-send evidence
+  permits only its linked inverse, never a new send or persisted approval capability.
+- **Tradeoff**: no blind forward continuation, inverse resend, version refresh or legacy
+  conversion. Unknown outcomes, non-durable mock recovery and external recall requests
+  remain unresolved/manual. Saga-only queue retry is capped at four claims; knowledge
+  ingestion keeps its no-replay policy. No exactly-once or C10 checkpoint fencing claim.
+- **Verification**: 34 C13 and 185 related offline tests PASS; runtime/strict CLI BLOCKED.
+  [C13 record](阶段性总结_C13Saga持久化与故障恢复.md). C14 `59a5c14` pushed; C13 local only.
+- **Revisit**: isolated crash/locking/provider evidence may justify a separately reviewed
+  continuation policy. C11 approval state and C21 audit replay remain separate. Stop at C13.
+
+## 31. C11: one-way approval claims and evidence-based outcomes
+
+- **Decision**: Commit a conditional execution claim before tools; never reclaim it on
+  timeout. Batch decisions commit all or none. Expire both pending and approved-but-
+  unconfirmed requests by database time; a five-minute execution deadline triggers
+  observation only. Record state/audit atomically and notify after commit.
+- **Evidence**: Success requires retained C12 receipts or C13 succeeded state. Unknown,
+  failed, compensated and incomplete compensation remain distinct across API/UI/query
+  tools. No fresh IDs, automatic forward retry, historical recertification or token storage.
+- **Verification**: 34 focused + 210 related offline cases PASS; real SQL/JWT/API/browser/
+  Linux, full pytest and strict CLI BLOCKED. [C11 record](阶段性总结_C11审批领取与执行状态.md).
+- **Delivery**: C13 `c42dcf8` pushed and exact remote verified. C11 local only; stop before
+  C15. C10 checkpoint fencing open; C21 audit replay deferred. Mock notification receipt
+  is not delivery; HTTP notification integration remains unavailable.
+
+## 32. C15: immutable publication generations and ledger-authorized retrieval
+
+- **Decision**: Persist a generation and frozen chunk plan before index writes; use
+  generation-specific IDs with upsert and atomically activate after complete acknowledgment,
+  current-source and reviewer checks. Keep prior generations, hide unfinished versions,
+  and use fresh PostgreSQL visibility before reranking and across fallback paths.
+- **Recovery**: Retain dead jobs; explicit admin retry keeps the original payload/generation.
+  Deactivation prevents late activation. No deletion, automatic queue reset, credential
+  persistence or silent legacy visibility. In-flight admitted snapshots may finish.
+- **Limits**: Legacy unversioned content needs approved isolated reimport. Reference-profile
+  snapshot limits and stale-vector top-K crowding require real capacity/quality acceptance.
+- **Evidence**: 36 focused + 148 related offline tests PASS; actual SQL/Milvus/Linux/full
+  RAG regression and strict CLI BLOCKED. [C15 record](阶段性总结_C15知识发布与索引一致性.md).
+- **Delivery**: C11 `8bb6241` pushed/verified; C15 local only. Stop before C16. C10 write race
+  remains open; non-deleting audit replay remains C21; enterprise UAT/release not authorized.
+
+
+## 33. C16: provider-aligned snapshots and deterministic analytics
+
+- **Decision**: Follow the effective CRM provider; version the read extension as
+  crm-analysis-v1, require complete bounded pages and current database authorization.
+  Finance never reads customer records; the existing tool-level permission scope remains.
+- **Facts**: Integer minor-unit totals by currency; explicit order/date/status semantics.
+  No lifetime-revenue proxy, model-written numerical report or numerical rewrite during
+  aggregation. The original user message controls supported date/entity selection.
+- **Limits**: Bounded parser and order amount/count scope; unsupported metrics/periods
+  return explicit errors. Independent service snapshots and full application behavior
+  require C18 runtime evidence, not injected transport tests.
+- **Evidence**: 33 focused + 149 related offline cases PASS; live runtime, full pytest
+  and strict CLI BLOCKED. [C16 record](阶段性总结_C16分析数据适配.md).
+- **Delivery**: C15 `0c0c5f9` pushed/verified; C16 local only, stop before C17.
+  C15 full RAG remains BLOCKED; C10 write race open; audit replay remains C21.
+
+
+## 34. C17: fixed-denominator RAG evidence and truthful retrieval states
+
+- **Decision**: Preserve all 122 cases/nine sources, hash their provenance, and separately
+  score six department controls. Failed/skipped/missing answers remain in the denominator.
+  Capture the actual KnowledgeAgent invocation/final decision; do not duplicate generation.
+- **Semantics**: Keyword, citation-reference and refusal-marker checks are mechanical
+  proxies. Human semantic review and accepted C02 runtime evidence remain required.
+  Rename fallback stages by actual algorithms; outages cannot count as no-answer refusals.
+- **Safety**: Default CLI is offline; runtime needs explicit opt-in, exact published corpus,
+  existing collection and new report path. No auto-ingest/reset/migration/overwrite.
+- **Evidence**: 29 focused + 112 related offline cases PASS. Full runtime/RAG, full pytest
+  and strict OpenSpec CLI remain BLOCKED. [C17 record](阶段性总结_C17RAG质量与指标口径.md).
+- **Delivery**: C16 `bb81833` pushed/verified; C17 local only. Stop before C18 full integration.
+  C10 write race remains open; non-deleting audit replay remains C21.
+
+## 35. C18: independent retained reference services and observation-only acceptance collector
+
+- **Need**: tool stubs cannot prove independent state, versioned compensation or whole-application behavior.
+- **Choice**: three stdlib HTTP processes with separate SQLite stores, atomic effects/receipts,
+  authenticated run grants and a separate operator listener. Default collector is plan-only;
+  explicit execution uses login/chat/approval/resume and records app/provider correlation.
+- **Alternatives**: in-process mocks remain useful for offline checks but cannot close C18.
+  Adding a new web/database framework is unnecessary for the bounded reference environment.
+- **Tradeoffs**: single replica, coarse writer lock, fixed synthetic fixtures, bounded evidence,
+  no vendor/SMTP/HA claims. Physical durability, journal retention and real network behavior
+  require isolated Linux evidence; settings and in-memory SQLite do not prove them.
+- **Verification**: 45 focused + 162 related offline cases PASS. Every R01–R20 case stays
+  BLOCKED until the frozen semantic/runtime oracle is met. OBSERVED transcript steps do not
+  count as PASS. C10 fencing and C21 audit replay remain separately unresolved.
+- **Revisit**: failures in physical retention/restart, capacity or full application correlation
+  require a reviewed adjustment, not relaxed criteria or replacement/deletion of old evidence.
+
+## 36. C19: fixed asymmetric SSO profile and independent retained issuer
+
+- **Need**: callback doubles cannot establish browser/IdP integration; token-selected
+  algorithms, key fallback and normalized subjects create avoidable identity ambiguity.
+- **Choice**: fixed RS256/unique RSA kid, strict claims, verified bounded HTTPS and S256
+  bound to shared once-only state. Use exact issuer/subject mapping and a local salesperson
+  default; remote role/department claims never grant authority. Supply an independent
+  single-client TLS issuer with retained SQLite codes and authenticated scoped controls.
+- **Approval**: user approved PyJWT[crypto], cryptography 50.0.2, required cffi/pycparser pins
+  and image import probes; no local install/build/key/signature/real IdP execution.
+- **Tradeoffs**: stricter HTTPS/algorithm/default-role configuration; old in-flight states
+  must restart login. Historical normalized identities require operator investigation.
+  Synthetic fixtures and a custom bounded reference server do not certify an enterprise IdP.
+- **Verification**: 37 focused + 136 related offline cases PASS. S01–S16, real cryptography,
+  browser/TLS/PG/Redis/process/disk acceptance remain BLOCKED. Plan/report output cannot
+  certify operator claims. C18 R01–R20, C10 fencing, C21 audit and full RAG remain unchanged.
+- **Revisit**: real browser/crypto/retention failures require a reviewed correction; enterprise
+  provider differences belong to the separate integration change, not hidden profile relaxation.
+
+## 37. C20: retained frontend assets and evidence-bounded role flows
+
+- **Need**: floating CDN resources, unverified login roles, seeded ledger fallback and ambiguous
+  stream/action outcomes prevent a reproducible and reviewable frontend delivery.
+- **Choice**: retain exact existing Vue/Marked/DOMPurify browser builds, licenses, hashes and SRI;
+  verify them in the image recipe. Require current `/me` before workspace/management actions,
+  isolate obsolete identity/session replies, and guard duplicate mutations. Require stream
+  terminal events; cancellation acceptance and uncertain mutations never imply completion.
+- **Tradeoffs**: no frontend framework/package installation or new administration pages.
+  User/knowledge writes remain documented admin API-only operations. Static business examples
+  are labelled; admin ledger failure clears data. In-memory guards do not replace C11/C12.
+  Browser refresh requires login; history is a snapshot and lists are bounded, not full inventories.
+- **Verification**: 45 focused + 134 related offline cases PASS, seven retained asset/license
+  hashes pass. VM/static checks and registry integrity are not DOM, real authorization,
+  vulnerability, image or browser evidence. B01–B16 are all BLOCKED.
+- **Boundary**: C19 `4afe54b` was pushed with authorization. C20 stops at a local commit;
+  its push/C21 need confirmation. S01–S16/R01–R20/full RAG remain BLOCKED, C10 writing
+  is still open, C21 audit replay deferred. No application launch or filesystem deletion.
+
+
+## 38. C21: retained audit, explicit readiness and bounded observations
+
+- **Need**: liveness-only readiness, deleting audit cache replay, raw-path labels and partial
+  process metrics cannot establish the current delivery contract.
+- **Choice**: bounded capability probes with 200/503; internal worker observation with supervisor
+  signal ownership; single-host shared PERSIST/FULL SQLite outbox with stable PG UUID deduplication,
+  retained acknowledgements and fair bounded replay. Historical imports require reviewed hashes and
+  reconciliation; migration 7 is additive and every manifest SQL file is packaged.
+- **Observations**: server request/task context, worker origin attributes and approval/tool links;
+  pure ASGI full-body/header timing, bounded labels, separate process scrapes, max shared gauges.
+  Remove metrics without producers. Controlled monitor/receiver retain fault/recovery identities;
+  Prometheus evaluation is separate and does not imply external notification receipt.
+- **Tradeoffs**: no distributed audit transaction or losslessness under both-storage failure;
+  unretained counters are process-local. Unbounded disk growth requires capacity supervision;
+  no cleanup. No multi-host HA, automatic OTEL parent propagation or self-monitoring guarantee.
+- **Verification**: 45 focused + 362 related offline cases PASS; one PyYAML case skipped and
+  six YAML files parsed separately with Ruby. Physical retention, faults, full traces, scrapes
+  and receiver delivery await O01–O16. Full pytest/strict OpenSpec/Compose/promtool are BLOCKED.
+- **Boundary**: C20 `44bfcb0` pushed with authorization. C21 local commit only, no push/C22;
+  prior B/S/R/full-RAG/historical gates and C10 writing remain unresolved.
+
+
+## 39. C22: reviewed cold snapshots and new-volume recovery
+
+- **Need**: the old backup script deleted retained assets, live volume tar did not establish
+  cross-store consistency, and old restore steps cleared existing schemas/volumes.
+- **Choice**: plan hash/project/schema/image binding; local named-volume inventories including
+  optional state; stopped whole-cluster archives with file hashes; independent source-resume
+  attempts on failure and explicit post-interruption resume. Retain every partial asset/helper.
+  Restore only to never-existing labelled volumes after complete validation, with generated
+  external-volume mapping and no application activation or automatic task replay.
+- **Limits**: cold outage, same image/platform/schema, no hot backup/PITR/HA/ACL/xattr/tablespaces.
+  Host writers/operator races and process-internal file lifecycle still require real review.
+  Backup data is private; encryption/custody/config/images/secrets are separate prerequisites.
+  Byte integrity and same-schema equality cannot certify business recovery or safe rollback.
+- **Verification**: 46 focused + 77 related offline cases PASS; one PyYAML skip. Docker/chown
+  injected, only retained synthetic fixtures written. D01–D16, semantic recovery and measured
+  RTO <=1h/RPO <=24h remain BLOCKED. Twelve-hour cadence is proposed, never enabled here.
+- **Boundary**: C21 `40c10d8` pushed/verified. C22 local commit only, then wait; no C23,
+  deployment or release. Prior O/B/S/R/full RAG/historical gates and C10 remain unresolved.
+
+## 40. C23: frozen workload with conservative capacity claims
+
+- **Need**: historical k6 measured a health-heavy short ramp and a response-shape oracle;
+  its renderer could mark absent thresholds passing. That cannot establish current capacity.
+- **Choice**: explicit plan hash before execution, fixed private HTTPS/reference targets,
+  open-loop arrivals with bounded lanes, preserved dropped/missing/error denominators,
+  current-identity approval/resume and independent receipt checks. Separate first token,
+  complete HTTP phases, workflow and drain observations; retain exclusive per-slot files.
+- **Limits**: a proposed 1800-second 216/72/72 mix is an initial load point, not approved
+  measured capacity. Mechanical oracles do not establish semantics. Queue/execution timing,
+  per-process resources, backlog recovery, provider costs and actual identity need L01–L16.
+  Preserve historical p95 <=2s/p99 <=5s/error <0.5%; no post-hoc threshold relaxation.
+- **Verification**: 42 focused + 186 related offline tests PASS. Injected HTTP/clocks and
+  in-memory reference ledger only; no new dependency, real load, Docker or paid call.
+- **Boundary**: C22 d70c1b4 pushed/verified. C23 local commit only, then wait before push/C24;
+  L/D/O/B/S/R/runtime/full RAG remain BLOCKED and C10 fencing remains open.

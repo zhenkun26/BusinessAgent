@@ -21,6 +21,8 @@ from typing import Any, Optional
 
 from loguru import logger
 
+from app.security.redaction import redact_value
+
 from app.observability.audit import get_audit_logger
 from app.observability.tracing import (
     record_span_attributes,
@@ -93,7 +95,7 @@ class BaseTool(ABC):
 
         Args:
             params: 入参(已通过 input_schema 校验)
-            context: 调用上下文(user_id, role, dept, jwt_token, request_id)
+            context: 调用上下文(user_id, role, dept, request_id)
 
         Returns:
             ToolResult
@@ -182,7 +184,7 @@ class BaseTool(ABC):
             },
         ):
             # 1. RBAC 权限校验
-            if not skip_rbac:
+            if not skip_rbac or self.category == ToolCategory.ACTION:
                 try:
                     role = AgentRole(role_str) if isinstance(role_str, str) else role_str
                 except ValueError:
@@ -216,12 +218,12 @@ class BaseTool(ABC):
             try:
                 validated_params = self._validate_params(params)
             except Exception as e:
-                record_span_event("param.invalid", {"error": str(e)})
+                record_span_event("param.invalid", {"error": "TOOL_PARAMETERS_INVALID"})
                 return ToolResult(
                     success=False,
                     tool_name=tool_name,
                     output={},
-                    error=f"参数校验失败: {e}",
+                    error="TOOL_PARAMETERS_INVALID",
                     latency_ms=int((time.time() - start) * 1000),
                 )
 
@@ -251,10 +253,16 @@ class BaseTool(ABC):
                     f"params_keys={list(validated_params.keys())}, "
                     f"provider={self._effective_provider()}"
                 )
-                if self._effective_provider() == "http":
+                if self.category == ToolCategory.ACTION:
+                    from app.tools.operation_gateway import invoke_action
+                    result = await invoke_action(self, validated_params, context)
+                elif self._effective_provider() == "http":
                     result = await self._call_external(validated_params, context)
                 else:
                     result = await self._execute(validated_params, context)
+                result.output = redact_value(result.output)
+                result.error = redact_value(result.error)
+                result.side_effects = redact_value(result.side_effects)
                 result.latency_ms = int((time.time() - start) * 1000)
 
                 record_span_attributes({
@@ -270,6 +278,7 @@ class BaseTool(ABC):
                 audit_payload: dict = {
                     "role": role_str,
                     "provider": self._effective_provider(),
+                    "workflow_request_id": context.get("request_id"),
                 }
                 if result.side_effects:
                     audit_payload["side_effects"] = result.side_effects
@@ -281,8 +290,8 @@ class BaseTool(ABC):
                     session_id=context.get("session_id"),
                     user_id=context.get("user_id"),
                     tool_name=tool_name,
-                    input_summary=str(validated_params)[:500],
-                    output_summary=str(result.output)[:500],
+                    input_summary=str(redact_value(validated_params)),
+                    output_summary=str(result.output),
                     success=result.success,
                     latency_ms=result.latency_ms,
                     payload=audit_payload,
@@ -295,6 +304,10 @@ class BaseTool(ABC):
                 return result
 
             except Exception as e:  # noqa: BLE001
+                from app.core.tool_operations import OperationError
+                if isinstance(e, OperationError):
+                    return ToolResult(False, tool_name, {}, error=str(e),
+                                      side_effects={"outcome": "unknown"})
                 logger.exception(f"工具执行异常: tool={tool_name}, error={e}")
                 from app.observability.tracing import record_exception
                 record_exception(e)
@@ -302,7 +315,8 @@ class BaseTool(ABC):
                     success=False,
                     tool_name=tool_name,
                     output={},
-                    error=f"工具执行异常: {type(e).__name__}: {e}",
+                    error="TOOL_EXECUTION_FAILED",
+                    side_effects={"outcome": "unknown"} if self.category == ToolCategory.ACTION else {},
                     latency_ms=int((time.time() - start) * 1000),
                 )
 

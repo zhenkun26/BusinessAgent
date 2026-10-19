@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 from loguru import logger
 
@@ -17,11 +16,6 @@ from app.agents.analysis import AnalysisAgent
 from app.agents.execution import ExecutionAgent
 from app.agents.knowledge import AgentResult
 from app.graph.state import AgentState, SubTask, TaskType, UserInput
-from app.security.rbac import AgentRole
-
-
-# 子 Agent 单例缓存(按 user_role + user_id 缓存,避免串用户身份)
-_agent_cache: dict[tuple[str, str, AgentRole, str], object] = {}
 
 
 async def agent_executor_node(state: AgentState) -> AgentState:
@@ -45,11 +39,16 @@ async def agent_executor_node(state: AgentState) -> AgentState:
 
     try:
         agent = _get_agent(subtask.task_type, user_input)
+        if subtask.task_type in (TaskType.EXECUTION, TaskType.APPROVAL):
+            agent.execution_slot = subtask.task_id
 
         # 调用 Agent.run(异步方法,LangGraph 原生支持 async 节点,直接 await)
         # knowledge 支持多轮上下文(指代消解 + 答案生成带历史);其余 agent 签名不变
         if subtask.task_type == TaskType.KNOWLEDGE:
             result = await agent.run(subtask.description, history=state.get("history"))
+        elif subtask.task_type == TaskType.ANALYSIS:
+            # A model-generated subtask must not broaden dates/entities from the user request.
+            result = await agent.run(user_input.message)
         else:
             result = await agent.run(subtask.description)
 
@@ -71,34 +70,28 @@ async def agent_executor_node(state: AgentState) -> AgentState:
             success=False,
             confidence=0.0,
             output={
-                "answer": f"子任务执行异常: {e}",
+                "answer": "AGENT_EXECUTION_FAILED",
                 "coverage": "none",
                 "stage": "error",
             },
             sources=[],
-            error=str(e),
+            error="AGENT_EXECUTION_FAILED",
             latency_ms=latency_ms,
         )
         return AgentState(agent_results=[error_result])
 
 
-
-
 def _get_agent(task_type: TaskType, user_input: UserInput):
-    """获取子 Agent 单例(按 task_type + dept + role + user_id 缓存,避免串用户身份)"""
+    """Create an agent for this task; request-bearing instances are never shared."""
     role = user_input.role
     dept = user_input.department or "shared_company"
-    cache_key = (task_type.value, dept, role, user_input.user_id)
-
-    if cache_key in _agent_cache:
-        return _agent_cache[cache_key]
 
     if task_type == TaskType.KNOWLEDGE:
         from app.agents.knowledge import KnowledgeAgent
 
         agent = KnowledgeAgent(user_role=role, user_dept=dept)
     elif task_type == TaskType.ANALYSIS:
-        agent = AnalysisAgent(user_role=role, user_dept=dept)
+        agent = AnalysisAgent(user_role=role, user_dept=dept, user_id=user_input.user_id)
     elif task_type in (TaskType.EXECUTION, TaskType.APPROVAL):
         # ExecutionAgent 需要用户身份与会话信息(审批建单/审计用)
         agent = ExecutionAgent(
@@ -106,7 +99,7 @@ def _get_agent(task_type: TaskType, user_input: UserInput):
             user_dept=dept,
             user_id=user_input.user_id,
             conversation_id=user_input.conversation_id,
-            jwt_token=user_input.jwt_token,
+            request_id=user_input.request_id,
         )
     else:
         # 兜底:Knowledge
@@ -114,10 +107,4 @@ def _get_agent(task_type: TaskType, user_input: UserInput):
 
         agent = KnowledgeAgent(user_role=role, user_dept=dept)
 
-    _agent_cache[cache_key] = agent
     return agent
-
-
-def clear_agent_cache():
-    """清理 Agent 缓存(测试用)"""
-    _agent_cache.clear()

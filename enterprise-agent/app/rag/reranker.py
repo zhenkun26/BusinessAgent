@@ -1,6 +1,7 @@
 """Reranker(两阶段检索的精排层)
 
 策略(按 .env RERANKER_PROVIDER 选择):
+- bailian: selected Beijing qwen3-rerank profile; failures do not select passthrough
 - local_bge: 本地 bge-reranker-large(免费,推荐,需 sentence-transformers)
 - cohere: Cohere Rerank(rerank-multilingual-v3.0,需 API Key)
 - llm: LLM 打分降级(本地 Ollama,慢但通用)
@@ -9,12 +10,14 @@
 返回结果按 score 降序,只保留 top_n 条。
 """
 
+from dataclasses import replace
 from typing import Optional
 
 from loguru import logger
 
 from app.config import get_settings
 from app.rag.vector_store import SearchResult
+from app.rag.model_profile import uses_remote_profile, validate_model_profile
 
 
 class Reranker:
@@ -27,6 +30,25 @@ class Reranker:
         top_n: int = 5,
     ) -> list[SearchResult]:
         raise NotImplementedError
+
+
+class BailianReranker(Reranker):
+    """Beijing qwen3-rerank; preserve source metadata and reject invalid results."""
+
+    def __init__(self) -> None:
+        from app.rag.remote_models import BailianClient
+
+        s = get_settings()
+        self._model = s.reranker_model
+        self._client = BailianClient(
+            s.reranker_base_url, s.reranker_api_key, s.model_http_timeout_seconds,
+            s.model_http_max_retries, kind="reranker",
+        )
+
+    def rerank(self, query: str, candidates: list[SearchResult],
+               top_n: int = 5) -> list[SearchResult]:
+        rows = self._client.rerank(query, [c.content for c in candidates], self._model, top_n)
+        return [replace(candidates[index], score=score) for index, score in rows]
 
 
 class BgeLocalReranker(Reranker):
@@ -44,7 +66,10 @@ class BgeLocalReranker(Reranker):
 
         self._model_path = s.reranker_model
         device = _detect_device()
-        self._ce = CrossEncoder(self._model_path, max_length=512, device=device)
+        self._ce = CrossEncoder(
+            self._model_path, max_length=512, device=device,
+            local_files_only=s.app_env == "prod", trust_remote_code=False,
+        )
         logger.info(f"本地 BGE Reranker 已加载: {self._model_path}, device={device}")
 
     def rerank(
@@ -82,6 +107,8 @@ class BgeLocalReranker(Reranker):
                     doc_type=c.doc_type,
                     source_url=c.source_url,
                     updated_at=c.updated_at,
+                    access_roles=list(c.access_roles),
+                    is_active=c.is_active,
                 )
             )
         return out
@@ -142,6 +169,8 @@ class CohereReranker(Reranker):
                     doc_type=original.doc_type,
                     source_url=original.source_url,
                     updated_at=original.updated_at,
+                    access_roles=list(original.access_roles),
+                    is_active=original.is_active,
                 )
             )
         # 截断 top_n
@@ -210,6 +239,8 @@ class LLMReranker(Reranker):
                 doc_type=c.doc_type,
                 source_url=c.source_url,
                 updated_at=c.updated_at,
+                access_roles=list(c.access_roles),
+                is_active=c.is_active,
             )
             for s, c in scored[:top_n]
         ]
@@ -249,7 +280,18 @@ def get_reranker() -> Reranker:
     s = get_settings()
     provider = s.reranker_provider.lower()
 
-    if provider == "local_bge":
+    if uses_remote_profile(s):
+        if validate_model_profile(s):
+            raise RuntimeError("MODEL_PROFILE_INVALID")
+        try:
+            _reranker = BailianReranker()
+        except Exception:
+            raise RuntimeError("MODEL_RERANKER_LOAD_FAILED") from None
+        return _reranker
+
+    if provider == "bailian":
+        _reranker = BailianReranker()
+    elif provider == "local_bge":
         try:
             _reranker = BgeLocalReranker()
             logger.info(f"Reranker 后端: local_bge ({s.reranker_model})")

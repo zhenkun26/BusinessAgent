@@ -9,13 +9,13 @@
 
 - [x] 2.1 在 `app/config.py` 增加 CRM/邮件/IdP 相关配置项（base URL、凭证、逐系统 provider 开关），同步 `.env.example` <!-- evidence: app/config.py; .env.example; tests/test_tool_provider.py -->
 - [ ] 2.2 完善 `app/tools/crm.py` 真实路径：响应字段归一化为与 Mock 一致的 `ToolResult` 结构；`create_crm_task` 生成并持久化幂等键，补偿走真实删除接口 <!-- partial: 已加入幂等键与 DELETE 路径；需 1.1 契约确认后完成验收 -->
-- [x] 2.3 为 CRM 三工具补契约测试（Mock HTTP 服务器）：正常路径、401/5xx/超时、幂等重放不重复建单、补偿调用删除接口 <!-- evidence: tests/test_crm_mail_external.py; tests/test_http_adapter.py；pytest 待项目依赖恢复后执行 -->
+- [x] 2.3 为 CRM 三工具补契约测试（Mock HTTP 服务器）：正常路径、401/5xx/超时、幂等重放不重复建单、补偿调用删除接口 <!-- evidence: tests/test_crm_mail_external.py; tests/test_http_adapter.py；CI 36522224892 的 Python 3.11/3.13 各 143 项全量测试通过；仅 Mock 契约证据 -->
 
 ## 3. 邮件真实接入
 
 - [ ] 3.1 完善 `app/tools/mail.py` 真实路径：内外发送的 `ToolResult` 结构与 Mock 一致；外部发送维持 `requires_approval=True` 与角色约束 <!-- partial: 已补充 HTTP 重试次数与 provider 审计字段 -->
 - [ ] 3.2 实现补偿降级：内部邮件真实撤回、外部邮件提交撤回请求并写审计事件，补偿结果如实标注 <!-- blocked: 等待邮件团队确认撤回接口和语义；当前真实路径拒绝伪造撤回成功 -->
-- [x] 3.3 为邮件双工具补契约测试：审批前置未被绕过、撤回语义、失败结构化返回且日志无凭证 <!-- evidence: tests/test_crm_mail_external.py；真实撤回语义仍待 1.2，pytest 待项目依赖恢复后执行 -->
+- [x] 3.3 为邮件双工具补契约测试：审批前置未被绕过、撤回语义、失败结构化返回且日志无凭证 <!-- evidence: tests/test_crm_mail_external.py；真实撤回语义仍待 1.2，CI 36522224892 的 Python 3.11/3.13 各 143 项全量测试通过；仅 Mock 契约证据 -->
 
 ## 4. SSO 登录接入
 
@@ -31,3 +31,5 @@
 - [ ] 5.2 灰度切流按 design 顺序执行（CRM 查询 → CRM 创建 → 内部邮件 → 外部邮件 → SSO），每步核对日志与审计记录
 - [x] 5.3 更新 `docs/30-guides/运维维护手册.md`（新环境变量、开关与回退操作）与产品使用手册（SSO 登录入口） <!-- evidence: docs/30-guides/运维维护手册.md; docs/30-guides/产品使用手册-前端版.md -->
 - [ ] 5.4 运行 `openspec validate crm-mail-sso-integration --strict` 通过后归档
+
+2026-09-29 复核：用户确认外部资源暂未准备，仅推进离线部分。1.1-1.4 与真实联调/灰度任务保持未完成；当前输入清单见 `docs/40-process/下一步执行阻塞清单-2026-09-29.md`。

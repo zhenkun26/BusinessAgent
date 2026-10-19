@@ -1,12 +1,17 @@
 """FastAPI 主应用入口"""
 
 from contextlib import asynccontextmanager
-import uuid
+import asyncio
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.exceptions import RequestValidationError
 from loguru import logger
+
+from app.security.redaction import install_log_redaction
+
+install_log_redaction()
 
 from app.config import get_settings, validate_production_settings
 from app.api import chat, approval, auth, prompts, admin
@@ -14,7 +19,7 @@ from app import __version__
 from app.core.database import init_db
 from app.core.milvus_client import init_milvus
 from app.middleware.rate_limit import rate_limit_middleware
-from app.observability.metrics import metrics_middleware
+from app.observability.metrics import MetricsMiddleware
 
 
 @asynccontextmanager
@@ -32,6 +37,10 @@ async def lifespan(app: FastAPI):
             raise RuntimeError(
                 "生产环境配置校验未通过,拒绝启动: " + "; ".join(config_violations)
             )
+
+    from app.rag.model_profile import verify_model_startup
+
+    await verify_model_startup(settings)
 
     # 环境路径自检(非阻断):模型/缓存路径不存在时告警,避免 RAG 静默降级
     from pathlib import Path
@@ -52,48 +61,58 @@ async def lifespan(app: FastAPI):
             )
 
     # 初始化 OpenTelemetry tracing(启动早期,捕获后续所有 span)
-    from app.observability.tracing import init_tracing, instrument_fastapi
+    from app.observability.tracing import init_tracing
     tracing_enabled = init_tracing(service_name="enterprise-agent")
-    if tracing_enabled:
-        instrument_fastapi(app)
     logger.info(f"OpenTelemetry tracing: {'已启用' if tracing_enabled else '未启用'}")
 
     # 初始化数据库连接池
     await init_db()
     logger.info("数据库连接池已就绪")
 
-    # 初始化审计日志器(写 PG,失败本地兜底;需在 init_db 之后)
-    from app.observability.audit import init_audit_logger
-    init_audit_logger()
-    logger.info("审计日志器已初始化")
-
-    # 初始化 Milvus(集合不存在则创建;memory 后端跳过)
-    try:
-        await init_milvus()
-        logger.info("Milvus 已就绪")
-    except Exception as e:
-        logger.warning(f"Milvus 初始化失败(可能用 memory 后端): {e}")
-
-    # 初始化工具注册表(W7 ExecutionAgent 用)
-    try:
-        from app.tools.base import init_all_tools
-        init_all_tools()
-        logger.info("工具注册表已初始化")
-    except Exception as e:
-        logger.warning(f"工具初始化失败: {e}")
-
-    # Prompt 版本管理(P2-1):同步代码默认版本 + 加载 active 缓存
-    # 表不存在(未跑 migration)时降级代码默认,不影响启动
-    from app.prompts import refresh_prompt_cache, sync_prompt_defaults
-    await sync_prompt_defaults()
-    await refresh_prompt_cache()
-
-    yield
-
-    # 清理资源
+    from app.graph.checkpointer import get_checkpointer, reset_checkpointer
     from app.core.database import close_db
-    await close_db()
-    logger.info("应用已关闭")
+
+    audit_replay = None
+    try:
+        await get_checkpointer()
+        # 初始化审计日志器(写 PG,失败本地兜底;需在 init_db 之后)
+        from app.observability.audit import init_audit_logger
+        audit = init_audit_logger()
+        from app.observability.service import replay_loop
+        audit_replay = asyncio.create_task(replay_loop(audit), name="api-audit-replay")
+        logger.info("审计日志器已初始化")
+
+        # 初始化 Milvus(集合不存在则创建;memory 后端跳过)
+        try:
+            await init_milvus()
+            logger.info("Milvus 已就绪")
+        except Exception as e:
+            logger.warning(f"Milvus 初始化失败(可能用 memory 后端): {e}")
+
+        # 初始化工具注册表(W7 ExecutionAgent 用)
+        try:
+            from app.tools.base import init_all_tools
+            init_all_tools()
+            logger.info("工具注册表已初始化")
+        except Exception as e:
+            logger.warning(f"工具初始化失败: {e}")
+
+        # Prompt 版本管理(P2-1):同步代码默认版本 + 加载 active 缓存
+        # 表不存在(未跑 migration)时降级代码默认,不影响启动
+        from app.prompts import refresh_prompt_cache, sync_prompt_defaults
+        await sync_prompt_defaults()
+        await refresh_prompt_cache()
+
+        yield
+    finally:
+        if audit_replay is not None:
+            audit_replay.cancel()
+            await asyncio.gather(audit_replay, return_exceptions=True)
+        try:
+            await reset_checkpointer()
+        finally:
+            await close_db()
+        logger.info("应用已关闭")
 
 
 def create_app() -> FastAPI:
@@ -110,6 +129,13 @@ def create_app() -> FastAPI:
 
     # 中间件(顺序:后注册的先执行)
     @app.middleware("http")
+    async def prevent_auth_caching(request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/api/v1/auth/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.middleware("http")
     async def strip_markdown_asterisks(request, call_next):
         """URL 容错:去掉路径尾部的 markdown 加粗星号(**)
 
@@ -121,18 +147,6 @@ def create_app() -> FastAPI:
             clean_path = path.rstrip("*") or "/"
             return RedirectResponse(clean_path, status_code=307)
         return await call_next(request)
-
-    @app.middleware("http")
-    async def trace_request_id(request, call_next):
-        """全链路请求 ID:透传/生成 X-Request-ID,响应头回写
-
-        排障时按 request_id 聚合日志与审计;缺失时生成 uuid4。
-        """
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
-        request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
 
     cors_origins = [
         origin.strip()
@@ -156,9 +170,6 @@ def create_app() -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
-    # 指标采集中间件
-    app.middleware("http")(metrics_middleware)
 
     # 限流中间件(Redis 优先,内存降级;async/await 无回调)
     app.middleware("http")(rate_limit_middleware)
@@ -185,18 +196,9 @@ def create_app() -> FastAPI:
 
     @app.get("/ready", tags=["运维"])
     async def ready():
-        from app.core.database import check_db_health
-        from app.core.milvus_client import check_milvus_health
-        from app.graph.checkpointer import get_checkpointer_backend
-        from app.tools.base import list_tools
-
-        checkpointer_backend = get_checkpointer_backend() or "未初始化"
-        return {
-            "db": await check_db_health(),
-            "milvus": await check_milvus_health(),
-            "checkpointer": checkpointer_backend,
-            "tools_count": len(list_tools()),
-        }
+        from app.observability.readiness import collect_readiness
+        result = await collect_readiness()
+        return JSONResponse(result, status_code=200 if result['status'] == 'ready' else 503)
 
     @app.get("/metrics", tags=["运维"], include_in_schema=False)
     async def metrics():
@@ -204,8 +206,27 @@ def create_app() -> FastAPI:
         from fastapi import Response
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+        from app.observability.readiness import collect_readiness
+        await collect_readiness()
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
+    @app.exception_handler(RequestValidationError)
+    async def safe_validation_error(request, exc):
+        # Validation inputs can contain passwords/tokens; never echo them.
+        return JSONResponse(status_code=422, content={"detail": "REQUEST_VALIDATION_FAILED"})
+
+    @app.middleware("http")
+    async def safe_request_errors(request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            logger.error("REQUEST_FAILED")
+            return JSONResponse(status_code=500, content={"detail": "REQUEST_FAILED"})
+
+    # Register before Starlette builds its middleware stack; the SDK starts in lifespan.
+    from app.observability.tracing import instrument_fastapi
+    instrument_fastapi(app)
+    app.add_middleware(MetricsMiddleware)  # Outermost user middleware covers full response sending.
     return app
 
 

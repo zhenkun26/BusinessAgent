@@ -1,0 +1,17 @@
+{
+  "strict": true,
+  "checks": [
+    {
+      "context": "单元测试（Python 3.11）",
+      "app_id": 15368
+    },
+    {
+      "context": "单元测试（Python 3.13）",
+      "app_id": 15368
+    },
+    {
+      "context": "构建生产镜像（多阶段）",
+      "app_id": 15368
+    }
+  ]
+}

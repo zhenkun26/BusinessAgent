@@ -25,6 +25,8 @@ from typing import Any, Optional
 
 from langchain_core.messages import HumanMessage
 from loguru import logger
+
+from app.security.redaction import redact_text, redact_value
 from pydantic import BaseModel, Field
 
 from app.agents.knowledge import AgentResult
@@ -98,6 +100,7 @@ class ToolCallPlan(BaseModel):
     tool: str = Field(description="工具名")
     params: dict[str, Any] = Field(default_factory=dict, description="工具参数")
     reason: str = Field(default="", description="调用原因")
+    operation_id: Optional[str] = None  # Assigned by the durable planner, never by the LLM.
 
 
 # ============ 公共执行入口(审批批准后复用)============
@@ -112,12 +115,14 @@ async def execute_tool_calls(
 
     Args:
         plans: 工具调用计划列表(应已过 RBAC 过滤)
-        context: 调用上下文(user_id/role/dept/jwt_token/request_id/session_id)
+        context: 调用上下文(user_id/role/dept/request_id/session_id)
 
     Returns:
         单工具返回 ToolResult，多工具返回 SagaResult
     """
     _ensure_tools()
+    from app.tools.operation_gateway import prepare_calls
+    await prepare_calls(plans, context)
     if len(plans) == 1:
         return await _invoke_single(plans[0], context)
     return await _invoke_saga(plans, context)
@@ -136,7 +141,7 @@ async def _invoke_single(
             error=f"工具未注册： {plan.tool}",
         )
 
-    return await tool.invoke(plan.params, context)
+    return await tool.invoke(plan.params, {**context, "operation_id": plan.operation_id})
 
 
 async def _invoke_saga(
@@ -158,6 +163,7 @@ async def _invoke_saga(
             tool_name=plan.tool,
             params=plan.params,
             block_on_failure=block,
+            operation_id=plan.operation_id,
         )
 
     return await saga.execute()
@@ -185,7 +191,8 @@ class ExecutionAgent:
         llm=None,
         user_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
-        jwt_token: str = "",
+        request_id: Optional[str] = None,
+        execution_slot: str = "direct",
     ):
         self.user_role = user_role
         self.user_dept = user_dept
@@ -193,7 +200,8 @@ class ExecutionAgent:
         # 调用身份(审批建单/审计用),由 executor 从 UserInput 注入
         self.user_id = user_id
         self.conversation_id = conversation_id
-        self.jwt_token = jwt_token
+        self.request_id = request_id or str(uuid.uuid4())
+        self.execution_slot = execution_slot
 
     def _get_llm(self):
         if self.llm is None:
@@ -210,9 +218,9 @@ class ExecutionAgent:
             "user_id": self.user_id or "system",  # 由外层注入真实 user_id
             "role": self.user_role.value if hasattr(self.user_role, "value") else str(self.user_role),
             "dept": self.user_dept or "shared_company",
-            "jwt_token": self.jwt_token,
             "session_id": self.conversation_id,
-            "request_id": f"exec-{int(start)}",
+            "request_id": self.request_id,
+            "execution_slot": self.execution_slot,
         }
 
         logger.info(f"ExecutionAgent 开始： query={query[:80]!r}, role={context['role']}")
@@ -244,13 +252,18 @@ class ExecutionAgent:
             # 无外部权限 → RBAC 友好拒绝;有权限 → 正常走高风险审批流
             for p in plans:
                 if p.tool == "send_email_internal":
-                    to_list = p.params.get("to") or []
-                    if isinstance(to_list, str):
-                        to_list = [to_list]
-                    if any(
-                        isinstance(a, str) and "@" in a and not a.endswith("@company.internal")
-                        for a in to_list
-                    ):
+                    from app.config import get_settings
+                    from app.tools.reference import PROFILE
+                    settings = get_settings()
+                    addresses = []
+                    for field in ("to", "cc"):
+                        value = p.params.get(field) or []
+                        addresses.extend([value] if isinstance(value, str) else value)
+                    reference_mail = (settings.mail_tool_provider or settings.tool_provider) == "http" and (
+                        settings.tool_reference_profile == PROFILE)
+                    if any(isinstance(a, str) and "@" in a and (
+                        a not in {"employee@reference.invalid", "manager@reference.invalid"}
+                        if reference_mail else not a.endswith("@company.internal")) for a in addresses):
                         logger.info("内部邮件含外部地址，纠偏为 send_email_external")
                         p.tool = "send_email_external"
 
@@ -322,12 +335,12 @@ class ExecutionAgent:
                     approval_ids.append(approval_id)
                     approval_note = (
                         f"以下操作已提交审批(审批号 {approval_id})，"
-                        f"待经理审批后自动执行： "
+                        f"待经理审批后由您确认执行： "
                         + ", ".join(p.tool for p in approval_plans)
                     )
                 except Exception as e:  # noqa: BLE001
                     logger.exception(f"审批建单失败： {e}")
-                    approval_note = f"审批建单失败： {e}"
+                    approval_note = "APPROVAL_CREATION_FAILED"
 
             # 4. 执行无需审批的部分:单工具直接调用,多工具走 Saga
             result = None
@@ -381,6 +394,8 @@ class ExecutionAgent:
                     ],
                     "approval_ids": approval_ids,
                     "pending_approval_tools": [p.tool for p in approval_plans],
+                    "saga_id": getattr(result, "saga_id", None),
+                    "saga_state": getattr(result, "state", None),
                     "saga_compensated": getattr(result, "compensated", False),
                     "saga_errors": getattr(result, "compensation_errors", []),
                     "outputs": getattr(result, "outputs", {}),
@@ -398,12 +413,12 @@ class ExecutionAgent:
                 success=False,
                 confidence=0.0,
                 output={
-                    "answer": f"工具执行异常： {e}",
+                    "answer": "TOOL_EXECUTION_FAILED",
                     "coverage": "none",
                     "stage": "error",
                 },
                 sources=[],
-                error=str(e),
+                error="TOOL_EXECUTION_FAILED",
                 latency_ms=int((time.time() - start) * 1000),
             )
 
@@ -580,12 +595,9 @@ class ExecutionAgent:
             if risk_rank.get(tool_risk, 0) > risk_rank.get(risk_level, 0):
                 risk_level = tool_risk
 
-        prefill_payload = {
-            "tool_calls": [
-                {"tool": p.tool, "params": p.params, "reason": p.reason}
-                for p in plans
-            ]
-        }
+        from app.tools.operation_gateway import prepare_calls
+        await prepare_calls(plans, context, partition="approval")
+        prefill_payload = {"tool_calls": context["execution_calls"]}
 
         factory = get_session_factory()
         async with factory() as session:
@@ -596,18 +608,18 @@ class ExecutionAgent:
                     "VALUES (:sid, :uid, :query, 'running') "
                     "ON CONFLICT (session_id) DO NOTHING"
                 ),
-                {"sid": session_id, "uid": user_id, "query": query[:500]},
+                {"sid": session_id, "uid": user_id, "query": redact_text(query)[:500]},
             )
             await session.execute(
                 text(
                     "INSERT INTO approval_requests ("
                     "approval_id, session_id, requester_id, operation_type, "
                     "risk_level, summary, prefill_payload, approver_roles, "
-                    "status, requester_token, expires_at"
+                    "status, expires_at"
                     ") VALUES ("
                     ":aid, :sid, :uid, :op, :risk, :summary, "
                     "CAST(:payload AS JSONB), CAST(:roles AS JSONB), "
-                    "'pending', :token, NOW() + INTERVAL '1 day'"
+                    "'pending', NOW() + INTERVAL '1 day'"
                     ")"
                 ),
                 {
@@ -616,10 +628,9 @@ class ExecutionAgent:
                     "uid": user_id,
                     "op": plans[0].tool,
                     "risk": risk_level,
-                    "summary": self._build_approval_summary(plans, query),
-                    "payload": json.dumps(prefill_payload, ensure_ascii=False),
+                    "summary": redact_text(self._build_approval_summary(plans, query)),
+                    "payload": json.dumps(redact_value(prefill_payload), ensure_ascii=False),
                     "roles": json.dumps(["manager", "admin"]),
-                    "token": context.get("jwt_token") or "",
                 },
             )
             await session.commit()
@@ -652,11 +663,11 @@ class ExecutionAgent:
             if isinstance(to_list, str):
                 to_list = [to_list]  # LLM 可能输出单字符串,统一为列表避免逐字符 join
             if "email" in p.tool and to_list:
-                recipients = ", ".join(str(t) for t in to_list[:3])
-                subject = p.params.get("subject", "")
+                recipients = ", ".join(redact_text(str(t)) for t in to_list[:3])
+                subject = redact_text(p.params.get("subject", ""))
                 parts.append(f"向 {recipients} 发送邮件「{subject[:50]}」")
             else:
-                parts.append(f"{p.tool}: {p.reason or query[:50]}")
+                parts.append(f"{p.tool}: {redact_text(p.reason or query)[:50]}")
         return ";".join(parts)[:500]
 
     # ============ 结果格式化 ============
@@ -721,6 +732,8 @@ class ExecutionAgent:
             mid = output.get("message_id", "")
             n = output.get("recipients", "")
             kind = "内部邮件" if tool_name == "send_email_internal" else "外部邮件"
+            if output.get("receipt_state") == "captured":
+                return f"参考邮件已捕获(编号 `{mid}`，收件人 {n} 人)，未向真实邮箱投递。"
             return f"{kind}已发送(编号 `{mid}`，收件人 {n} 人)。"
 
         if tool_name == "create_ticket":
@@ -779,13 +792,10 @@ class ExecutionAgent:
             return "\n\n".join(parts)
 
         # 失败
+        errors = getattr(result, "compensation_errors", [])
+        if errors:
+            return f"工具执行失败，补偿未完成；有 {len(errors)} 项需人工核对：{errors}"
         if getattr(result, "compensated", False):
-            errors = getattr(result, "compensation_errors", [])
-            if errors:
-                return (
-                    f"工具执行失败，已自动补偿回滚。"
-                    f"但有 {len(errors)} 个补偿失败需运维介入： {errors}"
-                )
-            return "工具执行失败，已自动补偿回滚所有已执行步骤。"
+            return "工具执行失败，已补偿所有确认执行成功的步骤。"
 
         return f"工具执行失败： {getattr(result, 'error', '未知错误')}"

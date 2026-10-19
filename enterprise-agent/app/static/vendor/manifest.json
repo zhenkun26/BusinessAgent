@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "scope": "existing browser libraries only",
+  "packages": [
+    {
+      "name": "vue",
+      "version": "3.5.44",
+      "license": "MIT",
+      "tarball": "https://registry.npmjs.org/vue/-/vue-3.5.44.tgz",
+      "registry_integrity": "sha512-dvvmaOCG7lAMkJTPqPwWeGMsPS6DIsFsfZDUgBp9V6mHf9b3+/wyVwYR4Es+WV6uJC0FKRxp81Obcq0ZwUcGFQ==",
+      "files": [
+        {
+          "file": "vue-3.5.44/vue.global.prod.js",
+          "sha256": "e0a2a0866a8de8887542e24f3c218aad3d907b88f30966068792ba992296dc9f",
+          "sri": "sha384-tORx0bXmMnTC28EYQe1coaGZKSQupXQEYDBNex8xkzJ9iqUoNy9Y+VFBhVxi4kUr"
+        },
+        {
+          "file": "vue-3.5.44/LICENSE",
+          "sha256": "1bb85cc9b13b81ef41c81c51866172fc345e0503c86726a6755b796590b70175",
+          "sri": "sha384-wPF8ZK0xohxN8XDDHAqM/iXgZcP5uPqJrc9JuJpUYSPVk27et6WVewfvHXO8lcPy"
+        }
+      ]
+    },
+    {
+      "name": "marked",
+      "version": "18.1.1",
+      "license": "MIT",
+      "tarball": "https://registry.npmjs.org/marked/-/marked-18.1.1.tgz",
+      "registry_integrity": "sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg==",
+      "files": [
+        {
+          "file": "marked-18.1.1/marked.umd.js",
+          "sha256": "b82b9334406d8bdd16b6236c08de1cb65b2a859873ca9503d9cc0b292ca3c12a",
+          "sri": "sha384-rATToyt6602Jnq8c7w8HZwmyOUgPL7mzxX01FBWoV48ns/EgkakGozpES+PnaYOI"
+        },
+        {
+          "file": "marked-18.1.1/LICENSE",
+          "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c",
+          "sri": "sha384-61EZB/aHzoKVT71zYfgKtxFiu+RWPSi9UH34kVJPMyzaTcFdbvH0liFiUwpiBNqY"
+        }
+      ]
+    },
+    {
+      "name": "dompurify",
+      "version": "3.4.17",
+      "license": "(MPL-2.0 OR Apache-2.0)",
+      "tarball": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz",
+      "registry_integrity": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
+      "files": [
+        {
+          "file": "dompurify-3.4.17/purify.min.js",
+          "sha256": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31",
+          "sri": "sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx"
+        },
+        {
+          "file": "dompurify-3.4.17/LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "sri": "sha384-II9e1ieUDl5AxyiVq3/FflTua1Sr0kMJ25e6imG7rXg7SiAsA2VemsvEqVsLqM7/"
+        },
+        {
+          "file": "dompurify-3.4.17/LICENSE-MPL",
+          "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+          "sri": "sha384-m9HqVkzbVdcSnUlv/HEUIkMOdpyVFRFBRcAv/ucPmo4Th4y5ATdTfxBvFFZ+k4xe"
+        }
+      ]
+    }
+  ]
+}

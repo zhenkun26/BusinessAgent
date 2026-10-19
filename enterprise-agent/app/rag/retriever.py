@@ -16,6 +16,9 @@ from dataclasses import dataclass
 from typing import Optional
 
 from loguru import logger
+from app.config import get_settings
+from app.security.retrieval_policy import resolve_scope
+from app.rag.model_profile import uses_remote_profile
 
 from app.observability.tracing import (
     record_span_attributes,
@@ -41,7 +44,7 @@ class RetrievalResult:
     top_score: float  # Top-1 分数
     scene: str  # 识别出的场景
     latency_ms: int
-    stage: str  # "vector" | "rerank" | "bm25" | "like"  命中的检索阶段(降级链用)
+    stage: str  # "vector" | "rerank"; fallback algorithms belong to DegradationResult
 
 
 # 政策场景共享优先的平局噪声带(见 retrieve 中的说明)
@@ -100,6 +103,9 @@ class EnterpriseRAGRetriever:
             doc_types: 文档类型白名单
             scene: 场景(None 时自动识别)
         """
+        scope = resolve_scope(user_role, dept_namespace, doc_types)
+        from app.rag.publication_visibility import visible_results
+        visible_results([])  # Require a current ledger snapshot before embedding/model calls.
         start = time.time()
 
         # tracing: 整个 retrieve 作为一个 span(含子 span:粗排/精排)
@@ -138,6 +144,7 @@ class EnterpriseRAGRetriever:
                     top_k=coarse_k,
                     filter=search_filter,
                 )
+                coarse_results = visible_results([r for r in coarse_results if scope.allows_result(r)])
                 record_span_attributes({
                     "rag.coarse.count": len(coarse_results),
                     "rag.coarse.k": coarse_k,
@@ -164,12 +171,17 @@ class EnterpriseRAGRetriever:
             try:
                 with traced_span("rag.rerank") as rerank_ctx:
                     ranked = self.reranker.rerank(query, coarse_results, top_n=self.rerank_top_n)
+                    ranked = visible_results([r for r in ranked if scope.allows_result(r)])
                     stage = "rerank"
                     record_span_attributes({
                         "rag.rerank.count": len(ranked),
                         "rag.rerank.top_score": ranked[0].score if ranked else 0.0,
                     })
             except Exception as e:  # noqa: BLE001
+                if uses_remote_profile(get_settings()):
+                    from app.rag.remote_models import RemoteModelError
+
+                    raise RemoteModelError("MODEL_RERANK_FAILED") from None
                 logger.warning(f"Rerank 失败,降级使用粗排结果: {e}")
                 ranked = coarse_results[: self.rerank_top_n]
                 stage = "vector"

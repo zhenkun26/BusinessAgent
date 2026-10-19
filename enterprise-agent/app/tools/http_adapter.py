@@ -1,124 +1,86 @@
-"""统一外部 HTTP 适配器(外部系统接入,规格 5.2)
-
-契约:
-- httpx.AsyncClient 统一超时
-- 5xx/网络异常 → 指数退避重试(默认 2 次)
-- 401/403/4xx → 立即失败,不重试
-- 返回 (success, data, error),由工具层归一化为 ToolResult
-- 日志/错误信息不包含凭证与完整请求体
-"""
-
+"""Bounded JSON transport. Reads can retry; mutations are always single-attempt."""
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any, Optional
+import uuid
 
 import httpx
-from loguru import logger
 
+from app.security.redaction import redact_value
 from app.config import get_settings
 
 
+def _object(pairs: list[tuple[str, Any]]) -> dict:
+    result: dict = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate key")
+        result[key] = value
+    return result
+
+
+def _invalid_number(value: str) -> None:
+    raise ValueError("unsupported number")
+
+
 async def call_external_api(
-    method: str,
-    url: str,
-    *,
-    api_token: Optional[str] = None,
-    json_body: Optional[dict] = None,
-    extra_headers: Optional[dict[str, str]] = None,
-    timeout_seconds: Optional[float] = None,
-    max_retries: Optional[int] = None,
+    method: str, url: str, *, api_token: Optional[str] = None,
+    json_body: Optional[dict] = None, extra_headers: Optional[dict[str, str]] = None,
+    timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None,
     meta: Optional[dict[str, Any]] = None,
 ) -> tuple[bool, Any, Optional[str]]:
-    """调用外部 HTTP API(统一超时/重试/错误归一化)
-
-    Args:
-        method: HTTP 方法(GET/POST/PATCH/DELETE)
-        url: 完整请求 URL
-        api_token: Bearer 凭证(仅请求头发送,绝不入日志)
-        json_body: JSON 请求体(可选)
-        extra_headers: 额外请求头(可选)
-        timeout_seconds: 超时秒数,默认读配置
-        max_retries: 重试次数(不含首次),默认读配置
-        meta: 可选输出参数,返回时写入 attempts(实际请求次数,含重试),
-            供工具层记入 side_effects/审计(不影响既有调用方)
-
-    Returns:
-        (success, data, error):
-        - success=True 时 data 为响应 JSON(或文本),error=None
-        - success=False 时 data=None,error 为归一化错误信息
-    """
+    """Return strict JSON plus bounded status metadata, never exception/body text."""
     settings = get_settings()
-    timeout = timeout_seconds or settings.external_timeout_seconds
-    retries = max_retries if max_retries is not None else settings.external_max_retries
-    headers = {"Accept": "application/json"}
+    timeout = min(float(timeout_seconds or settings.external_timeout_seconds), 5.0)
+    if timeout <= 0:
+        return False, None, "EXTERNAL_TIMEOUT_INVALID"
+    method = method.upper()
+    read = method in {"GET", "HEAD"}
+    retries = min(2, max(0, max_retries if max_retries is not None
+                         else settings.external_max_retries)) if read else 0
+    headers = {"Accept": "application/json", **(extra_headers or {})}
     if api_token:
         headers["Authorization"] = f"Bearer {api_token}"
-    if extra_headers:
-        headers.update(extra_headers)
-
-    last_error = "未知错误"
-    attempt = 0
-    while True:
-        attempt += 1
+    last_error = "EXTERNAL_UNAVAILABLE"
+    for attempt in range(1, retries + 2):
         if meta is not None:
-            meta["attempts"] = attempt
+            meta.clear()
+            meta.update(attempts=attempt)
+        headers["X-Request-Id"] = str(uuid.uuid4())
+        retryable = False
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.request(
-                    method, url, headers=headers, json=json_body
-                )
-
-            if response.status_code in (401, 403):
-                return False, None, (
-                    f"外部系统认证失败(HTTP {response.status_code});"
-                    f"请检查 {_host_label(url)} 的访问凭证配置"
-                )
-            if 400 <= response.status_code < 500:
-                return False, None, (
-                    f"外部系统请求被拒绝(HTTP {response.status_code}): "
-                    f"{response.text[:200]}"
-                )
-            if response.status_code >= 500:
-                if attempt <= retries:
-                    await _backoff(attempt)
-                    continue
-                return False, None, (
-                    f"外部系统服务不可用(HTTP {response.status_code}),"
-                    f"已重试 {retries} 次"
-                )
-
-            # 2xx:尝试解析 JSON,失败则返回文本
-            try:
-                return True, response.json(), None
-            except ValueError:
-                return True, response.text, None
-
-        except httpx.TimeoutException:
-            last_error = f"外部系统请求超时(>{timeout}s)"
-            if attempt <= retries:
-                await _backoff(attempt)
-                continue
-            return False, None, f"{last_error},已重试 {retries} 次"
-        except httpx.HTTPError as e:
-            last_error = f"外部系统网络错误: {type(e).__name__}"
-            if attempt <= retries:
-                await _backoff(attempt)
-                continue
-            return False, None, f"{last_error},已重试 {retries} 次"
-
-
-async def _backoff(attempt: int) -> None:
-    """指数退避:1s, 2s, 4s..."""
-    delay = min(2 ** (attempt - 1), 8)
-    logger.warning(f"外部 API 调用失败,{delay}s 后重试(第 {attempt} 次)")
-    await asyncio.sleep(delay)
-
-
-def _host_label(url: str) -> str:
-    """仅提取 host 用于错误提示(不含路径/凭证)"""
-    try:
-        parsed = httpx.URL(url)
-        return parsed.host or url
-    except Exception:  # noqa: BLE001
-        return url
+            # httpx phase timeouts alone do not bound a drip response or DNS/connect lifecycle.
+            async with asyncio.timeout(timeout):
+                async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+                    async with client.stream(method, url, headers=headers, json=json_body) as response:
+                        status = response.status_code
+                        if meta is not None:
+                            meta.update(status=status, profile=response.headers.get(
+                                "X-Reference-Profile", ""))
+                        if status == 429 or (status >= 500 and status != 501):
+                            retryable = read
+                        if not 200 <= status < 300:
+                            last_error = f"EXTERNAL_HTTP_{status}"
+                        else:
+                            body = bytearray()
+                            async for chunk in response.aiter_bytes():
+                                body.extend(chunk)
+                                if len(body) > 65536:
+                                    raise ValueError("oversize")
+                            data = json.loads(body.decode("utf-8"), object_pairs_hook=_object,
+                                              parse_float=_invalid_number,
+                                              parse_constant=_invalid_number)
+                            if not isinstance(data, dict):
+                                raise ValueError("object required")
+                            return True, redact_value(data, secrets=(api_token or "",)), None
+        except (httpx.HTTPError, TimeoutError):
+            last_error = "EXTERNAL_TRANSPORT_UNCERTAIN"
+            retryable = read
+        except (ValueError, UnicodeError, RecursionError):
+            last_error = "EXTERNAL_PROTOCOL_INVALID"
+        if not retryable or attempt > retries:
+            return False, None, last_error
+        await asyncio.sleep(2 ** (attempt - 1))
+    return False, None, last_error

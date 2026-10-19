@@ -1,0 +1,39 @@
+{
+  "verified_at_utc": "2026-09-29T04:59:20.725897+00:00",
+  "attempts": [
+    {
+      "method": "PATCH",
+      "status": 404,
+      "reason": "Required status checks not enabled",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "status": 422,
+      "reason": "API requires checks or contexts, not both",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "request_file": "protection-update-request-02.json",
+      "status": 200
+    }
+  ],
+  "strict": true,
+  "checks": [
+    {
+      "context": "单元测试（Python 3.11）",
+      "app_id": 15368
+    },
+    {
+      "context": "单元测试（Python 3.13）",
+      "app_id": 15368
+    },
+    {
+      "context": "构建生产镜像（多阶段）",
+      "app_id": 15368
+    }
+  ],
+  "other_protection_fields_unchanged": true,
+  "enforce_admins": false
+}

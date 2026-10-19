@@ -1,0 +1,986 @@
+{
+  "format": 1,
+  "migrations": [
+    {
+      "version": 1,
+      "name": "core_schema",
+      "file": "init.sql",
+      "sha256": "3652c4b0fc3421b369f643566d3b89451ed82cb35d46d6050ca5d87230a26212"
+    },
+    {
+      "version": 2,
+      "name": "tool_operations",
+      "file": "002_tool_operations.sql",
+      "sha256": "eaad50d8ab534afac91138a8e2f9e0924e5731be52c5883ef9ab96c2066bf1e7"
+    },
+    {
+      "version": 3,
+      "name": "task_jobs",
+      "file": "003_task_jobs.sql",
+      "sha256": "509c51e084a35a657491cae09709d4f930a6c958ff1d54fdbeb06571bcd0b8a2"
+    },
+    {
+      "version": 4,
+      "name": "saga_journal",
+      "file": "004_saga_journal.sql",
+      "sha256": "00b28bf3f460525713a0ec19a378cf783c43850ace1787f95b3e92fc05e12376"
+    },
+    {
+      "version": 5,
+      "name": "approval_execution",
+      "file": "005_approval_execution.sql",
+      "sha256": "3c4fd1fc49c4e3792c7955149684f2c677459383d2f98a94b76c48cbf5977126"
+    },
+    {
+      "version": 6,
+      "name": "knowledge_publication",
+      "file": "006_knowledge_publication.sql",
+      "sha256": "52ff47563aad423e62fdd018fccf3403bd6532dd4404e80c5caa171873ee618d"
+    },
+    {
+      "version": 7,
+      "name": "audit_identity",
+      "file": "007_audit_identity.sql",
+      "sha256": "37a67f266c8141c8faca6ff3282f1413845ed6948c952646c3568378266a1243"
+    }
+  ],
+  "columns": {
+    "users": {
+      "id": {
+        "type": "int4"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "username": {
+        "type": "varchar",
+        "length": 128
+      },
+      "email": {
+        "type": "varchar",
+        "length": 255
+      },
+      "role": {
+        "type": "varchar",
+        "length": 32
+      },
+      "department": {
+        "type": "varchar",
+        "length": 64
+      },
+      "password_hash": {
+        "type": "varchar",
+        "length": 255
+      },
+      "sso_issuer": {
+        "type": "varchar",
+        "length": 512
+      },
+      "sso_subject": {
+        "type": "varchar",
+        "length": 255
+      },
+      "is_active": {
+        "type": "bool"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      }
+    },
+    "sessions": {
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "original_query": {
+        "type": "text"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "started_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      },
+      "token_count": {
+        "type": "int4"
+      },
+      "error": {
+        "type": "text"
+      }
+    },
+    "approval_requests": {
+      "approval_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "requester_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "operation_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "risk_level": {
+        "type": "varchar",
+        "length": 16
+      },
+      "summary": {
+        "type": "text"
+      },
+      "prefill_payload": {
+        "type": "jsonb"
+      },
+      "approver_roles": {
+        "type": "jsonb"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "approver_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "comment": {
+        "type": "text"
+      },
+      "requester_token": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "decided_at": {
+        "type": "timestamp"
+      },
+      "expires_at": {
+        "type": "timestamp"
+      },
+      "execution_id": {
+        "type": "uuid"
+      },
+      "execution_claim": {
+        "type": "uuid"
+      },
+      "execution_deadline": {
+        "type": "timestamptz"
+      },
+      "execution_error": {
+        "type": "varchar",
+        "length": 64
+      },
+      "execution_checked_at": {
+        "type": "timestamptz"
+      }
+    },
+    "audit_logs": {
+      "id": {
+        "type": "int8"
+      },
+      "event_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "tool_name": {
+        "type": "varchar",
+        "length": 64
+      },
+      "input_summary": {
+        "type": "text"
+      },
+      "output_summary": {
+        "type": "text"
+      },
+      "success": {
+        "type": "bool"
+      },
+      "latency_ms": {
+        "type": "int4"
+      },
+      "payload": {
+        "type": "jsonb"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "event_id": {
+        "type": "uuid"
+      },
+      "occurred_at": {
+        "type": "timestamptz"
+      },
+      "request_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "trace_id": {
+        "type": "varchar",
+        "length": 32
+      },
+      "task_id": {
+        "type": "uuid"
+      }
+    },
+    "user_memories": {
+      "id": {
+        "type": "int8"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "memory": {
+        "type": "jsonb"
+      },
+      "memory_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "last_accessed_at": {
+        "type": "timestamp"
+      }
+    },
+    "saga_transactions": {
+      "saga_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "actions": {
+        "type": "jsonb"
+      },
+      "executed_actions": {
+        "type": "jsonb"
+      },
+      "compensation_results": {
+        "type": "jsonb"
+      },
+      "error": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      }
+    },
+    "user_feedback": {
+      "id": {
+        "type": "int8"
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "message_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "feedback_type": {
+        "type": "varchar",
+        "length": 16
+      },
+      "comment": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      }
+    },
+    "documents": {
+      "document_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "title": {
+        "type": "varchar",
+        "length": 512
+      },
+      "source_url": {
+        "type": "varchar",
+        "length": 1024
+      },
+      "doc_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "dept_namespace": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "access_roles": {
+        "type": "jsonb"
+      },
+      "content_hash": {
+        "type": "varchar",
+        "length": 64
+      },
+      "content": {
+        "type": "text"
+      },
+      "source_session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "ingest_error": {
+        "type": "text"
+      },
+      "search_vector": {
+        "type": "tsvector"
+      },
+      "reviewed_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "reviewed_at": {
+        "type": "timestamp"
+      },
+      "reject_reason": {
+        "type": "text"
+      },
+      "uploaded_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      },
+      "active_publication": {
+        "type": "uuid"
+      },
+      "pending_publication": {
+        "type": "uuid"
+      }
+    },
+    "prompt_versions": {
+      "id": {
+        "type": "int4"
+      },
+      "name": {
+        "type": "varchar",
+        "length": 64
+      },
+      "version": {
+        "type": "int4"
+      },
+      "content": {
+        "type": "text"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 16
+      },
+      "traffic_weight": {
+        "type": "int4"
+      },
+      "created_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "activated_at": {
+        "type": "timestamp"
+      }
+    },
+    "tool_executions": {
+      "execution_id": {
+        "type": "uuid"
+      },
+      "scope_key": {
+        "type": "varchar"
+      },
+      "plan_hash": {
+        "type": "varchar"
+      },
+      "owner_id": {
+        "type": "varchar"
+      },
+      "session_id": {
+        "type": "varchar"
+      },
+      "calls": {
+        "type": "jsonb"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      }
+    },
+    "tool_operations": {
+      "operation_id": {
+        "type": "uuid"
+      },
+      "execution_id": {
+        "type": "uuid"
+      },
+      "slot": {
+        "type": "int4"
+      },
+      "intent": {
+        "type": "jsonb"
+      },
+      "request": {
+        "type": "jsonb"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "receipt": {
+        "type": "jsonb"
+      },
+      "updated_at": {
+        "type": "timestamptz"
+      }
+    },
+    "task_jobs": {
+      "task_id": {
+        "type": "uuid"
+      },
+      "queue_name": {
+        "type": "varchar"
+      },
+      "scope_key": {
+        "type": "varchar"
+      },
+      "payload": {
+        "type": "jsonb"
+      },
+      "payload_hash": {
+        "type": "varchar"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "attempts": {
+        "type": "int4"
+      },
+      "owner_token": {
+        "type": "uuid"
+      },
+      "lease_until": {
+        "type": "timestamptz"
+      },
+      "available_at": {
+        "type": "timestamptz"
+      },
+      "error_code": {
+        "type": "varchar"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      },
+      "updated_at": {
+        "type": "timestamptz"
+      },
+      "originating_request_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "originating_trace_id": {
+        "type": "varchar",
+        "length": 32
+      }
+    },
+    "task_consumers": {
+      "worker_id": {
+        "type": "uuid"
+      },
+      "queue_name": {
+        "type": "varchar"
+      },
+      "last_seen": {
+        "type": "timestamptz"
+      }
+    },
+    "saga_runs": {
+      "saga_id": {
+        "type": "uuid"
+      },
+      "context": {
+        "type": "jsonb"
+      },
+      "plan_hash": {
+        "type": "varchar"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "owner_token": {
+        "type": "uuid"
+      },
+      "lease_until": {
+        "type": "timestamptz"
+      },
+      "error_code": {
+        "type": "varchar"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      },
+      "updated_at": {
+        "type": "timestamptz"
+      }
+    },
+    "saga_steps": {
+      "saga_id": {
+        "type": "uuid"
+      },
+      "slot": {
+        "type": "int4"
+      },
+      "operation_id": {
+        "type": "uuid"
+      },
+      "definition": {
+        "type": "jsonb"
+      },
+      "result": {
+        "type": "jsonb"
+      },
+      "compensation_id": {
+        "type": "uuid"
+      },
+      "compensation_state": {
+        "type": "varchar"
+      },
+      "compensation_request": {
+        "type": "jsonb"
+      },
+      "compensation_receipt": {
+        "type": "jsonb"
+      }
+    },
+    "knowledge_publications": {
+      "publication_id": {
+        "type": "uuid"
+      },
+      "document_id": {
+        "type": "varchar"
+      },
+      "input_hash": {
+        "type": "varchar"
+      },
+      "source_hash": {
+        "type": "varchar"
+      },
+      "snapshot": {
+        "type": "jsonb"
+      },
+      "chunks": {
+        "type": "jsonb"
+      },
+      "reviewer": {
+        "type": "varchar"
+      },
+      "state": {
+        "type": "varchar"
+      },
+      "error_code": {
+        "type": "varchar"
+      },
+      "created_at": {
+        "type": "timestamptz"
+      },
+      "published_at": {
+        "type": "timestamptz"
+      }
+    }
+  },
+  "indexes": {
+    "idx_users_user_id": false,
+    "idx_users_role": false,
+    "idx_users_is_active": false,
+    "idx_users_username": false,
+    "idx_users_username_unique": true,
+    "idx_users_sso_identity": true,
+    "idx_sessions_user_id": false,
+    "idx_sessions_status": false,
+    "idx_approvals_session_id": false,
+    "idx_approvals_status": false,
+    "idx_approvals_approver": false,
+    "idx_audit_session": false,
+    "idx_audit_user": false,
+    "idx_audit_event_type": false,
+    "idx_audit_created_at": false,
+    "idx_memories_user_id": false,
+    "idx_memories_last_accessed": false,
+    "idx_saga_session": false,
+    "idx_saga_status": false,
+    "idx_feedback_session": false,
+    "idx_documents_namespace": false,
+    "idx_documents_status": false,
+    "idx_documents_search": false,
+    "idx_documents_review_status": false,
+    "idx_documents_content_hash": false,
+    "idx_prompt_versions_name": false,
+    "idx_prompt_versions_status": false,
+    "idx_tool_executions_scope": true,
+    "idx_tool_operations_slot": true,
+    "idx_task_jobs_scope": true,
+    "idx_task_jobs_poll": false,
+    "idx_task_jobs_expired": false,
+    "idx_saga_runs_recovery": false,
+    "idx_approval_execution": true,
+    "idx_approval_reconcile": false,
+    "knowledge_publications_pkey": true,
+    "knowledge_publications_document_id_input_hash_key": true,
+    "idx_publication_document": false,
+    "idx_audit_event_id": true,
+    "idx_audit_request": false,
+    "idx_audit_task": false
+  },
+  "legacy_columns": {
+    "users": {
+      "id": {
+        "type": "int4"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "username": {
+        "type": "varchar",
+        "length": 128
+      },
+      "email": {
+        "type": "varchar",
+        "length": 255
+      },
+      "role": {
+        "type": "varchar",
+        "length": 32
+      },
+      "department": {
+        "type": "varchar",
+        "length": 64
+      },
+      "password_hash": {
+        "type": "varchar",
+        "length": 255
+      },
+      "is_active": {
+        "type": "bool"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      }
+    },
+    "sessions": {
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "original_query": {
+        "type": "text"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "started_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      },
+      "token_count": {
+        "type": "int4"
+      },
+      "error": {
+        "type": "text"
+      }
+    },
+    "approval_requests": {
+      "approval_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "requester_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "operation_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "risk_level": {
+        "type": "varchar",
+        "length": 16
+      },
+      "summary": {
+        "type": "text"
+      },
+      "prefill_payload": {
+        "type": "jsonb"
+      },
+      "approver_roles": {
+        "type": "jsonb"
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "approver_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "comment": {
+        "type": "text"
+      },
+      "requester_token": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "decided_at": {
+        "type": "timestamp"
+      },
+      "expires_at": {
+        "type": "timestamp"
+      }
+    },
+    "audit_logs": {
+      "id": {
+        "type": "int8"
+      },
+      "event_type": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "tool_name": {
+        "type": "varchar",
+        "length": 64
+      },
+      "input_summary": {
+        "type": "text"
+      },
+      "output_summary": {
+        "type": "text"
+      },
+      "success": {
+        "type": "bool"
+      },
+      "latency_ms": {
+        "type": "int4"
+      },
+      "payload": {
+        "type": "jsonb"
+      },
+      "created_at": {
+        "type": "timestamp"
+      }
+    },
+    "user_memories": {
+      "id": {
+        "type": "int8"
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "memory": {
+        "type": "jsonb"
+      },
+      "memory_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "last_accessed_at": {
+        "type": "timestamp"
+      }
+    },
+    "saga_transactions": {
+      "saga_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "batch_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "actions": {
+        "type": "jsonb"
+      },
+      "executed_actions": {
+        "type": "jsonb"
+      },
+      "compensation_results": {
+        "type": "jsonb"
+      },
+      "error": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "completed_at": {
+        "type": "timestamp"
+      }
+    },
+    "user_feedback": {
+      "id": {
+        "type": "int8"
+      },
+      "session_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "user_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "message_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "feedback_type": {
+        "type": "varchar",
+        "length": 16
+      },
+      "comment": {
+        "type": "text"
+      },
+      "created_at": {
+        "type": "timestamp"
+      }
+    },
+    "documents": {
+      "document_id": {
+        "type": "varchar",
+        "length": 64
+      },
+      "title": {
+        "type": "varchar",
+        "length": 512
+      },
+      "source_url": {
+        "type": "varchar",
+        "length": 1024
+      },
+      "doc_type": {
+        "type": "varchar",
+        "length": 32
+      },
+      "dept_namespace": {
+        "type": "varchar",
+        "length": 64
+      },
+      "status": {
+        "type": "varchar",
+        "length": 32
+      },
+      "access_roles": {
+        "type": "jsonb"
+      },
+      "content_hash": {
+        "type": "varchar",
+        "length": 64
+      },
+      "uploaded_by": {
+        "type": "varchar",
+        "length": 64
+      },
+      "created_at": {
+        "type": "timestamp"
+      },
+      "updated_at": {
+        "type": "timestamp"
+      }
+    }
+  },
+  "demo_seed": {
+    "file": "demo_seed.sql",
+    "sha256": "01f43a2f96b7d2017625cd668a6fb4dfe891cc91fd832d29d807a54ef2da030e"
+  }
+}

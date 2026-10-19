@@ -2,7 +2,7 @@
 
 W3 完整实现：
 - EnterpriseRAGRetriever 两阶段检索(向量召回 + Rerank)
-- DegradationChain Milvus 三级降级(向量 → BM25 → PG LIKE)
+- DegradationChain Milvus 三级降级(向量 → 关键词扫描 → PG 全文/ILIKE)
 - ConfidenceDecider 场景化阈值(P1-2)
 - LLM 生成答案(DeepSeek/OpenAI 兼容)
 - 答案附来源(可追溯)
@@ -24,10 +24,11 @@ from pydantic import BaseModel, Field
 
 from app.rag.confidence import ConfidenceDecider, Coverage
 from app.rag.degradation import DegradationChain
-from app.rag.llm import get_lite_llm, get_local_llm, get_primary_llm
+from app.rag.llm import get_lite_llm, get_local_llm
 from app.rag.retriever import EnterpriseRAGRetriever
 from app.rag.vector_store import SearchResult
 from app.security.rbac import AgentRole
+from app.security.retrieval_policy import resolve_scope
 
 
 class RetrievalSource(BaseModel):
@@ -96,7 +97,7 @@ class KnowledgeAgent:
 
     def _get_llm(self):
         if self.llm is None:
-            self.llm = get_primary_llm()
+            self.llm = get_lite_llm()
         return self.llm
 
     def _get_eval_llm(self):
@@ -127,7 +128,8 @@ class KnowledgeAgent:
         start = time.time()
 
         try:
-            # 1. 降级链检索(向量 → BM25 → PG LIKE)
+            scope = resolve_scope(self.user_role, self.user_dept)
+            # 1. 降级链检索(向量 → 关键词扫描 → PG 全文/ILIKE)
             # 检索用扩展后的 query(embedding 需要完整语义);自评/日志仍用原 query
             from app.graph.history import expand_query_with_history
 
@@ -139,7 +141,10 @@ class KnowledgeAgent:
                 top_k=self.rerank_top_k,
             )
 
-            results = deg_result.results
+            if deg_result.error:
+                raise RuntimeError('RETRIEVAL_UNAVAILABLE')
+
+            results = [result for result in deg_result.results if scope.allows_result(result)]
             stage = deg_result.stage
 
             if not results:
@@ -236,7 +241,7 @@ class KnowledgeAgent:
                 confidence=0.0,
                 output={"answer": "知识检索服务异常，请稍后重试。", "coverage": "none"},
                 sources=[],
-                error=str(e),
+                error="KNOWLEDGE_SERVICE_FAILED",
                 latency_ms=int((time.time() - start) * 1000),
             )
 

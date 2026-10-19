@@ -1,9 +1,4 @@
-"""审批结果通知(审批生命周期闭环)
-
-发起人通知:审批进入 executed / rejected / timeout / approved_pending_reauth 终态时,
-通过内部邮件渠道(Mock 阶段落库,真实阶段走 HTTP 适配)告知发起人审批单号与结果,
-并落 audit 事件供追溯。
-"""
+"""Best-effort post-commit notifications; mock receipts never prove real delivery."""
 
 from __future__ import annotations
 
@@ -42,10 +37,11 @@ async def notify_approval_result(
             )
         ).fetchone()
         requester_email = row.email if row else None
-    except Exception as e:  # noqa: BLE001 邮箱查询失败不阻断通知流程
-        logger.warning(f"审批通知: 查询发起人 {requester_id} 邮箱失败: {e}")
+    except Exception:  # noqa: BLE001 邮箱查询失败不阻断通知流程
+        logger.warning("APPROVAL_NOTIFICATION_LOOKUP_FAILED")
 
     message_id = None
+    delivery = "unavailable"
     if requester_email:
         try:
             message_id = await _send_internal_mail(
@@ -54,21 +50,23 @@ async def notify_approval_result(
                 result_type=result_type,
                 detail=detail,
             )
-        except Exception as e:  # noqa: BLE001 邮件失败不阻断主流程
-            logger.warning(f"审批通知: 内部邮件发送失败 {approval_id}: {e}")
+            delivery = "mock_recorded"
+        except Exception:  # noqa: BLE001 邮件失败不阻断主流程
+            logger.warning("APPROVAL_NOTIFICATION_TRANSPORT_UNAVAILABLE")
 
     await get_audit_logger().log(
         event_type="approval_notification",
         session_id=session_id,
         user_id=requester_id,
-        output_summary=f"已通知发起人 {result_type}",
-        success=True,
+        output_summary=f"Approval notification: {delivery}",
+        success=message_id is not None,
         payload={
             "approval_id": approval_id,
             "result_type": result_type,
             "detail": detail[:500],
             "message_id": message_id,
-            "channel": "internal_mail",
+            "channel": "mock_internal_mail",
+            "delivery": delivery,
         },
     )
 
@@ -81,12 +79,14 @@ async def _send_internal_mail(
 ) -> str:
     """复用内部邮件工具(Mock)发送通知,返回 message_id
 
-    Mock 阶段写入内存存储;真实阶段由 external-system-integration 的
-    HTTP 适配器接管(本函数签名不变)。
+    Mock writes memory only. HTTP notification delivery remains unavailable until
+    a durable system-notification identity and independent receipt are implemented.
     """
-    from app.tools.mail import _mock_sent_emails, SendEmailInternalTool
+    from app.tools.mail import SendEmailInternalTool
 
     tool = SendEmailInternalTool()
+    if tool._effective_provider() != "mock":
+        raise RuntimeError("APPROVAL_NOTIFICATION_TRANSPORT_UNSUPPORTED")
     subject = f"【审批通知】{approval_id} - {result_type}"
     body = f"您发起的审批单 {approval_id} 已进入 {result_type} 状态。\n详情:{detail}"
     tool_result = await tool._execute(  # noqa: SLF001 通知内部直接调用,不经过 RBAC
@@ -106,7 +106,6 @@ async def _send_internal_mail(
     if not tool_result.success:
         raise RuntimeError(tool_result.error or "内部邮件发送失败")
     message_id = tool_result.output.get("message_id")
-    if message_id is None and hasattr(tool_result, "output"):
-        # Mock 输出可能用其他键,取第一个可辨识值兜底
-        message_id = str(tool_result.output)
-    return str(message_id) if message_id is not None else "mock-" + approval_id
+    if not isinstance(message_id, str) or not message_id:
+        raise RuntimeError("APPROVAL_NOTIFICATION_RECEIPT_REQUIRED")
+    return message_id

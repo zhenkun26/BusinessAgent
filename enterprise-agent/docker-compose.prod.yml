@@ -4,16 +4,16 @@
 # - 资源限制(deploy.resources):CPU/内存上限,防止单容器拖垮整机
 # - 日志驱动(logging):json-file + 大小限制,防磁盘写爆
 # - 重启策略(restart):unless-stopped,异常自动拉起
-# - 健康检查:全部服务必备
+# - 健康检查:API 使用镜像存活探针;worker 使用独立 8001/ready 就绪探针
 # - 端口:仅暴露必要端口(API/监控),内部服务不对外
 # - 时区:统一 Asia/Shanghai
-# - 只读 App 容器:防止运行时被篡改
+# - 应用产物:API/worker 同一摘要镜像,不挂载宿主源码
 #
 # 使用:
-#     docker compose -f docker-compose.prod.yml up -d
+#     docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-build
 #
 # 依赖:
-#     .env.prod (生产环境配置,含强密码)
+#     .env.prod (生产环境配置,含强密码与 BUSINESSAGENT_IMAGE=...@sha256:...)
 #
 # 部署清单见: deploy/DEPLOY.md
 
@@ -133,7 +133,7 @@ services:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # Application schema is applied explicitly from the reviewed app image.
       # 生产备份脚本挂载点(供 pg_dump 定时备份)
       - ./backups:/backups
     healthcheck:
@@ -196,20 +196,23 @@ services:
   # ============================================
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: &app_image ${BUSINESSAGENT_IMAGE:?Set BUSINESSAGENT_IMAGE to the reviewed registry digest}
     expose:
       - "8000"
     env_file:
       - .env.prod
     environment:
       APP_ENV: prod
+      AUTH_REQUIRE_PASSWORD: "true"
+      AUTH_CHECK_DB: "true"
+      MODEL_PROFILE: ${MODEL_PROFILE:?Set MODEL_PROFILE to bailian-deepseek-v1}
       MILVUS_HOST: milvus-standalone
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
-      HF_HOME: /data/hf_cache
       TZ: Asia/Shanghai
+      OBSERVABILITY_STORE_PATH: /data/observability/state.sqlite3
+    volumes:
+      - audit_state:/data/observability
     depends_on:
       milvus-standalone:
         condition: service_healthy
@@ -217,10 +220,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./app:/app/app:ro
-      - hf_cache:/data/hf_cache
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --no-access-log
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --no-access-log
     restart: unless-stopped
     logging:
       driver: json-file
@@ -231,23 +231,26 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 4G
+          memory: 2G
         reservations:
           memory: 2G
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *app_image
     env_file:
       - .env.prod
     environment:
       APP_ENV: prod
+      AUTH_REQUIRE_PASSWORD: "true"
+      AUTH_CHECK_DB: "true"
+      MODEL_PROFILE: ${MODEL_PROFILE:?Set MODEL_PROFILE to bailian-deepseek-v1}
       MILVUS_HOST: milvus-standalone
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
-      HF_HOME: /data/hf_cache
       TZ: Asia/Shanghai
+      OBSERVABILITY_STORE_PATH: /data/observability/state.sqlite3
+    volumes:
+      - audit_state:/data/observability
     depends_on:
       milvus-standalone:
         condition: service_healthy
@@ -255,10 +258,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./app:/app/app:ro
-      - hf_cache:/data/hf_cache
     command: python -m app.worker
+    expose: ["8001"]
+    healthcheck:
+      test: ["CMD", "python", "-B", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready', timeout=6)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
     logging:
       driver: json-file
@@ -271,7 +278,7 @@ services:
           cpus: "1.0"
           memory: 2G
         reservations:
-          memory: 1G
+          memory: 2G
 
   # ============================================
   # 反向代理层(生产必备)
@@ -380,6 +387,7 @@ services:
     profiles: ["monitoring"]
 
 volumes:
+  audit_state:
   etcd_data:
   minio_data:
   milvus_data:

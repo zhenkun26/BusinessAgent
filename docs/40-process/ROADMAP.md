@@ -1,7 +1,36 @@
 # ROADMAP · 里程碑规划
 
 > 进度规划的单一事实源。与 README、openspec change 状态保持一致。
-> 更新日期:2026-09-28
+> 更新日期:2026-10-19
+> 当前主线：C01–C23 离线增量均已推送；C23 同名远端已核验为 `6de94c6`。C24 最终候选离线回归完成（789 项测试 PASS、1 项 PyYAML 跳过/BLOCKED、7 个分发文件 PASS），整项 open；C24 `d8a26b5` 已推送；C25 `fe2ae78` 已推送并核验；其远端 CI 收集 FAIL。后续修复 `b8c4457` 已推送，远端 Python 3.11/3.13 各 871 tests + 225 subtests PASS、零跳过；扫描误报与事件范围修复 `16c882b` 已推送，镜像上下文修复 `0d1a7ce` 已推送，远端 CI 39209313444 全部 PASS（双版本各 872 tests + 225 subtests、零跳过；密钥/依赖扫描、镜像构建/导入/Trivy PASS）。L/D/O/B/S/R、真实运行、完整 RAG 与历史凭证验收继续 BLOCKED；C10 租约到期写入竞态仍未解决。各项历史提交与验证记录见下方索引和 ISSUES。
+
+<a id="engineering-closeout-stages"></a>
+## 当前工程收尾：S0–S7
+
+范围依据：[工程交付基线](../50-engineering/engineering-delivery-baseline.md)。逐项现状与验收唯一记录在 [ISSUES C01–C25](ISSUES.md#engineering-closeout)，任务勾选见 [OpenSpec tasks](../../openspec/changes/engineering-delivery-closeout/tasks.md)。
+
+| 阶段 | 执行顺序 / 依赖 | 阶段出口 | 当前状态 |
+| --- | --- | --- | --- |
+| S0 冻结范围 | 交付基线、C01–C25、规格、决策与索引 | 文档结构/链接/范围检查；明确验证限制；暂停等待用户确认 | 用户已确认，`05d8d0c` 已推送；CLI 严格校验仍 BLOCKED |
+| S1 可复现环境 | C24 安全验证入口前置 → C01 → C02 → C03 | 隔离环境能按文档启动同一候选产物、模型与数据库 | C24 前置完成；C01 配置已修，运行验收 BLOCKED；C02 离线实现已完成，真实 API/Linux 验收 BLOCKED；C03 离线增量 `fc8da91` 已推送，真实 PostgreSQL/Linux 验收 BLOCKED |
+| S2 权限与敏感信息 | S1 后，C04 → C05 → C06 → C07 | 会话、身份、凭证、检索边界验收通过后，才进入受控业务写入 | C04 `dbc8236` 已推送；C05 `9f5397c` 已推送；C06 `6955133` 已推送；C07 `ceae708` 已推送，运行验收 BLOCKED；既有浏览器/SSO/历史处置阻塞保留；C08 见 S3 |
+| S3 会话与运行状态 | S2 后，C08 → C09 → C10 | 上下文不串用，支持进程数与状态持久化声明符合实测 | C08 `d81c281` 已推送；C09 `079cd62` 已推送；C10 离线增量已完成，真实持久化/双进程/写入竞态验收 BLOCKED |
+| S4 执行一致性与恢复 | S3 后，先 C18 参考契约前置，再 C12 → C14 → C13 → C11 | 幂等、队列、Saga 和审批竞争/崩溃验证通过 | C18/C12/C14/C13/C11 已推送；S4 真实运行 BLOCKED |
+| S5 数据与参考集成 | S4 后，C15 → C16 → C17 → C18 完整链路 → C19 | 数据来源一致，质量指标透明，参考 HTTP/IdP 经应用入口通过 | C15–C19 已推送；整项 open；S01–S16/真实运行/完整 RAG/R01–R20 BLOCKED |
+| S6 用户与运维 | S5 后，C20 → C21 → C22 → C23 | 人工流程、监控/审计、恢复、规定负载测试形成证据 | C20–C23 离线增量完成、整项 open；B/O/D/L 矩阵 BLOCKED；C23 `6de94c6` 已推送 |
+| S7 最终候选 | C24 最终回归 → C25 记录收口 → 规格同步/归档检查 | 最终提交/镜像与证据一致，无范围内 P0/P1；严格校验通过 | C24 离线部分完成；完整验收 BLOCKED；C25 已推送；远端双版本各 871 tests PASS；扫描与镜像上下文修复 `0d1a7ce` 已推送，远端 CI 39209313444 全部 PASS（双版本各 872 tests + 225 subtests、零跳过；密钥/依赖扫描、镜像构建/导入/Trivy PASS）；整项 open，未同步/归档 |
+
+本轮 CI 修复记录：[完整测试与夹具修复](ci-pytest-repair.md)。
+
+**执行规则**：阶段只是分组，每次仅推进用户确认的一个 C 项；完成后交付范围、检查、人工验收与限制，等待下一项确认。C24/C18/C25 的前置部分不计整项完成。若运行时契约变化，先补对应 delta/design 再实施。S0 授权不延伸为 S1 实施、安装依赖、推送、合并或部署授权。
+
+真实企业集成、UAT、安全验收、四周灰度与签署继续由既有两个 active change 管理，不以参考服务替代。**C01 目标环境验收保持 BLOCKED**。C21 `40c10d8` 已按本轮授权推送并核验；C22 提供保留式备份恢复/回退离线候选，D01–D16 真实验收 BLOCKED，C22 整项 open。C22 `d70c1b4` 已推送并核验；C23 冻结负载、混合采集和报告离线候选完成，L01–L16 BLOCKED。C23 `6de94c6` 已推送；C24 `d8a26b5` 已推送并核验；C25 离线核对完成、整项 open，本地提交后暂停。C24 远端 CI pytest 收集失败（`_redact_url`），后续修复需另行确认。S1/S2/S3 运行出口与 C10 租约到期后的写入竞态仍未通过，C10 整项 open；本次不解除阻塞、不授权 S4 运行验收。
+
+本轮验证、限制与交付状态见 [S0 阶段总结](阶段性总结_S0工程交付基线.md)。
+C25 当前交付边界见 [交付状态](../50-engineering/delivery-status.md)及[阶段记录](阶段性总结_C25离线交付核对.md)。
+C24 最终候选离线增量见 [交付记录](阶段性总结_C24最终候选离线验证.md)和[验收映射](../50-engineering/final-candidate-verification.md)。
+前置记录见 [C24 前置阶段总结](阶段性总结_C24安全验证前置.md)；五函数核验不等于完整应用回归。
+当前记录：[C01 配置交付](阶段性总结_C01部署产物与入口.md)、[C02 模型依赖与阻塞](阶段性总结_C02模型依赖.md)、[C03 迁移与初始化](阶段性总结_C03数据库迁移与初始化.md)、[C04 会话归属](阶段性总结_C04会话归属校验.md)、[C05 认证与运行时授权](阶段性总结_C05认证失败闭合与运行时授权.md)、[C06 凭证与 HTML 安全](阶段性总结_C06凭证与HTML失败安全.md)、[C07 检索权限](阶段性总结_C07检索权限与表达式编码.md)、[C08 请求上下文](阶段性总结_C08请求上下文与子任务依赖.md)、[C09 跨进程状态](阶段性总结_C09跨进程运行状态.md)、[C10 checkpoint](阶段性总结_C10检查点持久化与故障语义.md)、[C18 契约前置](阶段性总结_C18参考契约前置.md)、[C12 工具幂等](阶段性总结_C12工具幂等与安全重试.md)、[C14 队列与 worker](阶段性总结_C14队列可靠性与Worker初始化.md)、[C13 Saga 与补偿](阶段性总结_C13Saga持久化与故障恢复.md)、[C11 审批状态](阶段性总结_C11审批领取与执行状态.md)、[C15 知识发布](阶段性总结_C15知识发布与索引一致性.md)、[C16 分析适配](阶段性总结_C16分析数据适配.md)、[C17 RAG 指标](阶段性总结_C17RAG质量与指标口径.md)、[C18 完整参考 HTTP 候选](阶段性总结_C18完整参考HTTP业务集成.md)、[C19 受控 IdP](阶段性总结_C19受控IdP与SSO完整链路.md)、[C20 前端交付](阶段性总结_C20浏览器角色流程与前端交付.md)、[C21 可观测性](阶段性总结_C21就绪审计指标与告警.md)、[C22 保留式恢复](阶段性总结_C22当前版本备份恢复与回退.md)、[C23 容量证据](阶段性总结_C23规定负载下的性能与容量.md)。
 
 ## 一、已完成阶段（历史里程碑）
 
@@ -29,9 +58,10 @@
 | 安全加固 | 2026-08-06 | ✅ | security-hardening-plus 21/21 归档：gitleaks/pip-audit/Trivy 三道 CI 扫描、豁免清单、越权测试，主规格 13 项 |
 | 工单真实接入试点 | 2026-08-06 | ✅ | ticket-system-integration 16/16 归档：幂等键/补偿真实化/审计回写，stub 沙箱验收 7/7（external-system-integration 规格扩展） |
 | G0 UAT 技术彩排回放 | 2026-08-15 | ✅ | uat-replay-harness 9/9 归档：合成 fixture、结构/安全回放器、JSON/Markdown 证据报告 |
-| 后端内部简化 | 2026-09-28 | ✅ 本地验证 | simplify-backend-internals：仅 FGR-01/FAT-01；基线与最终均 13/13 定向测试、8 组内存检查通过，独立复审无阻塞；未跑完整 CI，OpenSpec CLI 不可用；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
-| CI 镜像发布门禁修复 | 2026-09-28 | PR #1 检查中 | scan-image-before-publish：先扫描后发布同一镜像；11 项离线条件通过；首次云端 Python 3.11/3.13 均 143 测试通过，gitleaks 因浅克隆失败，已补完整历史配置待复验；GitHub 批准及合并发布待完成；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
-| 中英文 README | 2026-10-17 | ✅ 本地文档检查；待 PR 集成 | 中文 README 与完整英文翻译、互链及目录索引；各 21 个仓库链接/3 个锚点有效，11 组代码块与配置/链接目标一致，16 段 Shell 语法检查通过；未安装依赖或启动服务，OpenSpec CLI 不可用；[变更与验证记录](../../openspec/changes/archive/2026-10-17-refresh-bilingual-readmes/tasks.md) |
+| 后端内部简化 | 2026-09-29 | ✅ 已合并并发布 | PR #1 合并为 `2d4bfc1`；Python 3.11/3.13 各 143 项测试通过；仅 FGR-01/FAT-01，OpenSpec 已归档；[交付证据](code-simplification/20260928-backend/cleanup-report.md) |
+| CI 镜像发布门禁修复 | 2026-09-29 | ✅ 已合并并发布 | 先扫描后发布同一镜像；主分支 CI `36522224892` 全部通过，GHCR 提交标签与 latest 摘要一致；OpenSpec 已归档，未部署生产；[验证与授权范围](code-simplification/20260928-backend/ci-publication-report.md) |
+| 交付收尾与 CI 必需检查 | 2026-09-29 | ✅ 必需检查生效，离线核验完成 | strict 模式绑定三个 GitHub Actions 检查；G0 16/16 通过、GATE-01 自动回归证据就绪；保持真实 UAT/联调/灰度阻塞；[推进记录](交付与离线推进记录-2026-09-29.md) |
+| 中英文 README | 2026-10-17 | ✅ PR #3 已合并 | 合并提交 `065bdf7`；中文 README 与完整英文翻译、互链及目录索引；原文档检查见[变更与验证记录](../../openspec/changes/archive/2026-10-17-refresh-bilingual-readmes/tasks.md)，不代表运行验收 |
 
 ## 二、进行中
 
@@ -44,14 +74,15 @@
 | ~~load-test-and-dr-drill~~ | P1 | ✅ 已归档 2026-08-06 | 阶梯压测 + 备份恢复演练 + 告警值班（新能力 performance-resilience） |
 | ~~security-hardening-plus~~ | P1 | ✅ 已归档 2026-08-06 | 密钥管理、CI 漏洞扫描、越权测试、I-06/I-07 收口（新能力 security-operations） |
 | ~~ticket-system-integration~~ | P2 | ✅ 已归档 2026-08-06 | 工单真实接入试点：幂等/补偿/审计/联调（改 external-system-integration） |
-| ~~fix-vulnerable-runtime-dependencies~~ | P1 | ✅ 已归档 2026-10-17；待 PR 集成 | `492882c` 修复 4 个既有依赖；CI 39012279790 的 Python 3.11/3.13 各 143 测试、gitleaks、pip-audit、生产镜像构建及 Trivy 全部通过；最终记录提交与批准审核仍需核验；[记录](../../openspec/changes/archive/2026-10-17-fix-vulnerable-runtime-dependencies/tasks.md) |
+| ~~fix-vulnerable-runtime-dependencies~~ | P1 | ✅ 已归档，PR #3 已合并 | `492882c` 修复 4 个既有依赖，随 `065bdf7` 合入；既有 CI 证据及限制见[记录](../../openspec/changes/archive/2026-10-17-fix-vulnerable-runtime-dependencies/tasks.md)，不是新收尾基线的验收 |
+| engineering-delivery-closeout | P0/P1 | C01 配置已修，运行验收阻塞 | S0/C24 前置已完成；25 项整项验收仍 open，C02 离线实现已完成，真实 API/Linux 验收 BLOCKED；C03 离线增量已推送；C04 `dbc8236` 已推送；C05 `9f5397c` 已推送；C06 `6955133` 已推送；C07 `ceae708` 已推送；C08 `d81c281` 已推送；C09 `079cd62` 已推送；C10 `a57bd4e` 已推送、运行验收 BLOCKED；C18/C12/C14/C13/C11 已推送；C15–C19 已推送；C20–C23 离线增量已推送；C24 离线汇总完成，全部运行矩阵 BLOCKED；C25 离线核对完成，整项 open，远端 CI FAIL |
 | crm-mail-sso-integration | P2 | 实施中 9/19 | CRM/邮件/SSO 真实接入（配置、SSO 通用流程与文档已完成；外部契约/沙箱待确认） |
 | uat-and-ga-rollout | P3 | 实施中 8/15 | UAT、灰度、上线门槛检查单（灰度方案条件评审通过，最短观察期 4 周；UAT 资源核验仍 BLOCKED） |
 | ~~fix-prod-image-pip-removal~~ | P1 | ✅ 已归档 2026-08-15 | 修复生产镜像 runner 阶段 pip 清理顺序；CI run 31890705614 已通过 Python 3.11/3.13、生产镜像构建与 Trivy 扫描 |
 
 ## 三、挂起事项（P3，暂不上线）
 
-当前下一步执行顺序与外部阻塞见 `下一步执行阻塞清单-2026-08-15.md`；正式 UAT、真实外部接入、真实灰度和全量放行均不得跳过前置证据。
+工程收尾的当前执行顺序见本文件顶部 S0–S7；企业现场所需外部输入继续参考 `下一步执行阻塞清单-2026-09-29.md`。正式 UAT、真实外部接入、真实灰度和全量放行均不得跳过前置证据。
 
 - [x] ~~压测（vegeta/k6）~~（✅ 2026-08-05 随 load-test-and-dr-drill 落地：k6 阶梯压测已执行，报告见 `eval/results/`，SLA 初值已回访，I-01 关闭）
 - [ ] UAT + 安全测试（含 Prompt 注入攻击面实测）——已由 uat-and-ga-rollout 提案承接

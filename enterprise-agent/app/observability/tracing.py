@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from typing import Optional
 
 from loguru import logger
+
+from app.security.redaction import redact_text, redact_value
 
 from app import __version__
 
@@ -118,21 +121,19 @@ def get_tracer():
 
 def instrument_fastapi(app):
     """FastAPI 应用 instrumentation(在 create_app 后调用)"""
-    if _tracer is None:
-        return
-
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
         FastAPIInstrumentor.instrument_app(app)
         logger.info("FastAPI instrumentation 已启用")
-    except Exception as e:
-        logger.warning(f"FastAPI instrumentation 失败: {e}")
+    except Exception:
+        logger.warning("FASTAPI_INSTRUMENTATION_UNAVAILABLE")
 
 
 # ============ 便捷装饰器 ============
 
 
+@contextmanager
 def traced_span(name: str, attributes: Optional[dict] = None):
     """便捷 span 上下文管理器(未启用 tracing 时为 no-op)
 
@@ -142,20 +143,19 @@ def traced_span(name: str, attributes: Optional[dict] = None):
         with traced_span("rag.retrieve", {"query": query}):
             results = retriever.retrieve(query)
     """
-    import contextlib
-
     if _tracer is None:
-        return contextlib.nullcontext()
+        yield None
+        return
 
-    ctx = _tracer.start_as_current_span(name)
-    span = ctx.__enter__()
-    if attributes:
-        for k, v in attributes.items():
+    with _tracer.start_as_current_span(
+        redact_text(name), record_exception=False, set_status_on_exception=False,
+    ) as span:
+        for key, value in redact_value(attributes or {}).items():
             try:
-                span.set_attribute(k, v)
+                span.set_attribute(key, value)
             except Exception:
-                pass  # 非法属性值忽略
-    return ctx
+                pass
+        yield span
 
 
 def record_span_attributes(attributes: dict) -> None:
@@ -168,7 +168,7 @@ def record_span_attributes(attributes: dict) -> None:
 
         span = trace.get_current_span()
         if span and span.is_recording():
-            for k, v in attributes.items():
+            for k, v in redact_value(attributes).items():
                 try:
                     span.set_attribute(k, v)
                 except Exception:
@@ -187,7 +187,7 @@ def record_span_event(name: str, attributes: Optional[dict] = None) -> None:
 
         span = trace.get_current_span()
         if span and span.is_recording():
-            span.add_event(name, attributes=attributes or {})
+            span.add_event(redact_text(name), attributes=redact_value(attributes or {}))
     except Exception:
         pass
 
@@ -202,6 +202,7 @@ def record_exception(exc: Exception) -> None:
 
         span = trace.get_current_span()
         if span and span.is_recording():
-            span.record_exception(exc)
+            span.add_event("exception", attributes={"error.type": type(exc).__name__,
+                                                    "error.message": "OPERATION_FAILED"})
     except Exception:
         pass

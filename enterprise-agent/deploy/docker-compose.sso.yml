@@ -1,0 +1,80 @@
+# Overlay docker-compose.prod.yml in a fresh isolated project. No start/build in C19.
+# Base-file-relative mounts. Populate ignored data/sso-tls externally; never auto-generate keys.
+x-sso: &sso
+  SSO_ENABLED: "true"
+  SSO_ISSUER: https://idp.reference.test:8443
+  SSO_CLIENT_ID: ${IDP_CLIENT_ID:?Set controlled client ID}
+  SSO_CLIENT_SECRET: ${IDP_CLIENT_SECRET:?Set controlled client credential}
+  SSO_AUTHORIZE_URL: https://idp.reference.test:8443/authorize
+  SSO_TOKEN_URL: https://reference-idp:8443/token
+  SSO_JWKS_URL: https://reference-idp:8443/jwks
+  SSO_REDIRECT_URI: https://app.reference.test:8443/api/v1/auth/sso/callback
+  SSO_CA_BUNDLE: /sso-tls/ca.crt
+  SSO_DEFAULT_ROLE: salesperson
+  SSO_DEFAULT_DEPARTMENT: dept_sales
+  SSO_SCOPES: openid profile email
+services:
+  api:
+    environment: *sso
+    networks: [default, sso]
+    volumes: ["./data/sso-tls/ca.crt:/sso-tls/ca.crt:ro"]
+  worker:
+    environment: *sso
+    networks: [default, sso]
+    volumes: ["./data/sso-tls/ca.crt:/sso-tls/ca.crt:ro"]
+  # Prevent the inherited host-wide 80/443 listener in this isolated profile.
+  nginx:
+    profiles: [production-gateway]
+  reference-idp:
+    image: ${IDP_IMAGE:?Set reviewed IdP registry digest}
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [sso]
+    expose: ["8443", "8444"]
+    environment:
+      IDP_ISSUER: https://idp.reference.test:8443
+      IDP_REDIRECT_URI: https://app.reference.test:8443/api/v1/auth/sso/callback
+      IDP_CLIENT_ID: ${IDP_CLIENT_ID:?Set controlled client ID}
+      IDP_CLIENT_SECRET: ${IDP_CLIENT_SECRET:?Set controlled client credential}
+      IDP_OPERATOR_TOKEN: ${IDP_OPERATOR_TOKEN:?Set distinct operator credential}
+      IDP_USERS_JSON: ${IDP_USERS_JSON:?Set synthetic identity fixtures}
+      IDP_SIGNING_KEYS_JSON: ${IDP_SIGNING_KEYS_JSON:?Set provisioned private keys}
+      IDP_ACTIVE_KID: ${IDP_ACTIVE_KID:?Set initial signing key}
+      IDP_STORE_ID: ${IDP_STORE_ID:?Set fresh store UUID}
+      IDP_DB: /data/issuer.sqlite3
+      IDP_TLS_CERT: /sso-tls/idp.crt
+      IDP_TLS_KEY: /sso-tls/idp.key
+    volumes:
+      - sso_idp:/data
+      - ./data/sso-tls/idp.crt:/sso-tls/idp.crt:ro
+      - ./data/sso-tls/idp.key:/sso-tls/idp.key:ro
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+  sso-gateway:
+    image: nginx:1.27-alpine
+    user: "65534:65534"
+    entrypoint: [nginx, -g, "daemon off;"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    ports: ["127.0.0.1:8443:8443"]
+    networks: [default, sso]
+    volumes:
+      - ./deploy/nginx.sso.conf:/etc/nginx/nginx.conf:ro
+      - ./data/sso-tls/gateway.crt:/sso-tls/gateway.crt:ro
+      - ./data/sso-tls/gateway.key:/sso-tls/gateway.key:ro
+      - ./data/sso-tls/ca.crt:/sso-tls/ca.crt:ro
+    tmpfs: ["/tmp:uid=65534,gid=65534,mode=0700"]
+    depends_on: [api, reference-idp]
+    restart: "no"
+networks:
+  sso:
+    internal: true
+volumes:
+  sso_idp:

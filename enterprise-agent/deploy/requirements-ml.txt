@@ -1,0 +1,7 @@
+# Optional local development experiment only; NOT used by the C02 remote candidate.
+# Direct ML packages are already in pyproject.toml.
+# Install torch from the official CPU index before resolving this file.
+# Constrain shared packages with requirements-prod.txt; build/scan is still required.
+torch==2.14.1+cpu
+langchain-huggingface==1.2.2
+sentence-transformers==5.2.0

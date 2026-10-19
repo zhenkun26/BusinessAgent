@@ -1,113 +1,140 @@
-"""后台 Worker 入口
-
-用途:
-- 审批超时扫描(每 60 秒,幂等)
-- 文档入库任务(Redis 队列消费)
-- Saga 补偿重试(Redis 队列消费)
-- 审计日志本地缓存回写(启动 + 周期)
-"""
+"""Independent retained-job worker with durable Saga reconciliation."""
+from __future__ import annotations
 
 import asyncio
+import signal
 from typing import Any
+import uuid
 
 from loguru import logger
 
-from app.config import get_settings
+from app.security.redaction import install_log_redaction
+
+install_log_redaction()
+
+from app.config import get_settings, validate_production_settings
 from app.core.approval_timeout import scan_expired_approvals
 from app.core.database import init_db, close_db
-from app.core.saga_retry import retry_saga_compensations
-from app.core.task_queue import consume_tasks
+from app.core.knowledge_jobs import handle_knowledge_job
+from app.core.task_queue import TaskDeferred, TaskRejected, consume_tasks
 
 
 async def handle_doc_ingest_task(payload: dict[str, Any]) -> None:
-    """文档入库任务:从队列 payload 调 ingest 服务"""
-    from app.rag.ingest import MilvusIngestService
-
-    file_path = payload.get("file_path")
-    if not file_path:
-        raise ValueError("doc_ingest 任务缺少 file_path")
-    service = MilvusIngestService()
-    await service.ingest_file(
-        file_path=file_path,
-        document_id=payload.get("document_id"),
-        title=payload.get("title"),
-        doc_type=payload.get("doc_type", "policy"),
-        dept_namespace=payload.get("dept_namespace", "shared_company"),
-        access_roles=payload.get("access_roles"),
-        uploaded_by=payload.get("uploaded_by"),
-    )
+    """Only database-backed frozen documents; no arbitrary filesystem paths."""
+    await handle_knowledge_job(payload)
 
 
 async def handle_saga_retry_task(payload: dict[str, Any]) -> None:
-    """Saga 补偿重试任务"""
-    saga_id = payload.get("saga_id")
-    if not saga_id:
-        raise ValueError("saga_retry 任务缺少 saga_id")
-    await retry_saga_compensations(saga_id)
+    """Only a retained UUID journal may authorize inverse work."""
+    from app.core.tool_operations import OperationError, valid_uuid
+    if not isinstance(payload, dict) or set(payload) != {'saga_id'}:
+        raise TaskRejected('TASK_INPUT_INVALID')
+    try:
+        valid_uuid(payload['saga_id'])
+    except OperationError:
+        raise TaskRejected('TASK_INPUT_INVALID') from None
+    from app.core.saga_retry import retry_saga_compensations
+    try:
+        state = await retry_saga_compensations(payload['saga_id'])
+    except OperationError as exc:
+        if str(exc) in {'SAGA_STORE_UNAVAILABLE', 'ACTION_STORE_UNAVAILABLE', 'SAGA_OWNERSHIP_LOST'}:
+            raise TaskDeferred('SAGA_RECOVERY_PENDING') from None
+        raise TaskRejected('SAGA_MANUAL_REQUIRED') from None
+    if state in {'busy', 'aborting'}:
+        raise TaskDeferred('SAGA_RECOVERY_PENDING')
+    if state not in {'succeeded', 'compensated'}:
+        raise TaskRejected('SAGA_MANUAL_REQUIRED')
 
 
-async def main():
-    """Worker 主循环"""
+async def maintenance() -> None:
+    while True:
+        try:
+            await scan_expired_approvals()
+        except Exception:
+            logger.error("WORKER_APPROVAL_SCAN_FAILED")
+        # Audit replay runs in its own supervised child.
+        await asyncio.sleep(60)
+
+
+async def main() -> None:
     settings = get_settings()
-    logger.info(f"Worker 启动, env={settings.app_env}")
+    violations = validate_production_settings(settings)
+    if violations and settings.app_env == "prod":
+        raise RuntimeError("WORKER_CONFIGURATION_REJECTED")
 
-    await init_db()
+    from app.rag.model_profile import verify_model_startup
+    from app.observability.audit import init_audit_logger
+    from app.tools.base import init_all_tools
 
-    # 审计本地缓存回写(数据库故障期间积压的审计,恢复后补录)
+    children: list[asyncio.Task] = []
+    vector_started = False
     try:
-        from app.observability.audit import get_audit_logger
-
-        await get_audit_logger().flush_local_cache()
-    except Exception as e:  # noqa: BLE001 worker 启动不因回写失败而退出
-        logger.error(f"审计缓存回写失败: {e}")
-
-    # 后台任务队列(无限消费循环,并发运行)
-    queue_consumers = [
-        asyncio.create_task(
-            consume_tasks(
-                settings.redis_url,
-                queue_name="tasks:doc_ingest",
-                handler=handle_doc_ingest_task,
-            ),
-            name="doc-ingest-consumer",
-        ),
-        asyncio.create_task(
-            consume_tasks(
-                settings.redis_url,
-                queue_name="tasks:saga_retry",
-                handler=handle_saga_retry_task,
-            ),
-            name="saga-retry-consumer",
-        ),
-    ]
-
-    # 保持运行
-    try:
-        while True:
-            # 审批超时扫描(幂等,每 60 秒)
-            try:
-                await scan_expired_approvals()
-            except Exception as e:  # noqa: BLE001 worker 单任务失败不退出主循环
-                logger.error(f"审批超时扫描失败: {e}")
-
-            # 周期审计缓存回写(数据库恢复后补录)
-            try:
-                from app.observability.audit import get_audit_logger
-
-                await get_audit_logger().flush_local_cache()
-            except Exception as e:  # noqa: BLE001
-                logger.error(f"审计缓存回写失败: {e}")
-
-            await asyncio.sleep(60)
-            logger.debug("Worker 心跳")
+        await verify_model_startup(settings)
+        await init_db()
+        audit = init_audit_logger()
+        from app.observability.tracing import init_tracing
+        init_tracing(service_name="enterprise-agent-worker")
+        init_all_tools()
+        if settings.vector_store_provider == "milvus":
+            from app.core.milvus_client import init_milvus
+            vector_started = True
+            await init_milvus()  # Failure prevents all claims; never fall back to memory.
+        elif settings.vector_store_provider != "memory" or settings.app_env != "dev":
+            raise RuntimeError("WORKER_VECTOR_PROFILE_REJECTED")
+        worker_id = str(uuid.uuid4())
+        from app.observability.service import replay_loop, serve_worker_observations
+        children.append(asyncio.create_task(replay_loop(audit), name="worker-audit-replay"))
+        children.append(asyncio.create_task(serve_worker_observations(worker_id), name="worker-observations"))
+        for queue, handler in (("tasks:doc_ingest", handle_doc_ingest_task),
+                               ("tasks:saga_retry", handle_saga_retry_task)):
+            children.append(asyncio.create_task(
+                consume_tasks(queue, handler, worker_id=worker_id), name=queue,
+            ))
+        children.append(asyncio.create_task(maintenance(), name="worker-maintenance"))
+        done, _ = await asyncio.wait(children, return_when=asyncio.FIRST_COMPLETED)
+        for child in done:
+            if not child.cancelled():
+                child.exception()  # Retrieve without logging exception text.
+        raise RuntimeError("WORKER_CHILD_STOPPED")
     except asyncio.CancelledError:
-        logger.info("Worker 收到停止信号")
+        raise
+    except Exception:
+        raise RuntimeError("WORKER_FAILED") from None
     finally:
-        for consumer in queue_consumers:
-            consumer.cancel()
-        await asyncio.gather(*queue_consumers, return_exceptions=True)
-        await close_db()
+        for child in children:
+            child.cancel()
+        await asyncio.gather(*children, return_exceptions=True)
+        try:
+            if vector_started:
+                from app.core.milvus_client import close_milvus
+                await close_milvus()
+        finally:
+            await close_db()
+
+
+async def serve() -> None:
+    """Convert container SIGTERM into cooperative cancellation and resource closure."""
+    loop = asyncio.get_running_loop()
+    task = asyncio.current_task()
+    installed = False
+    if task is not None:
+        try:
+            loop.add_signal_handler(signal.SIGTERM, task.cancel)
+            installed = True
+        except NotImplementedError:  # Development event loops without POSIX signals.
+            pass
+    try:
+        await main()
+    finally:
+        if installed:
+            loop.remove_signal_handler(signal.SIGTERM)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(serve())
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+    except Exception:
+        logger.error("WORKER_FAILED")
+        raise SystemExit(1) from None

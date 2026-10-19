@@ -20,7 +20,9 @@ class QueryMyApprovalsSchema(BaseModel):
 
     status: Optional[str] = Field(
         default=None,
-        description="按状态过滤：pending(待审批)/ executed(已执行)/ rejected(已拒绝)，不填返回全部",
+        description=("按状态过滤：pending/approved_pending_reauth/executing/executed/"
+                     "execution_failed/execution_unknown/compensated/compensation_failed/"
+                     "rejected/timeout，不填返回全部"),
     )
     limit: int = Field(default=10, ge=1, le=50, description="返回条数，默认 10")
 
@@ -28,10 +30,15 @@ class QueryMyApprovalsSchema(BaseModel):
 # 状态中文映射,让 LLM 生成回答时直接用
 _STATUS_LABELS = {
     "pending": "待审批",
-    "executed": "已批准并执行",
+    "executed": "执行成功",
+    "executing": "执行中",
+    "execution_failed": "执行失败",
+    "execution_unknown": "结果待核对",
+    "compensated": "执行失败·已补偿",
+    "compensation_failed": "补偿未完成",
     "approved": "已批准",
     "rejected": "已拒绝",
-    "approved_pending_reauth": "已批准，待重新授权恢复执行",
+    "approved_pending_reauth": "已批准·待确认",
     "timeout": "已超时",
 }
 
@@ -41,7 +48,7 @@ class QueryMyApprovalsTool(BaseTool):
 
     name = "query_my_approvals"
     category = ToolCategory.QUERY
-    description = "查询我发起的审批单的进度和结果(待审批/已执行/已拒绝)"
+    description = "查询我发起的审批单的进度和结果(待审批/待确认/执行中/成功/失败/待核对/补偿)"
     input_schema = QueryMyApprovalsSchema
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:

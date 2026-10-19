@@ -1,8 +1,17 @@
 # Hello，智多星——企业知识工作流 Agent
 
-> 当前版本:v1.3.0(2026-08-06 生产就绪与全量更名;版本单一事实源见 `app/__init__.py`,变更记录见根目录 `CHANGELOG.md`)
+> 源码版本:v1.3.0；收尾变更未发布，当前提交不等同于历史 v1.3.0 tag。版本单一事实源见 `app/__init__.py`；当前支持与验收边界见[交付状态](../docs/50-engineering/delivery-status.md)。
 
 基于 **LangChain + LangGraph + Milvus** 的企业级多 Agent 系统。
+
+参考 HTTP 集成的隔离配方、鉴权/故障控制和应用证据入口见[工程指南](../docs/50-engineering/reference-integration.md)。独立服务代码已提供，完整应用运行验收仍 BLOCKED；普通开发启动不自动启用这些服务。
+
+就绪、共享保留式审计回写、内部 worker 探针、逐进程指标及受控告警的配置与 O01–O16 验收标准见 [运行可观测性契约](../docs/50-engineering/runtime-observability.md)。需要显式迁移 v7；真实运行验收仍 BLOCKED。
+
+当前版本备份/恢复/回退使用[保留式恢复契约](../docs/50-engineering/retained-recovery.md)：先审查计划、全新隔离卷恢复，真实 D01–D16 仍 BLOCKED；旧备份入口不会默认运行或清理资产。
+
+受控 SSO 的独立 IdP、PKCE/RS256/身份映射及 HTTPS 配方见[工程指南](../docs/50-engineering/controlled-sso.md)。仅离线候选，真实签名/浏览器/部署验收 BLOCKED；默认关闭。
+前端固定本地依赖、角色流程及 API-only 管理边界见[浏览器交付指南](../docs/50-engineering/browser-delivery.md)。从同源 `/ui/` 访问；B01–B16 真实浏览器验收仍 BLOCKED。
 
 ## 快速开始
 
@@ -13,24 +22,53 @@
 cp .env.example .env
 
 # 编辑 .env, 填入实际的 API Key 与连接配置
-# 必填: OPENAI_API_KEY(DeepSeek) / LOCAL_LLM_BASE_URL(Ollama) / EMBEDDING_MODEL(bge-m3路径)
+# C02 已选外部模型方案，按 deploy/MODEL_PROFILE.md 填写独立密钥与模型配置
 ```
 
 ### 2. 启动服务
 
 ```bash
-# 启动全部服务(Milvus + PostgreSQL + Redis + Ollama)
+# 仅在获准的隔离环境启动依赖(Milvus + PostgreSQL + Redis)
 docker compose up -d etcd minio milvus-standalone postgres redis
+
+# C03 不再自动初始化 SQL；先审阅 deploy/DATABASE_BOOTSTRAP.md。
+# 空库显式迁移，现有库仅允许对获准副本使用 --adopt-legacy：
+python -B -m app.core.db_bootstrap apply --execute
+python -B -m app.core.db_bootstrap status
+# 安全导出 BOOTSTRAP_ADMIN_ID/USERNAME/PASSWORD 后创建首个管理员：
+python -B -m app.core.db_bootstrap admin --execute
 
 # API 在宿主机直接跑(开发模式,.env 默认已指向 localhost + milvus)
 python -m app.main
 
-# 或容器化运行(生产模式)
+# 或使用开发 Compose 的容器化入口（不是不可变镜像生产交付）
 docker compose --profile production up -d api
 
 # 启动监控(可选)
 docker compose --profile monitoring up -d prometheus grafana jaeger
 ```
+
+生产候选使用独立的 `docker-compose.prod.yml`：API/worker 绑定同一镜像摘要且不挂载源码，必须按[生产部署指南](deploy/DEPLOY.md)设置 `BUSINESSAGENT_IMAGE`、显式传入 `.env.prod` 并通过契约检查。C01 的真实镜像/入口验收尚未完成，开发入口能运行不代表生产候选通过。
+
+上述运行步骤仍待隔离环境验收，不能对当前数据库直接执行。C03 的离线预览为 `python -B -m app.core.db_bootstrap plan`，不会连接数据库。[数据库初始化手册](deploy/DATABASE_BOOTSTRAP.md)区分空库、旧库副本、管理员与显式开发演示种子；任一步失败应停止，不继续启动 API/worker。
+
+审批执行：批准后待原发起人确认；持久领取后重复确认不重复执行。过期待确认单不可执行，成功/失败/结果待核对/补偿状态分别显示。批量决策整批提交或回滚。详见[审批执行契约](../docs/50-engineering/approval-execution.md)，真实 PG/JWT/API/浏览器验收仍 BLOCKED。
+
+知识发布：先记录不可见版本，固定 chunk ID 写索引，完整确认后原子激活；检索在重排前核对当前版本。旧版本、部分写入及停用内容不可进入新检索请求，历史无版本记录内容需显式重导。管理员可查询发布记录、显式重试 dead 知识任务或停用文档，见[发布契约](../docs/50-engineering/knowledge-publication.md)。真实运行与完整 RAG 验收仍 BLOCKED。
+
+后台任务：知识审核改为 PostgreSQL 同事务入队，返回 `202` 与 `task_id`；独立 worker 处理后通过管理员任务接口查询结果。迁移清单现要求 v7；知识任务派发后结果不明保留待核对。Saga 使用持久日志与独立补偿 ID，重启后核对原动作再逆序补偿，不补跑正向动作或重复已领取的写入；详见 [Saga 恢复契约](../docs/50-engineering/saga-recovery.md)。C21 已提供保留式审计回写候选，O01–O16 真实持久化与故障验收仍 BLOCKED；完整运行验收仍 BLOCKED，见[队列与 worker 契约](../docs/50-engineering/queue-reliability.md)。
+
+认证要求：生产 API/worker 必须同时启用 `AUTH_REQUIRE_PASSWORD=true` 和 `AUTH_CHECK_DB=true`。身份库故障返回 503，禁用/删除账户返回 401；审批执行使用双方当前权限。详细约定见[认证与运行时授权契约](../docs/50-engineering/runtime-authorization.md)。
+
+凭证要求：C06 不再保存审批/图状态 JWT。批准后须由发起人在“我的审批”确认执行；浏览器 token 仅在内存，刷新后需重新登录。历史凭证处置与真实验收仍阻塞，详见[凭证安全契约](../docs/50-engineering/credential-safety.md)。
+
+检索要求：普通角色仅检索许可范围内的本部门与共享区，缺少部门时仅共享区；manager 可跨四个既有部门，admin 可跨命名空间，但所有角色仍须匹配文档 ACL。无角色/非法部门拒绝，空类型列表不返回文档。详见[检索权限契约](../docs/50-engineering/retrieval-authorization.md)。
+
+任务上下文：每个子任务使用独立 Agent 与历史副本；历史仅纳入同一用户/会话/当前角色部门且能验证请求归属的回答，旧无标记快照不进入模型上下文。仅支持独立子任务并行；含 `depends_on` 的计划整体拒绝，请按顺序分别提交。通用 DAG、模型依赖识别和真实并发验收仍未完成，详见[请求上下文契约](../docs/50-engineering/request-context.md)。
+
+Checkpoint：C10 采用显式固定后端，默认 Redis；PostgreSQL 为显式替代，memory 仅限 dev 主动启用。存储不可用不再自动回退，API 启动会核验 saver，历史读取失败停止图执行，SSE 最终快照校验当前请求。详见[持久化与故障契约](../docs/50-engineering/checkpoint-durability.md)；真实恢复、TTL 与写入竞态验收 BLOCKED。
+
+运行状态：聊天入口和 SSO 现在要求可用的共享 Redis，不会退回进程内状态。已有任务占用同一会话时返回 409，协调存储故障返回 503；取消成功仅表示信号受理。每次持久化图请求从 PostgreSQL 固定 Prompt 快照，读取失败则终止。真实双进程验收尚未完成，现有单 worker 配置仍为候选，详见[跨进程状态契约](../docs/50-engineering/cross-process-state.md)。
 
 ### 3. 验证服务
 
@@ -51,10 +89,10 @@ open http://localhost:8000/ui
 ### 4. 登录获取 Token
 
 ```bash
-# 使用种子用户登录(密码任意)
+# 使用显式 bootstrap 的账户与实际口令；以下是占位示例，不保存真实凭证到历史或日志。
 curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "销售员张三"}'
+  -d '{"username": "<bootstrap-username>", "password": "<private-password>"}'
 
 # 刷新 Token
 curl -X POST http://localhost:8000/api/v1/auth/refresh \
@@ -63,6 +101,8 @@ curl -X POST http://localhost:8000/api/v1/auth/refresh \
 
 ### 5. 发送对话
 
+首次对话省略 `session_id`（或传 null），之后只使用服务端返回且属于当前用户的 ID。普通/SSE 对话、历史和反馈均仅本人可用；管理员仅在取消接口保留跨用户例外。不存在与无权访问统一返回 404，反馈不会补建会话。完整规则和运行验收限制见[会话归属契约](../docs/50-engineering/session-ownership.md)。
+
 ```bash
 # 知识问答(RAG)
 curl -X POST http://localhost:8000/api/v1/chat/message \
@@ -70,7 +110,7 @@ curl -X POST http://localhost:8000/api/v1/chat/message \
   -H "Content-Type: application/json" \
   -d '{"message": "请告诉我销售政策"}'
 
-# 数据分析(AnalysisAgent)
+# 数据分析(AnalysisAgent；当前支持订单金额/数量，不推算累计销售额)
 curl -X POST http://localhost:8000/api/v1/chat/message \
   -H "Authorization: Bearer <your-token>" \
   -H "Content-Type: application/json" \
@@ -91,11 +131,15 @@ curl -X POST http://localhost:8000/api/v1/chat/message \
 curl http://localhost:8000/api/v1/approvals/pending \
   -H "Authorization: Bearer <manager-token>"
 
-# 批准 → 服务端自动执行(prefill_payload 中的工具调用)
+# 批准 → 仅记录批准，进入 approved_pending_reauth；发起人需确认执行
 curl -X POST http://localhost:8000/api/v1/approval/appr_xxx/decide \
   -H "Authorization: Bearer <manager-token>" \
   -H "Content-Type: application/json" \
   -d '{"decision": "approved", "comment": "同意"}'
+
+# 发起人审阅后，以当前登录凭据确认执行
+curl -X POST http://localhost:8000/api/v1/pending-executions/appr_xxx/resume \
+  -H "Authorization: Bearer <requester-token>"
 ```
 
 ### 7. 验证脚本
@@ -151,14 +195,14 @@ enterprise-agent/
 
 - [x] **W2** Docker Compose 环境 + 本地 Embeddings(bge-m3) + BGE Reranker + 三层模型分层(DeepSeek v4-pro / v4-flash / qwen3.5:4b)
 - [x] **W3** RAG 两阶段检索(向量召回 + BGE 精排) + 场景化置信度决策 + LLM 降级(DeepSeek v4-pro→qwen3.5:4b)
-- [x] **W4** RAG 评测体系(命中率/覆盖率/延迟 P95) + 评测数据集
+- [x] **W4（历史）** RAG 评测体系与数据集；当前入口采用 [C17 质量契约](../docs/50-engineering/rag-quality.md)，保留 122 条原样本、固定分母，默认离线，实际质量与完整运行验收 BLOCKED。
 
 ### 阶段二: 多 Agent 协同(W5-W8) ✅
 
 - [x] **W5** LangGraph StateGraph + Planner + Aggregator + Send API 并行 fan-out + 本地小模型闲聊判断优化
-- [x] **W6** Redis Checkpointer 三级降级链(Redis→PG→Memory) + interrupt 人工介入 + 跨进程状态恢复
+- [x] **W6（历史阶段）** Redis Checkpointer 三级降级链与 interrupt/恢复验证；当前 C10 改为固定后端，当前候选恢复验收仍 BLOCKED
 - [x] **W7** ExecutionAgent + ToolGateway(8 工具:CRM/邮件/工单/审批进度) + RBAC 角色权限 + Prompt 注入防护 + Saga 补偿回滚
-- [x] **W8** API 层(chat/auth refresh/approval) + 批量审批 batch_id 原子事务 + JWT 刷新 + 限流中间件(Redis 滑动窗口→内存降级)
+- [x] **W8** API 层(chat/auth refresh/approval) + 批量审批 batch_id 追踪（原子领取与外部效果一致性待 C11 验收） + JWT 刷新 + 限流中间件(Redis 滑动窗口→内存降级)
 
 ### 阶段三: 企业级生产化(W9) ✅
 
@@ -171,14 +215,14 @@ enterprise-agent/
 
 - [x] **整体联调** 真实基础设施(Milvus + PG + Redis + Ollama + DeepSeek)端到端 17 项测试全通过,修复 4 个联调 bug(SQLAlchemy text() / checkpointer reducer 残留 / Aggregator 错误掩盖 / JSONB ANY)
 - [x] **P1-1** `.env` 修正 VECTOR_STORE_PROVIDER=milvus(向量检索名实相符)
-- [x] **P1-2** AnalysisAgent 完整实现(lite LLM 解析分析计划 → Python 真实聚合 → primary LLM 报告,支持对比分析 + 最多 2 轮多跳补充,planner 新增 data_analysis 意图)
+- [x] **P1-2（历史）** AnalysisAgent 曾实现 LLM 计划/报告与多跳；当前 C16 候选已改为 provider 一致取数、整数聚合和确定性报告，支持边界见[分析契约](../docs/50-engineering/analysis-data.md)，运行验收 BLOCKED。
 - [x] **P1-3** 审批流与 chat 打通(高风险工具 send_email_external 自动建单挂起 → 批准后服务端执行 prefill_payload,decide/resume/batch 三路径)
 - [x] **P1-4** 审计日志接线(AuditLogger 改造为 SQLAlchemy 存储,chat/tool/approval/auth/建单/反馈 6 类事件落 audit_logs)
 - [x] **P1-5** 知识库反馈循环(/feedback 落 user_feedback,点踩+评论自动生成 documents draft 知识候选)
 
 ### 阶段五: P2 迭代 ✅(2026-07-26)
 
-- [x] **P2-1 Prompt 版本管理**:`prompt_versions` 表(draft/active/archived + traffic_weight)+ `app/prompts/` 注册模块(缓存读取、md5 确定性 A/B 分流、DB 故障降级代码默认)+ 管理 API(仅 admin/manager);11 个 prompt 全部从硬编码迁出,E2E 验证 draft→activate→traffic 80/20→回滚,变更落 prompt_change 审计
+- [x] **P2-1 Prompt 版本管理**:`prompt_versions` 表(draft/active/archived + traffic_weight)+ `app/prompts/` 注册模块(缓存读取、md5 确定性 A/B 分流、DB 故障降级代码默认)+ 管理 API(仅 admin/manager);11 个 prompt 全部从硬编码迁出,E2E 验证 draft→activate→traffic 80/20→回滚,变更落 prompt_change 审计（历史阶段记录；当前持久化图请求采用上述 C09 快照契约，DB 读取故障不会退回旧缓存）
 - [x] **P2-2 用户取消机制**:Agent 内 LLM 调用全部 ainvoke 化(取消在 LLM 等待期间即时生效,顺带消除事件循环阻塞);`POST /chat/cancel`(本人/admin);E2E 实测:长请求 16.6s 取消成功,sessions=cancelled,audit 链 chat_request→chat_cancel_requested→chat_cancelled
 - [x] **P2-3 部门级测试数据入库**:dept_sales/dept_finance 专属文档入库,命名空间隔离验证 4/4 通过(`eval/run_p2_namespace.py`);顺带修复降级链跨部门泄露 + partition 静默兜底两个缺陷
 - [x] **P2-4 sessions 表梳理**:双轨定责(checkpointer=状态快照,sessions=生命周期元数据);/message 主链路维护 running→completed/failed/cancelled 全状态机;/history 未命中时回查 sessions 兜底
@@ -188,10 +232,10 @@ enterprise-agent/
 | 能力 | 实现 |
 |------|------|
 | RAG 两阶段检索 | 向量粗排(1024×n) + BGE Reranker 精排(top=5) |
-| 三级降级链 | LLM(primary: v4-pro→qwen3.5:4b;lite: qwen3.5:4b→v4-flash,初始化降级 + 工具选择/意图分类输出不可用时运行时回退) / 检索(向量→BM25→PG LIKE) / Redis Checkpointer(Redis→PG→Memory) |
+| 三级降级链 | LLM(primary: v4-pro→qwen3.5:4b;lite: qwen3.5:4b→v4-flash,初始化降级 + 工具选择/意图分类输出不可用时运行时回退) / 检索(向量→最多 500 行关键词扫描→PG 全文/ILIKE，非 BM25) / Checkpointer 按 C10 固定后端、故障不回退 |
 | 模型分层 | DeepSeek v4-pro(推理) / qwen3.5:4b 本地(轻量任务主路径:分类/抽取/grounded 生成) / v4-flash(云端降级) |
 | 多 Agent 并行 | LangGraph Send API fan-out + planner/dispatcher 动态路由 |
-| 数据分析 | AnalysisAgent:LLM 计划解析 + Python 真实聚合 + 对比/多跳,RBAC 按角色取数 |
+| 数据分析 | AnalysisAgent：跟随 CRM provider、完整分页快照、按权限取数、整数金额聚合与确定性报告；真实运行 BLOCKED |
 | 断点恢复 | Redis Checkpointer + interrupt 人机共治 + 可重置 reducer(跨轮不串结果) |
 | Saga 补偿 | 多步骤工具执行 + 失败反向回滚 |
 | RBAC 权限 | 5 角色 × 8 工具矩阵 + 命名空间文档隔离 + 工具层二次校验 |
@@ -216,12 +260,12 @@ enterprise-agent/
 
 ## 关联文档
 
-- [v3 产品方案](../企业知识工作流Agent产品方案_v3_整合版.md)
+- [v3 产品方案](../docs/10-product-plan/企业知识工作流Agent产品方案_v3_整合版.md)
 - [部署文档](deploy/DEPLOY.md)
-- [阶段性总结(W2-W6)](../阶段性总结_W2-W6.md)
-- [阶段性总结(W7-W9 + 整体联调)](../阶段性总结_W7-W9_联调.md)
-- [产品文档](../产品文档.md)
-- [使用案例手册](../使用案例手册.md)
+- [阶段性总结(W2-W6)](../docs/40-process/阶段性总结_W2-W6.md)
+- [阶段性总结(W7-W9 + 整体联调)](../docs/40-process/阶段性总结_W7-W9_联调.md)
+- [产品文档](../docs/20-product/产品文档.md)
+- [使用案例手册](../docs/30-guides/使用案例手册.md)
 
 ## 技术栈
 
@@ -234,9 +278,19 @@ enterprise-agent/
 | FastAPI | 0.115+ | Web 框架 |
 | PostgreSQL | 16 | 业务/审计存储 |
 | Redis | 7 (redis-stack-server) | Checkpointer / 缓存 / 限流 |
-| Ollama | latest | 本地小模型托管(qwen3.5:4b) |
-| BGE-M3 | local | Embeddings(1024维) |
-| BGE Reranker | local | 精排重排序 |
+| DeepSeek | profile 规定的 Flash/Pro 别名 | 默认及复杂任务；需运行时核对实际返回模型 |
+| 百炼 text-embedding-v4 | Beijing API | Embeddings，显式 1024 维 |
+| 百炼 qwen3-rerank | Beijing API | 精排重排序；本地 BGE/Ollama 仅开发备选 |
 | OpenTelemetry | 1.x | 全链路追踪 |
 | Jaeger | 1.60 | Trace 可视化 |
 | Prometheus | latest | 指标采集 |
+
+当前已选择并实现 [`bailian-deepseek-v1`](deploy/MODEL_PROFILE.md)：百炼北京 `text-embedding-v4`（1024 维）与 `qwen3-rerank`、DeepSeek Flash 默认与 Pro 复杂任务。CI/default 镜像不含本地 ML 依赖；真实 API 与 Linux 部署验收仍 **BLOCKED**。本机用于开发，付费启动探针默认关闭，C02 整项尚未验收。
+
+
+### 规定负载与容量验证
+
+容量验证入口为 `eval/run_capacity.py`（`eval/run_load_test.sh` 转发至该入口）。先按
+[容量契约](../docs/50-engineering/capacity-evidence.md) 冻结实际环境、模型、数据和负载，
+计划校验默认不执行请求；真实运行需显式授权与匹配的计划摘要。历史 k6/health 流量
+不能代表当前业务容量；队列耗时、资源曲线和恢复须单独采集，不以离线结果替代实测。

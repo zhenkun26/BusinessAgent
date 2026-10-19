@@ -2,7 +2,7 @@
 
 - [x] 1.1 确认前置 change 状态：`production-readiness-baseline` 已归档（SLA 达标线可用）、`load-test-and-dr-drill` 归档或给出压测/演练证据的时间点 <!-- reused: archived change tasks and loadtest/DR evidence -->
 - [x] 1.2 盘点 `docs/30-guides/使用案例手册.md` 场景素材：按六类核心场景（知识问答/命名空间隔离/数据分析/工具执行/审批流/跨部门协作）建立章节引用映射 <!-- evidence: docs/30-guides/UAT验收计划.md §4 -->
-- [ ] 1.3 确认 UAT 执行资源：真实验收用户人选（按 5 角色 × 部门）、执行环境与排期窗口 <!-- evidence: enterprise-agent/eval/validate_uat_execution_readiness.py; docs/40-process/UAT执行准备核对报告-2026-08-15.md; 五类资源仍待确认 -->
+- [ ] 1.3 确认 UAT 执行资源：真实验收用户人选（按 5 角色 × 部门）、执行环境与排期窗口 <!-- evidence: enterprise-agent/eval/validate_uat_execution_readiness.py; docs/40-process/交付与离线推进记录-2026-09-29.md; 用户确认五类资源仍待准备 -->
 
 ## 2. UAT 计划制定与执行
 
@@ -21,6 +21,6 @@
 ## 4. 上线门槛核对与放行
 
 - [x] 4.1 起草上线门槛检查单：六项门槛逐项的前置证据引用（CI/测试报告、压测报告、渗透测试报告、演练 RTO/RPO 记录、灰度结论） <!-- evidence: docs/30-guides/发布灰度与上线门槛检查单.md §5 -->
-- [x] 4.2 逐项核对检查单：证据齐备项打勾，缺口项记入 ISSUES 并阻止放行 <!-- evidence: enterprise-agent/eval/validate_release_gate.py; docs/40-process/发布门槛核对报告-2026-08-15.md; GATE-02/GATE-05 ready，GATE-01/GATE-03/GATE-04/GATE-06 blocked -->
+- [x] 4.2 逐项核对检查单：证据齐备项打勾，缺口项记入 ISSUES 并阻止放行 <!-- evidence: enterprise-agent/eval/validate_release_gate.py; docs/40-process/交付与离线推进记录-2026-09-29.md; 2026-09-29 GATE-01/GATE-02/GATE-05 ready，GATE-03/GATE-04/GATE-06 blocked；GATE-01 绑定主分支 CI 36522224892 -->
 - [ ] 4.3 全部打勾后评审签署全量放行结论，落 `docs/40-process/DECISIONS.md`；收口 ISSUES I-02 安全测试部分的遗留状态
 - [ ] 4.4 运行 `openspec validate uat-and-ga-rollout --strict` 通过后归档

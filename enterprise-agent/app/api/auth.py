@@ -3,12 +3,9 @@
 import hashlib
 import json
 import secrets
-import time
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
-import httpx
-import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
@@ -18,6 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.database import get_db
+from app.core.runtime_state import (
+    RuntimeStateUnavailable, SSO_STATE_TTL_SECONDS as _SSO_STATE_TTL_SECONDS,
+    register_sso_state as _register_sso_state, consume_sso_state as _consume_sso_state,
+)
 from app.observability.audit import get_audit_logger
 from app.security.jwt_manager import get_jwt_manager
 from app.security.password import hash_password, verify_password
@@ -38,11 +39,6 @@ class TokenResponse(BaseModel):
     role: str
     department: str
     expires_in: int
-
-
-_SSO_STATE_TTL_SECONDS = 600
-# 状态只保存短期随机值和 nonce，不保存用户资料或令牌。多进程部署时应迁移到 Redis。
-_sso_states: dict[str, tuple[str, float]] = {}
 
 
 def _issue_token(user: User) -> TokenResponse:
@@ -71,6 +67,8 @@ def _issue_token(user: User) -> TokenResponse:
 def _sso_error(status_code: int, detail: str) -> JSONResponse:
     """返回不泄露令牌内容的 SSO 错误，并清除一次性状态 Cookie。"""
     response = JSONResponse(status_code=status_code, content={"detail": detail})
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
     response.delete_cookie("sso_state")
     return response
 
@@ -91,6 +89,11 @@ def _require_sso_config() -> None:
     )
     if any(not getattr(settings, name).strip() for name in required):
         raise HTTPException(503, "企业 SSO 配置不完整，请联系管理员")
+    from app.security.oidc import OIDCError, configuration
+    try:
+        configuration(settings)
+    except OIDCError as exc:
+        raise HTTPException(exc.status, exc.code) from None
 
 
 def _append_query(url: str, params: dict[str, str]) -> str:
@@ -102,86 +105,20 @@ def _append_query(url: str, params: dict[str, str]) -> str:
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment))
 
 
-def _register_sso_state() -> tuple[str, str]:
-    """注册一次性 state/nonce，清理过期状态。"""
-    now = time.time()
-    for state, (_, expires_at) in list(_sso_states.items()):
-        if expires_at <= now:
-            _sso_states.pop(state, None)
-    state = secrets.token_urlsafe(32)
-    nonce = secrets.token_urlsafe(32)
-    _sso_states[state] = (nonce, now + _SSO_STATE_TTL_SECONDS)
-    return state, nonce
-
-
-def _consume_sso_state(state: str) -> str | None:
-    """消费 state，保证回调不能重复使用同一授权请求。"""
-    record = _sso_states.pop(state, None)
-    if record is None or record[1] <= time.time():
-        return None
-    return record[0]
-
-
-async def _exchange_sso_code(code: str) -> dict:
-    """用授权码换取 OIDC token；异常信息不包含响应正文或令牌。"""
-    settings = get_settings()
-    form = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "client_id": settings.sso_client_id,
-        "client_secret": settings.sso_client_secret,
-        "redirect_uri": settings.sso_redirect_uri,
-    }
+async def _exchange_sso_code(code: str, verifier: str) -> dict:
+    from app.security.oidc import OIDCError, exchange
     try:
-        async with httpx.AsyncClient(timeout=settings.external_timeout_seconds) as client:
-            response = await client.post(settings.sso_token_url, data=form)
-    except httpx.HTTPError:
-        raise HTTPException(503, "企业 IdP 暂时不可用，请使用本地密码登录")
-    if response.status_code >= 400:
-        raise HTTPException(503, "企业 IdP 令牌交换失败，请使用本地密码登录")
-    try:
-        payload = response.json()
-    except ValueError:
-        raise HTTPException(503, "企业 IdP 返回格式无效，请使用本地密码登录")
-    if not isinstance(payload, dict) or not isinstance(payload.get("id_token"), str):
-        raise HTTPException(401, "企业 IdP 未返回可验证身份令牌")
-    return payload
+        return await exchange(get_settings(), code, verifier)
+    except OIDCError as exc:
+        raise HTTPException(exc.status, exc.code) from None
 
 
 async def _verify_id_token(id_token: str, expected_nonce: str) -> dict:
-    """获取 JWKS 并验证 ID Token 的签名、iss、aud、exp、nonce。"""
-    settings = get_settings()
+    from app.security.oidc import OIDCError, verify
     try:
-        header = jwt.get_unverified_header(id_token)
-        algorithm = header.get("alg")
-        if not algorithm or algorithm.lower() == "none":
-            raise ValueError("不允许的签名算法")
-        async with httpx.AsyncClient(timeout=settings.external_timeout_seconds) as client:
-            response = await client.get(settings.sso_jwks_url)
-        response.raise_for_status()
-        jwks = response.json()
-        keys = jwks.get("keys", []) if isinstance(jwks, dict) else []
-        key_id = header.get("kid")
-        candidate = next((key for key in keys if key.get("kid") == key_id), None)
-        if candidate is None and len(keys) == 1:
-            candidate = keys[0]
-        if not isinstance(candidate, dict):
-            raise ValueError("找不到匹配的 IdP 公钥")
-        signing_key = jwt.PyJWK(candidate, algorithm=algorithm).key
-        claims = jwt.decode(
-            id_token,
-            signing_key,
-            algorithms=[algorithm],
-            audience=settings.sso_client_id,
-            issuer=settings.sso_issuer,
-            leeway=30,
-            options={"require": ["exp", "iat", "iss", "sub"]},
-        )
-    except (httpx.HTTPError, ValueError, KeyError, jwt.PyJWTError):
-        raise HTTPException(401, "企业 IdP 身份令牌校验失败")
-    if claims.get("nonce") != expected_nonce:
-        raise HTTPException(401, "企业 IdP 身份令牌校验失败")
-    return claims
+        return await verify(get_settings(), id_token, expected_nonce)
+    except OIDCError as exc:
+        raise HTTPException(exc.status, exc.code) from None
 
 
 def _claim_text(claims: dict, name: str, max_length: int) -> str:
@@ -199,10 +136,16 @@ async def _find_or_provision_sso_user(
 ) -> tuple[User, bool]:
     """按 issuer/sub 查找用户，未命中时以最低默认角色创建。"""
     settings = get_settings()
-    issuer = settings.sso_issuer.strip()
-    subject = _claim_text(claims, "sub", 255)
-    if not subject:
-        raise HTTPException(401, "企业 IdP 身份缺少唯一标识")
+    from app.security.oidc import OIDCError, exact_text
+    try:
+        issuer = exact_text(settings.sso_issuer, 512)
+        subject = exact_text(claims.get("sub"), 255)
+        if claims.get("iss") != issuer:
+            raise OIDCError()
+    except OIDCError:
+        raise HTTPException(401, "SSO_IDENTITY_INVALID") from None
+    identity_hash = hashlib.sha256(json.dumps([issuer, subject], ensure_ascii=False,
+                                  separators=(",", ":")).encode()).hexdigest()
     result = await db.execute(
         select(User).where(User.sso_issuer == issuer, User.sso_subject == subject)
     )
@@ -213,7 +156,9 @@ async def _find_or_provision_sso_user(
         return user, False
 
     try:
-        role = AgentRole(settings.sso_default_role).value
+        if settings.sso_default_role != "salesperson":
+            raise ValueError
+        role = AgentRole.SALESPERSON.value
     except ValueError:
         raise HTTPException(503, "SSO 默认角色配置无效，请联系管理员")
     email = _claim_text(claims, "email", 255) or None
@@ -221,20 +166,19 @@ async def _find_or_provision_sso_user(
         _claim_text(claims, "preferred_username", 128)
         or _claim_text(claims, "email", 128)
         or _claim_text(claims, "name", 128)
-        or f"sso_{hashlib.sha256(f'{issuer}:{subject}'.encode()).hexdigest()[:16]}"
+        or f"sso_{identity_hash[:16]}"
     )
     # 用户名可能与本地账号冲突；不覆盖既有本地账号。
     existing = await db.execute(select(User).where(User.username == username))
     if existing.scalar_one_or_none() is not None:
-        suffix = hashlib.sha256(f"{issuer}:{subject}".encode()).hexdigest()[:8]
+        suffix = identity_hash[:8]
         username = f"{username[:119]}_{suffix}"
     department = (
-        _claim_text(claims, settings.sso_department_claim, 64)
-        or settings.sso_default_department.strip()[:64]
+        settings.sso_default_department
         or None
     )
     user = User(
-        user_id=f"sso_{hashlib.sha256(f'{issuer}:{subject}'.encode()).hexdigest()[:24]}",
+        user_id=f"sso_{identity_hash[:24]}",
         username=username,
         email=email,
         role=role,
@@ -281,7 +225,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     settings = get_settings()
     auth_ok = user is not None and user.is_active
-    if auth_ok and settings.auth_require_password:
+    if auth_ok and (settings.auth_require_password or getattr(user, "sso_subject", None)):
         auth_ok = verify_password(req.password, user.password_hash or "")
     if not auth_ok:
         # 统一文案:不区分"用户不存在"与"密码错误"
@@ -299,7 +243,12 @@ async def sso_login():
     """跳转企业 IdP，使用授权码流程开始 SSO。"""
     _require_sso_config()
     settings = get_settings()
-    state, nonce = _register_sso_state()
+    try:
+        from app.security.oidc import challenge
+        verifier = secrets.token_urlsafe(32)
+        state, nonce = await _register_sso_state(verifier=verifier)
+    except RuntimeStateUnavailable:
+        return _sso_error(503, "RUNTIME_STATE_UNAVAILABLE")
     redirect_url = _append_query(
         settings.sso_authorize_url,
         {
@@ -309,15 +258,19 @@ async def sso_login():
             "scope": settings.sso_scopes.strip() or "openid profile email",
             "state": state,
             "nonce": nonce,
+            "code_challenge": challenge(verifier),
+            "code_challenge_method": "S256",
         },
     )
     response = RedirectResponse(url=redirect_url, status_code=307)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
     response.set_cookie(
         "sso_state",
         state,
         max_age=_SSO_STATE_TTL_SECONDS,
         httponly=True,
-        secure=not settings.is_dev,
+        secure=True,
         samesite="lax",
     )
     return response
@@ -337,23 +290,25 @@ async def sso_callback(
     except HTTPException as exc:
         return _sso_error(exc.status_code, str(exc.detail))
 
+    cookie_state = request.cookies.get("sso_state")
+    if (not state or not (code or error) or not cookie_state
+            or not secrets.compare_digest(state.encode(), cookie_state.encode())):
+        return _sso_error(400, "SSO 回调状态无效，请重新发起登录")
+    try:
+        binding = await _consume_sso_state(state, with_verifier=True)
+    except RuntimeStateUnavailable:
+        return _sso_error(503, "RUNTIME_STATE_UNAVAILABLE")
+    if binding is None:
+        return _sso_error(400, "SSO 登录已过期，请重新发起登录")
     if error:
-        _consume_sso_state(state or "")
         await get_audit_logger().log(
             event_type="auth_sso_login", success=False, payload={"reason": "idp_error"}
         )
         return _sso_error(401, "企业 IdP 认证未完成，请使用本地密码登录")
 
-    cookie_state = request.cookies.get("sso_state")
-    if not state or not code or not cookie_state or not secrets.compare_digest(state, cookie_state):
-        return _sso_error(400, "SSO 回调状态无效，请重新发起登录")
-    expected_nonce = _consume_sso_state(state)
-    if expected_nonce is None:
-        return _sso_error(400, "SSO 登录已过期，请重新发起登录")
-
     try:
-        token_payload = await _exchange_sso_code(code)
-        claims = await _verify_id_token(token_payload["id_token"], expected_nonce)
+        token_payload = await _exchange_sso_code(code, binding["verifier"])
+        claims = await _verify_id_token(token_payload["id_token"], binding["nonce"])
         user, provisioned = await _find_or_provision_sso_user(db, claims)
     except HTTPException as exc:
         await get_audit_logger().log(
@@ -366,7 +321,10 @@ async def sso_callback(
             event_type="user_sso_provisioned",
             user_id=user.user_id,
             success=True,
-            payload={"issuer": get_settings().sso_issuer, "subject": user.sso_subject},
+            payload={
+                "issuer": get_settings().sso_issuer,
+                "subject_sha256": hashlib.sha256(user.sso_subject.encode()).hexdigest(),
+            },
         )
     await get_audit_logger().log(
         event_type="auth_sso_login",
@@ -392,15 +350,14 @@ async def sso_callback(
                 "<!doctype html><meta charset='utf-8'>"
                 "<title>SSO 登录成功</title><p>登录成功，正在返回智多星…</p>"
                 f"<script>const d={payload};"
-                "localStorage.setItem('ea_token',d.access_token);"
-                "localStorage.setItem('ea_username',d.username);"
-                "localStorage.setItem('ea_role',d.role);"
-                "localStorage.setItem('ea_dept',d.department||'');"
+                "sessionStorage.setItem('ea_sso_once',JSON.stringify(d));"
                 "location.replace('/ui');</script>"
             )
         )
     else:
         response = JSONResponse(content=token_response.model_dump())
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
     response.delete_cookie("sso_state")
     return response
 

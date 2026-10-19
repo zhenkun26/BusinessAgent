@@ -1,0 +1,137 @@
+{
+  "version": "c17-corpus-v1",
+  "primary": {
+    "path": "eval_set.json",
+    "sha256": "ae4304f0ed16263ea9d00cd1091435737e7a44a5c13b66dbee58bd1fa1437bcc",
+    "count": 122
+  },
+  "supplemental": {
+    "path": "permission_eval_set.json",
+    "sha256": "099a01828a6f8f78beac62bcf409f95fafff41f7a7b26f9bc570b9653bd1b929",
+    "count": 6
+  },
+  "documents": [
+    {
+      "path": "sample_docs/IT运维与安全制度.md",
+      "sha256": "5d4286882a48a5dec9a16bc6f82780ecc74c7cecab4155f994f28707600411b8",
+      "title": "IT运维与安全制度",
+      "document_id": "eval-c17-01",
+      "dept_namespace": "shared_company",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson",
+        "customer_service",
+        "finance"
+      ]
+    },
+    {
+      "path": "sample_docs/dept_finance/财务部预算审批细则.md",
+      "sha256": "37f93abbd2f008c2cc606ca4976cfc61870410270c8117bd246b092c8c8cc5b7",
+      "title": "财务部预算审批细则",
+      "document_id": "eval-c17-02",
+      "dept_namespace": "dept_finance",
+      "access_roles": [
+        "admin",
+        "manager",
+        "finance"
+      ]
+    },
+    {
+      "path": "sample_docs/dept_sales/销售部内部激励方案.md",
+      "sha256": "a061e61c936852c8f3a8a06bf29a7e985dc39ae6036433e07d160c52f74bacb8",
+      "title": "销售部内部激励方案",
+      "document_id": "eval-c17-03",
+      "dept_namespace": "dept_sales",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson"
+      ]
+    },
+    {
+      "path": "sample_docs/产品手册.md",
+      "sha256": "7ccef504af15f608ffdcaa38a9dff234ff168fb8ffa5a2dffe40e1eec2fdb328",
+      "title": "产品手册",
+      "document_id": "eval-c17-04",
+      "dept_namespace": "shared_company",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson",
+        "customer_service",
+        "finance"
+      ]
+    },
+    {
+      "path": "sample_docs/人事管理制度.md",
+      "sha256": "ca94bda5a76df6c4f121a56ff0d04ba02547116c980098c3ff624c65f859d7c0",
+      "title": "人事管理制度",
+      "document_id": "eval-c17-05",
+      "dept_namespace": "shared_company",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson",
+        "customer_service",
+        "finance"
+      ]
+    },
+    {
+      "path": "sample_docs/售后服务政策.md",
+      "sha256": "f63f0344db76c73cd310e69f053717e6191a5dc4b284fd01cbf0acbab82ebb3d",
+      "title": "售后服务政策",
+      "document_id": "eval-c17-06",
+      "dept_namespace": "shared_company",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson",
+        "customer_service",
+        "finance"
+      ]
+    },
+    {
+      "path": "sample_docs/常见问题FAQ.md",
+      "sha256": "372a664ad1bb8a1461012ba4ceba6ab5a310a4c6b1b250cc46ed39e7b4d51890",
+      "title": "常见问题FAQ",
+      "document_id": "eval-c17-07",
+      "dept_namespace": "shared_company",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson",
+        "customer_service",
+        "finance"
+      ]
+    },
+    {
+      "path": "sample_docs/财务报销制度.md",
+      "sha256": "b781104c86183f631f7b761fd8d1b8b3fe4d44205e69bdb04927a8a1500ccd56",
+      "title": "财务报销制度",
+      "document_id": "eval-c17-08",
+      "dept_namespace": "shared_company",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson",
+        "customer_service",
+        "finance"
+      ]
+    },
+    {
+      "path": "sample_docs/销售政策.md",
+      "sha256": "814e3d8832563f2d5ba4f640d47240d55cf6c2e47a510fcf256774f9cdb1090b",
+      "title": "销售政策",
+      "document_id": "eval-c17-09",
+      "dept_namespace": "shared_company",
+      "access_roles": [
+        "admin",
+        "manager",
+        "salesperson",
+        "customer_service",
+        "finance"
+      ]
+    }
+  ]
+}

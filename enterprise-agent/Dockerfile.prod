@@ -3,9 +3,8 @@
 # Hello，智多星 生产镜像(多阶段极致瘦身)
 # 构建: docker build -f Dockerfile.prod -t enterprise-agent:prod .
 # 说明:
-#   - 默认不装 ML 重型包(torch/sentence-transformers ~2GB),镜像显著瘦身;
-#     向量化/精排需外部模型服务或挂载模型时用:
-#     docker build --build-arg INSTALL_ML=1 -f Dockerfile.prod -t enterprise-agent:full .
+#   - 默认 slim 镜像使用外部模型服务，不安装本地 ML 依赖。
+#   - INSTALL_ML=1 仅为可选本地开发实验，未纳入生产验收。
 #   - 运行时以非 root(nobody)运行
 #   - 依赖清单 deploy/requirements-prod.txt 由 uv pip freeze 冻结
 # ============================================================
@@ -29,7 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 依赖层: 标准 venv(脚本 shebang 指向 venv python,site-packages 自包含)
-COPY deploy/requirements-prod.txt ./
+COPY deploy/requirements-prod.txt deploy/requirements-ml.txt ./
 RUN python -m venv /opt/venv
 RUN --mount=type=cache,target=/root/.cache/pip \
     /opt/venv/bin/pip install -r requirements-prod.txt
@@ -38,12 +37,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     /opt/venv/bin/pip install --upgrade 'msgpack>=1.2.1' 'setuptools>=78.1.1'
 
-# 可选 ML 栈(默认关闭,开启后镜像显著增大)
-RUN if [ "$INSTALL_ML" = "1" ]; then \
-      --mount=type=cache,target=/root/.cache/pip \
-      /opt/venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu \
-      && /opt/venv/bin/pip install sentence-transformers; \
-    fi
+# ML dependencies are already declared by the project; constrain shared base packages.
+# RUN flags belong before the shell command, never inside the conditional.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    if [ "$INSTALL_ML" = "1" ]; then \
+      /opt/venv/bin/pip install 'torch==2.14.1+cpu' --index-url https://download.pytorch.org/whl/cpu \
+      && /opt/venv/bin/pip install -c requirements-prod.txt -r requirements-ml.txt; \
+    elif [ "$INSTALL_ML" != "0" ]; then exit 1; fi
+RUN /opt/venv/bin/pip check
 
 # ---------- Stage 2: Runner ----------
 FROM python:3.13-slim AS runner
@@ -62,12 +63,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# 运行时系统依赖(最小集;时区与 CA 证书;apt 网络抖动时容错,
-# 因为 python:3.13-slim 基础镜像已内置 CA 证书,缺失仅影响时区)
-RUN (apt-get update --fix-missing || true) \
-    && (apt-get install -y --no-install-recommends ca-certificates tzdata || true) \
+# Runtime libraries are required: pure psycopg needs libpq. Fail on installation errors.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata libpq5 \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /app/logs /data && chown -R 65534:65534 /app /data
+    && mkdir -p /app/logs /data/observability /data/monitor /data/receiver && chown -R 65534:65534 /app /data
 
 # 安全加固：移除 pip（运行时不需要），消除其 vendor 的 msgpack/pkg_resources 旧版本漏洞
 # Trivy 阻断的 GHSA-6v7p-g79w-8964 / CVE-2025-47273 均来自 pip 内部捆绑，无法通过升级 pip 修复
@@ -81,10 +81,23 @@ RUN /opt/venv/bin/python -m pip uninstall -y pip
 
 # 应用代码
 COPY app ./app
-COPY deploy/init.sql ./deploy/init.sql
+COPY scripts/verify_frontend_assets.py ./deploy/verify_frontend_assets.py
+COPY scripts/recovery_archive.py ./deploy/recovery_archive.py
+COPY deploy/*.sql ./deploy/
+COPY deploy/schema_manifest.json ./deploy/
 COPY deploy/migrations ./deploy/migrations
 
 USER 65534:65534
+
+# Verify the final runtime and non-root user can import the PostgreSQL checkpoint stack.
+# Imports only: no connection, migration or model inference.
+RUN python -c "import psycopg; from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver"
+
+# C19: import only; real key/signature/TLS acceptance remains an isolated runtime gate.
+RUN python -B -c "import cryptography; from jwt.algorithms import RSAAlgorithm"
+
+# C20: verify bundled browser assets without browser startup or external access.
+RUN python -I -B deploy/verify_frontend_assets.py app/static
 
 EXPOSE 8000
 
@@ -92,4 +105,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD ["python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4); sys.exit(0)"]
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--no-access-log"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]
