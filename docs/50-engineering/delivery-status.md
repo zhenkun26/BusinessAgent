@@ -1,7 +1,7 @@
 # Engineering delivery status and handover
 
 Reviewed: 2026-10-19. Change: `engineering-delivery-closeout`.
-**Conclusion: offline reconciliation and local CI test repair delivered; NOT_ACCEPTED_FOR_RELEASE.**
+**Conclusion: offline reconciliation and remote pytest repair delivered; image context repair pending CI; NOT_ACCEPTED_FOR_RELEASE.**
 C01–C25 remain open as whole acceptance items. No real enterprise users, formal UAT,
 grey release or production approval are established. C10 lease-expiry write fencing is
 an unresolved implementation defect, not merely missing environment evidence.
@@ -13,7 +13,7 @@ an unresolved implementation defect, not merely missing environment evidence.
 | Working branch | `codex/delivery-ci-gates`; reuse existing integration roles |
 | C24 pushed candidate | `d8a26b5726cb7ffce6747b677804c7c3403bd763`, same-name origin verified |
 | C25 pushed increment | `fe2ae78b5102cc9cc2c4e08e4939da20fd53720e`, same-name origin verified |
-| CI repair increment | Local test/fixture/documentation repair; exact final hash in delivery response and local receipts; push awaits confirmation |
+| CI repair increment | `b8c4457542781029333de8c3c930437fb28ef51a` pushed; scanner follow-up `16c882b5df9bc8c49a171619da56a280b61946fd` pushed |
 | Main at inspection | Local/main, origin/main and remote main all `065bdf7b31ce1fb6f9007a7e8851be36bfc2280f`; ancestor of C24 |
 | Source/package version | `app/__init__.py` and `pyproject.toml`: `1.3.0`; closeout changes remain Unreleased |
 | Historical tag | `v1.3.0` resolves locally to `731864087d081c58324e17824c79a0afffc385a1`; it does not identify this candidate |
@@ -51,14 +51,20 @@ Read-only GitHub observations on 2026-10-19:
   fixtures from test classes; all 440 original test bodies across the 13 fixture-related
   files remain identical. No CI gate, production behavior or dependency declaration changed.
   See [repair record and environment](../40-process/ci-pytest-repair.md).
-- The repair commit is not pushed; its remote CI/build/scans remain **BLOCKED**.
-  Local macOS Python 3.13 evidence does not establish Linux/Python 3.11 or image acceptance.
+- [Repair CI 39208343449](https://github.com/zhenkun26/BusinessAgent/actions/runs/39208343449)
+  on `b8c4457`: Linux Python 3.11/3.13 each pass **871 tests + 225 subtests, zero skips**,
+  with 75% reported coverage. Gitleaks then fails on 16 verified source-hash false positives.
+  Scanner follow-up `16c882b` adds only exact historical fingerprints and a complete
+  event-head scan. Run 39208901960 passes both test/security jobs but fails Docker COPY
+  because the build context excludes two required scripts. Narrow context exceptions and
+  one additional regression are implemented; their image rerun is pending. Runtime acceptance
+  is unchanged.
 
 The fixed offline inventory does not collect this legacy pytest file. Its 789 passing cases
 and CI collection failure measure different scopes; neither cancels the other. Retain the
 failure explicitly in [ISSUES C24/C25](../40-process/ISSUES.md#c24). The local repair now
 covers the complete pytest suite separately, without skips or collection exclusions;
-remote checks must still rerun on the repaired commit after push authorization.
+the subsequent scanner repair requires its own remote CI result.
 
 ## Support and migration map
 
@@ -151,7 +157,7 @@ cannot be closed with reference-environment success.
 | --- | --- | --- |
 | C24/C25 pushed full pytest | **FAIL (historical runs)** | Preserve original failure; local repair does not rewrite previous CI evidence |
 | Local repaired full pytest | **PASS** | 871 tests + 225 subtests, zero skips; source-bound local receipt, macOS Python 3.13 |
-| Repaired remote full pytest | **BLOCKED** | Authorized push and successful Python 3.11/3.13 jobs on the exact repair commit |
+| Repaired remote full pytest | **PASS** | `b8c4457`: Linux Python 3.11/3.13 each 871 tests + 225 subtests, zero skips |
 | C10 lease-expiry write fencing | **OPEN** | Implement enforceable write ownership and verify late writers across actual processes/storage |
 | L01–L16 / D01–D16 / O01–O16 / B01–B16 / S01–S16 / R01–R20 | **BLOCKED** | Exact isolated Linux candidate, independent services/observers, faults and each matrix's acceptance evidence |
 | Real runtime and full RAG / historical credentials | **BLOCKED** | Actual store/model/identity/browser chain, fixed corpus/semantic review, separately authorized historical handling |
@@ -159,7 +165,7 @@ cannot be closed with reference-environment success.
 | C25 full reconciliation / engineering acceptance | **OPEN / BLOCKED** | Reconcile final accepted commit/image/runtime evidence, review and remaining P0/P1 issues |
 | Enterprise UAT / grey / production | **BLOCKED** | Real resources, ownership, external contracts, observation and approval in their independent changes |
 
-The next confirmation is whether to push the local CI repair and observe its remote jobs.
+The authorized remote follow-up now covers scanner repair and subsequent CI failures.
 C10 implementation repair and isolated runtime/strict-tooling acceptance remain separate
 pending work. Do not merge, release, deploy, synchronize specs or archive. This increment
-ends at a reviewed local commit and waits for user confirmation.
+ends after reviewed follow-up results and waits for user confirmation.

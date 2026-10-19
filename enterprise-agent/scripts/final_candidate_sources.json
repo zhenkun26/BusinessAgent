@@ -3,7 +3,7 @@
   "review": "Fixed entry points and their dependency boundaries reviewed; other files are identity-only, never executable by this inventory. Manual re-review required after drift.",
   "sources": {
     ".github/workflows/ci.yml": "25dd0dd42d1e30b8390d928051ad5ca455287ace8bab075cf9505d815cd08eaf",
-    "enterprise-agent/.dockerignore": "007793e13ec1183603edd6709767630ce163dfa1258dbcb32b028e9b634bd9cd",
+    "enterprise-agent/.dockerignore": "75382b4c438633182b6aca0628825cda11059cbe6b0661ca27597d73d376762c",
     "enterprise-agent/.env.example": "fa6f0302123ebc0ca48888c07cb7463611ee69e02888a25a7baa456c34336d6a",
     "enterprise-agent/.gitignore": "aeb9479c4c0396fa8466a6b8a2399bc744eb7f688cf22dc68853f2a6919a57db",
     "enterprise-agent/Dockerfile": "f5ffb4dfeb5307254f9c18bdbda9b71b811e989de851db1cae4584c99bf7fbec",
@@ -255,7 +255,7 @@
     "enterprise-agent/tests/test_db_bootstrap.py": "3a5c29322cf0f6ebed9f865beae755d79b95f6870bb9400d37408c6659c0e7fe",
     "enterprise-agent/tests/test_degradation_pg_tsvector.py": "8addb15e465b4c19aa8fe241d7b2133e4e497b4dd3be665e199f243a1777eab1",
     "enterprise-agent/tests/test_deployment_contract.py": "8582d959da5ec64f95171663770969ea0a0839e3eb5abe3389c7a642f51a649b",
-    "enterprise-agent/tests/test_dockerfile_prod.py": "1b136962e829ca35f04e523e88aa5800bde1e9b4f2d56f0fc8d8b44c06e9d480",
+    "enterprise-agent/tests/test_dockerfile_prod.py": "e3c6843cdd7e62252665169dc127cfb47de10659debd3a5701cb83745bafd3dc",
     "enterprise-agent/tests/test_eval_answer_metrics.py": "ad0c1dd2e7aeedacc16357e44fee02811ea0b8aeee000be3b6b06bb35a0153bc",
     "enterprise-agent/tests/test_final_candidate.py": "407a510e9c0651cb4600e0498e0f6c3f1a8c634aba09d1fac84fba6f011325a8",
     "enterprise-agent/tests/test_grey_release_plan.py": "2f75d0b8df67e90026c48556eef92be41dac3258975b7cefd740e0c8a6476e8d",

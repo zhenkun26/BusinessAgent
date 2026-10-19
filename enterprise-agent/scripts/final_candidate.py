@@ -18,7 +18,7 @@ Suite = tuple[str, str, str, int, int]
 # Explicit entries only: (id, path below enterprise-agent, parser, count, allowed skips).
 SUITES = (
     ('C01', 'tests/test_deployment_contract.py', 'unittest', 11, 1),
-    ('C01-image', 'tests/test_dockerfile_prod.py', 'unittest', 3, 0),
+    ('C01-image', 'tests/test_dockerfile_prod.py', 'unittest', 4, 0),
     ('C02-profile', 'tests/test_model_profile.py', 'unittest', 15, 0),
     ('C02-remote', 'tests/test_remote_models.py', 'unittest', 12, 0),
     ('C03', 'tests/test_db_bootstrap.py', 'unittest', 22, 0),

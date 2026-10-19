@@ -11,7 +11,9 @@ logs
 audit_logs
 eval
 tests
-scripts
+scripts/*
+!scripts/verify_frontend_assets.py
+!scripts/recovery_archive.py
 backups
 node_modules
 data

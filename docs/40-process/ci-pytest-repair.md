@@ -1,7 +1,7 @@
 # CI pytest collection and regression repair
 
 Date: 2026-10-19. Change: `engineering-delivery-closeout`, task 7.2.3.
-Status: `b8c4457` pushed; remote pytest PASS, Gitleaks false positives repaired; follow-up CI pending. NOT_ACCEPTED_FOR_RELEASE.
+Status: `b8c4457` pushed; remote pytest/security scans PASS; image context repaired, follow-up CI pending. NOT_ACCEPTED_FOR_RELEASE.
 
 ## Authorization and Git
 
@@ -133,3 +133,23 @@ No merge, publication, deployment, tag, spec synchronization or archive is autho
 Pre-commit checks: workflow YAML and shell syntax PASS; invalid head/base and absent commit
 fail closed (3/3). Fixed C24 inventory: 789 tests and seven assets PASS, one existing PyYAML
 check BLOCKED; no failed entry. Dirty pre-commit candidate binding is explicitly BLOCKED.
+
+
+### Follow-up image build failure
+
+[Run 39208901960](https://github.com/zhenkun26/BusinessAgent/actions/runs/39208901960)
+on pushed `16c882b` passed both Python jobs, both secret-scan steps and pip-audit.
+The production image build then failed: `.dockerignore` excluded the `scripts/` directory,
+so Dockerfile COPY could not read `verify_frontend_assets.py` or `recovery_archive.py`.
+Trivy did not run. The failure is retained, not relabelled as runtime acceptance.
+
+Replace the directory exclusion with `scripts/*` and two exact file exceptions. All other
+scripts, tests, evaluation output and environment files remain excluded. Add a read-only
+regression checking the actual Dockerfile COPY sources, file presence, narrow exceptions,
+rule ordering and sensitive-file exclusions. The fixed C24 image suite grows from three to
+four cases (total 790 passed checks when executed); no prior test is removed. Manually
+review and refresh only the two changed source identities. Real image execution still
+requires the next CI run; isolated service deployment remains BLOCKED.
+
+Image-context validation: all four image contract cases PASS; fixed offline inventory
+790 tests and seven assets PASS, one existing PyYAML check BLOCKED; failed entries zero.
