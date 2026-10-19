@@ -5,7 +5,7 @@ x-reference: &reference
   user: "65534:65534"
   read_only: true
   cap_drop: [ALL]
-  security_opt: [no-new-privileges:true]
+  security_opt: ["no-new-privileges:true"]
   networks: [reference]
   expose: ["8080", "8081"]
   restart: "no"
@@ -46,7 +46,7 @@ services:
       REFERENCE_TOKEN: ${REFERENCE_CRM_TOKEN:?Set CRM credential}
       REFERENCE_READ_TOKEN: ${REFERENCE_CRM_READ_TOKEN:?Set CRM read-only credential}
       REFERENCE_OPERATOR_TOKEN: ${REFERENCE_OPERATOR_TOKEN:?Set separate operator credential}
-    volumes: [reference_crm:/data]
+    volumes: ["reference_crm:/data"]
   reference-ticket:
     <<: *reference
     environment:
@@ -57,7 +57,7 @@ services:
       REFERENCE_TOKEN: ${REFERENCE_TICKET_TOKEN:?Set ticket credential}
       REFERENCE_READ_TOKEN: ${REFERENCE_TICKET_READ_TOKEN:?Set ticket read-only credential}
       REFERENCE_OPERATOR_TOKEN: ${REFERENCE_OPERATOR_TOKEN:?Set separate operator credential}
-    volumes: [reference_ticket:/data]
+    volumes: ["reference_ticket:/data"]
   reference-mail:
     <<: *reference
     environment:
@@ -68,7 +68,7 @@ services:
       REFERENCE_TOKEN: ${REFERENCE_MAIL_TOKEN:?Set mail credential}
       REFERENCE_READ_TOKEN: ${REFERENCE_MAIL_READ_TOKEN:?Set mail read-only credential}
       REFERENCE_OPERATOR_TOKEN: ${REFERENCE_OPERATOR_TOKEN:?Set separate operator credential}
-    volumes: [reference_mail:/data]
+    volumes: ["reference_mail:/data"]
   reference-evaluator:
     <<: *reference
     command: [python, -B, -m, reference_service.acceptance]
@@ -90,7 +90,7 @@ services:
       APP_REQUESTER_PASSWORD: ${APP_REQUESTER_PASSWORD:?Set isolated requester password}
       APP_APPROVER_USERNAME: ${APP_APPROVER_USERNAME:?Set distinct isolated approver username}
       APP_APPROVER_PASSWORD: ${APP_APPROVER_PASSWORD:?Set isolated approver password}
-    volumes: [reference_evidence:/data]
+    volumes: ["reference_evidence:/data"]
 volumes:
   reference_crm:
   reference_ticket:

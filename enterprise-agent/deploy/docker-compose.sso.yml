@@ -17,11 +17,11 @@ services:
   api:
     environment: *sso
     networks: [default, sso]
-    volumes: [./data/sso-tls/ca.crt:/sso-tls/ca.crt:ro]
+    volumes: ["./data/sso-tls/ca.crt:/sso-tls/ca.crt:ro"]
   worker:
     environment: *sso
     networks: [default, sso]
-    volumes: [./data/sso-tls/ca.crt:/sso-tls/ca.crt:ro]
+    volumes: ["./data/sso-tls/ca.crt:/sso-tls/ca.crt:ro"]
   # Prevent the inherited host-wide 80/443 listener in this isolated profile.
   nginx:
     profiles: [production-gateway]
@@ -30,7 +30,7 @@ services:
     user: "65534:65534"
     read_only: true
     cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     networks: [sso]
     expose: ["8443", "8444"]
     environment:
@@ -62,7 +62,7 @@ services:
     entrypoint: [nginx, -g, "daemon off;"]
     read_only: true
     cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     ports: ["127.0.0.1:8443:8443"]
     networks: [default, sso]
     volumes:

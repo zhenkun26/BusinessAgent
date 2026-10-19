@@ -200,4 +200,6 @@ C21 离线候选：[运行可观测性契约](docs/50-engineering/runtime-observ
 
 C22 离线候选：[保留式恢复契约](docs/50-engineering/retained-recovery.md)、[交付记录](docs/40-process/阶段性总结_C22当前版本备份恢复与回退.md)、[控制器](enterprise-agent/scripts/recovery.py)、[专项入口](enterprise-agent/eval/run_c22_retained_recovery.py)；46 项专项及 77 项相关回归 PASS，另 1 项 PyYAML 检查跳过；D/O/B/S/R、真实运行/完整 RAG BLOCKED，C10 写入竞态不关闭。C22 `d70c1b4` 已推送并核验；C23 见下文。
 
-C23 离线候选：[容量契约](docs/50-engineering/capacity-evidence.md)、[交付记录](docs/40-process/阶段性总结_C23规定负载下的性能与容量.md)、[计划/运行/报告入口](enterprise-agent/eval/run_capacity.py)、[专项入口](enterprise-agent/eval/run_c23_capacity_evidence.py)；42 项专项 + 186 项相关回归 PASS。L/D/O/B/S/R、真实运行/完整 RAG BLOCKED，C10 写入竞态不关闭；C23 仅本地提交，推送及 C24 最终回归待确认。
+C23 离线候选：[容量契约](docs/50-engineering/capacity-evidence.md)、[交付记录](docs/40-process/阶段性总结_C23规定负载下的性能与容量.md)、[计划/运行/报告入口](enterprise-agent/eval/run_capacity.py)、[专项入口](enterprise-agent/eval/run_c23_capacity_evidence.py)；42 项专项 + 186 项相关回归 PASS。L/D/O/B/S/R、真实运行/完整 RAG BLOCKED，C10 写入竞态不关闭；C23 `6de94c6` 已推送并核验，C24 见下文。
+
+C24 最终候选离线部分：[验证契约与映射](docs/50-engineering/final-candidate-verification.md)、[交付记录](docs/40-process/阶段性总结_C24最终候选离线验证.md)、[固定汇总入口](enterprise-agent/scripts/final_candidate.py)；789 项测试 PASS、1 项 PyYAML 跳过/BLOCKED、7 个分发文件 PASS；全部真实运行矩阵与完整 RAG 继续 BLOCKED，C10 open。C24 仅本地提交，推送及 C25 待确认。

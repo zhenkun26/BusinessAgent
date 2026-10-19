@@ -246,3 +246,15 @@ workload validation, opt-in mixed application measurement, fail-closed offline r
 and tests. No real load, API/model call, deployment, installation or deletion this turn.
 C23 ends at a local commit; D/O/B/S/R/runtime/full RAG stay BLOCKED and C10 remains open.
 No C24 final candidate, merge, release or C23 push is authorized.
+
+## Authorized C24 offline candidate increment — 2026-10-19
+
+The subsequent authorization pushes C23 `6de94c6` to the same-name remote (verified),
+then permits C24 offline final-candidate checks, documentation and a local commit.
+Provide an explicit reviewed suite inventory, source-bound retained receipts and current
+E0/E1 evidence. Repair stale test doubles discovered by this sweep without weakening
+their behavioral assertions. Quote ambiguous flow scalars found by static YAML checks
+without changing intended deployment values. Do not run full pytest/plugins, live services, containers,
+models, browsers, load or cleanup. L/D/O/B/S/R, runtime/full RAG and historical-credential
+acceptance remain BLOCKED; C10 lease-expiry fencing remains open. C24 is not fully closed;
+C25, C24 push, merge, release, spec synchronization and archive await authorization.

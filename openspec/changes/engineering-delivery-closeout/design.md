@@ -648,3 +648,26 @@ credentials, raw provider records or exception text in measured outputs. Write r
 exclusively to a fresh retained directory; interrupted runs cannot become PASS. Plan
 identities are declarations until independently verified. No measured maximum capacity or
 monthly SLA claim from one load point; all L01–L16 runtime cases remain BLOCKED this turn.
+
+## C24 offline candidate evidence design — 2026-10-19
+
+Keep the original five-function safety entry independent. Add a standard-library
+orchestrator with fixed reviewed commands, expected suite counts and a frozen source
+digest. No discovery-based execution, user-supplied commands, automatic trust refresh,
+installation, application startup or cleanup. A source mismatch blocks execution.
+Children run sequentially with bounded timeouts; Python uses -I -B and Node preload
+options are removed. Preserve the host environment required by its Git wrapper; never
+serialize environment values or raw test output. This is trusted reviewed-code
+orchestration, not a security sandbox. C22/safety test fixtures are retained explicitly.
+
+Record HEAD, tracked content identity, untracked-file count, source digest, interpreter
+versions, per-entry PASS/FAIL/BLOCKED and exact executed/skipped counts. Check candidate
+and source identities before and after execution. Dirty/untracked content cannot be
+labelled a committed candidate. A nonzero failure, zero/wrong test count, malformed
+output or unexpected skip cannot become PASS. Expected missing PyYAML is separately
+BLOCKED, not a passed case. Git-only mode changes are reported separately and preserved.
+Write only exclusive receipts under ignored eval/results, refusing symlink paths and
+collisions. Report overall acceptance BLOCKED even when all available offline checks
+pass. Post-commit rerun binds evidence to the delivered local commit without a circular
+documentation commit. Whole pytest, actual dependency imports, image/scanner/CI results,
+OpenSpec strict, E2/E3/E4 and C10 are explicit uncovered gates.

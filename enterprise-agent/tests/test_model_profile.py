@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 import importlib.util
@@ -246,16 +247,23 @@ class ModelProfileTests(unittest.IsolatedAsyncioTestCase):
                 tree = ast.parse((ROOT/source).read_text())
                 fn = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
                           and node.name == name)
-                database = AsyncMock()
+                database, close_database = AsyncMock(), AsyncMock()
+                audit, tools = Mock(), Mock()
                 ns = dict(asynccontextmanager=asynccontextmanager, FastAPI=object,
                           get_settings=settings, logger=Mock(), init_db=database,
+                          close_db=close_database, asyncio=asyncio,
                           validate_production_settings=lambda config: [])
                 exec(compile(ast.Module(body=[fn], type_ignores=[]), source, 'exec'), ns)
                 guard = AsyncMock(side_effect=RuntimeError('MODEL_PROBE_FAILED'))
-                with patch.dict(sys.modules, {'app.rag.model_profile':
+                with patch.dict(sys.modules, {
+                    'app.observability.audit': module('app.observability.audit',
+                                                     init_audit_logger=audit),
+                    'app.tools.base': module('app.tools.base', init_all_tools=tools),
+                    'app.rag.model_profile':
                                                module('app.rag.model_profile',
                                                       verify_model_startup=guard)}):
-                    with self.assertRaisesRegex(RuntimeError, 'MODEL_PROBE_FAILED'):
+                    expected = 'MODEL_PROBE_FAILED' if name == 'lifespan' else 'WORKER_FAILED'
+                    with self.assertRaisesRegex(RuntimeError, '^' + expected + '$'):
                         if name == 'lifespan':
                             async with ns[name](object()):
                                 self.fail('startup must fail')
@@ -263,6 +271,10 @@ class ModelProfileTests(unittest.IsolatedAsyncioTestCase):
                             await ns[name]()
                 database.assert_not_awaited()
                 guard.assert_awaited_once()
+                audit.assert_not_called()
+                tools.assert_not_called()
+                if name == 'main':
+                    close_database.assert_awaited_once()
 
     def test_build_and_dependency_contract(self) -> None:
         docker = (ROOT/'Dockerfile.prod').read_text()

@@ -1,6 +1,6 @@
 # C24 离线安全验证入口
 
-> 2026-10-17；仅完成 C24 前置，不是全量应用验收，也不解除企业现场阻塞。
+> 前置：2026-10-17；2026-10-19 追加[最终候选离线汇总](final-candidate-verification.md)。两者均不构成全量应用验收或解除企业现场阻塞。
 > 入口：[safe_validate.py](../../enterprise-agent/scripts/safe_validate.py)；回归：[test_safe_validation.py](../../enterprise-agent/tests/test_safe_validation.py)。Python 3.11+ 标准库，无新增依赖。
 
 ## 1. 使用方法
@@ -42,7 +42,7 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `generate_uat_simulation.py` CLI | 写入指定或默认 fixture，可能覆盖既有内容 | 不纳入入口；使用现有 fixture，不重新生成 |
 | `run_ticket_acceptance.py` | 启动受控服务/调用工具，并在结束路径 `shutil.rmtree` 审计缓存 | 不直接运行；完整参考集成由 C18 前复审 |
 | `scripts/backup.sh` / `scripts/recovery.py` / `recovery_archive.py` | C22 wrapper 转发显式计划；实际执行会 stop/start、创建保留容器/卷、读写完整归档，helper 以受限 root 保留 UID/GID | 本轮仅注入 Docker 与合成文件测试；不调用真实控制器、Docker 或当前数据；完整副作用/物理恢复 D01–D16 BLOCKED |
-| `run_load_test.sh` / k6 | 网络负载，容器模式含 `--rm`，会生成结果 | 不纳入；C23 确定隔离环境与负载后再审查 |
+| 历史 k6 | 网络负载；C23 wrapper 已改为默认只读计划，不再默认启动 Docker/k6 | 不纳入本离线入口；当前副作用见下方 `run_capacity.py` 行 |
 | `app/observability/audit.py` / `retained.py` | C21 改为共享 SQLite PERSIST/FULL、PG 去重与保留式确认；真实路径仍会建目录/写 DB 和日志 | 仅内存注入测试已执行；真实文件系统/并发/崩溃副作用须 O01–O16 复验，不授权导入或启动应用 |
 | `eval/run_c22_retained_recovery.py` | 实际控制/归档代码，Docker 注入；只在新建 `eval/results/c22-tests-<uuid>/` 保留合成文件，chown 注入；hook 拒绝网络、子进程、删除/改名/链接以及夹具外写入/权限变更 | C22 允许根目录 `python3.13 -I -B enterprise-agent/eval/run_c22_retained_recovery.py`；不安装、不清理夹具、不运行 Docker/真实 DB/备份恢复；不扩展五函数白名单 |
 | `eval/run_c21_runtime_observability.py` | 实际审计/SQLite 内存/就绪/ASGI/监控接收函数；PG/HTTP/框架注入；hook 拒绝文件 DB、网络、文件写入/删除与子进程 | C21 允许根目录 `python3.13 -I -B enterprise-agent/eval/run_c21_runtime_observability.py`；不启动应用/listener/磁盘 store，不扩展五函数白名单；物理保留与真实告警 BLOCKED |
@@ -70,6 +70,9 @@ JSON 中 `execution_status` 描述函数是否完成，`result_status` 描述检
 | `eval/run_c04_session_ownership.py` | 标准库加载 C04 unittest；依赖注入，内存数据库/图/审计，无真实网络、文件写入或清理 | C04 单独审查允许：仓库根目录执行 `python3 -I -B enterprise-agent/eval/run_c04_session_ownership.py`；不加入原五函数白名单，不代表真实 HTTP/PG 验收 |
 | `eval/run_c23_capacity_evidence.py` | 标准库加载 C23 实际计划/报告/SSE/采集器代码；注入时钟/HTTP，独立参考服务仅内存 SQLite；audit hook 禁止 socket、子进程、磁盘 DB、文件修改/删除 | C23 仅授权 `python3.13 -I -B enterprise-agent/eval/run_c23_capacity_evidence.py`；不加入五函数白名单，不执行真实负载 |
 | `eval/run_capacity.py` / `eval/run_load_test.sh` | 无 execute 时只读计划；summarize 只读保留报告；显式执行会创建新输出目录、调用 HTTPS/参考 API/付费模型并持久写会话/审批/审计/邮件 sink | 本轮不执行 runtime；需先按 C23 冻结计划和隔离边界重新审查并明确授权。旧 k6 仅历史入口，不受安全白名单覆盖 |
+| `scripts/final_candidate.py` | 固定 30 项子进程、只读 Git/源码；检查源哈希/候选身份，捕获并丢弃原始输出；可独占新建 ignored 回执 | C24 单独审查允许；不是五函数白名单扩展，不是 OS 沙箱；细节见 [C24 契约](final-candidate-verification.md) |
+| C01–C03 独立测试、`test_dockerfile_prod.py` | 已复审只读源文件与 AST/依赖注入；Dockerfile 三函数只做文本断言；不导入生产设置或安装 PyYAML | C24 固定汇总允许 `-I -B`；缺失 PyYAML 的检查仍 skip/BLOCKED |
+| `tests/test_final_candidate.py` | 子进程全注入；在新建 `eval/results/c24-tests-<uuid>/` 写入保留合成夹具，hook 拒绝网络/真实子进程/删除及夹具外写入 | C24 允许独立执行；不清理，不覆盖既有证据 |
 | 其他 eval / scripts | 可能启动应用、模型、写 DB/向量库、网络或覆盖报告 | 默认不允许，逐项审查，不能仅凭脚本名认定安全 |
 | 全量 pytest | 项目 conftest 本身为内存 mock，但插件、cache、tmp_path 生命周期不在五函数审查范围内 | 本轮不运行；入口测试用独立 unittest，夹具追加保留 |
 

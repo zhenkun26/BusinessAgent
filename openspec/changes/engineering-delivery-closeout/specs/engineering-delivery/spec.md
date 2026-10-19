@@ -1,5 +1,21 @@
 ## ADDED Requirements
 
+### Requirement: Final candidate offline receipts preserve evidence boundaries
+The project SHALL execute only explicitly reviewed offline entries, bind results to
+the candidate and reviewed source identity, and retain skipped/unavailable checks.
+
+#### Scenario: Reviewed sources or candidate change during verification
+- **WHEN** the frozen source digest differs or the candidate changes during execution
+- **THEN** execution or candidate binding is BLOCKED; stale results cannot qualify the new candidate
+
+#### Scenario: Offline regression succeeds with runtime gates unavailable
+- **WHEN** the fixed offline suite completes but runtime, browser, load or recovery evidence is absent
+- **THEN** only completed E0/E1 checks are PASS; acceptance stays BLOCKED, C10 stays open and release flags stay false
+
+#### Scenario: Suite fails, skips or reports no tests
+- **WHEN** a suite fails, emits malformed/zero-count output, or skips a case
+- **THEN** record FAIL or an explicit BLOCKED skip, never count the skipped case as passed, and retain the initial failure and rerun disposition
+
 ### Requirement: 工程交付与企业现场验证必须分开判定
 项目 SHALL 以单组织、Linux 单机 Compose、真实 PostgreSQL/Redis/Milvus、独立 worker 和一套经过验证的模型 profile 作为首轮工程支持边界，并保留正式企业上线的独立门槛。
 

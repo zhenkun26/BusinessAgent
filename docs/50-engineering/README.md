@@ -6,6 +6,7 @@
 
 | 文档 | 位置 | 用途 |
 |---|---|---|
+| 最终候选离线验证 | [final-candidate-verification.md](final-candidate-verification.md) | C24 固定入口、候选绑定、C01–C24 映射与阻塞 |
 | 规定负载与容量候选 | [capacity-evidence.md](capacity-evidence.md) | C23 冻结计划、混合采集、分项指标与 L01–L16 阻塞 |
 | RAG 质量与指标 | [rag-quality.md](rag-quality.md) | C17 冻结语料、固定分母、引用/拒答/权限与运行边界 |
 | 分析数据适配 | [analysis-data.md](analysis-data.md) | C16 provider 一致取数、分页快照、权限与确定性统计 |
