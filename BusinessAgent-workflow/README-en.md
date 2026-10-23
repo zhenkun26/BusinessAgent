@@ -21,6 +21,7 @@ For `EXT-01`, use `cases/external/process-sizing/brief.md`. The learner has alre
 | Three human gates and execution authority | [Human gates](workflow/human-gates.md) |
 | Sources, attribution, dates, and result limits | [Evidence policy](workflow/evidence-policy.md) |
 | Two cases and learning objectives | [Case index](cases/index.md) |
+| Completed conversations and further practice | [Learning records](runs/README.md) · [Combined retrospective](runs/2026-10-23-retrospective.md) |
 | GitHub references and selective adoption | [References](references/repositories.md) |
 | Delivery scope, checks, and remaining validation | [Delivery record](workflow/delivery.md) |
 
@@ -37,12 +38,14 @@ Start in conversation. Once saving is authorized, create `runs/<date>-<topic>/se
 
 Authored documents are primarily English. Preserve Chinese entry points, coaching prompts, learner responses, and original Chinese excerpts. This is a manual conversational workflow; answer separation and status checks are not enforced by software.
 
+The 2026-10-23 [BA-01](runs/2026-10-23-ba-01/session.md) and [EXT-01](runs/2026-10-23-ext-01/session.md) runs were saved under subsequent authorization: eighteen original answers, coaching questions, historical reveals, and retrospectives are retained. Specific independently proposed reasoning, prompted extensions, revisions after historical reveal, and synthetic transfer are distinguished. These records contain answers and are not initial packets for a new exercise. Subsequent explicit authorization covers publication of these selected learning records on the documentation-only branch; the full local conversation log remains unpublished.
+
 ## Current and future boundaries
 
-This increment adds only workflow documents, templates, two cases, and source indexes in this directory. Existing BusinessAgent code, documentation, OpenSpec, acceptance conclusions, and unrelated local changes remain untouched.
+The initial increment added only workflow documents, templates, two cases, and source indexes in this directory. Subsequent authorization adds the two learning records and combined retrospective, still as documentation only. Existing BusinessAgent code, documentation, OpenSpec, acceptance conclusions, and unrelated local changes remain untouched.
 
-The publication version contains only these 21 documents and is prepared from the already-public `main`. Two later case sources are local-only evidence and are not included in this branch; the ledger distinguishes public material, local material, and the user's account. The original local documentation branch and its engineering history are retained and are not uploaded with this publication.
+The publication branch is based on the already-public `main` and adds only 25 documents under `BusinessAgent-workflow`: the initial 21 plus four learning-record and retrospective documents. Two later case sources remain local-only evidence and are not included in this branch; the ledger distinguishes public material, local material, and the user's account. The original local documentation branch and its engineering history are retained and are not uploaded with this publication.
 
 The user's 2026-10-23 direction is to conduct a future reconstruction in a separate new folder using this workflow without OpenSpec. Its name, location, architecture, and migration plan remain undecided. This increment creates no reconstruction folder, copies no code, and starts no refactor. Existing repository rules remain in place for that project; this directory does not repeal them. The workflow itself has no OpenSpec dependency.
 
-Document checks do not establish learning effectiveness. A real learner session remains necessary. Original-project runtime acceptance and future reconstruction are outside this delivery.
+Both guided conversations have completed judgment and reflection in dialogue. This supports observations about these answers, not validated retention, solution effectiveness, or workflow benefit. Further exercises remain proposals. Original-project runtime acceptance and future reconstruction are outside this delivery.

@@ -68,7 +68,69 @@ The commit will have the public baseline as its sole parent. Verify the final co
 
 ## Remaining work
 
-- Run a real learner session after the user chooses to start; preserve actual answers and assistance.
-- Refine the workflow based on that session before building automation.
+- Two guided learner conversations were subsequently completed and recorded. Delayed reuse and measured learning effectiveness remain unverified.
+- Consider the documented coaching improvements before building automation; no automation has started.
 - Future reconstruction remains NOT STARTED; folder, architecture, migration scope, and acceptance need a separate decision. It will not use OpenSpec under the user's direction.
 - Existing BusinessAgent acceptance and source-rights states remain unchanged.
+
+## Original learning-record increment — historical local receipt, 2026-10-23
+
+This is the retained authoring receipt for local-only commit `c322935c0678ff3ae9af856b20cb1214c21fcdcb`. Its local-only delivery boundary was subsequently superseded solely for the selected document publication described below; its checks apply to that local tree.
+
+
+User authorization: preserve the BA-01 and EXT-01 learning process, original answers, questions, and real sources; distinguish independent reasoning from prompted additions and summarize further practice. Documentation only; do not begin reconstruction. Saving is local; the earlier authorization to publish exactly 21 workflow documents does not include these new personal records or the unpublished engineering ancestry.
+
+Starting local revision: `ca90d3ebfa5de31cb7e6902758740596267c694b`, branch `codex/ai-pm-workflow-v1`. Reuse this matching local branch. The separate publication worktree at `f0491caec2ebece5c383d75041b0104541c3683a` is not the target of this increment. Do not push this local branch or its inherited engineering history.
+
+Scope:
+
+- Two session documents under `runs/2026-10-23-{ba,ext}-01/`, preserving eighteen original learner answers and their user-visible coaching context.
+- A record index and a combined retrospective/practice plan; new analysis is distinct from original Chinese messages.
+- Bilingual entry links and narrowly scoped case/delivery status corrections. Original case facts and original BusinessAgent source files remain unchanged.
+
+Verification plan: compare selected transcript bodies, role/order, UTC timestamps and local line locators against the scoped local conversation; review assistance attribution and historical/proposed boundaries; resolve Markdown links/anchors and pinned source bindings; review the exact task diff and preserve unrelated content/modes. Do not export the entire local log or private reasoning. Backend tests, model calls, upstream script execution, and real-user trials are outside scope.
+
+Results on 2026-10-23:
+
+| Check | Result | Scope / limit |
+| --- | --- | --- |
+| Transcript fidelity | PASS | 47 selected user-visible message bodies match the scoped local log exactly after declared formatting: 18 answers, 2 start requests, 20 assistant final messages, 7 commentaries. Original order, UTC timestamps, and line locators also match. |
+| Assistance and claims review | PASS, separate read-only agent review | Specific independent contributions, prompted dimensions, post-reveal revisions, and synthetic transfer are distinguished. Original assistant overstatements remain quoted with narrower editorial qualifications. This is document review, not independent reproduction of experiments. |
+| Package structure and local links | PASS | 25 nonempty Markdown files; balanced fences; 117 local Markdown targets including 27 fragment checks. Three absolute local source links are retained inside verbatim historical messages, with public pinned alternatives beside the transcript. |
+| Source binding | PASS, scoped | Public/local BA-S1 section equality and BA-S2 whole-file equality plus recorded hashes rechecked from retained Git objects; EXT-S3 re-read at its pinned upstream commit during review. Historical claims remain author-reported; local-only sources do not become public evidence. |
+| Exact edit scope and bilingual status | PASS | Four new `runs/` documents and six existing workflow documents updated; both entry points identify actual replay completion without asserting learning effectiveness. No executable files or new dependencies. |
+| Existing project preservation | PASS | All 888 tracked paths outside this workflow retain starting contents and file modes; all 556 pre-existing mode differences remain. The publication worktree remains clean at its retained revision. |
+| Whitespace / diff review | PASS | Task diff reviewed; `git diff --check` passed. |
+| Application / upstream execution / real user trials | NOT_APPLICABLE to document delivery | None performed. The recorded experiments, next practice, retention, and workflow-benefit claims remain unverified. |
+
+This increment's outside-workflow fingerprint is `e5cdb1406562a4dc78c7fd94f443af59b22da18d48efb6117a1f5535b8dee2ea`. It hashes UTF-8 compact JSON (`ensure_ascii=False`, separators `,` and `:`) of sorted `[path, stat.S_IMODE, SHA256(content)]` rows. This method/boundary is stated separately from the historical v1 fingerprint above; the two digests are not interchangeable attestations.
+
+Delivery: reviewed local documentation commit only, with final commit identity in the task response. No push, merge, new reconstruction folder, code change, live experiment, or global-memory write. Follow-up practice is PROPOSED / NOT STARTED. Existing engineering/runtime/rights acceptance states remain unchanged.
+
+## Learning-record publication — authorized scope, 2026-10-23
+
+The user explicitly authorized publishing this learning-record increment by the same documentation-only method: only `BusinessAgent-workflow` document changes, preserve the existing local branch, exclude engineering commits, no merge or reconstruction. The original save-only boundary above is historical and does not override this later scoped authorization.
+
+- Source record: local-only `c322935c0678ff3ae9af856b20cb1214c21fcdcb`; apply document content changes, not its commit ancestry.
+- Publication parent: `f0491caec2ebece5c383d75041b0104541c3683a`, the verified remote documentation head before this increment.
+- Local publication branch: `codex/ai-pm-workflow-publish`; destination: `origin` (`https://github.com/zhenkun26/BusinessAgent.git`), `refs/heads/codex/ai-pm-workflow-v1`.
+- Retained original branch: `codex/ai-pm-workflow-v1` at the source-record commit above. No reset, rebase, branch replacement, or push of that branch.
+- Scope: four new learning-record documents plus seven existing workflow documents updated, including publication-only availability/authorization notes. Total package: 25 Markdown files. No change outside `BusinessAgent-workflow`.
+- Publication transformations: three BA assistant source-link destinations rebound to the identical public pinned source section; all 18 learner answers preserved; raw logs remain local-only. Preserve earlier public/local source distinctions and original historical check receipts.
+
+Before publication, check transcript equivalence with only the declared link substitution, source/hash bindings, all local links/anchors, and the exact file scope. Verify the 31 excluded commits from `716f3b533e6a8693e84e6cb76e098dfd0f20af02..edc5c58e5783e5c3035d89a035917cae35cb3ef1` are not ancestors of the publication commit. Compare all 913 original-checkout tracked contents/modes to the starting fingerprint `8e13243dbedc82c3c2ae98713fe304968b326814a06fdeafc055d3dfa8f54086` (compact UTF-8 JSON rows `[path, stat.S_IMODE, SHA256(content)]`, sorted by path); preserve the 556 existing mode differences. Commit locally only after review, then push the one destination ref without tags and read it back. A later remote move must be inspected rather than overwritten.
+
+Publication preparation results on 2026-10-23:
+
+| Check | Result | Scope / limit |
+| --- | --- | --- |
+| Transcript fidelity | PASS | 47 selected messages, including all 18 learner answers, preserve their wording, sequence, timestamps and line locators; only three declared assistant source-link destinations change. Original BA digest still binds original local message objects. |
+| Document inventory / links | PASS | 25 nonempty Markdown documents; 11 changed paths (four new, seven updated), all inside `BusinessAgent-workflow`; balanced fences, 110 local Markdown targets including 27 fragment checks, no absolute local links. |
+| Source availability | PASS | BA-S1 public/local cited lines match with a three-line offset; public hash matches the ledger. BA-S3/S4 remain absent and labeled local-only; no full source log is copied. Earlier scoped external-source verification is retained without claiming a new upstream run. |
+| Separate read-only review | PASS | Transcript transformation, assistance attribution, published/local evidence, bilingual scope, historical/current receipts and original-checkout preservation reviewed without blocking findings. |
+| Original checkout preservation | PASS | Original branch/HEAD retained at `c322935`; all 913 tracked file contents and modes match the starting fingerprint above; all 556 pre-existing mode differences retained. |
+| Publication parent / excluded history | PASS | Parent remains `f0491ca`; none of the 31 excluded engineering commits is its ancestor. Final single-parent commit scope/ancestry must also pass before push. |
+| Diff / whitespace | PASS | Exact document diff reviewed; `git diff --check` passes. No code, dependencies, or files outside the workflow package. |
+| Runtime / learner effectiveness | NOT_APPLICABLE to publication | No application/upstream execution or real-user study. The saved plans and next practice remain unexecuted. |
+
+The final commit ID and push/readback receipt belong in the task response; this pre-push document does not claim a successful upload or remote CI result. No reconstruction, merge, deployment, force-push, or tag upload is included.

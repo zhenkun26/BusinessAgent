@@ -61,4 +61,4 @@ Ask: **“你会保留刚才的选择吗？请说明现在最需要补哪条证�
 
 ## Retrospective
 
-Use the [retrospective template](../../../templates/retrospective.md). Preserve the first answer, prompts, revisions, and transfer response. Evaluate problem clarity, alternative causes, test validity, and bounded conclusions. Neither memorizing the adapter name nor reproducing the historical timings demonstrates PM capability. No learner performance has yet been measured by this package.
+Use the [retrospective template](../../../templates/retrospective.md). Preserve the first answer, prompts, revisions, and transfer response. Evaluate problem clarity, alternative causes, test validity, and bounded conclusions. Neither memorizing the adapter name nor reproducing the historical timings demonstrates PM capability. At initial case authoring, no learner session had occurred. The subsequent [2026-10-23 replay](../../../runs/2026-10-23-ba-01/session.md) records actual responses and qualitative observations; it is not a measured learning-effectiveness result.

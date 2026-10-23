@@ -1,6 +1,6 @@
 # Case index
 
-Start with a brief. Historical review and source ledgers contain spoilers and are opened only under the [coaching protocol](../workflow/coaching.md). The authoring assistant has inspected all sources; this is not a completed learner session.
+Start with a brief. Historical review and source ledgers contain spoilers and are opened only under the [coaching protocol](../workflow/coaching.md). Case authoring itself was not a learner session. The subsequently completed BA-01 and EXT-01 conversations are preserved separately in the [learning records](../runs/README.md); do not preload their answers for a new exercise.
 
 | ID | Brief | Core learning | Evidence boundary |
 | --- | --- | --- | --- |
