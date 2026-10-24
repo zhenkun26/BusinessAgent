@@ -2,7 +2,7 @@
 
 Spoilers: facilitator/reference material, not the initial learner packet.
 
-Inspected on 2026-10-23. Public reference baseline: `065bdf7b31ce1fb6f9007a7e8851be36bfc2280f` in `zhenkun26/BusinessAgent`. The initial publication added only 21 workflow documents to that baseline; the subsequently authorized case-learning and policy-QA discovery increments bring the package to 29 Markdown documents, still confined to `BusinessAgent-workflow`. It does not contain the later local engineering history.
+Inspected on 2026-10-23. Public reference baseline: `065bdf7b31ce1fb6f9007a7e8851be36bfc2280f` in `zhenkun26/BusinessAgent`. The initial publication added only 21 workflow documents to that baseline; the subsequently authorized case-learning, policy-QA discovery and financial-reference increments bring the package to 32 Markdown documents, still confined to `BusinessAgent-workflow`. It does not contain the later local engineering history.
 
 The original authoring inspection used local revision `edc5c58e5783e5c3035d89a035917cae35cb3ef1`. That revision is LOCAL-ONLY / NOT PUBLISHED by this delivery. Public and local versions of BA-S1 section 4.2.2 match exactly, although their whole-file hashes differ. BA-S2 is identical in both. BA-S3/S4 are unavailable in the public baseline; their paths and hashes are locators for a holder of the original local checkout, not public retrieval links. No missing source file is copied into this publication.
 

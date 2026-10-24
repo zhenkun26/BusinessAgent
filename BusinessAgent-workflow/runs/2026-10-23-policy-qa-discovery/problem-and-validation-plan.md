@@ -4,6 +4,8 @@
 
 Status: consolidated discovery draft and **PROPOSED / NOT STARTED** validation plan. This is live-project planning, not a historical replay. No experiment, model call, dependency installation, reconstruction folder, existing-project modification, or publication is authorized by this plan itself. The separate subsequent user instruction authorizes only the selected document publication, as recorded in the [source ledger](sources.md#local-conversation); the validation plan remains unexecuted.
 
+Subsequent documentation-only follow-up, 2026-10-23: the [first financial-policy reference draft](../2026-10-23-finance-qa-reference-set/reference-set.md) now contains seven questions and one synthetic counterexample, with original answers, assistance history and versioned clauses. This advances reference authoring only; separate review, final scoring/denominator criteria and execution remain pending. The proposed sequence below is retained; it is not a completed test or G2 execution authorization.
+
 ## Two problems with different evidence
 
 | Problem | Evidence currently available | Desired change / unresolved question |

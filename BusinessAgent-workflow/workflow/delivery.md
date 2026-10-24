@@ -68,7 +68,7 @@ The commit will have the public baseline as its sole parent. Verify the final co
 
 ## Remaining work
 
-- Two guided learner conversations and the later policy-QA discovery round were subsequently completed and recorded. Delayed reuse and measured learning effectiveness remain unverified.
+- Two guided learner conversations, the later policy-QA discovery and first financial-reference round were subsequently completed and recorded. Delayed reuse and measured learning effectiveness remain unverified.
 - Consider the documented coaching improvements before building automation; no automation has started.
 - Future reconstruction remains NOT STARTED; folder, architecture, migration scope, and acceptance need a separate decision. It will not use OpenSpec under the user's direction.
 - Existing BusinessAgent acceptance and source-rights states remain unchanged.
@@ -194,3 +194,65 @@ Publication preparation results on 2026-10-23:
 | Application / candidate / upstream tests | NOT RUN — explicit user boundary | Only document-integrity and Git checks performed. No pytest, model/API call, project import, upstream execution, installation, new reconstruction folder or implementation. No CI dispatch; the retained workflow's push trigger is limited to `main` and version tags, neither of which is sent. |
 
 The final commit identity and successful push/readback receipt belong in the task response. This preparation record does not claim a completed upload, fresh remote CI, application/candidate results, measured learning effectiveness, architecture adoption or reconstruction.
+
+## Original Finance-QA reference authoring — historical local receipt, 2026-10-23
+
+This retains the authoring receipt for local-only commit `372fcc367dfae969bd38e88194af010db18ed156`. Its save-only boundary, worktree state and checks describe that earlier local increment. Subsequent authorization below supersedes only the selected publication boundary; historical check figures are not new publication results.
+
+
+Authorization: document seven financial-policy questions, consolidated reference answers and one synthetic counterexample; preserve the policy version, original clauses, learner answers, assistant probes and assistance history. Do not change the original evaluation corpus, run tests, write application code or begin reconstruction. Saving this new increment does not authorize publication.
+
+Starting branch/revision: `codex/ai-pm-workflow-v1` / `4819a02e760715513142d0b9a20f9cc52fa58d28`. Reuse the matching local authoring branch. The separate publication worktree is at `2912c140f4ce92b66d2bda9104fa69eda52d4566`; this increment does not modify or push it. No OpenSpec lifecycle or reconstruction folder is added.
+
+Planned scope: three new Markdown documents in `runs/2026-10-23-finance-qa-reference-set/` (reference set, exact session, sources), plus the bilingual entry points, run index, prior validation plan's follow-up pointer and this delivery record. The document-only identifiers are not new records in the existing 122-case evaluation set. Preserve exactly two historical cases; this is a live-project reference-authoring run.
+
+Document-integrity plan: bind the policy's Git revision/blob/SHA-256 and cited lines, compare every selected conversational message with its actual local log segment, retain initial errors and prompted revisions, resolve links/anchors, inspect the task-only diff and preserve existing contents/modes. A continuation log holds the current expanded half-day answer; select the predecessor only through its preceding question rather than exporting the earlier terminal answer variant. These are document checks, not system or candidate tests; do not import project/scorer modules.
+
+Starting preservation snapshot: 917 tracked paths, no tracked content/staged changes and 556 pre-existing mode differences. Sorted compact UTF-8 JSON rows `[path, stat.S_IMODE, SHA256(content)]` bind all starting paths to `ed4c65964caf09f7301144f65d070e839b3c220d3cd9b6ba16ca0b4fe72e64dc`; the 888 outside-workflow paths bind to `e5cdb1406562a4dc78c7fd94f443af59b22da18d48efb6117a1f5535b8dee2ea`. Do not modify the original policy, evaluation set/scorer, C17 data/denominators, old transcripts or existing engineering acceptance states.
+
+Document-integrity results on 2026-10-23:
+
+| Check | Result | Scope / limit |
+| --- | --- | --- |
+| Questions and negative example | PASS | Exactly seven original questions and one verbatim assistant-authored synthetic counterexample; each question and the counterexample match the retained conversational messages. Reference answers are explicitly editorial drafts, not actual system outputs or new corpus records. |
+| Transcript fidelity | PASS | All 25 selected message bodies match their C1/C2 log segment, order, role, phase, UTC timestamp and line locator after declared trailing-newline/blockquote formatting and omission of one machine-readable footer. Eleven substantive learner messages include initial errors, the design rationale, prompted revision and checking-method reflection. Normalized SHA-256: `e0a98f8bfd2b3cd855a4d332e52a40d6d4171ef16fa740934473364df7030eeb`. |
+| Policy / clause binding | PASS | Current 89-line policy equals its recorded local Git object and public-baseline bytes; SHA-256/blob bindings and all seven original clause excerpts match. No effective policy date or real-enterprise authority is invented. |
+| Assistance / semantic / bilingual review | PASS, manual self-review | Independent contributions are bounded by supplied questions, section cues and prior Q015 exposure. Half-day revision and assistant-supplied emergency correction remain distinct. Missing input, missing policy rules, endpoint ambiguity, arithmetic and unsupported extra duties are separately described. Both entry points agree. No independent reviewer or reference-agreement result is claimed. |
+| Structure / navigation | PASS | 32 nonempty Markdown documents, balanced fences, 258 local Markdown targets including 108 fragment checks. Fifteen absolute local links remain only in original quoted messages across the package; the source ledger gives pinned public alternatives. Exactly two historical case sets remain. |
+| Exact edit scope | PASS | Three new run documents and five existing workflow documents changed; eight staged Markdown paths, all within `BusinessAgent-workflow`. Prior validation plan receives only a follow-up pointer, without an execution/status overclaim. |
+| Existing-content / mode preservation | PASS | All 912 starting tracked paths outside the five authorized edits retain content/modes; reconstructing the five edited contents from the starting revision reproduces the full 917-path snapshot. All 888 outside-workflow paths match their starting fingerprint; 556 pre-existing mode differences remain. Policy/evaluation dataset/scorer, C17 and old transcripts unchanged. |
+| Publication worktree | PASS, local readback | Separate worktree clean at `2912c140f4ce92b66d2bda9104fa69eda52d4566`; no edit, remote query or push performed by this increment. |
+| Diff / whitespace | PASS | Task diff reviewed and staged `git diff --cached --check` passed; recheck the final receipt update before commit. |
+| Application / candidate / evaluation / learning-effectiveness tests | NOT RUN — explicit user boundary | No pytest, model/API call, project/scorer import, upstream execution, installation, live trial or reconstruction. Only document-integrity and Git checks performed. |
+
+Delivery: local documentation commit only, with final commit identity in the task response. Seven reference answers are now drafted, not independently validated or integrated into a benchmark. Final scoring/denominator rules and all system/candidate execution remain pending. No push, merge, remote CI, original-corpus change, new dependency, code or reconstruction folder; existing acceptance and rights states are unchanged.
+
+## Finance-QA document publication — authorized scope, 2026-10-23
+
+The user explicitly authorized publication by the same pure-document method: only this increment's `BusinessAgent-workflow` Markdown content, preserve the current local branch, exclude engineering commits, no merge, tests or reconstruction. This is separate from the initial save-only authorization.
+
+- Source record: local-only `372fcc367dfae969bd38e88194af010db18ed156`, parent `4819a02e760715513142d0b9a20f9cc52fa58d28`; transfer document content, not ancestry.
+- Publication parent: `2912c140f4ce92b66d2bda9104fa69eda52d4566`, freshly read back from the remote documentation branch. Remote `main` is `065bdf7b31ce1fb6f9007a7e8851be36bfc2280f` at preparation.
+- Local publication branch: `codex/ai-pm-workflow-publish`; authorized destination: `origin` (`https://github.com/zhenkun26/BusinessAgent.git`), `refs/heads/codex/ai-pm-workflow-v1`.
+- Original authoring checkout/branch: `/Users/zhenkun/GitHub/BusinessAgent`, `codex/ai-pm-workflow-v1`, retained at source record `372fcc3`; no checkout, reset, rebase, branch replacement or push of that branch.
+- Scope: three new financial-reference/session/source documents and six existing workflow documents, including publication-only count/authorization notes. Total package: 32 Markdown files; still two historical cases plus live-project discovery/reference records.
+- Transformations: exactly eight assistant local policy-link destinations bind the identical public fixture. All eleven learner messages, questions, the seven references and synthetic counterexample retain wording. Full raw logs, application sources and unpublished local implementation versions are not copied.
+
+Document checks before commit: compare selected transcript messages against both log segments with only declared normalization and reversed link substitutions; verify reference/counterexample identity and policy bytes/clauses; resolve links/anchors, review attribution/bilingual scope and inspect staged paths/whitespace. These are document-integrity checks, not tests. Preserve all 920 original-checkout tracked file contents/modes, bound by sorted compact UTF-8 JSON `[path, stat.S_IMODE, SHA256(content)]` rows to `a8e38644c2d65021c143c5a84c382b4278522e7496be804cb817b1c941e45468`; the 888 outside-workflow paths retain `e5cdb1406562a4dc78c7fd94f443af59b22da18d48efb6117a1f5535b8dee2ea`, including all 556 pre-existing mode differences.
+
+Before pushing, verify that none of the 31 engineering commits in `716f3b533e6a8693e84e6cb76e098dfd0f20af02..edc5c58e5783e5c3035d89a035917cae35cb3ef1`, or four source authoring commits (`ca90d3e`, `c322935`, `4819a02`, `372fcc3`), is an ancestor of the final single-parent publication commit. Its cumulative diff from public `main` must contain only the 32 workflow Markdown paths. Re-read the remote head, push only the authorized destination ref without tags, then read back the documentation ref and `main`. Inspect divergence rather than overwriting remote work.
+
+Publication preparation results on 2026-10-23:
+
+| Check | Result | Scope / limit |
+| --- | --- | --- |
+| Transcript fidelity | PASS | All 25 selected C1/C2 messages, including eleven substantive learner messages, match wording, order, role, phase, timestamps and log locators after declared normalization and reversal of exactly eight source-link changes. Original normalized SHA-256 remains `e0a98f8bfd2b3cd855a4d332e52a40d6d4171ef16fa740934473364df7030eeb`. |
+| References / policy binding | PASS | Seven original questions and the single synthetic counterexample match the conversation. The complete reference-set document equals its source-record bytes. Seven clause excerpts and the fixture SHA-256 match retained local/public-baseline Git objects. No corpus, scorer or source-code file is copied or changed. |
+| Structure / links / scope | PASS | 32 nonempty Markdown files, balanced fences, 244 local targets including 113 fragment checks, zero absolute local links. Index contains exactly three additions and six modifications inside `BusinessAgent-workflow`; two historical case sets retained. |
+| Attribution / bilingual / history review | PASS, manual self-review | Specific independent contributions, prompted half-day revision, assistant-supplied emergency correction and the later checking method remain distinct. Earlier publication/source boundaries and historical receipts retained; entry scopes agree. No independent annotation agreement or model-performance claim. |
+| Original checkout preservation | PASS | Branch/HEAD remain `codex/ai-pm-workflow-v1` / `372fcc3`; all 920 tracked contents/modes match the starting fingerprint above. The 888 outside-workflow paths and 556 pre-existing mode differences are retained; recheck after publication. |
+| Excluded ancestry | PASS, publication parent checked | None of the 31 excluded engineering commits or four local authoring commits is an ancestor of `2912c14`. Final single-parent commit, all four publication increments and the 32-path cumulative diff must also pass before push. |
+| Diff / whitespace | PASS | Publication-only changes reviewed and staged `git diff --cached --check` passed; recheck this final receipt update before commit. |
+| Tests / runtime / reconstruction | NOT RUN — explicit user boundary | Document/Git checks only. No project/scorer import, pytest, model call, installation, new reconstruction folder or implementation. No active local Git hooks or CI dispatch; retained CI push triggers cover `main` and version tags, neither sent here. |
+
+Final commit identity and push/readback receipts belong in the task response. This preparation record does not claim a completed upload, CI run, measured application performance, independent reference review or reconstruction.
