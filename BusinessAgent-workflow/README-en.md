@@ -21,7 +21,7 @@ For `EXT-01`, use `cases/external/process-sizing/brief.md`. The learner has alre
 | Three human gates and execution authority | [Human gates](workflow/human-gates.md) |
 | Sources, attribution, dates, and result limits | [Evidence policy](workflow/evidence-policy.md) |
 | Two cases and learning objectives | [Case index](cases/index.md) |
-| Completed conversations and further practice | [Learning records](runs/README.md) · [Combined retrospective](runs/2026-10-23-retrospective.md) |
+| Learning and project-discovery records | [Learning records](runs/README.md) · [Combined retrospective](runs/2026-10-23-retrospective.md) |
 | GitHub references and selective adoption | [References](references/repositories.md) |
 | Delivery scope, checks, and remaining validation | [Delivery record](workflow/delivery.md) |
 
@@ -40,12 +40,14 @@ Authored documents are primarily English. Preserve Chinese entry points, coachin
 
 The 2026-10-23 [BA-01](runs/2026-10-23-ba-01/session.md) and [EXT-01](runs/2026-10-23-ext-01/session.md) runs were saved under subsequent authorization: eighteen original answers, coaching questions, historical reveals, and retrospectives are retained. Specific independently proposed reasoning, prompted extensions, revisions after historical reveal, and synthetic transfer are distinguished. These records contain answers and are not initial packets for a new exercise. Subsequent explicit authorization covers publication of these selected learning records on the documentation-only branch; the full local conversation log remains unpublished.
 
+The later [policy-QA problem-definition and technical-research conversation](runs/2026-10-23-policy-qa-discovery/session.md) was separately authorized for local recording and then explicitly authorized for this documentation-only publication: 21 answers and their exact coaching, with a [problem / unexecuted validation plan](runs/2026-10-23-policy-qa-discovery/problem-and-validation-plan.md), [versioned sources](runs/2026-10-23-policy-qa-discovery/sources.md), and [Q015 analysis](runs/2026-10-23-policy-qa-discovery/q015-analysis.md). It is live-project discovery, not an additional historical case. LightRAG remains an unverified candidate; Q015 is reference-evidence review. No tests or reconstruction were started in this discovery round.
+
 ## Current and future boundaries
 
-The initial increment added only workflow documents, templates, two cases, and source indexes in this directory. Subsequent authorization adds the two learning records and combined retrospective, still as documentation only. Existing BusinessAgent code, documentation, OpenSpec, acceptance conclusions, and unrelated local changes remain untouched.
+The initial increment added only workflow documents, templates, two cases, and source indexes in this directory. Subsequent authorization adds the two case-learning records, combined retrospective and policy-QA discovery record, still as documentation only. Existing BusinessAgent code, documentation, OpenSpec, acceptance conclusions, and unrelated local changes remain untouched.
 
-The publication branch is based on the already-public `main` and adds only 25 documents under `BusinessAgent-workflow`: the initial 21 plus four learning-record and retrospective documents. Two later case sources remain local-only evidence and are not included in this branch; the ledger distinguishes public material, local material, and the user's account. The original local documentation branch and its engineering history are retained and are not uploaded with this publication.
+The publication branch is based on the already-public `main` and adds only 29 documents under `BusinessAgent-workflow`: the initial 21, four earlier learning-record and retrospective documents, and four policy-QA discovery documents. Unpublished later case sources and implementation versions remain local-only evidence and are not included in this branch; the ledgers distinguish public material, local material, and the user's account. The original local documentation branch and its engineering history are retained and are not uploaded with this publication.
 
 The user's 2026-10-23 direction is to conduct a future reconstruction in a separate new folder using this workflow without OpenSpec. Its name, location, architecture, and migration plan remain undecided. This increment creates no reconstruction folder, copies no code, and starts no refactor. Existing repository rules remain in place for that project; this directory does not repeal them. The workflow itself has no OpenSpec dependency.
 
-Both guided conversations have completed judgment and reflection in dialogue. This supports observations about these answers, not validated retention, solution effectiveness, or workflow benefit. Further exercises remain proposals. Original-project runtime acceptance and future reconstruction are outside this delivery.
+The two case replays and policy-QA discovery round have completed reasoning in dialogue. This supports observations about the answers and assistance supplied, not validated retention, solution effectiveness, or workflow benefit. Further exercises and test plans remain proposals. Original-project runtime acceptance and future reconstruction are outside this delivery.
