@@ -68,7 +68,7 @@ The commit will have the public baseline as its sole parent. Verify the final co
 
 ## Remaining work
 
-- Two guided learner conversations, the later policy-QA discovery and first financial-reference round were subsequently completed and recorded. Delayed reuse and measured learning effectiveness remain unverified.
+- Historical case replays, policy-QA discovery, first financial-reference authoring and the subsequent guided review/scoring round were recorded. Delayed reuse and measured learning effectiveness remain unverified.
 - Consider the documented coaching improvements before building automation; no automation has started.
 - Future reconstruction remains NOT STARTED; folder, architecture, migration scope, and acceptance need a separate decision. It will not use OpenSpec under the user's direction.
 - Existing BusinessAgent acceptance and source-rights states remain unchanged.
@@ -256,3 +256,65 @@ Publication preparation results on 2026-10-23:
 | Tests / runtime / reconstruction | NOT RUN — explicit user boundary | Document/Git checks only. No project/scorer import, pytest, model call, installation, new reconstruction folder or implementation. No active local Git hooks or CI dispatch; retained CI push triggers cover `main` and version tags, neither sent here. |
 
 Final commit identity and push/readback receipts belong in the task response. This preparation record does not claim a completed upload, CI run, measured application performance, independent reference review or reconstruction.
+
+## Original Finance-QA review/scoring authoring — historical local receipt, 2026-10-25
+
+This retains the authoring receipt for local-only `a17dc4af502eb7955be2589296aea7d77e8f4c86`. Its local-save boundary, starting state and check figures belong to that earlier increment. The subsequent grant below supersedes only the selected publication boundary; do not treat those historical checks as new publication results.
+
+
+Authorization: document this round's seven-reference review, minimal scoring rules and learning process. Preserve original drafts, revision opinions, policy version, learner answers and assistant questions; distinguish specific learner contributions from prompted extensions and assistant consolidation. Documentation only: no original evaluation-set edit, tests, application code or reconstruction. The new save request does not authorize publication.
+
+Starting branch/revision: `codex/ai-pm-workflow-v1` / `372fcc367dfae969bd38e88194af010db18ed156`. Reuse the matching local authoring branch. The separate publication worktree is clean at `b7359371667d72abfe1a0cab4bc0f60a964deee8` and is not the target of this increment. No push, merge, OpenSpec lifecycle, dependency or new reconstruction folder.
+
+Planned scope: four new Markdown documents in `runs/2026-10-25-finance-qa-review/` (original-versus-revised references, scoring draft, exact session and sources), plus bilingual entry points, run index, a dated follow-up pointer in the prior validation plan and this delivery record. The original three-file `2026-10-23-finance-qa-reference-set` run remains byte-for-byte unchanged; the new candidates do not replace its reference answers or change the corpus/scorer.
+
+Document-integrity plan: bind policy/original-draft Git objects and SHA-256 values; compare exact original reference blocks and selected messages with retained sources; include the assistant's earlier agenda so supplied categories are not credited as unprompted discoveries. Preserve thirteen learner responses and all questions/feedback, with explicit footer-only normalization. Check links, scope, claim/assistance boundaries and bilingual consistency. Treat hypothetical candidates/timeouts as teaching material, not actual tests or system outcomes. Keep unadjudicated scoring edges open rather than supplying missing owner decisions.
+
+Starting preservation snapshot: 920 tracked paths, no content/staged changes and 556 pre-existing mode differences. Sorted compact UTF-8 JSON rows `[path, stat.S_IMODE, SHA256(content)]` bind all starting paths to `a8e38644c2d65021c143c5a84c382b4278522e7496be804cb817b1c941e45468`; the 888 outside-workflow paths bind to `e5cdb1406562a4dc78c7fd94f443af59b22da18d48efb6117a1f5535b8dee2ea`. Preserve policy, dataset/scorer, C17 data/denominators, original transcripts, existing engineering acceptance and the publication checkout.
+
+Document-integrity results on 2026-10-25:
+
+| Check | Result | Scope / limit |
+| --- | --- | --- |
+| Original/revised reference preservation | PASS | Seven original question/reference blocks match the unchanged v1 draft exactly; FIN-01/03 candidate text also remains exact. All three original reference-run files retain their SHA-256 values. Revised candidates are separately labeled editorial renderings. |
+| Transcript fidelity | PASS | All 33 selected messages, including thirteen substantive learner responses and the preceding assistant agenda, match wording/order/role/phase/UTC timestamps/line locators after declared formatting and omission of two machine-readable footers. Normalized SHA-256: `3a1b9eea3f7ffdd80932e4f8fec1dbac84e7b5adbcf08ba7fda9e41a3378b7cc`. |
+| Policy / prior-draft / hypothetical binding | PASS | Policy SHA-256/blob and original-draft hashes match local/public pinned Git objects. Four fictional candidate texts and the timeout sentence match their assistant messages. They are not observed model outputs or new evaluation items; no score is calculated. |
+| Attribution / semantics / bilingual scope | PASS, manual self-review | Agenda-supplied categories, learner-authored refinements within prompts, assistant full-text inspection and later assistant consolidation remain distinct. FIN-06 compliance-detail scoring and other unadjudicated edges stay open. Both entry points agree; no independent validation or learning-effectiveness claim. |
+| Structure / navigation | PASS | 36 nonempty Markdown files, balanced fences, 354 local targets including 167 fragment checks. Twenty-three absolute local source links remain in original quoted messages, with version-bound alternatives in source ledgers. Exactly two historical case sets retained. |
+| Exact scope | PASS | Four new run documents and five existing workflow documents staged; nine Markdown paths only. Prior validation plan receives a dated pointer; original finance reference/session/source documents are not edited. |
+| Existing project preservation | PASS | All 915 starting tracked paths outside the five authorized edits retain contents/modes; substituting the five starting contents reproduces the full 920-path snapshot. All 888 outside-workflow paths retain their fingerprint and all 556 pre-existing mode differences remain. Original evaluation set/scorer, policy, C17 and existing engineering acceptance unchanged. |
+| Publication checkout | PASS, local readback | Clean at `b7359371667d72abfe1a0cab4bc0f60a964deee8`; no edit, remote query, push or merge performed by this increment. |
+| Whitespace / verbatim format | EXPECTED FLAGS; remaining scope PASS | Default staged whitespace checking reports six original two-space Markdown hard breaks in the quoted assistant text, matching C1 messages 478/492/533/567 and the exact transcript. Retain them for source fidelity; no global whitespace suppression. All other eight staged paths pass the default check; no unexpected whitespace is accepted. |
+| Application / scorer / candidate / learning-effectiveness tests | NOT RUN — explicit user boundary | Document/Git checks only. No project/scorer import, pytest, model/API execution, new dependency, original-corpus change, live trial or reconstruction. |
+
+Delivery: reviewed local documentation commit only; final commit identity is reported in the task response. The original references remain available beside the new candidates, and scoring is a qualitative draft rather than an implemented/frozen benchmark. Independent reference review, unresolved scoring edges, execution setup/budget and all actual system/candidate validation remain pending. No push, merge, remote CI, code, new reconstruction folder or global-memory write.
+
+## Finance-QA review/scoring publication — authorized scope, 2026-10-25
+
+The user explicitly authorized this publication by the same pure-document method: only `BusinessAgent-workflow` document changes, preserve the existing local branch, exclude engineering commits, no merge, tests or reconstruction. The initial save-only receipt above remains historical.
+
+- Source record: local-only `a17dc4af502eb7955be2589296aea7d77e8f4c86`, parent `372fcc367dfae969bd38e88194af010db18ed156`. Transfer document content only, not commit ancestry.
+- Verified publication parent: `b7359371667d72abfe1a0cab4bc0f60a964deee8`; remote `main` at preparation is `065bdf7b31ce1fb6f9007a7e8851be36bfc2280f`.
+- Reused local publication branch: `codex/ai-pm-workflow-publish`; destination: `origin` (`https://github.com/zhenkun26/BusinessAgent.git`), `refs/heads/codex/ai-pm-workflow-v1`.
+- Original authoring branch remains `codex/ai-pm-workflow-v1` at `a17dc4a`, in `/Users/zhenkun/GitHub/BusinessAgent`; no checkout, reset, rebase, branch replacement or direct push of that branch.
+- Scope: four new review/scoring/session/source documents and six existing workflow documents, including publication count/authorization notes. Package total: 36 Markdown files, with exactly two historical cases. Three previous published financial-reference documents remain unchanged; original local counterparts remain unchanged in the authoring checkout.
+- Transformations: eight assistant source-link destinations bind the identical public policy; all thirteen learner responses, questions, seven original/revised reference blocks and four hypothetical candidate texts retain wording. Six original Markdown hard breaks remain; no global whitespace suppression. Raw logs and unpublished implementation sources are not copied.
+
+Before commit, compare the transcript against its log with only declared formatting/footer normalization and reversed source-link substitutions; check original/revised reference blocks, hypothetical texts, policy/draft bindings, links/anchors, attribution and bilingual scope. All are document/Git checks, not tests. Preserve all 924 original-checkout tracked contents/modes using compact UTF-8 JSON sorted `[path, stat.S_IMODE, SHA256(content)]` rows, starting fingerprint `41117b9e27af820ae14aa938f606642acd29193e69e25d16f1c3e496266eb037`; the 888 outside-workflow paths retain `e5cdb1406562a4dc78c7fd94f443af59b22da18d48efb6117a1f5535b8dee2ea`, including 556 pre-existing mode differences.
+
+Before push, verify none of the 31 engineering commits in `716f3b533e6a8693e84e6cb76e098dfd0f20af02..edc5c58e5783e5c3035d89a035917cae35cb3ef1`, nor any of the five local authoring commits (`ca90d3e`, `c322935`, `4819a02`, `372fcc3`, `a17dc4a`), is an ancestor of the final publication commit. Its sole parent must be `b735937`; all five publication commits and the cumulative diff from public `main` must contain only workflow Markdown. Re-read the remote, push only the destination ref without tags, then read back that ref and `main`. Inspect divergence rather than overwriting remote work.
+
+Publication preparation results on 2026-10-25:
+
+| Check | Result | Scope / limit |
+| --- | --- | --- |
+| Transcript fidelity | PASS | All 33 messages, including thirteen substantive learner responses and the preceding agenda, match the local log after declared normalization and reversal of exactly eight policy-link substitutions. Wording/order/role/phase/timestamps/locators and six original hard breaks retained. Original normalized SHA-256 remains `3a1b9eea3f7ffdd80932e4f8fec1dbac84e7b5adbcf08ba7fda9e41a3378b7cc`. |
+| Reference/scoring preservation | PASS | All seven original/revised comparison blocks equal the local source record; scoring-rules file is byte-identical. Three earlier published financial-reference documents equal their `b735937` Git objects. Original local counterparts retain their source bindings without being substituted for transformed published versions. |
+| Source / claim / bilingual review | PASS, scoped self-review | Policy bytes/hash match the pinned public baseline. Original-local versus published hashes, guided learner contributions, assistant-supplied categories/consolidation, fictional candidates and open scoring edges remain explicit. Both entry points agree; no independent validation, observed system score or new corpus item. |
+| Structure / scope | PASS | 36 nonempty Markdown files, balanced fences, 333 local targets including 173 fragment checks, zero absolute local hyperlinks. Exactly four added and six updated workflow Markdown paths staged; two historical case sets retained. |
+| Original checkout preservation | PASS | Original branch/HEAD remain `codex/ai-pm-workflow-v1` / `a17dc4a`. All 924 tracked contents/modes match starting fingerprint `41117b9e27af820ae14aa938f606642acd29193e69e25d16f1c3e496266eb037`; 888 outside-workflow paths and 556 pre-existing mode differences retained. Recheck after publication. |
+| Excluded ancestry | PASS, publication parent checked | None of the 31 excluded engineering commits or five local authoring commits is an ancestor of `b735937`. Verify again on the final single-parent commit; all five publication increments and the cumulative 36-path diff must be workflow Markdown only. |
+| Whitespace / source format | EXPECTED FLAGS; remaining scope PASS | Default checking reports exactly six source-matching two-space Markdown hard breaks in the new session, originating in C1 messages 478/492/533/567. Retain them for fidelity; no global suppression. The other nine staged paths pass default whitespace checking. Recheck the receipt update. |
+| Tests / runtime / reconstruction | NOT RUN — explicit user boundary | Document/Git checks only; no project/scorer import, model execution, pytest, dependency, new folder for reconstruction or implementation. No active local Git hooks or CI dispatch. Retained CI push triggers cover `main` and version tags, neither sent here. |
+
+Final commit and push/readback receipts belong in the task response. This preparation record does not claim a completed upload, remote CI, system score, independent validation or reconstruction.

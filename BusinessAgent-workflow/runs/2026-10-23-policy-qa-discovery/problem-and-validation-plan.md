@@ -6,6 +6,8 @@ Status: consolidated discovery draft and **PROPOSED / NOT STARTED** validation p
 
 Subsequent documentation-only follow-up, 2026-10-23: the [first financial-policy reference draft](../2026-10-23-finance-qa-reference-set/reference-set.md) now contains seven questions and one synthetic counterexample, with original answers, assistance history and versioned clauses. This advances reference authoring only; separate review, final scoring/denominator criteria and execution remain pending. The proposed sequence below is retained; it is not a completed test or G2 execution authorization.
 
+Further documentary follow-up, 2026-10-25: [seven-reference review candidates](../2026-10-25-finance-qa-review/reference-review.md) and a [minimal scoring draft](../2026-10-25-finance-qa-review/scoring-rules.md) now retain the original drafts, specific revisions and rule provenance. This is guided review with the same assistant, not independent validation; unresolved per-item scoring edges and execution inputs remain open. No original evaluation asset is modified and no G2 execution authority is granted.
+
 ## Two problems with different evidence
 
 | Problem | Evidence currently available | Desired change / unresolved question |
