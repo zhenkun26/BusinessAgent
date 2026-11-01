@@ -20,7 +20,7 @@ from app.config import get_settings
 from app.core.database import get_db
 from app.observability.audit import get_audit_logger
 from app.security.jwt_manager import get_jwt_manager
-from app.security.password import hash_password, verify_password
+from app.security.password import LEGACY_DEMO_PASSWORD_HASH, hash_password, verify_password
 from app.security.rbac import AgentRole, User, get_current_user
 
 router = APIRouter()
@@ -269,9 +269,8 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     """用户登录,返回 JWT
 
     认证策略:
-    - AUTH_REQUIRE_PASSWORD=false(演示默认):保留"密码任意"兼容,仅校验用户存在与启用
-    - AUTH_REQUIRE_PASSWORD=true(生产):校验 bcrypt 密码;错误/缺失统一 401,
-      文案与"用户不存在"一致,防止账号枚举
+    开发环境允许配置免密码演示。其他环境必须通过 bcrypt 验证，
+    仓库随附的演示哈希、缺失账户和错误密码统一返回 401。
     """
     # 查询用户(启用/禁用均查询,统一 401 文案防枚举)
     result = await db.execute(
@@ -281,8 +280,12 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     settings = get_settings()
     auth_ok = user is not None and user.is_active
-    if auth_ok and settings.auth_require_password:
-        auth_ok = verify_password(req.password, user.password_hash or "")
+    if auth_ok and (not settings.is_dev or settings.auth_require_password):
+        password_hash = user.password_hash or ""
+        auth_ok = (
+            (settings.is_dev or password_hash != LEGACY_DEMO_PASSWORD_HASH)
+            and verify_password(req.password, password_hash)
+        )
     if not auth_ok:
         # 统一文案:不区分"用户不存在"与"密码错误"
         raise HTTPException(401, "用户名或密码错误")

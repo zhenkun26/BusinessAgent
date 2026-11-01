@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from app.api.auth import router
 from app.config import get_settings
@@ -132,3 +135,38 @@ async def test_should_accept_correct_password_when_require_password_enabled(
 
     assert resp.status_code == 200
     assert resp.json()["user_id"] == "user_sales_001"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("use_demo_hash", "require_password", "correct_password", "expected_status"),
+    [
+        (True, True, True, 401),
+        (True, False, True, 401),
+        (False, False, False, 401),
+        (False, True, True, 200),
+    ],
+)
+async def test_production_local_login(
+    monkeypatch, use_demo_hash, require_password, correct_password, expected_status
+):
+    monkeypatch.setattr(get_settings(), "app_env", "prod")
+    monkeypatch.setattr(get_settings(), "auth_require_password", require_password)
+    monkeypatch.setattr("app.api.auth.get_audit_logger", lambda: AsyncMock())
+    password = "ChangeMe123!" if use_demo_hash else "rotated-test-credential"
+    # A retained database created by init.sql / migration 003.
+    legacy_hash = "$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO"
+    row = _make_user_row(legacy_hash if use_demo_hash else hash_password(password))
+    row.role = "admin"
+    session = FakeSession(responses=[FakeResult([row])])
+    transport = ASGITransport(app=_build_app(session, []))
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/login",
+            json={"username": row.username, "password": password if correct_password else "incorrect"},
+        )
+    assert response.status_code == expected_status
+    if expected_status == 401:
+        assert response.json() == {"detail": "用户名或密码错误"}
+    else:
+        assert response.json()["access_token"]

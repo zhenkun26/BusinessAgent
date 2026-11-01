@@ -3,12 +3,15 @@
 说明:
 - 直接使用 bcrypt 库而非 passlib(passlib 1.7.4 与 bcrypt>=4.1 不兼容,
   会报 __about__ 缺失/72 字节上限异常)。
-- 登录校验由 AUTH_REQUIRE_PASSWORD 开关控制(演示环境保持"密码任意"兼容)。
+- 开发演示可选择免密码登录。非开发环境拒绝仓库历史演示凭证。
 """
 
 from __future__ import annotations
 
 import bcrypt
+
+# deploy/init.sql 和历史迁移 003 随附的公开演示哈希。
+LEGACY_DEMO_PASSWORD_HASH = "$2b$12$LZNwZxsJxS.i9xKL7spB5eRn.X0p8l5hScV3v5ulwow6.8RFs4hKO"
 
 
 def hash_password(plain_password: str) -> str:

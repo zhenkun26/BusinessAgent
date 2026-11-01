@@ -95,6 +95,7 @@ cp .env .env.prod
 
 ```env
 APP_ENV=prod
+AUTH_REQUIRE_PASSWORD=true
 
 # 强密码(用 openssl rand -base64 32 生成)
 POSTGRES_PASSWORD=<生成新密码>
@@ -156,15 +157,46 @@ cd /opt/enterprise-agent
 git checkout main
 ```
 
-### 4.2 启动服务
+### 4.2 新库初始化与旧版登录升级
+
+在 `enterprise-agent/` 下操作，先将 API 入口限制为仅运维可达。既有部署先备份数据库，保留数据卷。生产模式拒绝随附的演示密码哈希。现有管理员若已使用独立密码，可直接进入登录验证。
+
+**首次创建管理员。** 仅启动 PostgreSQL。主分支生产 Compose 目前使用开发 Dockerfile，其 `COPY eval` 与 `.dockerignore` 冲突，新环境的完整应用构建仍待修复。以下步骤只依赖 PostgreSQL 容器和运维主机的 Python，通过交互式终端运行。
 
 ```bash
-# 启动核心服务(不含监控)
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait postgres
+admin_venv=$(mktemp -d)
+python3 -m venv "$admin_venv"
+"$admin_venv/bin/python" -m pip install bcrypt==5.0.0
+"$admin_venv/bin/python" - <<'PY'
+from getpass import getpass
+import subprocess
+import uuid
 
-# 启动监控(Prometheus + Grafana)
-docker compose -f docker-compose.prod.yml --profile monitoring up -d
+import bcrypt
+
+account = "ops_" + uuid.uuid4().hex
+password = getpass("新管理员独立密码（至少 12 字符）: ")
+if len(password) < 12 or len(password.encode()) > 72 or password != getpass("再次输入: "):
+    raise SystemExit("密码需匹配且不超过 72 字节")
+digest = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+# COPY 的五个字段来自程序生成的标识、固定值和 bcrypt 哈希。
+row = "\t".join([account, account, "admin", "shared_company", digest])
+subprocess.run(
+    ["docker", "compose", "--env-file", ".env.prod", "-f", "docker-compose.prod.yml",
+     "exec", "-T", "postgres", "sh", "-c",
+     'exec psql -Xq -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'],
+    input="COPY users (user_id,username,role,department,password_hash) FROM STDIN;\n"
+          + row + "\n\\.\n",
+    text=True, check=True,
+)
+print("管理员用户名:", account)
+PY
 ```
+
+每次执行会创建一个新的管理员。妥善保存成功输出的用户名和刚设置的密码。对于既有部署，替换 `.env.prod` 中的 `JWT_SECRET_KEY` 并重新创建使用该密钥的所有 API 和 worker 实例，使旧的 API 登录令牌失效。核查此前的管理员登录与权限变更，确认业务账号均有独立密码，禁用闲置演示账号，并复核仍待处理的审批。
+
+**登录验收。** 在包含本次修复的实例上通过 HTTPS 打开 `/docs`。调用 `POST /api/v1/auth/login`，独立管理员的正确凭证应返回 200 和令牌。错误密码以及仍使用原演示哈希的账号均应返回 401。通过 Swagger UI 的 Authorize 输入新令牌，调用 `GET /api/v1/auth/me` 核对用户和角色。轮换前的令牌应返回 401。验证后再开放入口。
 
 ### 4.3 验证部署
 
