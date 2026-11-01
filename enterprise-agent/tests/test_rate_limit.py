@@ -109,10 +109,10 @@ async def test_should_preserve_memory_state_when_redis_fails_during_a_request(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("path,limit", [("/api/v1/auth/login", 10),
-                                       ("/api/v1/chat/session", 30), ("/other", 2)])
+@pytest.mark.parametrize("path,limit,key", [("/api/v1/auth/login", 10, "ip:127.0.0.1"),
+    ("/api/v1/chat/session", 30, "user:user-42"), ("/other", 2, "user:user-42")])
 async def test_should_preserve_route_limit_and_user_key_when_user_is_identified(
-    monkeypatch: pytest.MonkeyPatch, path: str, limit: int,
+    monkeypatch: pytest.MonkeyPatch, path: str, limit: int, key: str,
 ) -> None:
     memory = SimpleNamespace(is_allowed=AsyncMock(return_value=(True, 1)))
     monkeypatch.setattr(rate_limit, "_memory_limiter", memory)
@@ -123,7 +123,7 @@ async def test_should_preserve_route_limit_and_user_key_when_user_is_identified(
         request(path), AsyncMock(return_value=Response("ok")),
     )
 
-    memory.is_allowed.assert_awaited_once_with("user:user-42", limit, window_seconds=60)
+    memory.is_allowed.assert_awaited_once_with(key, limit, window_seconds=60)
     assert response.headers["X-RateLimit-Limit"] == str(limit)
 
 
