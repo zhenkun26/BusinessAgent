@@ -42,6 +42,19 @@ The shipped sample documents and interface are primarily in Chinese; the request
 > Business tools use the Mock provider by default, and analysis currently reads built-in sample data.
 > These examples demonstrate workflows. Connecting real business systems requires adapter configuration and integration testing.
 
+### Try an offline example
+
+Which policies can a salesperson read? The bundled example lets you inspect that decision with Python 3.11 or later. After cloning or unpacking the repository, run these commands from its root. You do not need project dependencies, Docker, or a model API key.
+
+```bash
+cd enterprise-agent
+python3 -m eval.run_uat_replay
+```
+
+On Windows, use `py -3` in place of `python3` if you have the Python launcher. Open `eval/results/uat_replay_report.md` from the current directory and find `scenario-UAT-K02`. This check verifies that the sample salesperson can read the sales quotation guide while the finance department's refund policy is restricted. [Scenario data](enterprise-agent/eval/uat_simulation/fixture.json)
+
+The bundled fixture should report `passed` for 16 checks across 12 synthetic scenarios. The replay only checks preset data against its rules. To ask your own question in the Web UI, follow the [quick start](#quick-start) to launch the full application.
+
 ## Core capabilities
 
 ### Multi-agent orchestration
