@@ -84,17 +84,17 @@ async def _send_internal_mail(
     Mock 阶段写入内存存储;真实阶段由 external-system-integration 的
     HTTP 适配器接管(本函数签名不变)。
     """
-    from app.tools.mail import _mock_sent_emails, SendEmailInternalTool
+    from app.tools.mail import SendEmailInternalTool
 
     tool = SendEmailInternalTool()
     subject = f"【审批通知】{approval_id} - {result_type}"
     body = f"您发起的审批单 {approval_id} 已进入 {result_type} 状态。\n详情:{detail}"
     tool_result = await tool._execute(  # noqa: SLF001 通知内部直接调用,不经过 RBAC
-        params={
+        params=tool._validate_params({
             "to": [requester_email],
             "subject": subject,
             "body": body,
-        },
+        }),
         context={
             "user_id": "system",
             "role": "admin",

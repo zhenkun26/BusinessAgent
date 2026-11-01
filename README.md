@@ -40,6 +40,19 @@ BusinessAgent 通过 Planner 拆解请求，由不同 Agent 处理子任务，�
 > 默认业务工具使用 Mock provider，数据分析当前使用内置样例数据。
 > 示例用于体验工作流；连接真实业务系统需要配置适配器并完成联调。
 
+### 先试一个离线示例
+
+想知道销售能看哪些制度，可以先查看内置样例。克隆或解压仓库后，从仓库根目录运行以下命令。只需 Python 3.11 或更高版本，无需安装项目依赖、启动 Docker 或配置模型密钥。
+
+```bash
+cd enterprise-agent
+python3 -m eval.run_uat_replay
+```
+
+Windows 安装了 Python 启动器时，可将 `python3` 换成 `py -3`。在当前目录打开 `eval/results/uat_replay_report.md`，找到 `scenario-UAT-K02`。这一项检查样例中的销售人员可以读取销售报价指南，同时无法读取财务部的退款制度。[场景数据](enterprise-agent/eval/uat_simulation/fixture.json)
+
+当前样例预期显示 `passed`，16 项检查覆盖 12 个合成场景。回放仅核对预设数据与规则。要在浏览器里输入自己的问题，请按[快速开始](#快速开始)启动完整应用。
+
 ## 核心能力
 
 ### 多智能体编排

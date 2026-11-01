@@ -67,7 +67,7 @@ jobs:
           EXEMPTIONS=$(grep -vE '^\s*(#|$)' deploy/security-exemptions.txt \
             | cut -d'|' -f1 | tr -d ' ' | sed 's/^/--ignore-vuln /' | tr '\n' ' ')
           pip-audit -r deploy/requirements-prod.txt --progress-spinner off $EXEMPTIONS \
-            | tee pip-audit-report.txt
+            --output pip-audit-report.txt
 
       - name: 上传 pip-audit 报告
         if: always()

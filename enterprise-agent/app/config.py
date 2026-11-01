@@ -192,6 +192,8 @@ def validate_production_settings(settings: Optional[Settings] = None) -> list[st
         return []
 
     violations: list[str] = []
+    if not settings.auth_require_password:
+        violations.append("非开发环境必须启用 AUTH_REQUIRE_PASSWORD=true")
     for field_name, default_value in _DEFAULT_SECRETS.items():
         actual = getattr(settings, field_name)
         if actual == default_value:

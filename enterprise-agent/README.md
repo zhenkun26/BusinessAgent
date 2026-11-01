@@ -63,6 +63,8 @@ curl -X POST http://localhost:8000/api/v1/auth/refresh \
 
 ### 5. 发送对话
 
+首次调用普通或流式对话接口时，省略 `session_id` 或传 `null`。续聊时传入服务端此前为当前用户返回的 ID，已有会话仍可使用。指定未知 ID 或他人 ID 会返回 404。
+
 ```bash
 # 知识问答(RAG)
 curl -X POST http://localhost:8000/api/v1/chat/message \

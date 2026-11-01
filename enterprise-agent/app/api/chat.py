@@ -23,6 +23,7 @@ from app.core.database import get_db
 from app.observability.audit import get_audit_logger
 from app.prompts import reset_prompt_user, set_prompt_user
 from app.security.rbac import User, get_current_user, AgentRole, security_scheme
+from app.security.session_access import prepare_chat_session, require_session_access
 
 router = APIRouter()
 
@@ -82,7 +83,7 @@ class ChatRequest(BaseModel):
     """对话请求"""
 
     message: str = Field(..., description="用户消息", min_length=1, max_length=2000)
-    session_id: Optional[str] = Field(None, description="会话 ID,首次对话不传(复用则断点恢复)")
+    session_id: Optional[str] = Field(None, description="已有本人会话 ID；首次对话省略或传 null")
 
 
 class ChatResponse(BaseModel):
@@ -113,13 +114,13 @@ async def send_message(
     """
     import time
 
+    # Authorize before graph imports, audits, checkpoint access or task registration.
+    session_id = await prepare_chat_session(db, user, req.session_id, req.message)
+
     from app.graph.graph import run_graph
     from app.graph.state import UserInput
 
     start = time.time()
-
-    # 会话 ID(同时作为 LangGraph thread_id,用于 Checkpointer 断点恢复)
-    session_id = req.session_id or f"sess_{user.user_id}_{uuid.uuid4().hex[:8]}"
 
     # 真实 JWT(审批建单时作为 requester_token 存储,审批通过后恢复执行用)
     jwt_token = credentials.credentials if credentials else ""
@@ -143,19 +144,6 @@ async def send_message(
         conversation_id=session_id,
         request_id=str(uuid.uuid4()),
     )
-
-    # sessions 生命周期(P2-4):入口置 running;续聊/审批占位行则更新回 running
-    await db.execute(
-        text(
-            "INSERT INTO sessions (session_id, user_id, original_query, status, started_at) "
-            "VALUES (:sid, :uid, :q, 'running', CURRENT_TIMESTAMP) "
-            "ON CONFLICT (session_id) DO UPDATE "
-            "SET status = 'running', original_query = EXCLUDED.original_query, "
-            "    completed_at = NULL, error = NULL"
-        ),
-        {"sid": session_id, "uid": user.user_id, "q": req.message[:500]},
-    )
-    await db.commit()
 
     # P2-1:设置 prompt 分流用户(contextvar;create_task 会复制上下文传入图内)
     prompt_token = set_prompt_user(user.user_id)
@@ -277,13 +265,15 @@ async def stream_message(
     """
     import time
 
+    # Reject unauthorized IDs before constructing a StreamingResponse/producer.
+    session_id = await prepare_chat_session(db, user, req.session_id, req.message)
+
     from fastapi.responses import StreamingResponse
 
     from app.graph.graph import run_graph_stream
     from app.graph.state import UserInput
 
     start = time.time()
-    session_id = req.session_id or f"sess_{user.user_id}_{uuid.uuid4().hex[:8]}"
     jwt_token = credentials.credentials if credentials else ""
 
     audit = get_audit_logger()
@@ -293,18 +283,6 @@ async def stream_message(
         user_id=user.user_id,
         input_summary=req.message[:500],
     )
-    await db.execute(
-        text(
-            "INSERT INTO sessions (session_id, user_id, original_query, status, started_at) "
-            "VALUES (:sid, :uid, :q, 'running', CURRENT_TIMESTAMP) "
-            "ON CONFLICT (session_id) DO UPDATE "
-            "SET status = 'running', original_query = EXCLUDED.original_query, "
-            "    completed_at = NULL, error = NULL"
-        ),
-        {"sid": session_id, "uid": user.user_id, "q": req.message[:500]},
-    )
-    await db.commit()
-
     user_input = UserInput(
         message=req.message,
         user_id=user.user_id,
@@ -444,16 +422,7 @@ async def cancel_message(
       (Agent 内 LLM 调用已 ainvoke 化,LLM 等待期间即可生效)
     - 已执行的工具副作用不撤销(取消 ≠ 回滚)
     """
-    row = (
-        await db.execute(
-            text("SELECT user_id, status FROM sessions WHERE session_id = :sid"),
-            {"sid": req.session_id},
-        )
-    ).mappings().first()
-    if not row:
-        raise HTTPException(404, "会话不存在")
-    if row["user_id"] != user.user_id and user.role != AgentRole.ADMIN.value:
-        raise HTTPException(403, "只能取消本人的会话")
+    await require_session_access(db, req.session_id, user, allow_admin=True, lock=True)
 
     cancelled = request_cancel(req.session_id)
     if cancelled:
@@ -472,6 +441,8 @@ async def get_history(
     db=Depends(get_db),
 ):
     """获取会话历史(W8:从 LangGraph Checkpointer 读取)"""
+    row = await require_session_access(db, session_id, user)
+
     from app.graph.checkpointer import get_checkpointer
 
     try:
@@ -481,21 +452,13 @@ async def get_history(
         # 获取最新 checkpoint
         checkpoint_tuple = await checkpointer.aget_tuple(config)
         if checkpoint_tuple is None:
-            # P2-4:checkpointer 未命中时回查 sessions 表,返回元信息兜底
-            row = (
-                await db.execute(
-                    text("SELECT status FROM sessions WHERE session_id = :sid"),
-                    {"sid": session_id},
-                )
-            ).mappings().first()
-            if row:
-                return {
-                    "session_id": session_id,
-                    "messages": [],
-                    "found": False,
-                    "session_status": row["status"],
-                }
-            return {"session_id": session_id, "messages": [], "found": False}
+            # Only metadata already authorized by the ownership lookup may be returned.
+            return {
+                "session_id": session_id,
+                "messages": [],
+                "found": False,
+                "session_status": row["status"],
+            }
 
         # 提取状态快照
         state = checkpoint_tuple.checkpoint.get("channel_values", {})
@@ -540,15 +503,8 @@ async def submit_feedback(
     - dislike 且带 comment 且开启 kb_feedback_auto_draft 时,
       自动在 documents 表生成知识候选(status=draft),供运营审核后入库
     """
-    # upsert 会话行(chat 不写 sessions 表,user_feedback 外键依赖)
-    await db.execute(
-        text(
-            "INSERT INTO sessions (session_id, user_id, status) "
-            "VALUES (:sid, :uid, 'completed') "
-            "ON CONFLICT (session_id) DO NOTHING"
-        ),
-        {"sid": req.session_id, "uid": user.user_id},
-    )
+    # Hold ownership stable until feedback/draft writes commit; never create placeholders.
+    await require_session_access(db, req.session_id, user, lock=True)
 
     # 写入反馈
     await db.execute(

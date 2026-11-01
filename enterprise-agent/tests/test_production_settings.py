@@ -21,6 +21,7 @@ def test_should_flag_default_secrets_in_production():
 
     violations = validate_production_settings(settings)
 
+    assert any("AUTH_REQUIRE_PASSWORD" in v for v in violations)
     assert any("jwt_secret_key" in v for v in violations)
     assert any("postgres_password" in v for v in violations)
     assert any("redis_password" in v for v in violations)
@@ -36,6 +37,7 @@ def test_should_pass_when_production_secrets_overridden():
         postgres_password="prod-pg-strong-pass-123456",
         redis_password="prod-redis-strong-pass-123456",
         milvus_password="prod-milvus-strong-pass-123456",
+        auth_require_password=True,
         cors_allow_origins="https://agent.example.com",
     )
 
