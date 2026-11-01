@@ -86,11 +86,19 @@ class SecretScanTests(unittest.TestCase):
         self.git(*options)
         return self.git("rev-parse", "HEAD")
 
+    @staticmethod
+    def synthetic_key() -> str:
+        # Random words can hit the generic rule's built-in stopwords. Alternating
+        # letters/digits avoids that domain; balanced counts ensure high entropy.
+        # No scanner retry or filtering is used to select a passing value.
+        random_source = secrets.SystemRandom()
+        letters = random_source.sample(string.ascii_letters, 32)
+        digits = list(string.digits * 3 + "01")
+        random_source.shuffle(digits)
+        return "".join(letter + digit for letter, digit in zip(letters, digits))
+
     def leak(self, path: str = "application/settings.py") -> None:
-        # Keep lexical boundaries stable while generating a fresh high-entropy value.
-        # URL-safe base64 values were not consistently recognized by the default rule.
-        alphabet = string.ascii_letters + string.digits
-        value = "Synth" + "".join(secrets.choice(alphabet) for _ in range(48))
+        value = self.synthetic_key()
         self.values.append(value)
         self.write(path, 'api_key = "' + value + '"\n')
 
@@ -175,6 +183,23 @@ class SecretScanTests(unittest.TestCase):
                          "Old-flag negative control unexpectedly detected fixture")
         self.assertEqual(json.loads(report.read_text()), [])
         return result.returncode
+
+    def test_generated_positive_controls_are_all_detected(self) -> None:
+        # One predetermined batch, not repeated attempts until a scanner passes.
+        expected_paths = {f"application/control_{number}.py" for number in range(32)}
+        for path in sorted(expected_paths):
+            self.leak(path)
+            self.assertRegex(self.values[-1], r"(?:[a-zA-Z][0-9]){32}\Z")
+        head = self.commit("fixed-size synthetic positive-control batch")
+        code, summary, output = self.run_scan(self.push(self.base, head))
+        self.assertEqual(code, 2)
+        self.assertEqual(summary["status"], "findings")
+        for phase in ("history", "tree"):
+            findings = json.loads((output / (phase + ".json")).read_text())
+            self.assertEqual(len(findings), 32)
+            self.assertEqual({f["File"] for f in findings}, expected_paths)
+            self.assertEqual({f["StartLine"] for f in findings}, {1})
+            self.assertEqual({f["RuleID"] for f in findings}, {"generic-api-key"})
 
     def test_clean_push(self) -> None:
         self.write("application/clean.py", "answer = 42\n")
@@ -268,8 +293,7 @@ class SecretScanTests(unittest.TestCase):
         self.assert_scan(2, self.push(before, head), history=False, tree=True)
 
     def test_symlink_does_not_read_external_target(self) -> None:
-        alphabet = string.ascii_letters + string.digits
-        value = "Synth" + "".join(secrets.choice(alphabet) for _ in range(48))
+        value = self.synthetic_key()
         self.values.append(value)
         outside = self.directory / "external.py"
         outside.write_text('api_key = "' + value + '"\n')
