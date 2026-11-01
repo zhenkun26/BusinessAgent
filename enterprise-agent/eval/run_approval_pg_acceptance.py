@@ -596,7 +596,7 @@ class Acceptance(unittest.IsolatedAsyncioTestCase):
         finally:
             await transaction.rollback()
         self.assertIsNone(self.deadline.contract(await self.row(self.legacy_id)))
-        self.assertEqual(await self.ddl.fetchval("SELECT tgenabled FROM pg_trigger WHERE "
+        self.assertEqual(await self.ddl.fetchval("SELECT tgenabled::text FROM pg_trigger WHERE "
             "tgrelid='public.approval_requests'::regclass AND tgname='approval_contract_v2_immutable'"), "A")
         self.report["negative_controls"] = {"guard_disabled_upgrade_succeeds_then_rolled_back": True}
 

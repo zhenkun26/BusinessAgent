@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import ast
 from contextlib import redirect_stderr
 import hashlib
 import importlib.util
@@ -13,7 +14,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "eval/run_approval_pg_acceptance.py"
@@ -156,6 +157,58 @@ print('STDLIB_IMPORT_ONLY')
                                 capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr[:300])
         self.assertEqual(result.stdout.strip(), 'STDLIB_IMPORT_ONLY')
+
+    async def run_guard_control(self, enabled, *, original_query=False):
+        """Model asyncpg's catalog char codec without importing a DB driver."""
+        transaction = Mock(start=AsyncMock(), rollback=AsyncMock())
+        ddl = Mock()
+        ddl.transaction.return_value = transaction
+        ddl.execute = AsyncMock(side_effect=["ALTER TABLE", "UPDATE 1"])
+
+        async def fetchval(query, *args):
+            if "tgenabled" in query:
+                return enabled if "tgenabled::text" in query else enabled.encode()
+            return "{}"
+
+        ddl.fetchval = AsyncMock(side_effect=fetchval)
+        case = HARNESS.Acceptance("test_postgresql_acceptance")
+        case.ddl, case.guard_value, case.legacy_id = ddl, "{}", "fixture_legacy"
+        case.deadline = Mock(contract=Mock(return_value=None))
+        case.row, case.report = AsyncMock(return_value=object()), {}
+        method = HARNESS.Acceptance.guard_negative_control
+        if original_query:
+            # Reproduce the pre-fix query while keeping all other assertions intact.
+            source = SOURCE.read_text()
+            self.assertEqual(source.count("SELECT tgenabled::text FROM pg_trigger WHERE "), 1)
+            tree = ast.parse(source.replace("SELECT tgenabled::text FROM pg_trigger WHERE ",
+                                            "SELECT tgenabled FROM pg_trigger WHERE "))
+            definition = next(node for node in tree.body
+                              if isinstance(node, ast.ClassDef) and node.name == "Acceptance")
+            method_node = next(node for node in definition.body
+                               if isinstance(node, ast.AsyncFunctionDef)
+                               and node.name == "guard_negative_control")
+            namespace = {}
+            exec(compile(ast.Module(body=[method_node], type_ignores=[]),
+                         "original_guard_negative_control", "exec"), namespace)
+            method = namespace["guard_negative_control"]
+        try:
+            await method(case)
+        finally:
+            transaction.rollback.assert_awaited_once()
+        self.assertTrue(case.report["negative_controls"][
+            "guard_disabled_upgrade_succeeds_then_rolled_back"])
+
+    def test_original_catalog_char_comparison_fails(self):
+        with self.assertRaises(AssertionError):
+            asyncio.run(self.run_guard_control("A", original_query=True))
+
+    def test_catalog_text_cast_preserves_guard_negative_control(self):
+        asyncio.run(self.run_guard_control("A"))
+
+    def test_guard_restoration_still_rejects_non_always_states(self):
+        for enabled in ("D", "O", ""):
+            with self.subTest(enabled=enabled), self.assertRaises(AssertionError):
+                asyncio.run(self.run_guard_control(enabled))
 
     def test_missing_failed_or_truthy_check_never_passes(self):
         good = {name: {"passed": True} for name in HARNESS.MANDATORY}

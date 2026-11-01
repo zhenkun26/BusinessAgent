@@ -1,7 +1,10 @@
 # Approval UTC and human review candidate
 
 This is a local candidate against public main `5c57f0c719a4a079b94fdd8108cd6bcb20b01351`.
-It has not been deployed or accepted against PostgreSQL. A standalone additive 009 schema increment is included but has NOT been executed. The public baseline has migrations 001–005; they are unchanged. Unpublished 006–008 are neither copied nor overwritten.
+Core application/schema acceptance has passed on isolated PostgreSQL with synthetic data.
+This is not full application or deployment acceptance, and no production database was changed.
+The standalone additive 009 schema increment was executed only in the synthetic fixtures.
+Public migrations 001–005 and init.sql are unchanged; unpublished 006–008 are neither copied nor overwritten.
 
 ## Behavior and human authority
 
@@ -17,7 +20,7 @@ with which to distinguish a retry from a different request. Read-only queries re
 This deliberately broad scope needs product acceptance before release.
 
 AI can summarize evidence, explain risks and suggest options. It cannot supply a human decision,
-clear a hold, re-sign an old approval or authorize another execution. No release/resubmit endpoint
+clear a hold, promote an old approval or authorize another execution. No release/resubmit endpoint
 is provided here. An authorized human must check the original record, provider evidence and
 possible effects; a separately reviewed operational procedure is required to enact that decision.
 Do not manually mark unknown records as successful or create replacements to bypass the hold.
@@ -51,8 +54,8 @@ The database guard rejects every UPDATE change to the contract, including NULL p
 and content replacement. Only a new server writer INSERT creates trusted provenance. New imports
 without trusted metadata remain NULL and held; there is no legacy backfill or release procedure.
 
-No new long-lived signing key is required or configured. The earlier local HMAC candidate is
-retained for evidence only. A dedicated column is appropriate here because the server already owns
+No new long-lived signing key is required or configured. A dedicated column is appropriate
+here because the server already owns
 all trusted database writes. It avoids secret distribution/rotation while making legacy NULL explicit.
 This is not protection from database administrators, arbitrary SQL/application compromise or
 rollback, and it is not proof that a human approved an operation. Authentication, current roles
@@ -73,8 +76,13 @@ is independent of unpublished migrations 006–008 and must never overwrite thei
   no new `executing` records exist. Disabling execution is the safe rollback direction.
 - Apply the new schema increment only in a separately authorized rollout after stopping old
   executors. Use a DDL identity for schema installation and an application identity without DDL
-  or superuser privileges. The acceptance fixture must verify that permission split. No production
+  or superuser privileges. The synthetic acceptance verified that permission split. No production
   access or migration has been authorized or performed here.
+- Both new installations and existing databases must explicitly execute the complete 009 SQL file
+  before enabling this application version. CI, application startup and image startup do not apply
+  it. Compose mounts only the old init.sql; copying migrations into the image does not install them.
+  Without 009, approval queries fail on the missing column. This is not a drop-in rolling upgrade.
+  No startup migration, legacy backfill or automatic repair is provided.
 - Endpoint/provider/override changes pause outstanding contracts if their target snapshot differs. The contract does not
   bind the account/principal behind an API credential: account changes require human review
   even if the URL stays the same. Never interpret secret rotation as proof that the target
@@ -85,41 +93,62 @@ is independent of unpublished migrations 006–008 and must never overwrite thei
 - Public migrations 001–005 and the old init.sql are untouched; this patch does not supply or depend on unpublished 006–008. Historical naive timestamps are not
   interpreted as recoverable UTC. Terminal historical records are not changed.
 
-## Required real database acceptance (pending authorization)
+## Completed synthetic PostgreSQL acceptance
 
-Use a new owned PostgreSQL 16 fixture containing only synthetic users/approvals and mock provider
-boundaries. Do not connect to an existing database or resume old containers. Run the candidate's
-actual writer, API handlers and scanner, not an equivalent SQL-only experiment. Record image
-version/digest, architecture and candidate SHA. Use a new PG container with network none and an ephemeral Python runner sharing only its loopback
-network namespace. Neither publishes host ports or starts the business server. Proposed aggregate
-limits are 2 CPU / 3 GiB. The prepared runner bounds work to 450 seconds, evidence transport to
-30 seconds, and then makes independently bounded owned-resource stop attempts. A failed Docker
-connection cannot guarantee shutdown within a hard wall-clock deadline; it is a failure requiring
-explicit retained-resource reporting, never a pass. Preserve evidence before cleanup; permanent
-deletion of the two owned containers and their single synthetic data volume requires explicit
-approval together with execution. Failed runs stop and retain resources for inspection.
+On 2026-11-01, two new isolated PostgreSQL 16.15 (linux/arm64) databases completed all
+25 required core checks each, using a fixed published Python 3.13 runner (linux/amd64).
+Both started empty and applied the actual init.sql, public migrations 001–005 and candidate 009.
+The second fixture additionally inserted an expired legacy pending approval with a forged payload
+version before 009. These are two synthetic fixtures, not existing enterprise deployments.
 
-Exercise UTC and Asia/Shanghai sessions, DST scenarios, delayed transactions and the exact expiry
-boundary; NULL/malformed old contracts; forged metadata and modified plans; two independent
-connections claiming one approval; creation/direct-action races against a hold; lost commit
-acknowledgement; provider success followed by result-write failure; cancellation; partial multi-step
-results; batch stopping and expiration scans beyond 100 old records. Verify preserved old rows and
-one simulated dispatch at most per approval, including failure paths. No real email/API is permitted.
-Test the additive migration only in new synthetic fixture databases, including repeat/rollback and
-immutable-column failures. After any new contracts exist, dropping the column or running the old
-executor is not a safe rollback; stop execution and retain evidence instead. Approval of this plan does not authorize
-business deployment, production changes or a hold-release operation.
+The application and SQL tested were from candidate
+`05297375d297179a3b069bb2069a004deaea584e`. A separately bound harness corrected one query from
+`SELECT tgenabled` to `SELECT tgenabled::text`, because asyncpg decodes PostgreSQL's catalog char
+as bytes. The corrected harness is now included byte-for-byte; production code and SQL remain
+identical to the tested candidate. The original uncorrected harness did not pass this acceptance.
+The correction preserves the strict trigger-state assertion and has an old-query negative control.
 
+All 25 required stages passed in each fixture, with no missing or skipped required stages.
+They exercised the real writer, approval handlers, timeout scanner and migration SQL. Coverage
+included UTC/Asia-Shanghai 24-hour deadlines, expiry rejection, preserved legacy NULL contracts,
+forged payload holds, immutable contract updates, malformed inserts, atomic migration rollback,
+repeat installation and representative schema drift. Independent database sessions demonstrated
+actual lock contention before claim commit, then one simulated effect and duplicate rejection.
+Commit acknowledgement loss, outcome persistence failure, payload drift, task cancellation,
+partial tool failure, pagination and batch stopping also passed. The disabled-trigger negative
+control succeeded only within its rolled-back transaction; the ALWAYS guard was then verified.
 
-The prepared `eval/run_approval_pg_acceptance.py` requires explicit execution authorization and
-verifies the candidate export and exact synthetic database/run markers before connecting. Its
-25 mandatory stages cover the core application/schema path; missing, skipped or non-boolean-pass
-results fail the run. `--help` and pure harness-guard tests do not connect to PostgreSQL.
-Current offline evidence is 320 tests + 71 subtests, and 26 secret-scanner regression tests. These
-are not database acceptance results. The earlier HMAC candidate's counts must not be reused here.
+No real email or provider API was called. The fixture had no host ports and used only synthetic
+identities and data. Reports and source hashes were saved before stopping; successful fixtures
+were deleted under explicit cleanup authorization. Earlier failed validation attempts and private
+runtime records remain outside the public patch. A pure test suite and independent review covered
+the harness type correction and evidence export; these are distinct from the actual PG results.
+The preceding application regression baseline was 320 tests plus 71 subtests, with 26 secret-scan
+regression tests. Counts for later harness-only tests must not be presented as a new full-suite run.
 
-The prepared PG stage deliberately does not certify HTTP authentication wiring, real providers,
-LLM/Redis, DST/long-open transaction cases, concurrent creation/direct-action owner holds,
-cross-process termination or audit-write failure injection. Representative schema drift and bad
-JSON cases are included; exhaustive catalog/JSON mutation is not claimed. The harness records
-these limits in `not_covered`; a core PASS must not be relabelled complete deployment acceptance.
+## Acceptance boundaries and future operation
+
+`eval/run_approval_pg_acceptance.py` requires explicit execution and verifies a complete source
+export and synthetic fixture arguments before connecting. After connecting, it verifies the
+server/database/run markers and role privileges before schema or application operations.
+Import, `--help` and pure guard tests do not connect. All 25 mandatory stages must return boolean true; missing or skipped
+stages fail. Running this harness against a new source revision requires a newly bound export.
+Keep fixture execution and any permanent synthetic cleanup within their explicit authorization;
+preserve reports before stopping and retain failed fixtures for inspection. A failed Docker
+connection cannot guarantee shutdown within a hard wall-clock deadline.
+
+This acceptance does not cover HTTP login/authentication dependency routing, full document/RAG
+flows, real providers, LLM/Redis, DST or deliberately long-open transactions, concurrent creation
+or direct-action owner holds, cross-process termination during a provider effect, or audit-write
+failure injection. The boundary check is at-or-before the actual database clock, not a frozen
+microsecond. Catalog/JSON mutation cases are representative rather than exhaustive.
+
+A core PASS is not complete deployment acceptance or proof of exactly-once external delivery.
+It does not authorize AI to approve, unpause or reexecute uncertain legacy records. Dropping the
+contract column or restoring the old executor is not a safe rollback; disable execution instead.
+
+The existing PR workflow runs tests, secret/dependency scans and a local image build/scan; it
+does not publish GHCR images for pull_request events. A successful push to main or a matching
+version tag publishes the commit-tagged image and latest. Neither operation runs 009 or deploys
+the business application. Publication, image release and any actual rollout remain separate
+approval scopes; this candidate makes no changes to that workflow.
