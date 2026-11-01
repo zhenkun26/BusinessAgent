@@ -1,0 +1,19 @@
+# Reviewed source SHA-256 fingerprints from the historical C24 manifest, not credentials.
+# Each digest must match its referenced Git blob at the recorded commit.
+# Exact commit/path/rule/line scope; scan range and all other findings remain unchanged.
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:20
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:43
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:65
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:86
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:90
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:136
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:140
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:146
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:177
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:236
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:237
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:245
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:246
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:252
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:282
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:285
