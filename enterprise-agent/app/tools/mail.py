@@ -10,12 +10,13 @@ W7 阶段用 Mock 实现,接口契约对应真实邮件 API:
 
 权限设计:
 - send_email_internal: salesperson/customer_service/finance/manager 均可用
-- send_email_external: 仅 manager/admin 可用(防止数据外泄)
+- send_email_external: 销售、经理与管理员可发起，发送前需审批
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from typing import Any, Optional
 
@@ -28,6 +29,26 @@ from app.tools.http_adapter import call_external_api
 
 
 # ============ Schemas ============
+
+# Provider payloads accept one bare mailbox per list item, never an address header.
+_LOCAL_ATOM = r"[\w!#$%&'*+/=?^`{|}~-]+"
+_DOMAIN_LABEL = r"[^\W_]+(?:-+[^\W_]+)*"
+_MAILBOX = re.compile(rf"{_LOCAL_ATOM}(?:\.{_LOCAL_ATOM})*@{_DOMAIN_LABEL}(?:\.{_DOMAIN_LABEL})*")
+
+
+def has_external_recipient(params: dict[str, Any]) -> bool:
+    """Classify a plan before RBAC. The schema separately rejects malformed inputs."""
+    for field in ("to", "cc"):
+        addresses = params.get(field)
+        if isinstance(addresses, str):
+            addresses = [addresses]
+        if isinstance(addresses, (list, tuple)) and any(
+            isinstance(address, str) and "@" in address
+            and address.rpartition("@")[2].lower() != "company.internal"
+            for address in addresses
+        ):
+            return True
+    return False
 
 
 class SendEmailSchema(BaseModel):
@@ -50,17 +71,20 @@ class SendEmailSchema(BaseModel):
     @field_validator("to", "cc")
     @classmethod
     def addresses_must_be_valid(cls, v):
-        """收件地址语义校验:拒绝空串/无 @ 的无效地址。
-
-        LLM 在收件人未知时可能输出 "" 或 ["收件人姓名"] 兜底,
-        这类参数批准后按冻结负载执行必失败,必须在入口处拦下。
-        """
+        """每项为一个独立邮箱，拒绝拼接地址、显示名及注入的邮件头。"""
         if v is None:
             return v
         for addr in v:
-            if not isinstance(addr, str) or not addr.strip() or "@" not in addr:
-                raise ValueError(f"无效的收件人地址: {addr!r}(需为含 @ 的邮箱地址)")
+            if not _MAILBOX.fullmatch(addr):
+                raise ValueError("每个收件人地址项须为一个完整的邮箱地址")
         return v
+
+    @field_validator("subject")
+    @classmethod
+    def subject_is_single_line(cls, value: str) -> str:
+        if "\r" in value or "\n" in value:
+            raise ValueError("邮件主题须为单行")
+        return value
 
     @field_validator("subject", "body")
     @classmethod
@@ -91,6 +115,12 @@ class SendEmailInternalTool(BaseTool):
     description = "发送内部邮件给同事(仅内部域名,如 @company.internal)"
     input_schema = SendEmailSchema
     provider_config_attr = "mail_tool_provider"
+
+    def _validate_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        validated = super()._validate_params(params)
+        if has_external_recipient(validated):
+            raise ValueError("内部邮件工具不允许外部地址（含抄送）")
+        return validated
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         """真实邮件系统适配:POST /send(scope=internal)"""
@@ -125,17 +155,6 @@ class SendEmailInternalTool(BaseTool):
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         to_list = params["to"]
-
-        # 校验收件人必须是内部域名
-        internal_domain = ".internal"
-        external = [addr for addr in to_list if not addr.endswith(internal_domain)]
-        if external:
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error=f"内部邮件工具不允许外部地址: {external}",
-            )
 
         # Mock 发送
         message_id = f"INT-{uuid.uuid4().hex[:12].upper()}"
@@ -187,11 +206,11 @@ class SendEmailInternalTool(BaseTool):
 
 
 class SendEmailExternalTool(BaseTool):
-    """发送外部邮件(ACTION 类,严格 RBAC:仅 manager/admin)"""
+    """发送外部邮件（ACTION 类，受角色权限与审批约束）"""
 
     name = "send_email_external"
     category = ToolCategory.ACTION
-    description = "发送外部邮件(对外客户/合作伙伴,需 manager/admin 权限)"
+    description = "发送外部邮件给客户或合作伙伴（需审批）"
     input_schema = SendEmailSchema
     provider_config_attr = "mail_tool_provider"
     # 高风险操作:执行前需经理审批(审批通过后服务端自动执行)

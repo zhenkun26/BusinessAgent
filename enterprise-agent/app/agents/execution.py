@@ -32,6 +32,7 @@ from app.observability.audit import get_audit_logger
 from app.rag.llm import get_lite_llm
 from app.security.rbac import AgentRole, ROLE_TOOLS
 from app.tools.base import ToolResult, get_tool, init_all_tools, list_tools
+from app.tools.mail import has_external_recipient
 from app.tools.saga import SagaCoordinator, SagaResult
 
 
@@ -243,16 +244,9 @@ class ExecutionAgent:
             # 角色会绕过 RBAC 直到工具层才报「不允许外部地址」。纠偏后:
             # 无外部权限 → RBAC 友好拒绝;有权限 → 正常走高风险审批流
             for p in plans:
-                if p.tool == "send_email_internal":
-                    to_list = p.params.get("to") or []
-                    if isinstance(to_list, str):
-                        to_list = [to_list]
-                    if any(
-                        isinstance(a, str) and "@" in a and not a.endswith("@company.internal")
-                        for a in to_list
-                    ):
-                        logger.info("内部邮件含外部地址，纠偏为 send_email_external")
-                        p.tool = "send_email_external"
+                if p.tool == "send_email_internal" and has_external_recipient(p.params):
+                    logger.info("内部邮件含外部收件人或抄送，纠偏为 send_email_external")
+                    p.tool = "send_email_external"
 
             # 2. RBAC 过滤
             allowed_tools = ROLE_TOOLS.get(self.user_role, [])
