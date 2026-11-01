@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import time
+import math
 from collections import defaultdict
 from typing import Optional
 
@@ -198,9 +199,9 @@ async def rate_limit_middleware(request: Request, call_next):
             limit = route_limit
             break
 
-    # 限流 key:优先用 user_id,无认证用 IP
-    # user_id 从 JWT 解析(轻量解析,不验签,只取 sub)
-    user_id = _extract_user_id(request)
+    # 登录始终按连接来源限流，不能靠切换 bearer 身份获取新配额。
+    # 其他路径仅使用验签后的身份；认证依赖仍负责权限和撤销检查。
+    user_id = None if path.startswith("/api/v1/auth/login") else _extract_user_id(request)
     if user_id:
         key = f"user:{user_id}"
     else:
@@ -239,21 +240,26 @@ async def rate_limit_middleware(request: Request, call_next):
 
 
 def _extract_user_id(request: Request) -> Optional[str]:
-    """从请求头解析 user_id(轻量,不验签)
-
-    限流场景不需要完整 JWT 验证(那由业务层 get_current_user 做),
-    这里只取 sub 字段作为限流 key,避免每个请求都解 JWT。
-    """
+    """验证有界的应用令牌，只提供配额身份，不授予接口访问权限。"""
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
+    if len(auth) > 8192 + len("Bearer ") or auth[:7].lower() != "bearer ":
         return None
 
     token = auth[7:]
     try:
         import jwt
 
-        # 不验签,只解析 payload
-        payload = jwt.decode(token, options={"verify_signature": False})
-        return payload.get("sub")
-    except Exception:
+        settings = get_settings()
+        payload = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm],
+            options={"require": ["sub", "exp"]},
+        )
+        subject = payload["sub"]
+        expiry = payload["exp"]
+        if (not isinstance(subject, str) or not subject.strip() or len(subject) > 64
+                or isinstance(expiry, bool) or not isinstance(expiry, (int, float))
+                or not math.isfinite(expiry)):
+            return None
+        return subject
+    except (jwt.PyJWTError, ValueError, TypeError, OverflowError):
         return None
