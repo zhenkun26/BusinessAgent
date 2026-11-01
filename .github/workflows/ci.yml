@@ -27,6 +27,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.sha }}
 
       - name: 安装 Python
         uses: actions/setup-python@v5
@@ -52,11 +53,36 @@ jobs:
           if-no-files-found: ignore
 
       # ---- security-hardening-plus 2.2:密钥扫描兜底(命中疑似密钥即失败) ----
-      - name: 密钥扫描兜底（gitleaks）
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+      - name: 安装固定版本 Gitleaks（校验官方归档摘要）
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_dir="$RUNNER_TEMP/gitleaks-8.24.3"
+          mkdir -p "$tool_dir"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            --output "$tool_dir/archive.tar.gz"
+          printf '%s  %s\n' \
+            9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c \
+            "$tool_dir/archive.tar.gz" | sha256sum --check -
+          tar -xzf "$tool_dir/archive.tar.gz" -C "$tool_dir" gitleaks
+          echo "$tool_dir" >> "$GITHUB_PATH"
+
+      - name: 秘密扫描范围回归（真实 Git 和合成秘密）
+        run: python -m unittest discover -s .github/tests -p test_secret_scan.py
+
+      - name: 密钥扫描兜底（事件历史与精确最终树）
+        run: >-
+          python .github/scripts/scan_secrets.py
+          --output "$RUNNER_TEMP/secret-scan-${{ matrix.python-version }}"
+
+      - name: 保存扫描覆盖摘要（不上传秘密报告或原始日志）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-summary-${{ matrix.python-version }}
+          path: ${{ runner.temp }}/secret-scan-${{ matrix.python-version }}/summary.json
+          if-no-files-found: warn
 
       # ---- security-hardening-plus 3.1:依赖漏洞扫描(未豁免条目阻断) ----
       - name: 依赖漏洞扫描（pip-audit）
