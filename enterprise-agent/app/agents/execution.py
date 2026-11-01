@@ -119,6 +119,26 @@ async def execute_tool_calls(
         单工具返回 ToolResult，多工具返回 SagaResult
     """
     _ensure_tools()
+    from app.core import approval_deadline as deadline
+    if deadline.in_approval_dispatch():
+        outputs = {}
+        for plan in plans:
+            result = await _invoke_single(plan, context)
+            if not result.success:
+                return result  # Stop; never compensate or replay an uncertain action.
+            outputs[plan.tool] = result.output
+        return ToolResult(success=True, tool_name="approval", output=outputs)
+    if any(get_tool(p.tool) and get_tool(p.tool).category.value == "action" for p in plans):
+        from app.core.database import get_session_factory
+        async with get_session_factory()() as db:
+            await deadline.lock_users(db, context.get("user_id", ""))
+            await deadline.guard_owner(db, context.get("user_id", ""))
+            try:
+                if len(plans) == 1:
+                    return await _invoke_single(plans[0], context)
+                return await _invoke_saga(plans, context)
+            finally:
+                await db.rollback()  # Hold owner lock through dispatch; never unlock a hold.
     if len(plans) == 1:
         return await _invoke_single(plans[0], context)
     return await _invoke_saga(plans, context)
@@ -583,6 +603,20 @@ class ExecutionAgent:
 
         factory = get_session_factory()
         async with factory() as session:
+            from types import SimpleNamespace
+            from datetime import timedelta
+            from app.core import approval_deadline as deadline
+            await deadline.lock_users(session, user_id)
+            await deadline.guard_owner(session, user_id)
+            clock = (await session.execute(text(
+                "SELECT clock_timestamp() AT TIME ZONE 'UTC' AS approval_now"))).fetchone()
+            created = clock.approval_now
+            expires = created + timedelta(hours=24)
+            unsigned = SimpleNamespace(approval_id=approval_id, session_id=session_id,
+                requester_id=user_id, operation_type=plans[0].tool, risk_level=risk_level,
+                created_at=created, expires_at=expires, approver_roles=["manager", "admin"],
+                prefill_payload=prefill_payload)
+            approval_contract = deadline.build_contract(unsigned)
             # upsert 会话行(chat 不写 sessions 表,此处补外键依赖)
             await session.execute(
                 text(
@@ -597,11 +631,11 @@ class ExecutionAgent:
                     "INSERT INTO approval_requests ("
                     "approval_id, session_id, requester_id, operation_type, "
                     "risk_level, summary, prefill_payload, approver_roles, "
-                    "status, requester_token, expires_at"
+                    "status, requester_token, created_at, expires_at, approval_contract"
                     ") VALUES ("
                     ":aid, :sid, :uid, :op, :risk, :summary, "
                     "CAST(:payload AS JSONB), CAST(:roles AS JSONB), "
-                    "'pending', :token, NOW() + INTERVAL '1 day'"
+                    "'pending', :token, :created, :expires, CAST(:contract AS JSONB)"
                     ")"
                 ),
                 {
@@ -614,6 +648,8 @@ class ExecutionAgent:
                     "payload": json.dumps(prefill_payload, ensure_ascii=False),
                     "roles": json.dumps(["manager", "admin"]),
                     "token": context.get("jwt_token") or "",
+                    "created": created, "expires": expires,
+                    "contract": deadline.canonical(approval_contract),
                 },
             )
             await session.commit()

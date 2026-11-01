@@ -1,0 +1,11 @@
+# Design
+
+Use a dedicated nullable approval_contract JSONB column, written only by the new server writer at INSERT. Store and compare the complete row identity, UTC timestamps, ordered plans, approval roles and frozen provider targets. The column is immutable on UPDATE, including legacy NULL promotion. Missing/bad/old contracts fail closed. No signing key is needed. Created and expires use one DB wall-clock sample and exactly 24h.
+
+Serialize requester approval creation/claim using the existing users row; inspect other nonterminal approvals for holds. Lock approval rows; verify current participant permissions; CAS status with a fresh DB deadline check. Commit executing before I/O. An uncertain commit dispatches nothing; errors/cancellation/uncertain result never release the claim. Failed execution becomes execution_unknown where persistence succeeds. No automatic human-hold release or legacy resigning exists.
+
+Approval execution uses an internal ContextVar, sequential dispatch stopping on first failure, no Saga compensation and no HTTP mutation retries. This is at most one top-level dispatch per approval under the DB protocol, not external exactly-once or cross-request semantic deduplication. Batch items have independent committed outcomes, never external transaction rollback.
+
+Existing migrations 1–8 remain unchanged. A standalone additive 009 migration creates the nullable column and immutable-update guard, never backfills old approvals. It must install atomically, fail on conflicting definitions, and be repeatable. Application startup/use without the schema must fail closed, never fall back to the old executor. Stop/drain old processes before rollout; do not revert to old executables while old or unknown holds exist. Existing unrelated worker retries require separate deployment review.
+
+The trusted boundary is server-only metadata construction plus database immutability, not client/model self-described versions. Snapshot comparison detects copied identity/changed plans; this does not defend against DB administrators, compromised application code, rollback, or prove human approval. Provenance design selected locally; no database operation or deployment is authorized in this batch.

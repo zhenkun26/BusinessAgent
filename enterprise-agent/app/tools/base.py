@@ -167,6 +167,7 @@ class BaseTool(ABC):
         Returns:
             ToolResult
         """
+        from app.core.approval_deadline import in_approval_dispatch
         start = time.time()
         tool_name = self.name
         role_str = context.get("role", "unknown")
@@ -211,6 +212,10 @@ class BaseTool(ABC):
                         error=f"角色 {role.value} 无权使用工具 {tool_name}",
                         latency_ms=int((time.time() - start) * 1000),
                     )
+
+            if self.requires_approval and not in_approval_dispatch():
+                return ToolResult(success=False, tool_name=self.name, output={},
+                                  error="APPROVAL_COMMITTED_CLAIM_REQUIRED")
 
             # 2. 参数校验(子类的 input_schema)
             try:

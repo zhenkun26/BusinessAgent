@@ -237,6 +237,15 @@ class SendEmailExternalTool(BaseTool):
                 side_effects={"external_attempts": meta.get("attempts", 1)},
             )
         message_id = data.get("message_id") if isinstance(data, dict) else None
+        from app.core.approval_deadline import in_approval_dispatch
+        if in_approval_dispatch() and (not isinstance(message_id, str) or not message_id.strip()):
+            return ToolResult(
+                success=False,
+                tool_name=self.name,
+                output={},
+                error="APPROVAL_RESULT_UNCONFIRMED",
+                side_effects={"external_attempts": meta.get("attempts", 1)},
+            )
         return ToolResult(
             success=True,
             tool_name=self.name,

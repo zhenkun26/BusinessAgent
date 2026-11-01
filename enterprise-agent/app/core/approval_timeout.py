@@ -1,69 +1,50 @@
-"""审批超时扫描(审批生命周期闭环)
-
-后台 worker 每 60 秒执行一次幂等扫描:
-    UPDATE approval_requests SET status='timeout', decided_at=NOW()
-    WHERE status='pending' AND expires_at IS NOT NULL AND expires_at < NOW()
-
-幂等保证:UPDATE 带 status='pending' 条件,已处理的单(executed/rejected/
-approved_pending_reauth)天然不受影响;同一单只可能被流转一次。
-"""
-
+"""Expire only authenticated new UTC approvals; legacy and claims stay untouched."""
 from __future__ import annotations
 
-from loguru import logger
 from sqlalchemy import text
-
+from app.core import approval_deadline as deadline
 from app.core.approval_notify import notify_approval_result
 from app.observability.audit import get_audit_logger
 
 
 async def scan_expired_approvals() -> int:
-    """扫描并流转超时审批单
-
-    Returns:
-        本次流转为 timeout 的审批单数量(0 表示无超时单)
-    """
     from app.core.database import get_session_factory
-
     factory = get_session_factory()
-    async with factory() as session:
-        result = await session.execute(
-            text(
-                "UPDATE approval_requests SET status = 'timeout', "
-                "decided_at = NOW(), comment = '审批超时,自动流转' "
-                "WHERE status = 'pending' AND expires_at IS NOT NULL "
-                "AND expires_at < NOW() "
-                "RETURNING approval_id, session_id, requester_id"
-            )
-        )
-        affected = result.fetchall()
-        await session.commit()
-
-    for row in affected:
-        approval_id = row.approval_id
-        # 审计:超时流转(操作者标记为系统)
-        await get_audit_logger().log(
-            event_type="approval_timeout",
-            session_id=row.session_id,
-            user_id="system",
-            output_summary=f"审批单 {approval_id} 超时自动流转",
-            success=True,
-            payload={"approval_id": approval_id, "operator": "system"},
-        )
-        # 通知发起人
+    changed = []
+    cursor = ""
+    while True:
+        async with factory() as db:
+            rows = (await db.execute(text(f"SELECT {deadline.COLUMNS} FROM approval_requests "
+                "WHERE status IN ('pending', 'approved_pending_reauth') "
+                "AND expires_at <= (clock_timestamp() AT TIME ZONE 'UTC') "
+                "AND approval_id > :cursor ORDER BY approval_id LIMIT 100 "
+                "FOR UPDATE SKIP LOCKED"), {"cursor": cursor})).fetchall()
+            if not rows:
+                await db.rollback()
+                break
+            cursor = rows[-1].approval_id  # Advance over invalid/legacy rows too.
+            for row in rows:
+                if not deadline.verified(row):
+                    continue
+                result = (await db.execute(text("UPDATE approval_requests SET status = 'timeout', "
+                    "decided_at = (clock_timestamp() AT TIME ZONE 'UTC') WHERE approval_id = :id "
+                    "AND status IN ('pending', 'approved_pending_reauth') "
+                    "AND expires_at <= (clock_timestamp() AT TIME ZONE 'UTC') "
+                    "RETURNING approval_id"), {"id": row.approval_id})).fetchone()
+                if result is not None:
+                    changed.append(row)
+                    await db.execute(text("INSERT INTO audit_logs (event_type, session_id, user_id, "
+                        "success, payload) VALUES ('approval_timeout', :sid, 'system', FALSE, "
+                        "CAST(:payload AS JSONB))"), {"sid": row.session_id,
+                        "payload": deadline.canonical({"approval_id": row.approval_id,
+                                                       "new_status": "timeout"})})
+            await db.commit()
+    for row in changed:
         try:
-            async with factory() as notify_session:
-                await notify_approval_result(
-                    db=notify_session,
-                    approval_id=approval_id,
-                    requester_id=row.requester_id,
-                    session_id=row.session_id,
-                    result_type="timeout",
-                    detail="审批单已超时,操作未执行;如需继续请联系审批人重新发起",
-                )
-        except Exception as e:  # noqa: BLE001 通知失败不阻断扫描
-            logger.warning(f"审批超时通知失败 {approval_id}: {e}")
-
-    if affected:
-        logger.info(f"审批超时扫描: {len(affected)} 条已流转为 timeout")
-    return len(affected)
+            async with factory() as db:
+                await notify_approval_result(db=db, approval_id=row.approval_id,
+                    requester_id=row.requester_id, session_id=row.session_id,
+                    result_type="timeout", detail="审批期限已过，不能继续执行；请人工核对后续处理。")
+        except Exception:
+            pass  # Notification failure never releases/replays an approval.
+    return len(changed)
