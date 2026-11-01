@@ -51,6 +51,10 @@ async def call_external_api(
     settings = get_settings()
     timeout = timeout_seconds or settings.external_timeout_seconds
     retries = max_retries if max_retries is not None else settings.external_max_retries
+    from app.core.approval_deadline import in_approval_dispatch
+    approval_dispatch = in_approval_dispatch()
+    if approval_dispatch and method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+        retries = 0  # Server-only scope; explicit retry arguments cannot override it.
     headers = {"Accept": "application/json"}
     if api_token:
         headers["Authorization"] = f"Bearer {api_token}"
@@ -87,6 +91,9 @@ async def call_external_api(
                     f"外部系统服务不可用(HTTP {response.status_code}),"
                     f"已重试 {retries} 次"
                 )
+
+            if approval_dispatch and not 200 <= response.status_code < 300:
+                return False, None, "APPROVAL_RESULT_UNCONFIRMED"
 
             # 2xx:尝试解析 JSON,失败则返回文本
             try:

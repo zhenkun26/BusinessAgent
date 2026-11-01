@@ -22,7 +22,8 @@ async def test_should_timeout_only_pending_expired_approvals_when_scanning(
         session_id="sess_x",
         requester_id="user_sales_001",
     )
-    session = FakeSession(responses=[FakeResult([timed_out])])
+    session = FakeSession(responses=[FakeResult([timed_out]), FakeResult([timed_out])])
+    monkeypatch.setattr("app.core.approval_timeout.deadline.verified", lambda row: True)
     monkeypatch.setattr(
         "app.core.database.get_session_factory",
         fake_session_factory(session),
@@ -51,15 +52,14 @@ async def test_should_timeout_only_pending_expired_approvals_when_scanning(
     count = await scan_expired_approvals()
 
     assert count == 1
-    update_sql = session.executed_sql[0]
+    update_sql = session.executed_sql[1]
     assert "status = 'timeout'" in update_sql
-    assert "status = 'pending'" in update_sql  # 幂等护栏:仅处理 pending
-    assert "expires_at IS NOT NULL" in update_sql
-    assert "expires_at < NOW()" in update_sql
+    assert "status IN ('pending', 'approved_pending_reauth')" in update_sql  # 幂等护栏:仅处理 pending
+    assert "expires_at <= (clock_timestamp() AT TIME ZONE 'UTC')" in update_sql
     assert "RETURNING" in update_sql
     # 系统审计 + 发起人通知
-    assert audit_events[0]["event_type"] == "approval_timeout"
-    assert audit_events[0]["user_id"] == "system"
+    assert "approval_timeout" in session.executed_sql[2]
+    assert "'system'" in session.executed_sql[2]
     assert notified[0]["approval_id"] == "appr_expired_001"
     assert notified[0]["result_type"] == "timeout"
     assert notified[0]["requester_id"] == "user_sales_001"

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.tools.base import BaseTool, ToolCategory, ToolResult
+from app.core import approval_deadline as deadline
 
 
 class QueryMyApprovalsSchema(BaseModel):
@@ -58,7 +59,8 @@ class QueryMyApprovalsTool(BaseTool):
 
         sql = (
             "SELECT approval_id, operation_type, risk_level, summary, status, "
-            "approver_id, comment, created_at, decided_at "
+            "approver_id, comment, created_at, decided_at, session_id, requester_id, "
+            "prefill_payload, approver_roles, expires_at, approval_contract "
             "FROM approval_requests WHERE requester_id = :uid"
         )
         bind: dict[str, Any] = {"uid": user_id}
@@ -78,12 +80,14 @@ class QueryMyApprovalsTool(BaseTool):
 
         items = [
             {
+                **deadline.review_fields(r),
                 "approval_id": r.approval_id,
                 "operation_type": r.operation_type,
                 "risk_level": r.risk_level,
                 "summary": r.summary,
                 "status": r.status,
-                "status_label": _STATUS_LABELS.get(r.status, r.status),
+                "status_label": ("暂停，须人工核对；AI仅建议" if deadline.review_fields(r)["human_review_required"]
+                                 else _STATUS_LABELS.get(r.status, r.status)),
                 "approver_id": r.approver_id,
                 "comment": r.comment,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
