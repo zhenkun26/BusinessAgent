@@ -1,6 +1,41 @@
 # Current-candidate offline verification and CI coverage (F2-10 prerequisite)
 
 
+<a id="review-ci-repair-20261107"></a>
+## Draft PR #8 CI repair — 2026-11-07
+
+The owner authorized continuing PR/CI fixes and pushes; final merge remains their decision.
+[Initial CI run](https://github.com/zhenkun26/BusinessAgent/actions/runs/42360437018)
+failed before tests because matrix record IDs contained dots rejected by the existing
+safe-ID validator. The matrix now supplies ci-3-11 and ci-3-13 without relaxing validation.
+
+The secret scanner still runs actual event history and exact tracked-tree Gitleaks.
+It retains raw findings and classifies only exact sources-map entries whose SHA256 can be
+recomputed from regular Git blobs. Seven scan-visible raw historical preimages (56,707
+bytes) preserve verifiable evidence for the frozen C24 manifest across the squashed import.
+They are inert evidence, never imported or executed. No broad path/rule/regex ignore was added.
+The single archived JWT marker additionally requires the exact blob, location and value hash,
+synthetic payload and invalid 14-byte HS256 signature; changed or valid credentials remain findings.
+
+Verification before commit:
+- 39 actual-Gitleaks regression tests PASS, including archived proof tampering, source/manifest
+  secrets, valid JWT/neighboring secret negatives, strict dual coordinate modes for existing-entry
+  history/tree findings, and original history/tree coverage controls.
+- All eight offline checks PASS; 2118 Python tests + 640 subtests, 81.89% coverage,
+  Node 75/14 and seven frontend assets. Source stable, no guard denials/skips/xfails/deselections.
+- Reviewed inventory: 368 inputs, 98 production packages and unchanged 457 pending source records.
+- Aggregate receipt: enterprise-agent/eval/results/offline/ci-repair-precommit-20261107.json.
+  Dirty precommit binding correctly remains BLOCKED.
+- Independent code/evidence review found no remaining blocker. A separate isolated scan candidate
+  passed both history and exact tree with raw reports preserved; this is not the final commit
+  or remote CI result. Final committed scanning and remote verification remain required.
+
+Earlier security-test fixture runs used checkout that removed branch-only synthetic files.
+The corrected suite uses retained per-branch worktrees and does not delete fixture files.
+No original project or user data was deleted. Earlier diagnostics remain separate evidence.
+This repair does not change application behavior or close runtime, rights, UAT or release gates.
+
+
 <a id="integration-verification-20261107"></a>
 ## Authorized main/local integration — 2026-11-07
 

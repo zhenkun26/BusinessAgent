@@ -22,7 +22,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.13"]
+        include:
+          - python-version: "3.11"
+            record-id: ci-3-11
+          - python-version: "3.13"
+            record-id: ci-3-13
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +45,7 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov fakeredis
 
       - name: Verify current offline candidate (Python, Node and integrity controls)
-        run: python -I -B enterprise-agent/scripts/offline_verify.py --ci --record ci-${{ matrix.python-version }}
+        run: python -I -B enterprise-agent/scripts/offline_verify.py --ci --record ${{ matrix.record-id }}
 
       - name: 上传覆盖率报告
         uses: actions/upload-artifact@v4

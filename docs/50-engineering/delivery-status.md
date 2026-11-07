@@ -9,6 +9,21 @@ publication. Real two-process race acceptance remains BLOCKED; C10 is not closed
 <a id="current-handover"></a>
 ## Local/main security integration — authorized 2026-11-07
 
+Subsequent review state: [draft PR #8](https://github.com/zhenkun26/BusinessAgent/pull/8)
+contains the integrated candidate. Its initial CI stopped on unsafe matrix record naming
+before tests or security scans. The authorized repair preserves the safe-ID validator and
+full secret-scan coverage while adding exact cryptographic provenance for manifest false
+positives. Current local repair evidence is [recorded here](offline-verification.md#review-ci-repair-20261107);
+the repaired remote CI result is still pending. No merge or deployment is performed.
+
+Additional isolated live checks on the application candidate were reported in the PR:
+19 approval assertions, 17 initial C10 assertions, 24 C10 fault checks, five controlled
+PostgreSQL restart checks and nine loopback transport cases passed. Actual Edge/InPrivate
+used the unchanged frontend with a synthetic API. These are scoped observations, not full
+API/model/RAG, enterprise UAT, privacy/rights or release acceptance. Application source is
+unchanged by the CI repair.
+
+
 **IMPLEMENTED / CLEAN-COMMIT OFFLINE PASS / NOT ACCEPTED FOR RELEASE.** The isolated candidate starts at remote main
 `f7d684be1a46758bddddc2d13e2a13a33896ba51` and incorporates local engineering candidate
 `edc5c58e5783e5c3035d89a035917cae35cb3ef1`, including its 31 engineering commits beyond

@@ -6,6 +6,7 @@ from collections import Counter
 import importlib.util
 import json
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 from types import SimpleNamespace as NS
@@ -244,7 +245,7 @@ def test_ci_invokes_same_entry_and_preserves_security_dependencies():
     workflow = yaml.safe_load((ROOT / '.github/workflows/ci.yml').read_text())
     steps = workflow['jobs']['test']['steps']
     commands = '\n'.join(s.get('run', '') for s in steps)
-    assert 'scripts/offline_verify.py --ci --record ci-' in commands
+    assert 'scripts/offline_verify.py --ci --record ${{ matrix.record-id }}' in commands
     assert 'python -m pytest tests/' not in commands
     assert 'pip-audit -r deploy/requirements-prod.txt' in commands
     assert 'python .github/scripts/scan_secrets.py' in commands
@@ -265,6 +266,43 @@ def test_ci_invokes_same_entry_and_preserves_security_dependencies():
     coverage = next(s for s in steps if s.get('with', {}).get('name') == 'coverage-${{ matrix.python-version }}')
     assert coverage['with']['if-no-files-found'] == 'error'
     assert coverage['with']['path'].endswith('offline-pytest-*/coverage.xml')
+
+
+def test_ci_matrix_record_ids_pass_actual_cli_admission(tmp_path, capsys):
+    workflow = yaml.safe_load((ROOT / '.github/workflows/ci.yml').read_text())
+    job = workflow['jobs']['test']
+    matrix = job['strategy']['matrix']
+    assert set(matrix) == {'include'}
+    rows = matrix['include']
+    assert [row['python-version'] for row in rows] == ['3.11', '3.13']
+    assert len({row['record-id'] for row in rows}) == len(rows)
+    command = next(step['run'] for step in job['steps']
+                   if 'scripts/offline_verify.py' in step.get('run', ''))
+    report = {'schema': 'current-offline-v1', **v.summarize(all_good(), True, True)}
+    for row in rows:
+        rendered = command
+        for key, value in row.items():
+            rendered = rendered.replace('${{ matrix.' + key + ' }}', value)
+        argv = shlex.split(rendered)
+        assert argv[:3] == ['python', '-I', '-B']
+        with patch.object(v, 'ROOT', tmp_path), \
+                patch.object(v, 'run', return_value=report) as execute, \
+                patch.object(v.sys, 'argv', argv[3:]):
+            assert v.main() == 0
+            execute.assert_called_once()
+        saved = tmp_path / 'enterprise-agent/eval/results/offline' / (row['record-id'] + '.json')
+        assert json.loads(saved.read_text())['execution_status'] == 'PASS'
+        assert json.loads(capsys.readouterr().out)['overall_status'] == 'BLOCKED'
+
+
+def test_unsafe_record_ids_remain_rejected_before_execution(tmp_path, capsys):
+    for record in ('ci-3.11', 'ci-3.13', '../escape', '/absolute', 'a' * 81):
+        with patch.object(v, 'ROOT', tmp_path), patch.object(v, 'run') as execute, \
+                patch.object(v.sys, 'argv', ['entry', '--ci', '--record', record]):
+            assert v.main() == 2
+            execute.assert_not_called()
+        assert json.loads(capsys.readouterr().out)['overall_status'] == 'BLOCKED'
+    assert not (tmp_path / 'enterprise-agent').exists()
 
 
 def test_legacy_frozen_inventory_is_not_implicitly_rewritten():

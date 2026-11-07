@@ -2670,7 +2670,7 @@
     "enterprise-agent/tests/test_offline_verification.py": {
       "category": "test-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "38b10662c329130beded10e4ce53f2b315959e18e45ad85a37239c4b77ee07cd"
+      "sha256": "112c0a31cc19aa77962ead88abb2416e24258e03d77e8b73bdc5534ac38003d7"
     },
     "enterprise-agent/tests/test_optional_rerank_results.py": {
       "category": "test-fixtures",
@@ -4092,7 +4092,7 @@
         "uses: docker/login-action@v3",
         "uses: actions/upload-artifact@v4"
       ],
-      "sha256": "54f426722a08e26117dabe9c86329f974567657f42c70288db1b34379acd4926",
+      "sha256": "d575f2ece650e0b701405ac6e0db1e67db0993cb75b43b1d36fb990c30c4619d",
       "status": "CLOSURE_AND_LICENSE_REVIEW_PENDING"
     },
     ".pre-commit-config.yaml": {
