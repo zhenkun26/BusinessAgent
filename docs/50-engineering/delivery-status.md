@@ -9,7 +9,7 @@ publication. Real two-process race acceptance remains BLOCKED; C10 is not closed
 <a id="current-handover"></a>
 ## Local/main security integration — authorized 2026-11-07
 
-**IMPLEMENTED / PRECOMMIT OFFLINE PASS / NOT ACCEPTED FOR RELEASE.** The isolated candidate starts at remote main
+**IMPLEMENTED / CLEAN-COMMIT OFFLINE PASS / NOT ACCEPTED FOR RELEASE.** The isolated candidate starts at remote main
 `f7d684be1a46758bddddc2d13e2a13a33896ba51` and incorporates local engineering candidate
 `edc5c58e5783e5c3035d89a035917cae35cb3ef1`, including its 31 engineering commits beyond
 remote PR #2 head `716f3b533e6a8693e84e6cb76e098dfd0f20af02`. The five later independent
@@ -32,8 +32,8 @@ official wheel hashes and locked inputs are reconciled without adding packages.
 Frozen unfiltered tests pass: 2116 tests + 640 subtests, exact dependencies, stable source,
 zero failures/skips/xfails/deselections/guard denials, 81.89% coverage. All eight precommit
 checks pass, including Node 75/14 and seven assets; 360 reviewed inputs, 98 packages and
-457 pending-source records. Dirty precommit binding remains BLOCKED until clean-commit
-verification. Independent review findings were fixed and regression-tested.
+457 pending-source records. Clean tested commit `a8c4eec42ec2d44cb8b2e4ae433ccbc88e7021fe` has
+execution/binding PASS. Its documentation-only results commit does not change tested inputs. Independent review findings were fixed and regression-tested.
 See [integration verification](offline-verification.md#integration-verification-20261107). Earlier 1883-test
 receipts below remain bound to their original candidate and do not apply to this integration.
 Real PostgreSQL/Redis/concurrency/browser/model/provider acceptance, C10, privacy and source

@@ -30,8 +30,31 @@ Independent source review findings concerning unresolved forward-Saga holds and 
 classification were fixed with negative controls. Tests cover late-receipt non-release,
 scope/plan substitution, deadline crossing, missing committed claims and evidence-panel races.
 
-Next: review and stage this candidate, commit locally, then rerun the same eight-check entry
-on the clean commit and bind its exact hash in a documentation-only results update.
+The planned clean local commit verification is now complete; the exact binding follows.
+
+
+### Clean integration commit verification
+
+Tested commit: `a8c4eec42ec2d44cb8b2e4ae433ccbc88e7021fe`.
+All eight checks PASS; candidate binding PASS, clean before/after and source stable.
+Full suite: **2116 tests + 640 subtests**, zero failed/skipped/xfail/deselected outcomes
+or guard denials; exact production dependency match; coverage 81.89%. Node 75/14 and
+seven frontend assets PASS. All 360 current input hashes match the reviewed manifest.
+No runtime acceptance or rights status changed; overall BLOCKED / UAT-release false
+and exit 2 are deliberate, distinct from the successful offline execution/binding.
+
+- Aggregate receipt: `enterprise-agent/eval/results/offline/integration-clean-20261107-a8c4eec.json`
+- Aggregate SHA-256: `2db835608e4c2ecbb08d5ca6ecc102273b9a34215216bad604a39fdb93cdd53c`
+- Child receipt: `enterprise-agent/eval/results/offline-pytest-6d6314f3872e4b2095f622aab904b2c6/receipt.json`
+- Child SHA-256: `ca8a61397ad6321b2e1262c229bfd426693473dd6c557029854e4c6e43d154d5`
+- Candidate content SHA-256: `3f62b9beb8b64034d34f6d5d197ce61c47222a7476649106d8f971c673075251`
+- Reviewed manifest SHA-256: `e10f1c25db1ff9604ba0286188e3ebd743d91935d03aebf76baf4be84dcc997d`
+
+This result is recorded in a subsequent documentation-only commit. That commit is not the
+tested revision; unchanged source hashes establish that no application, test, dependency
+or verification inputs changed afterward. The working branch remains local with no push,
+main merge, deployment or archive. Existing upstream license text retains its original
+whitespace rather than rewriting third-party legal material.
 
 ### Limits and release boundary
 

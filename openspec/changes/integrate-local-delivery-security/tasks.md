@@ -7,4 +7,4 @@
 - [x] Reconcile UI state and preserve accessibility/security checks.
 - [x] Reconcile CI, declared dependencies and current reviewed inventories without weakening gates.
 - [x] Update existing delivery/status guidance and run full plus targeted retained offline checks.
-- [ ] Review final diff and report precise evidence/remaining gates; commit only if justified, no push.
+- [x] Review final diff and report precise evidence/remaining gates; commit only if justified, no push.
