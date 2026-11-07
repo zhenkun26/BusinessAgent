@@ -10,7 +10,7 @@
   },
   "build_manifest": {
     "path": "enterprise-agent/deploy/build-inputs.json",
-    "sha256": "27472d16ae835c79b84cdd6cf06cf65a194227c3fdd1aaeb5e838232cc0dd764"
+    "sha256": "5f0cd89da904a526e11c0ef389dfde79eb6caf2d77abdb034854d82d3a6b25f6"
   },
   "vendor_manifest": {
     "path": "enterprise-agent/app/static/vendor/manifest.json",
@@ -745,9 +745,9 @@
       "wheel_license_review": "PENDING"
     },
     "msgpack": {
-      "version": "1.2.1",
-      "source": "https://pypi.org/pypi/msgpack/1.2.1/json",
-      "metadata_sha256": "6bf851ff32b91e3a8b720034109840977b42c7e057aabded3a394bc1591a2699",
+      "version": "1.2.3",
+      "source": "https://pypi.org/pypi/msgpack/1.2.3/json",
+      "metadata_sha256": "f5ee786a4e5e8af2692c26c9e95d5cfc5970141c219cec9db2b96c96f791c1ba",
       "role": "transitive-or-build",
       "status": "PUBLISHER_METADATA_ONLY",
       "license_expression": "Apache-2.0",
@@ -1398,9 +1398,9 @@
       "wheel_license_review": "PENDING"
     },
     "setuptools": {
-      "version": "83.0.0",
-      "source": "https://pypi.org/pypi/setuptools/83.0.0/json",
-      "metadata_sha256": "b361ef5ee314a88d902d9826c0b06d26a4aadb3c8611a972672d55e19541e191",
+      "version": "84.1.0",
+      "source": "https://pypi.org/pypi/setuptools/84.1.0/json",
+      "metadata_sha256": "75427bb7a4289a8f06fe176e3eab998710051b36706c80c1df7e796000372f02",
       "role": "transitive-or-build",
       "status": "PUBLISHER_METADATA_ONLY",
       "license_expression": "MIT",
@@ -4362,8 +4362,8 @@
         "--hash=sha256:1d4962d4c66bf830a7e59ed6cfc17d148149898a3aefa8ec6e59763e6e3ed085",
         "ml-dtypes==0.5.4 \\",
         "--hash=sha256:533ce891ba774eabf607172254f2e7260ba5f57bdd64030c9a4fcfbd99815d0d",
-        "msgpack==1.2.1 \\",
-        "--hash=sha256:787c9bebb5833e8f6fc8abca3c0597683d8d87f56a8842b6b89c75a5f3176e2d",
+        "msgpack==1.2.3 \\",
+        "--hash=sha256:07c9733089d1b176c3dd2f7fa268452f9d5d784d076473499d754a58e8d1fbbb",
         "numpy==2.4.6 \\",
         "--hash=sha256:a7830bab239b79cda9c08c2da014761cafb48da6150e1da17ac06283f43b6089",
         "ollama==0.6.2 \\",
@@ -4439,8 +4439,8 @@
         "--hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0",
         "requests-toolbelt==1.0.0 \\",
         "--hash=sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06",
-        "setuptools==83.0.0 \\",
-        "--hash=sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3",
+        "setuptools==84.1.0 \\",
+        "--hash=sha256:5231689c6ac8156cd155cfb98c3fd6fb252c3e7e9bd3d78b64d3c55f132624c9",
         "six==1.17.0 \\",
         "--hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
         "sniffio==1.3.1 \\",
@@ -4481,7 +4481,7 @@
         "zstandard==0.25.0 \\",
         "--hash=sha256:8e735494da3db08694d26480f1493ad2cf86e99bdd53e8e9771b2752a5c0246a"
       ],
-      "sha256": "49e17ed314b9dd0994cc223b6c1772c587385164d98c72d63818e016126dd049",
+      "sha256": "fb368dd69c38b5f2f9c54d0a8595c0c44f82222c67dba392e01d42469df09e9d",
       "status": "CLOSURE_AND_LICENSE_REVIEW_PENDING"
     },
     "enterprise-agent/deploy/requirements-prod.txt": {
@@ -4527,7 +4527,7 @@
         "loguru==0.7.3",
         "lxml==6.1.1",
         "ml-dtypes==0.5.4",
-        "msgpack==1.2.1",
+        "msgpack==1.2.3",
         "numpy==2.4.6",
         "ollama==0.6.2",
         "openai==2.53.0",
@@ -4565,7 +4565,7 @@
         "regex==2026.7.19",
         "requests==2.34.2",
         "requests-toolbelt==1.0.0",
-        "setuptools==83.0.0",
+        "setuptools==84.1.0",
         "six==1.17.0",
         "sniffio==1.3.1",
         "sqlalchemy==2.0.51",
@@ -4585,7 +4585,7 @@
         "xxhash==3.8.1",
         "zstandard==0.25.0"
       ],
-      "sha256": "29e0044f6e45da0bee748e6e5504af33db454ea54eb70f614e9c777337b6c388",
+      "sha256": "726303cb73fedff01a1308708a4819f938bd08cdfae126eec7739ff95b6fa710",
       "status": "CLOSURE_AND_LICENSE_REVIEW_PENDING"
     },
     "enterprise-agent/docker-compose.prod.yml": {

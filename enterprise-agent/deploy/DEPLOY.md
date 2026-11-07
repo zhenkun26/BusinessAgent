@@ -522,7 +522,7 @@ an explicit dependency-input change whose real model/RAG effects remain unaccept
 | Dockerfile frontend | `docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e` |
 | Debian sources | `debian.sources`: bookworm/main and bookworm-security/main snapshots at 20261019T000000Z; inherited sources disabled by apt options; archive keyring signature checks retained |
 | Python packages | 98 exact pins in `requirements-prod.txt`; 114 compatible official wheel hashes in `requirements-prod.lock`; binary-only, hash-required, no resolver-added dependencies in production |
-| Reviewed range resolutions | msgpack 1.2.1, setuptools 83.0.0, uvloop 0.22.1; numpy 2.4.6 for current 3.11/3.13 compatibility |
+| Reviewed range resolutions | msgpack 1.2.3, setuptools 84.1.0, uvloop 0.22.1; numpy 2.4.6 for current 3.11/3.13 compatibility |
 | Input manifest | `build-inputs.json`: registry/platform identities, PyPI metadata provenance and dependency markers, wheel hashes, Debian Release lookup hashes and six input-file hashes |
 | Installed evidence | Final non-root build verifier and CI collect exact Python package set, actual dpkg package versions/architecture, Python/platform and input hashes; CI also retains `docker image inspect` output |
 | Preserved gates | pip check, PostgreSQL/RS256 imports, frontend verification, secret scanning, pip-audit and Trivy HIGH/CRITICAL gate; inventory verification precedes scan/publication |

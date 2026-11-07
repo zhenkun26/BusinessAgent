@@ -14,9 +14,10 @@ contains the integrated candidate. Its initial CI stopped on unsafe matrix recor
 before tests or security scans. The authorized repair preserves the safe-ID validator and
 full secret-scan coverage while adding exact cryptographic provenance for manifest false
 positives. Current local repair evidence is [recorded here](offline-verification.md#review-ci-repair-20261107);
-the next remote run failed at Python child startup. A missing results-parent directory
-in fresh checkouts was independently reproduced and narrowly repaired; the new candidate
-still requires clean-checkout and remote verification. No merge or deployment is performed.
+the fresh-checkout repair passed local and both remote Python suites plus security scans.
+The latest remote run failed dependency auditing on msgpack and setuptools; fixed-version
+updates are being verified without exemptions. Image checks remain unrun. No merge or
+deployment is performed.
 
 Additional isolated live checks on the application candidate were reported in the PR:
 19 approval assertions, 17 initial C10 assertions, 24 C10 fault checks, five controlled

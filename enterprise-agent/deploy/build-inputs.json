@@ -31,8 +31,8 @@
     "Dockerfile.prod": "0fa98a037c4371a8a16685be267a29e5c8c23c0f28112453ac314a3d397e5310",
     "deploy/debian.sources": "e762e49c3ebe0b78d6c8175f065e43715df790b2b72d3cf2fe1a0d80c2bbced5",
     "deploy/requirements-ml.txt": "d6a83665a8272c33e60638a0304e05ac50cf40a6187e4d3c168228ac2454c620",
-    "deploy/requirements-prod.lock": "49e17ed314b9dd0994cc223b6c1772c587385164d98c72d63818e016126dd049",
-    "deploy/requirements-prod.txt": "29e0044f6e45da0bee748e6e5504af33db454ea54eb70f614e9c777337b6c388",
+    "deploy/requirements-prod.lock": "fb368dd69c38b5f2f9c54d0a8595c0c44f82222c67dba392e01d42469df09e9d",
+    "deploy/requirements-prod.txt": "726303cb73fedff01a1308708a4819f938bd08cdfae126eec7739ff95b6fa710",
     "scripts/verify_build.py": "1df3c4042953620ec6e63cf5df0366d1e6415321fe0670a6a1dcd4ef63c7682d"
   },
   "frontend": {
@@ -874,15 +874,15 @@
       ]
     },
     "msgpack": {
-      "metadata_sha256": "6bf851ff32b91e3a8b720034109840977b42c7e057aabded3a394bc1591a2699",
+      "metadata_sha256": "f5ee786a4e5e8af2692c26c9e95d5cfc5970141c219cec9db2b96c96f791c1ba",
       "requires_dist": [],
       "requires_python": ">=3.10",
-      "source": "https://pypi.org/pypi/msgpack/1.2.1/json",
-      "version": "1.2.1",
+      "source": "https://pypi.org/pypi/msgpack/1.2.3/json",
+      "version": "1.2.3",
       "wheels": [
         {
-          "filename": "msgpack-1.2.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
-          "sha256": "787c9bebb5833e8f6fc8abca3c0597683d8d87f56a8842b6b89c75a5f3176e2d"
+          "filename": "msgpack-1.2.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+          "sha256": "07c9733089d1b176c3dd2f7fa268452f9d5d784d076473499d754a58e8d1fbbb"
         }
       ]
     },
@@ -1695,7 +1695,7 @@
       ]
     },
     "setuptools": {
-      "metadata_sha256": "b361ef5ee314a88d902d9826c0b06d26a4aadb3c8611a972672d55e19541e191",
+      "metadata_sha256": "75427bb7a4289a8f06fe176e3eab998710051b36706c80c1df7e796000372f02",
       "requires_dist": [
         "pytest!=8.1.*,>=6; extra == \"test\"",
         "virtualenv>=13.0.0; extra == \"test\"",
@@ -1749,12 +1749,12 @@
         "jaraco.develop>=7.21; sys_platform != \"cygwin\" and extra == \"type\""
       ],
       "requires_python": ">=3.10",
-      "source": "https://pypi.org/pypi/setuptools/83.0.0/json",
-      "version": "83.0.0",
+      "source": "https://pypi.org/pypi/setuptools/84.1.0/json",
+      "version": "84.1.0",
       "wheels": [
         {
-          "filename": "setuptools-83.0.0-py3-none-any.whl",
-          "sha256": "29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3"
+          "filename": "setuptools-84.1.0-py3-none-any.whl",
+          "sha256": "5231689c6ac8156cd155cfb98c3fd6fb252c3e7e9bd3d78b64d3c55f132624c9"
         }
       ]
     },

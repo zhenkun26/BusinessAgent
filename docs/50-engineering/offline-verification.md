@@ -66,6 +66,49 @@ that run. Receipt: enterprise-agent/eval/results/offline/ci-fresh-parent-precomm
 A fresh retained clean worktree and subsequent remote CI must verify the final commit.
 
 
+### Dependency audit follow-up
+
+Commit 1dcd3d9dcffff7d7ac60e1b2cf168b6f93a0a26a passed all eight checks
+in a new retained local checkout with no initial results directory (2120 tests plus
+640 subtests, clean/stable binding). Its committed full-history/tree scans passed.
+[Remote run 42363479117](https://github.com/zhenkun26/BusinessAgent/actions/runs/42363479117)
+then passed both Python 3.11/3.13 offline checks, coverage uploads, all 39 scanner
+regressions and actual PR history/tree scans. Actual merge checkout was
+0e8ec6f520fcaac2cc870a96106b7726d974f9a4. History retained 86 raw findings
+(84 verified source hashes and two invalid synthetic markers); tree retained 42
+(41 verified hashes and one marker). No unclassified finding remained.
+
+Both jobs failed pip-audit on two published vulnerabilities:
+- msgpack 1.2.1: CVE-2026-114613 / GHSA-j586-36cw-2gc2, High (CVSS 3.1 7.5),
+  malformed map-key handling can leak C-extension memory; fixed in 1.2.3.
+- setuptools 83.0.0: GHSA-xmj3-9gf7-h52w, Low (CVSS 4.0 1.0),
+  Windows legacy wheel namespace-metadata path traversal; fixed in 84.1.0.
+  This is not evidence of exploitation in the Linux production image.
+
+Official reviewed advisories:
+https://github.com/advisories/GHSA-j586-36cw-2gc2
+https://github.com/advisories/GHSA-xmj3-9gf7-h52w
+
+The msgpack vendor advisory header lists 1.2.2, while the reviewed database range is
+below 1.2.3; the audit blocks the pinned 1.2.1. The remediation upgrades to the fixed
+version rather than introducing an exemption. The planned minimal update binds both
+official package metadata and exact Linux wheel hashes, retaining 98 packages and
+457 pending source-rights records. New-version compatibility, full tests, remote audit
+and image checks remain required. The failed run never started its dependent image job.
+
+Local fixed-version verification: all eight checks PASS, 2120 tests plus 640 subtests,
+81.89% coverage, Node 75/14 and seven assets. Source stability PASS; dirty precommit
+binding remains BLOCKED. Receipt:
+enterprise-agent/eval/results/offline/ci-dependency-precommit-20261107.json.
+The new isolated Python environment excludes both old package cache roots and resolves
+exactly one distribution of each fixed version. It preserves the old environment.
+Independent review verified official raw metadata and wheel bytes, all lock/build/license
+bindings and all 98 installed pins. No extra dependency or vulnerability exemption was
+added. New metadata hashes bind retained responses; changing public metadata does not
+revalidate historical response hashes. These macOS checks do not substitute for remote
+pip-audit, both supported Python versions or the final Linux image.
+
+
 <a id="integration-verification-20261107"></a>
 ## Authorized main/local integration — 2026-11-07
 

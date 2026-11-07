@@ -29,3 +29,36 @@ an existing run directory without changing its evidence. All 40 offline-verifica
 tests pass under Python 3.13 with zero diagnostic-guard denials; fixtures are retained
 under eval/results/ci-fresh-parent-regression-0b9aecfba7e24c029a29d0451dd6f30f.
 This focused result does not certify complete-suite or remote CI success.
+
+## Dependency advisory remediation (plan before implementation)
+
+Run 42363479117 passed both Python versions and Gitleaks controls but pip-audit
+reported msgpack 1.2.1 (CVE-2026-114613) and setuptools 83.0.0
+(GHSA-xmj3-9gf7-h52w). Upgrade only these existing dependencies to the reviewed
+fixed versions 1.2.3 and 84.1.0 using official PyPI metadata and binary-wheel
+digests. Reconcile the production pins, hash lock, build metadata and publisher
+inventory/declarations without changing package scope, rights status or exemptions.
+Create a new retained isolated Python environment; preserve every existing
+environment and fixture. Validate package selection, dependency compatibility and
+offline integrity before parent-owned full checks, independent review and CI.
+
+- [x] Update the two fixed versions and their exact official metadata/wheel bindings.
+- [x] Verify isolated runtime selection and relevant build/inventory checks.
+- [ ] Reconcile current sources and complete full, security and remote CI checks.
+
+
+Dependency repair evidence is retained in
+enterprise-agent/eval/results/ci-dependency-repair-20261107. Exact PyPI response
+bytes, URLs and SHA256 digests bind the two release records; downloaded Linux
+cp313/msgpack and local macOS/universal wheels match official digests. This new
+capture does not claim to reproduce historical metadata digests after mutable
+publisher/advisory metadata changed. Build inputs verify all 98 packages; license
+inventory integrity passes with all 457 source rights still pending. A new retained
+Python 3.13 environment excludes both old distribution roots, resolves each new
+distribution exactly once, imports from the new wheel directories, and satisfies
+all active production dependency requirements. Msgpack roundtrip passes.
+The first metadata-update command used system Python 3.9 and stopped on missing
+tomllib; the existing isolated Python 3.13 completed inventory reconciliation.
+An initial build-check invocation omitted its required root argument; the corrected
+read-only invocation passed. Neither attempt deleted files or changed gates.
+Full-suite and remote audit/image validation remain parent-owned next steps.
