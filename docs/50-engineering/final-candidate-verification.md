@@ -356,3 +356,40 @@ belong to that PNG commit only. The page precommit aggregate at 2026-11-07T14:24
 coverage. Source stability passed; dirty candidate binding remains BLOCKED as
 designed. Receipt: `enterprise-agent/eval/results/offline/presentation-r4-precommit-20261107.json`.
 Exact clean-commit binding and remote CI remain separate required evidence.
+
+
+## Second reversible asset cleanup — 2026-11-07
+
+Only `interview/产品介绍网页/screenshots/06-zhangsan-tracked.png` is re-encoded:
+613,356 to 360,187 bytes, saving 253,169 bytes (41.276%). The standard PNG
+preserves 3200 x 1730, 8-bit RGBA, 192 DPI, the original IHDR/pHYs/IEND chunks
+and all 22,145,730 scanline bytes. The identified fpng fdEC payload
+`522493e300` is removed with its 17-byte chunk because the rewritten IDAT is
+not the restricted fpng encoding. Specialized fpng fast decoding is not claimed.
+No author, license or source-permission metadata is removed.
+
+Original SHA256: `eac227d45eafee917196e3c2875fafd5d5d4a3729d312fec89b7e10243ccefac`.
+Current SHA256: `ad2152a2a25292910572d3b8b95618dea63b1a77811ad2b960e53195125cb899`.
+Scanline SHA256: `7c10e4cead1b71e2b6bfbbe666c3bc61334f0abd1355803331dcdacd5918936e`.
+Decoded pixel SHA256: `02db7171f95e0b5c6761afac7e52f04591d4b02ae08eac27eb36eabfaf57e80d`.
+Strict CRC/EOF and scanline checks passed. Independent filter-0/2 RGBA review
+and native ImageIO decoding agreed on pixels; ImageIO properties also matched.
+The original is recoverable byte-for-byte from commit
+`62cc7573fc476e95077fa90d9301df19ecd26b10` and retained original/Git-restored
+copies under `eval/results/tracked-png-diagnostic-ee1c243b930e/`.
+
+Actual Edge InPrivate direct decoding displayed both images at 3200 x 1730
+with complete, normal, visually consistent approval-list content. Both image
+GETs returned 200, with fixture hashes matching the originals and candidate.
+Receipt: `eval/results/tracked-png-browser-8a0273c63aa7/browser-receipt-f54f3779ae14.json`.
+This is not an automated screenshot pixel diff or cross-browser certification.
+The page still uses the unchanged WebP; no page-transfer or production-image
+size improvement is claimed. Only the current PNG inventory hash and dependent
+inventory binding are refreshed. All 465 source items remain pending; the
+historical 457-item CSV and all previous evidence remain unchanged. Compression
+is not source-rights acceptance. This local candidate does not close stage one
+or authorize publication. The precommit aggregate at 2026-11-07T14:32:00Z passed all eight checks:
+2137 Python tests plus 640 subtests, Node 80/14, seven assets and 81.8543%
+coverage. Sources stayed stable; dirty binding remained BLOCKED as designed.
+Receipt: `enterprise-agent/eval/results/offline/cleanup-tracked-png-precommit-20261107.json`.
+Exact clean-commit verification and remote CI remain separate required evidence.
