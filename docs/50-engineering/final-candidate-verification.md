@@ -321,3 +321,38 @@ checks: 2137 Python tests plus 640 subtests, Node 80/14, seven frontend assets
 and 81.8543% coverage. Sources remained stable. Its dirty candidate binding is
 BLOCKED by design; exact clean-commit verification and remote CI are separate
 required evidence, not inferred from this precommit result.
+
+
+## Presentation copy refresh — 2026-11-07
+
+Applied the independently reviewed r4 presentation copy after the separate PNG
+commit `62cc7573fc476e95077fa90d9301df19ecd26b10`. The page now separates the
+model-free synthetic demo from the unaccepted full external-model candidate,
+labels July prototype diagrams and screenshots as historical, states current
+approval/manual-hold semantics, and identifies all three later delivery stages
+as unfinished. Source decisions still block stage one. This is a copy update,
+not model, RAG, UAT, production or source-rights acceptance.
+
+Page SHA256: `fa4a70d3942a347e9676c0d0a34507f984d4f2c58256b10d911365fc7bb08875`.
+Original page SHA256: `1b3152c5b4b228a9fd2e5ac8e636f44e4cd6b9bac227f3d336f3fb82a90f921f`.
+The original and all intermediate candidates remain retained. Current inventory
+hash binding changes only for this page; all 465 pending items and the historical
+457-item CSV retain their review status and content respectively.
+
+Independent static review and actual desktop-browser review covered r3 key pages
+and the r4 page-25 roadmap, plus refreshed opening and closing pages. The retained
+r4 fixture matched the page hash above and returned HTTP 200 on both recorded
+GETs. Browser receipt: `eval/results/presentation-copy-review-711f61a47d63/browser-r4-receipt-0516e8807102.json`,
+SHA256 `bfcb38a216cc074aa29fd00fe2c52bf926e158851f8e5c08584dfb1d07f5c088`.
+These are desktop checks, not mobile or all-viewport certification. The existing
+FAQ-modal keyboard/background-page-navigation issue remains a separate known
+item; this copy update neither introduces a fix nor conceals it.
+
+Local static checks preserve all 27 section identifiers, CSS and navigation/
+animation scripts; HTML parsing and inline JavaScript syntax checks passed.
+The preceding PNG commit's eight clean aggregate checks and five passing CI jobs
+belong to that PNG commit only. The page precommit aggregate at 2026-11-07T14:24:00Z passed all eight checks:
+2137 Python tests plus 640 subtests, Node 80/14, seven assets and 81.8543%
+coverage. Source stability passed; dirty candidate binding remains BLOCKED as
+designed. Receipt: `enterprise-agent/eval/results/offline/presentation-r4-precommit-20261107.json`.
+Exact clean-commit binding and remote CI remain separate required evidence.

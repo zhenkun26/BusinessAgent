@@ -231,7 +231,7 @@
     "enterprise-agent/deploy/k8s/pdb.yaml": "79e24a67587579a5406da9b0c3b4877cb1ca3ce3504b2fdad2547a71b60d5a47",
     "enterprise-agent/deploy/k8s/secret.yaml": "40f3491b9e4537f000268924961f81430fa3f248ae476b635ee4b8ce110e1d20",
     "enterprise-agent/deploy/k8s/service.yaml": "23a75ce7299a914e1292741084a1c198c41370753d0c5ed5f20a91b171492a44",
-    "enterprise-agent/deploy/license-inventory.json": "5609aa3d47a80207b7ddbbaffc74ec4c71ffd42ea1486b866a2d53b2aedf9d2b",
+    "enterprise-agent/deploy/license-inventory.json": "0a5b0a95c1321d5c45430b5675dece18982393fe3dbbf41ed8d2108af110f988",
     "enterprise-agent/deploy/migrations/001_prompt_versions.sql": "40e24bb3274db572b953fabca7347f20dbaf42716146c91f49f5e0baafd120da",
     "enterprise-agent/deploy/migrations/002_documents_ledger.sql": "b3f06ffc3f072aad49fed519121c6862430f2e8d20766af5d5c3b932c438e339",
     "enterprise-agent/deploy/migrations/003_user_password_hash.sql": "c7b5c2b4252a7f6a80fe540dfd82cccc481063b29d3191043b06455845c0be3d",
