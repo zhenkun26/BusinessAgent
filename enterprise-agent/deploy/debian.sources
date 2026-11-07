@@ -1,13 +1,13 @@
 # Frozen signed repositories. Update only through deploy/DEPLOY.md F2-04 review.
 Types: deb
-URIs: https://snapshot.debian.org/archive/debian/20261019T000000Z/
+URIs: https://snapshot.debian.org/archive/debian/20261107T000000Z/
 Suites: bookworm
 Components: main
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 Check-Valid-Until: no
 
 Types: deb
-URIs: https://snapshot.debian.org/archive/debian-security/20261019T000000Z/
+URIs: https://snapshot.debian.org/archive/debian-security/20261107T000000Z/
 Suites: bookworm-security
 Components: main
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg

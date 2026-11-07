@@ -15,9 +15,10 @@ before tests or security scans. The authorized repair preserves the safe-ID vali
 full secret-scan coverage while adding exact cryptographic provenance for manifest false
 positives. Current local repair evidence is [recorded here](offline-verification.md#review-ci-repair-20261107);
 the fresh-checkout repair passed local and both remote Python suites plus security scans.
-The latest remote run failed dependency auditing on msgpack and setuptools; fixed-version
-updates are being verified without exemptions. Image checks remain unrun. No merge or
-deployment is performed.
+Fixed msgpack/setuptools versions now pass both remote jobs and pip-audit. The image
+build/inventory checks passed, but Trivy found four Debian HIGH records; fixed signed
+snapshot inputs and exact system-package versions are being verified without exemptions.
+No merge, image publication or deployment is performed.
 
 Additional isolated live checks on the application candidate were reported in the PR:
 19 approval assertions, 17 initial C10 assertions, 24 C10 fault checks, five controlled

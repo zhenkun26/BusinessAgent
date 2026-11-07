@@ -109,6 +109,43 @@ revalidate historical response hashes. These macOS checks do not substitute for 
 pip-audit, both supported Python versions or the final Linux image.
 
 
+### Debian image security follow-up
+
+Fixed-Python-dependency commit ac385a9f0f3ed486ddad75f2d8c2c213ac12ab0c
+passed the exact clean local eight-check suite and full-history/tree secret scans.
+[Remote run 42364507658](https://github.com/zhenkun26/BusinessAgent/actions/runs/42364507658)
+passed both complete Python jobs, including pip-audit (no known vulnerabilities).
+The production image built and passed installed-package/identity/import checks, but
+Trivy failed on four Debian HIGH findings and no CRITICAL findings:
+- apt and libapt-pkg6.0 2.6.1: CVE-2026-109518, fixed in 2.6.2.
+- openssl and libssl3 3.0.22-1~deb12u1: CVE-2026-84782,
+  fixed in 3.0.22-1~deb12u2.
+Python package targets had zero reported findings. Registry login/publication was skipped.
+
+The minimal input repair keeps the Python base digest and all 98 Python pins.
+It advances signed Debian snapshot inputs to 20261107T000000Z and requests the four
+fixed OS versions explicitly, with dpkg version assertions after installation.
+Official Release/Packages/deb hash evidence is retained locally. Local hash agreement
+is not local signature verification; real apt must verify Signed-By in CI. No
+trusted-source bypass, blanket upgrade or vulnerability exemption is introduced.
+
+Changing a snapshot can also update existing runtime packages or their dependencies,
+including libpq5, ca-certificates or tzdata. Do not claim that only four installed OS
+packages change: compare the next actual image inventory with the previous successful
+build inventory. Full offline checks, real signed apt installation, final installed
+inventory/import probes and Trivy must pass before calling this repair CI-complete.
+Scoped CI success still does not establish two-clean-build or live runtime acceptance.
+
+Precommit local verification passed all eight checks: 2120 Python tests plus 640
+subtests, 81.89% coverage, Node 75/14 and seven assets. Source stability PASS;
+dirty binding remains BLOCKED. Receipt:
+enterprise-agent/eval/results/offline/ci-debian-precommit-20261107.json.
+Independent review recomputed Release/Packages/deb hashes and confirmed exact version
+assertions, unchanged base/Python records and unchanged trust/security gates.
+The source manifest remains 368 inputs, with 98 packages and 457 pending rights.
+These checks did not execute local apt or Docker or claim signed installation success.
+
+
 <a id="integration-verification-20261107"></a>
 ## Authorized main/local integration — 2026-11-07
 

@@ -520,7 +520,8 @@ an explicit dependency-input change whose real model/RAG effects remain unaccept
 | Production target | INSTALL_ML=0, Linux amd64, CPython 3.13.16, Debian bookworm; CI explicitly requests linux/amd64 |
 | Python base | Both stages use `python:3.13.16-slim-bookworm@sha256:f040863673aea2570c3ff6a5c3fb4c673a016cbc5375005ad145915922b6b78a` |
 | Dockerfile frontend | `docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e` |
-| Debian sources | `debian.sources`: bookworm/main and bookworm-security/main snapshots at 20261019T000000Z; inherited sources disabled by apt options; archive keyring signature checks retained |
+| Debian sources | `debian.sources`: bookworm/main and bookworm-security/main snapshots at 20261107T000000Z; inherited sources disabled by apt options; archive keyring signature checks retained |
+| Fixed OS security inputs | apt/libapt-pkg6.0 2.6.2 and openssl/libssl3 3.0.22-1~deb12u2; exact install requests and dpkg version assertions; compare final inventory for other snapshot-driven updates |
 | Python packages | 98 exact pins in `requirements-prod.txt`; 114 compatible official wheel hashes in `requirements-prod.lock`; binary-only, hash-required, no resolver-added dependencies in production |
 | Reviewed range resolutions | msgpack 1.2.3, setuptools 84.1.0, uvloop 0.22.1; numpy 2.4.6 for current 3.11/3.13 compatibility |
 | Input manifest | `build-inputs.json`: registry/platform identities, PyPI metadata provenance and dependency markers, wheel hashes, Debian Release lookup hashes and six input-file hashes |

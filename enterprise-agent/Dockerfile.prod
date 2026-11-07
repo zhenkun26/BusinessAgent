@@ -67,8 +67,14 @@ COPY --from=builder /build-info /build-info
 
 # Runtime libraries are required: pure psycopg needs libpq. Fail on installation errors.
 # Ignore all inherited/mutable apt sources; signed snapshot verification remains enabled.
+# Exact security fixes are verified before continuing; no broad system upgrade.
 RUN apt-get -o Dir::Etc::sourcelist=/build-info/deploy/debian.sources -o Dir::Etc::sourceparts=- update \
     && apt-get -o Dir::Etc::sourcelist=/build-info/deploy/debian.sources -o Dir::Etc::sourceparts=- install -y --no-install-recommends ca-certificates tzdata libpq5 \
+        apt=2.6.2 libapt-pkg6.0=2.6.2 libssl3=3.0.22-1~deb12u2 openssl=3.0.22-1~deb12u2 \
+    && test "$(dpkg-query -W -f='${Version}' apt)" = "2.6.2" \
+    && test "$(dpkg-query -W -f='${Version}' libapt-pkg6.0)" = "2.6.2" \
+    && test "$(dpkg-query -W -f='${Version}' libssl3)" = "3.0.22-1~deb12u2" \
+    && test "$(dpkg-query -W -f='${Version}' openssl)" = "3.0.22-1~deb12u2" \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /app/logs /data/observability /data/monitor /data/receiver && chown -R 65534:65534 /app /data
 

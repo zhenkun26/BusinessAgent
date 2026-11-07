@@ -10,7 +10,7 @@
   },
   "build_manifest": {
     "path": "enterprise-agent/deploy/build-inputs.json",
-    "sha256": "5f0cd89da904a526e11c0ef389dfde79eb6caf2d77abdb034854d82d3a6b25f6"
+    "sha256": "14d62e38dc8386de02ee677bfa6bcff505db1a10ac8e999efcc1d89eea84d336"
   },
   "vendor_manifest": {
     "path": "enterprise-agent/app/static/vendor/manifest.json",
@@ -4128,7 +4128,7 @@
         "&& /opt/venv/bin/pip install -c requirements-prod.txt -r requirements-ml.txt; \\",
         "FROM python:3.13.16-slim-bookworm@sha256:f040863673aea2570c3ff6a5c3fb4c673a016cbc5375005ad145915922b6b78a AS runner"
       ],
-      "sha256": "0fa98a037c4371a8a16685be267a29e5c8c23c0f28112453ac314a3d397e5310",
+      "sha256": "7d2eeab00ca78e0affd259daee02ba86fc09479470d147abe93d5bf137d45ae0",
       "status": "CLOSURE_AND_LICENSE_REVIEW_PENDING"
     },
     "enterprise-agent/deploy/Dockerfile.capacity": {

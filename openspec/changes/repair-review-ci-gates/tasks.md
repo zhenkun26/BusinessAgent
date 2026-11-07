@@ -62,3 +62,38 @@ tomllib; the existing isolated Python 3.13 completed inventory reconciliation.
 An initial build-check invocation omitted its required root argument; the corrected
 read-only invocation passed. Neither attempt deleted files or changed gates.
 Full-suite and remote audit/image validation remain parent-owned next steps.
+
+## Debian image advisory remediation (plan before implementation)
+
+Run 42364507658 passed both Python jobs, dependency audit, image build and installed
+inventory/identity checks. Trivy found four HIGH Debian records: apt/libapt-pkg6.0
+CVE-2026-109518 and openssl/libssl3 CVE-2026-84782. Verify official advisory and
+fixed-version availability in a newer immutable signed Debian snapshot. Prefer
+retaining the existing Python base digest and Python package scope while explicitly
+installing only the affected fixed system versions. Preserve signed APT verification,
+hash-bound inputs and vulnerability gates; no new exemption. Retain official metadata
+and validate the build/license bindings locally without running APT or Docker.
+Actual installation, dependency imports and image scanning remain remote CI evidence.
+
+- [x] Verify official snapshot evidence and exact fixed package availability.
+- [x] Update the minimal reproducible recipe/snapshot and integrity bindings.
+- [ ] Complete local integrity review, full checks and remote image verification.
+
+
+Retained evidence: enterprise-agent/eval/results/ci-debian-repair-20261107.
+Official Debian tracker pages identify both fixed source versions. The frozen
+20261107T000000Z Release hashes bind the amd64 Packages.xz byte hashes/sizes, and
+the security index binds all four downloaded .deb byte hashes/sizes. Both indexes
+and all archives are retained; nothing was installed locally. GPG was unavailable
+locally, so this is a digest-chain check, not a claimed local signature verification.
+APT's existing Signed-By/keyring checks remain enabled for the actual remote build.
+
+The recipe installs apt/libapt-pkg6.0 2.6.2 and openssl/libssl3 3.0.22-1~deb12u2,
+then requires four matching dpkg-query results before continuing. The immutable
+Python base digest and all 98 Python package records remain unchanged. Existing
+unversioned runtime-library requests still resolve against the new frozen snapshot;
+their actual versions and any dependency changes must be compared in the resulting
+CI inventory. This is not a claim that only four final OS package versions change.
+Build-input verification and license integrity pass locally (98 packages, 457 pending
+source rights). Full suite, signed APT installation, actual image/import checks and
+Trivy remain parent-owned remote verification; no exemption or trust relaxation.
