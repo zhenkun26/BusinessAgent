@@ -1,0 +1,20 @@
+# Reviewed C24 source SHA-256 false positives, not credentials.
+# Each value was recomputed from its referenced Git blob at this exact commit.
+# Scope: commit + manifest path + rule + line only; future findings still fail.
+# Evidence: docs/40-process/ci-pytest-repair.md (remote CI follow-up).
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:20
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:43
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:65
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:86
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:90
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:136
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:140
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:146
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:177
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:236
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:237
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:245
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:246
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:252
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:282
+d8a26b5726cb7ffce6747b677804c7c3403bd763:enterprise-agent/scripts/final_candidate_sources.json:generic-api-key:285

@@ -19,6 +19,8 @@ from typing import Optional
 
 from loguru import logger
 
+from app.rag.score_admission import finite_score
+
 
 class Coverage(str, Enum):
     NONE = "none"
@@ -75,6 +77,7 @@ class ConfidenceDecider:
             score: 综合置信度(检索分数 + LLM 自评的加权)
             scene: 场景类型(policy/factual/inferential)
         """
+        finite_score(score)
         threshold = self.thresholds.get(scene, self.thresholds["default"])
         score = max(0.0, min(1.0, score))
 
@@ -145,7 +148,12 @@ class ConfidenceDecider:
         llm_self_score: LLM 自评(0-1),None 时只用检索分
         retrieval_weight: 检索分权重
         """
+        finite_score(retrieval_score)
         if llm_self_score is None:
             return max(0.0, min(1.0, retrieval_score))
+        finite_score(llm_self_score)
+        finite_score(retrieval_weight)
         llm_w = 1.0 - retrieval_weight
-        return max(0.0, min(1.0, retrieval_score * retrieval_weight + llm_self_score * llm_w))
+        combined = retrieval_score * retrieval_weight + llm_self_score * llm_w
+        finite_score(combined)
+        return max(0.0, min(1.0, combined))

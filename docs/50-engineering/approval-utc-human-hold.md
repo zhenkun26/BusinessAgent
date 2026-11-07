@@ -1,5 +1,35 @@
 # Approval UTC and human review candidate
 
+## Current integrated approval boundary (2026-11-07)
+
+This guidance supersedes conflicting preintegration behavior below. See the
+[approved integration change](../../openspec/changes/integrate-local-delivery-security/proposal.md).
+Approval records a decision only; the original requester must explicitly confirm with
+fresh authentication. Batch decisions are atomic decisions, never batch execution.
+Before each dispatch, enforce the exact committed approval, current participant/tool
+permissions and UTC deadline. A mixed QUERY + approved ACTION plan fails closed:
+run the query separately, then request approval for the action-only plan. Durable action
+receipts cannot certify query results.
+
+Stop on failure or unknown effects; never automatically compensate an approval execution.
+Retain late receipts as evidence without automatically clearing a manual hold. Legacy
+records without trusted provenance stay held; neither reapproval nor replacement requests
+are a supported bypass. Authorized `GET /approval/{id}/evidence` (under `/api/v1`)
+returns safe per-operation summaries, not a release capability. No release endpoint exists.
+
+Managed schema v9 retains C10 v8 and adds approval guards. Follow
+[database bootstrap](../../enterprise-agent/deploy/DATABASE_BOOTSTRAP.md), not the
+historical standalone main 009 script directly. No database migration, service or deployment
+was run for this documentation alignment. Real runtime/full RAG/C10, privacy and rights
+acceptance remain BLOCKED or pending; historical synthetic results do not clear those gates.
+
+## Historical standalone candidate and synthetic acceptance
+
+The following describes the November 1 preintegration candidate, not the managed
+integration installation procedure. Its standalone-009 instructions and test results are
+retained as historical evidence only. They do not authorize execution on the managed path.
+
+
 This is a local candidate against public main `5c57f0c719a4a079b94fdd8108cd6bcb20b01351`.
 Core application/schema acceptance has passed on isolated PostgreSQL with synthetic data.
 This is not full application or deployment acceptance, and no production database was changed.

@@ -2,7 +2,7 @@
 
 W3 完整实现：
 - EnterpriseRAGRetriever 两阶段检索(向量召回 + Rerank)
-- DegradationChain Milvus 三级降级(向量 → BM25 → PG LIKE)
+- DegradationChain Milvus 三级降级(向量 → 关键词扫描 → PG 全文/ILIKE)
 - ConfidenceDecider 场景化阈值(P1-2)
 - LLM 生成答案(DeepSeek/OpenAI 兼容)
 - 答案附来源(可追溯)
@@ -16,7 +16,7 @@ W3 完整实现：
 """
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from loguru import logger
@@ -24,10 +24,11 @@ from pydantic import BaseModel, Field
 
 from app.rag.confidence import ConfidenceDecider, Coverage
 from app.rag.degradation import DegradationChain
-from app.rag.llm import get_lite_llm, get_local_llm, get_primary_llm
+from app.rag.llm import get_lite_llm, get_local_llm
 from app.rag.retriever import EnterpriseRAGRetriever
 from app.rag.vector_store import SearchResult
 from app.security.rbac import AgentRole
+from app.security.retrieval_policy import resolve_scope
 
 
 class RetrievalSource(BaseModel):
@@ -96,7 +97,7 @@ class KnowledgeAgent:
 
     def _get_llm(self):
         if self.llm is None:
-            self.llm = get_primary_llm()
+            self.llm = get_lite_llm()
         return self.llm
 
     def _get_eval_llm(self):
@@ -111,7 +112,9 @@ class KnowledgeAgent:
             try:
                 self._eval_llm = get_local_llm()
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"本地 LLM 不可用，自评降级用 primary: {e}")
+                from app.core.execution_budget import check_execution_budget
+                check_execution_budget()
+                logger.warning("KNOWLEDGE_LOCAL_MODEL_UNAVAILABLE")
                 self._eval_llm = self._get_llm()
         return self._eval_llm
 
@@ -122,12 +125,13 @@ class KnowledgeAgent:
             query: 子任务描述(用户消息)
             history: 多轮对话历史 [{"user","assistant"}]，用于：
                 1) 指代消解：query 含"它/这/那"等指代词时，检索 query 拼接上一轮用户消息
-                2) 答案生成：prompt 的 query 槽带历史块，让模型理解追问语境
+                2) Generation: history stays in the untrusted JSON data envelope.
         """
         start = time.time()
 
         try:
-            # 1. 降级链检索(向量 → BM25 → PG LIKE)
+            scope = resolve_scope(self.user_role, self.user_dept)
+            # 1. 降级链检索(向量 → 关键词扫描 → PG 全文/ILIKE)
             # 检索用扩展后的 query(embedding 需要完整语义);自评/日志仍用原 query
             from app.graph.history import expand_query_with_history
 
@@ -139,12 +143,15 @@ class KnowledgeAgent:
                 top_k=self.rerank_top_k,
             )
 
-            results = deg_result.results
+            if deg_result.error:
+                raise RuntimeError('RETRIEVAL_UNAVAILABLE')
+
+            results = [result for result in deg_result.results if scope.allows_result(result)]
             stage = deg_result.stage
 
             if not results:
                 # 知识库无结果,标记 needs_replan(P1-3)
-                logger.warning(f"KnowledgeAgent 无检索结果， query={query!r}, stage={stage}")
+                logger.warning("KNOWLEDGE_NO_RESULTS")
                 return AgentResult(
                     agent_name="knowledge",
                     success=False,
@@ -161,12 +168,16 @@ class KnowledgeAgent:
                     replan_hint={"query": query, "stage": stage},
                 )
 
+            from app.rag.score_admission import check_result_scores
+            check_result_scores(results)
+
             # 2. LLM 生成答案(带多轮历史)
             # I-07:token 走统一采集通道(callback 累加器),不再自行提取 usage_metadata
             from app.observability.token_usage import snapshot_total_tokens
 
             tokens_before = snapshot_total_tokens()
             answer, llm_self_score = await self._generate_answer(query, results, history=history)
+            check_result_scores(results)
             tokens = snapshot_total_tokens() - tokens_before
 
             # 3. 综合置信度(检索分 + LLM 自评 加权)
@@ -192,7 +203,7 @@ class KnowledgeAgent:
                     chunk_id=r.chunk_id,
                     title=r.title,
                     source_url=r.source_url or None,
-                    updated_at=datetime.fromtimestamp(r.updated_at),
+                    updated_at=datetime.fromtimestamp(r.updated_at, tz=timezone.utc),
                     score=r.score,
                     namespace=r.dept_namespace,
                 )
@@ -200,11 +211,7 @@ class KnowledgeAgent:
             ]
 
             latency_ms = int((time.time() - start) * 1000)
-            logger.info(
-                f"KnowledgeAgent 完成： query={query[:50]!r}, "
-                f"stage={stage}, coverage={coverage}, score={combined_score:.3f}, "
-                f"latency={latency_ms}ms, tokens={tokens}"
-            )
+            logger.info(f"KNOWLEDGE_COMPLETED latency_ms={latency_ms} tokens={tokens}")
 
             return AgentResult(
                 agent_name="knowledge",
@@ -229,14 +236,16 @@ class KnowledgeAgent:
             )
 
         except Exception as e:  # noqa: BLE001
-            logger.exception(f"KnowledgeAgent 异常： {e}")
+            from app.core.execution_budget import check_execution_budget
+            check_execution_budget()
+            logger.error("KNOWLEDGE_SERVICE_FAILED")
             return AgentResult(
                 agent_name="knowledge",
                 success=False,
                 confidence=0.0,
                 output={"answer": "知识检索服务异常，请稍后重试。", "coverage": "none"},
                 sources=[],
-                error=str(e),
+                error="KNOWLEDGE_SERVICE_FAILED",
                 latency_ms=int((time.time() - start) * 1000),
             )
 
@@ -248,35 +257,27 @@ class KnowledgeAgent:
         I-07:token 用量不再从响应 usage_metadata 逐点提取,改由统一 callback
         (TokenUsageCallbackHandler)采集,调用方读请求级累加器差值。
         """
-        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_core.messages import HumanMessage, SystemMessage
+        from app.security.rag_boundary import (
+            NO_ANSWER, answer_data, build_prompt, model_text, validate_answer,
+        )
+
+        if not results:
+            return NO_ANSWER, None
+        from app.rag.score_admission import check_result_scores
+        check_result_scores(results)
 
         # 答案生成用 lite(flash):pro 是推理模型,95% token 消耗在隐藏推理上
         # (实测 RAG 答案 1694 token 中仅 ~5% 可见,耗时 60-90s);
         # RAG 答案有严格片段约束,flash 质量足够且快 3-4 倍
+        tpl, pv = get_prompt("knowledge_rag_answer")
+        prompt = build_prompt(tpl, pv, answer_data(query, results, history), {'context', 'query'})
         llm = get_lite_llm()
-
-        # 构造 context(带编号)
-        context_parts = []
-        for i, r in enumerate(results, start=1):
-            context_parts.append(f"[片段{i}] {r.title}\n{r.content}")
-        context = "\n\n".join(context_parts)
-
-        # 多轮上下文:有历史时把历史块拼进 query 槽(不改模板,
-        # 兼容 prompt_versions 已激活版本),让模型理解"那它的折扣呢"这类追问
-        answer_query = query
-        if history:
-            from app.graph.history import format_history_block
-
-            answer_query = f"{format_history_block(history)}\n\n当前问题： {query}"
-
-        # 生成答案(P2-1:prompt 从注册表取,支持版本管理/A/B)
-        tpl, _pv = get_prompt("knowledge_rag_answer")
-        prompt = ChatPromptTemplate.from_template(tpl)
-        answer_resp = await (prompt | llm).ainvoke(
-            {"context": context, "query": answer_query},
-            config={"tags": ["final_answer"]},  # 流式输出标记(仅面向用户的生成)
+        answer_resp = await llm.ainvoke(
+            [SystemMessage(content=prompt.system), HumanMessage(content=prompt.data)],
+            config={"tags": ["rag_candidate"], "metadata": prompt.metadata},
         )
-        answer_text = answer_resp.content if hasattr(answer_resp, "content") else str(answer_resp)
+        answer_text = validate_answer(model_text(answer_resp), len(results))
 
         # LLM 自评(用本地小模型,免费高频;失败不影响主流程)
         # 条件化:检索分明显高(≥0.85,不过自评也稳过)或明显低(≤0.30,自评满分也救不回)
@@ -289,7 +290,8 @@ class KnowledgeAgent:
         try:
             eval_llm = self._get_eval_llm()
             eval_tpl, _epv = get_prompt("knowledge_llm_self_eval")
-            eval_prompt = ChatPromptTemplate.from_template(eval_tpl)
+            eval_prompt = build_prompt(eval_tpl, _epv, {'query': query, 'answer': answer_text[:500]},
+                                       {'query', 'answer'})
             # num_predict 硬截断:qwen3.5 即使 reasoning=False 也可能啰嗦,
             # 自评只需 1-2 个数字,截断后生成 ~0.2s
             # (ChatOllama 用 model_copy 改 num_predict;primary 降级时回退 max_tokens)
@@ -299,17 +301,18 @@ class KnowledgeAgent:
                 eval_llm = eval_llm.model_copy(update={"num_predict": 10})
             else:
                 eval_llm = eval_llm.bind(max_tokens=10)
-            eval_resp = await (eval_prompt | eval_llm).ainvoke(
-                {"query": query, "answer": answer_text[:500]}
+            eval_resp = await eval_llm.ainvoke(
+                [SystemMessage(content=eval_prompt.system), HumanMessage(content=eval_prompt.data)],
+                config={"tags": ["rag_evaluation"], "metadata": eval_prompt.metadata},
             )
-            eval_text = eval_resp.content if hasattr(eval_resp, "content") else str(eval_resp)
-            # 提取首个整数
-            num_str = "".join(ch for ch in eval_text if ch.isdigit())[:2]
-            if num_str:
-                score_int = max(0, min(10, int(num_str)))
-                llm_self_score = score_int / 10.0
+            eval_text = model_text(eval_resp)
+            # Coverage remains a heuristic; arbitrary digits in prose are not a score.
+            if eval_text.strip() in {str(i) for i in range(11)}:
+                llm_self_score = int(eval_text.strip()) / 10.0
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"LLM 自评失败： {e}")
+            from app.core.execution_budget import check_execution_budget
+            check_execution_budget()
+            logger.warning("KNOWLEDGE_SELF_EVALUATION_FAILED")
 
         return answer_text, llm_self_score
 
@@ -317,10 +320,8 @@ class KnowledgeAgent:
     def _apply_decision(answer: str, decision) -> tuple[str, Optional[str]]:
         """根据置信度决策组装最终答案 + 提示"""
         if decision.action == "reject":
-            return (
-                "未在知识库中找到与您问题相关的可靠信息。建议：1) 重新描述问题；2) 联系相关业务负责人核实。",
-                None,
-            )
+            from app.security.rag_boundary import NO_ANSWER
+            return NO_ANSWER, None
         if decision.action == "answer_with_hint":
             hint = (
                 f"⚠️ 当前答案置信度较低({decision.score:.2f})，建议人工核实。"

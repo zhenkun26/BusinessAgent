@@ -6,6 +6,7 @@
     planner
       ↓ (route_after_planner 条件边)
     ├─ "aggregator" (闲聊/无子任务) → aggregator → END
+    ├─ "plan_rejected" (不支持的依赖计划) → END
     └─ list[Send("agent_executor", sub_state)] (多子任务,并行 fan-out)
          ↓
        agent_executor (并行 N 个)
@@ -25,13 +26,15 @@ W6 增强: 接入 Checkpointer 支持断点恢复
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Optional
 
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
+from app.prompts import request_prompt_snapshot
 from app.graph.aggregator import aggregator_node
-from app.graph.dispatcher import route_after_planner
+from app.graph.dispatcher import plan_rejected_node, route_after_planner
 from app.graph.executor import agent_executor_node
 from app.graph.planner import planner_node
 from app.graph.state import AgentState, UserInput, make_initial_state
@@ -39,9 +42,8 @@ from app.graph.state import AgentState, UserInput, make_initial_state
 # 单次对话重规划轮次上限(agent-replan 护栏;超出强制进入 END)
 MAX_REPLAN_ROUNDS = 2
 
-# 编译后的图缓存:按 checkpointer backend 区分
-# {"none": graph(无checkpointer), "redis": graph(redis), "memory": graph(memory), ...}
-_compiled_graphs: dict[str, object] = {}
+# Bind each cached graph to the saver instance used to load its request history.
+_compiled_graphs: dict[tuple[str, Optional[int]], object] = {}
 
 
 def build_graph(checkpointer: Optional[object] = None, backend_tag: str = "none"):
@@ -52,10 +54,11 @@ def build_graph(checkpointer: Optional[object] = None, backend_tag: str = "none"
         backend_tag: checkpointer 后端标识(用于缓存键),如 "redis"/"postgres"/"memory"/"none"
 
     返回编译后的 CompiledGraph,可重复 invoke。
-    同一 backend_tag 只编译一次(缓存)。
+    同一 backend_tag 和 checkpointer 实例只编译一次(缓存)。
     """
-    if backend_tag in _compiled_graphs:
-        return _compiled_graphs[backend_tag]
+    cache_key = (backend_tag, id(checkpointer) if checkpointer is not None else None)
+    if cache_key in _compiled_graphs:
+        return _compiled_graphs[cache_key]
 
     g = StateGraph(AgentState)
 
@@ -63,17 +66,18 @@ def build_graph(checkpointer: Optional[object] = None, backend_tag: str = "none"
     g.add_node("planner", planner_node)
     g.add_node("agent_executor", agent_executor_node)
     g.add_node("aggregator", aggregator_node)
+    g.add_node("plan_rejected", plan_rejected_node)
+    g.add_edge("plan_rejected", END)
 
     # 边:START → planner
     g.add_edge(START, "planner")
 
-    # 条件路由:planner → aggregator(闲聊) 或 agent_executor(fan-out)
-    # route_after_planner 返回 "aggregator" 或 list[Send]
+    # Route to independent fan-out, aggregation or terminal dependency refusal.
     # 第三参数 path_map 指定可路由的目标节点(含 Send 目标)
     g.add_conditional_edges(
         "planner",
         route_after_planner,
-        ["agent_executor", "aggregator"],
+        ["agent_executor", "aggregator", "plan_rejected"],
     )
 
     # agent_executor → aggregator
@@ -89,7 +93,7 @@ def build_graph(checkpointer: Optional[object] = None, backend_tag: str = "none"
     )
 
     compiled = g.compile(checkpointer=checkpointer) if checkpointer else g.compile()
-    _compiled_graphs[backend_tag] = compiled
+    _compiled_graphs[cache_key] = compiled
     logger.info(f"LangGraph 主图编译完成(backend={backend_tag}, checkpointer={'on' if checkpointer else 'off'})")
     return compiled
 
@@ -109,10 +113,7 @@ def route_after_aggregator(state: AgentState):
     needs_replan = state.get("needs_replan", False)
     replan_count = state.get("replan_count", 0)
     if needs_replan and replan_count < MAX_REPLAN_ROUNDS:
-        logger.info(
-            f"重规划回边: round={replan_count + 1}/{MAX_REPLAN_ROUNDS}, "
-            f"reason={state.get('replan_reason')}"
-        )
+        logger.info(f"GRAPH_REPLAN round={replan_count + 1}")
         return "planner"
     return END
 
@@ -122,12 +123,23 @@ async def run_graph(
     thread_id: Optional[str] = None,
     use_checkpointer: bool = True,
 ) -> AgentState:
+    from app.core.execution_budget import execution_budget
+
+    with execution_budget(user_input.message):
+        return await _run_graph(user_input, thread_id, use_checkpointer)
+
+
+async def _run_graph(
+    user_input: UserInput,
+    thread_id: Optional[str] = None,
+    use_checkpointer: bool = True,
+) -> AgentState:
     """运行图(异步入口,W6 增强:支持 thread_id 断点恢复)
 
     Args:
         user_input: 用户输入
-        thread_id: 断点恢复线程 ID;None 时用 conversation_id(同一会话可恢复)
-        use_checkpointer: 是否启用 checkpointer(True 走三级降级链;False 纯内存执行,用于测试)
+        thread_id: Logical session ID; an active owned run supplies the physical saver thread.
+        use_checkpointer: 是否启用 checkpointer(True 使用配置的固定后端;False 纯内存执行,用于测试)
 
     Returns:
         最终状态(含 final_answer, sources, confidence 等)
@@ -141,35 +153,33 @@ async def run_graph(
         checkpointer, backend_tag = await get_checkpointer()
         graph = build_graph(checkpointer=checkpointer, backend_tag=backend_tag)
 
-        # thread_id 默认用 conversation_id,保证同一会话可跨进程恢复
+        # Each owned run has an isolated physical thread; history uses accepted pointers.
         tid = thread_id or user_input.conversation_id
-        config = {"configurable": {"thread_id": tid}}
+        from app.core.session_fencing import active_fence
+        config = active_fence(tid).config
 
         # 多轮上下文:从 checkpoint 链加载最近历史(ainvoke 前,只含历史轮次)
         from app.graph.history import load_recent_history
 
-        history = await load_recent_history(tid)
+        history = await load_recent_history(tid, checkpointer=checkpointer, user_input=user_input,
+                                            backend=backend_tag)
 
-        logger.info(
-            f"运行 LangGraph(checkpointer={backend_tag}, thread_id={tid}): "
-            f"request_id={user_input.request_id}, user={user_input.username}, "
-            f"message={user_input.message[:80]!r}"
-        )
+        logger.info("GRAPH_PERSISTENT_STARTED")
     else:
         graph = build_graph()
         history = []
-        logger.info(
-            f"运行 LangGraph(无 checkpointer): request_id={user_input.request_id}, "
-            f"user={user_input.username}, message={user_input.message[:80]!r}"
-        )
+        logger.info("GRAPH_EPHEMERAL_STARTED")
 
     initial_state = make_initial_state(user_input)
-    initial_state["history"] = history
+    from app.core.execution_budget import bounded_history
+
+    initial_state["history"] = bounded_history(history)
     # I-07:请求级 token 采集作用域(contextvar),图内全部 LLM 调用统一计入
     from app.observability.token_usage import track_token_usage
 
-    with track_token_usage():
-        final_state = await graph.ainvoke(initial_state, config=config)
+    async with request_prompt_snapshot(enabled=use_checkpointer):
+        with track_token_usage():
+            final_state = await graph.ainvoke(initial_state, config=config)
     return final_state
 
 
@@ -184,16 +194,31 @@ async def run_graph_stream(
     user_input: UserInput,
     thread_id: Optional[str] = None,
     use_checkpointer: bool = True,
-):
+) -> AsyncIterator[dict]:
+    from app.core.execution_budget import execution_budget
+
+    with execution_budget(user_input.message):
+        stream = _run_graph_stream(user_input, thread_id, use_checkpointer)
+        try:
+            async for event in stream:
+                yield event
+        finally:
+            await stream.aclose()
+
+
+async def _run_graph_stream(
+    user_input: UserInput,
+    thread_id: Optional[str] = None,
+    use_checkpointer: bool = True,
+) -> AsyncIterator[dict]:
     """流式运行图(SSE 用):async generator,产出进度/token 事件
 
     事件类型:
-    - {"type": "progress", "node": "planner|agent_executor|aggregator", "phase": "start|end"}
+    - progress: planner/agent_executor/aggregator/plan_rejected, phase=start/end
     - {"type": "token", "data": "<增量文本>"}  ← 仅带 final_answer 标签的生成调用
-      (knowledge 答案 / analysis 报告 / aggregator 汇总;planner 分类/自评等中间调用不推)
+      (eligible non-RAG generation only; raw knowledge drafts/evaluation stay hidden)
 
-    最终状态不在本生成器返回,由调用方在流结束后用 aget_state 取
-    (checkpointer 快照即最终 AgentState)。
+    The caller validates and publishes the final checkpoint before sending success.
     """
     if not use_checkpointer:
         # 流式入口面向 API,强制走 checkpointer(便于取最终状态)
@@ -204,41 +229,47 @@ async def run_graph_stream(
     checkpointer, backend_tag = await get_checkpointer()
     graph = build_graph(checkpointer=checkpointer, backend_tag=backend_tag)
     tid = thread_id or user_input.conversation_id
-    config = {"configurable": {"thread_id": tid}}
-    logger.info(
-        f"流式运行 LangGraph(checkpointer={backend_tag}, thread_id={tid}): "
-        f"request_id={user_input.request_id}, user={user_input.username}"
-    )
+    from app.core.session_fencing import active_fence
+    config = active_fence(tid).config
+    logger.info("GRAPH_STREAM_STARTED")
 
     initial_state = make_initial_state(user_input)
 
     # 多轮上下文:从 checkpoint 链加载最近历史(astream_events 前,只含历史轮次)
     from app.graph.history import load_recent_history
 
-    initial_state["history"] = await load_recent_history(tid)
+    from app.core.execution_budget import bounded_history
 
-    watched_nodes = ("planner", "agent_executor", "aggregator")
+    initial_state["history"] = bounded_history(await load_recent_history(
+        tid, checkpointer=checkpointer, user_input=user_input, backend=backend_tag,
+    ))
+
+    watched_nodes = ("planner", "agent_executor", "aggregator", "plan_rejected")
     last_progress: Optional[tuple] = None
 
     # I-07:请求级 token 采集作用域(contextvar),图内全部 LLM 调用统一计入
     from app.observability.token_usage import track_token_usage
 
-    with track_token_usage():
-        async for ev in graph.astream_events(initial_state, config=config, version="v2"):
-            kind = ev.get("event", "")
-            node = ev.get("metadata", {}).get("langgraph_node")
+    async with request_prompt_snapshot():
+        with track_token_usage():
+            async for ev in graph.astream_events(initial_state, config=config, version="v2"):
+                kind = ev.get("event", "")
+                node = ev.get("metadata", {}).get("langgraph_node")
 
-            if kind in ("on_chain_start", "on_chain_end") and node in watched_nodes:
-                phase = "start" if kind.endswith("_start") else "end"
-                # astream_events 对同一节点会发 chain/runnable 两组事件,去重
-                if (node, phase) != last_progress:
-                    last_progress = (node, phase)
-                    yield {"type": "progress", "node": node, "phase": phase}
-            elif kind == "on_chat_model_stream" and "final_answer" in ev.get("tags", []):
-                chunk = ev.get("data", {}).get("chunk")
-                text = getattr(chunk, "content", None) if chunk is not None else None
-                if text:
-                    yield {"type": "token", "data": text}
+                if kind in ("on_chain_start", "on_chain_end") and node in watched_nodes:
+                    phase = "start" if kind.endswith("_start") else "end"
+                    # astream_events 对同一节点会发 chain/runnable 两组事件,去重
+                    if (node, phase) != last_progress:
+                        last_progress = (node, phase)
+                        yield {"type": "progress", "node": node, "phase": phase}
+                elif (kind == "on_chat_model_stream" and "final_answer" in ev.get("tags", [])
+                      and not {'rag_candidate', 'rag_evaluation', 'planning_candidate',
+                               'chitchat_candidate', 'rerank_candidate'}
+                      .intersection(ev.get('tags', []))):
+                    chunk = ev.get("data", {}).get("chunk")
+                    text = getattr(chunk, "content", None) if chunk is not None else None
+                    if text:
+                        yield {"type": "token", "data": text}
 
 
 def reset_graph():

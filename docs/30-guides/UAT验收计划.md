@@ -1,6 +1,6 @@
 # 智多星 UAT 验收计划
 
-> 状态：草案（2026-08-15）
+> 状态：草案；2026-09-29 复核，真实 UAT 资源仍待确认。
 >
 > 本文用于组织真实用户验收，不代表 UAT 已完成。种子用户只能用于技术彩排，不能替代真实员工验收；stub 或 Mock 只能证明契约和治理链路，不能证明真实外部系统副作用。
 
@@ -26,7 +26,7 @@
 | 系统边界、SLA、风险操作 | `openspec/specs/production-readiness/spec.md` | 已冻结 |
 | 阶梯压测 | `enterprise-agent/eval/results/loadtest_report_20260806_100427.md` | 达标，单机 Compose 前提 |
 | 备份恢复演练 | `docs/40-process/ISSUES.md` I-12、运维手册 | 已完成，RTO/RPO 有实测记录 |
-| 自动化回归 | `enterprise-agent/tests/`、`.github/workflows/ci.yml` | 发布前必须重新执行 |
+| 自动化回归 | [CI 36522224892](https://github.com/zhenkun26/BusinessAgent/actions/runs/36522224892)、`enterprise-agent/tests/` | 应用提交 2d4bfc1 的 Python 3.11/3.13 各 143 项通过；正式 UAT 执行版本变更时重新验证 |
 | 权限与越权测试 | `docs/40-process/生产对抗性审查与部署验收报告.md` | 已有自动化证据，Prompt 攻击面仍需真实 UAT/安全测试 |
 
 ### 2.2 待确认资源

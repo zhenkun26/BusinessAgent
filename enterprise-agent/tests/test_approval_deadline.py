@@ -41,7 +41,8 @@ class Session:
             return Result([deepcopy(self.store.users[uid])]) if uid in self.store.users else Result()
         if 'AS approval_now' in sql: return Result([NS(approval_now=self.store.now)])
         if sql.startswith('SELECT') and 'FROM approval_requests' in sql:
-            rows = list(self.store.rows.values())
+            rows = deepcopy(list({**self.store.rows, **self.pending}.values()))
+            for r in rows: r.live = r.expires_at > self.store.now
             if 'id' in p: rows = [r for r in rows if r.approval_id == p['id']]
             if 'uid' in p:
                 rows = [r for r in rows if r.requester_id == p['uid']
@@ -49,7 +50,14 @@ class Session:
                         and (r.status is not None or 'status IS NULL' in sql)]
             return Result(deepcopy(rows))
         if sql.startswith('UPDATE approval_requests'):
-            row = deepcopy(self.store.rows[p['id']])
+            row = deepcopy(self.pending.get(p['id'], self.store.rows[p['id']]))
+            if "SET status = 'executing'" in sql:
+                if row.status != 'approved_pending_reauth' or row.expires_at <= self.store.now or row.execution_claim: return Result()
+                row.status='executing'; row.execution_id=p['eid']; row.execution_claim=p['claim']
+                row.execution_deadline=NOW+timedelta(minutes=5)
+                self.pending[row.approval_id]=row
+                return Result([row])
+            if 'execution_claim = :claim' in sql and (row.status != 'executing' or str(row.execution_claim) != p['claim']): return Result()
             if 'old' in p and (row.status != p['old'] or row.expires_at <= self.store.now): return Result()
             state = p.get('state', p.get('status'))
             if state is None:
@@ -87,11 +95,10 @@ def setup(monkeypatch):
     if deadline:
         monkeypatch.setattr(deadline, 'targets_for', lambda calls: [
             {'tool': c['tool'], 'provider': 'mock', 'endpoint': ''} for c in calls])
-    monkeypatch.setattr(approval, 'get_audit_logger', lambda: NS(log=AsyncMock()))
     monkeypatch.setattr(approval, 'notify_approval_result', AsyncMock())
-    monkeypatch.setattr(approval, 'get_jwt_manager', lambda: NS(
-        decode=lambda _: {'sub': 'owner'}, is_expired=lambda _: False,
-        refresh_if_needed=AsyncMock(return_value='synthetic-token')))
+    monkeypatch.setattr(approval, 'decode_identity_token', lambda _: {'sub':'owner'})
+    monkeypatch.setattr(approval.lifecycle, 'bind_execution', AsyncMock(return_value='00000000-0000-4000-8000-000000000002'))
+    monkeypatch.setattr(approval.lifecycle, 'observe', AsyncMock(return_value='executed'))
     effect = AsyncMock(return_value=(True, 'synthetic only', 'salesperson'))
     monkeypatch.setattr(approval, '_execute_approval_tools', effect)
     return effect
@@ -103,9 +110,11 @@ def record(route='decide', expired=False, trusted=True, aid='approval-one'):
         approver_id='manager' if route == 'resume' else None,
         approver_roles=['manager', 'admin'], operation_type='send_email_external',
         risk_level='high', summary='synthetic only', requester_token='synthetic-token',
+        execution_id=None, execution_claim=None, execution_deadline=None, execution_error=None,
         created_at=created, expires_at=created + timedelta(hours=24),
         prefill_payload={'tool_calls': [{'tool': 'send_email_external', 'params': {
             'to': ['recipient@example.invalid'], 'subject': 'Synthetic', 'body': 'Never sent'},
+            'operation_id': '00000000-0000-4000-8000-000000000001',
             'reason': 'synthetic regression'}]})
     if trusted:
         r.approval_contract = (deadline.build_contract(r) if deadline else
@@ -136,13 +145,14 @@ async def attempt(route, db, aid='approval-one'):
 @pytest.mark.parametrize('expired', [True, False], ids=['expired', 'live-control'])
 async def test_expired_approval_cannot_dispatch(route, expired, setup):
     await attempt(route, Session(Store([record(route, expired)])))
-    assert setup.await_count == (0 if expired else 1)
+    assert setup.await_count == (1 if not expired and route == 'resume' else 0)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('route', ['decide', 'resume', 'batch'])
 async def test_persist_failure_cannot_dispatch_again(route, setup):
     store = Store([record(route)])
-    await attempt(route, Session(store, fail='outcome-update'))
+    if route != 'resume': await attempt(route, Session(store))
+    await attempt('resume', Session(store, fail='outcome-update'))
     assert setup.await_count == 1
     await attempt(route, Session(store))
     assert setup.await_count == 1
@@ -167,16 +177,16 @@ async def test_untrusted_approval_held_unchanged(route, damage, setup):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('failure', ['claim-before', 'claim-after'])
 async def test_uncertain_claim_commit_never_dispatches(failure, setup):
-    store = Store([record()]); await attempt('decide', Session(store, fail=failure))
+    store = Store([record('resume')]); await attempt('resume', Session(store, fail=failure))
     assert setup.await_count == 0
     if failure == 'claim-after':
-        await attempt('decide', Session(store))
+        await attempt('resume', Session(store))
         assert setup.await_count == 0 and store.rows['approval-one'].status == 'executing'
 
 @pytest.mark.asyncio
 async def test_two_concurrent_requests_dispatch_once_in_transaction_double(setup):
-    store = Store([record()])
-    await asyncio.gather(attempt('decide', Session(store)), attempt('decide', Session(store)))
+    store = Store([record('resume')])
+    await asyncio.gather(attempt('resume', Session(store)), attempt('resume', Session(store)))
     assert setup.await_count == 1
 
 @pytest.mark.asyncio
@@ -188,21 +198,20 @@ async def test_owner_hold_blocks_other_trusted_approval(state, setup):
     assert setup.await_count == 0 and store.rows == before
 
 @pytest.mark.asyncio
-async def test_expiry_during_token_refresh_prevents_claim(monkeypatch, setup):
-    store = Store([record()])
-    async def refresh(*args, **kwargs):
+async def test_expiry_during_binding_prevents_claim(monkeypatch, setup):
+    store = Store([record('resume')])
+    async def bind(*args):
         store.now = store.rows['approval-one'].expires_at
-        return 'synthetic-token'
-    monkeypatch.setattr(approval, 'get_jwt_manager', lambda: NS(
-        decode=lambda _: {'sub': 'owner'}, refresh_if_needed=refresh))
-    await attempt('decide', Session(store))
-    assert setup.await_count == 0 and store.rows['approval-one'].status == 'pending'
+        return '00000000-0000-4000-8000-000000000002'
+    monkeypatch.setattr(approval.lifecycle, 'bind_execution', bind)
+    await attempt('resume', Session(store))
+    assert setup.await_count == 0 and store.rows['approval-one'].status == 'approved_pending_reauth'
 
 @pytest.mark.asyncio
 async def test_failed_tool_and_cancellation_retain_hold(setup):
     for error in [RuntimeError('uncertain'), asyncio.CancelledError()]:
-        store = Store([record()]); setup.reset_mock(); setup.side_effect = error
-        try: await attempt('decide', Session(store))
+        store = Store([record('resume')]); setup.reset_mock(); setup.side_effect = error
+        try: await attempt('resume', Session(store))
         except asyncio.CancelledError: pass
         assert store.rows['approval-one'].status in {'executing', 'execution_unknown'}
         await attempt('decide', Session(store)); assert setup.await_count == 1
@@ -243,6 +252,12 @@ async def test_writer_uses_db_clock_and_cannot_clone_old_hold(monkeypatch, setup
     monkeypatch.setattr(execution, 'get_audit_logger', lambda: NS(log=AsyncMock()))
     plan = ToolCallPlan(tool='send_email_external', params={
         'to': ['recipient@example.invalid'], 'subject': 'synthetic', 'body': 'not sent'})
+    from app.tools import operation_gateway
+    async def prepare(plans, context, **kwargs):
+        context['execution_calls'] = [{'tool':p.tool,'params':p.params,
+            'operation_id':'00000000-0000-4000-8000-000000000001'} for p in plans]
+    monkeypatch.setattr(operation_gateway, 'prepare_calls', prepare)
+    execution._ensure_tools()
     agent = object.__new__(ExecutionAgent)
     context = {'user_id': 'owner', 'session_id': 'session-one',
                'deadline_contract': {'version': 'client-forged'},
@@ -274,6 +289,8 @@ async def test_scanner_progresses_past_100_untrusted_rows(monkeypatch, setup):
     execute = db.execute
     async def paged(query, params=None):
         sql, p = str(query), params or {}
+        if sql.startswith('SELECT') and 'SKIP LOCKED' in sql and 'cursor' not in p:
+            return Result()
         if sql.startswith('SELECT') and 'SKIP LOCKED' in sql:
             selected = sorted((r for r in store.rows.values()
                 if r.approval_id > p['cursor'] and r.status in {'pending','approved_pending_reauth'}
@@ -316,21 +333,19 @@ async def test_approval_scope_never_retries_mutations(monkeypatch, failure):
     assert not deadline.in_approval_dispatch()
 
 @pytest.mark.asyncio
-async def test_approval_failure_stops_remaining_steps_without_saga(monkeypatch):
+async def test_approval_uses_durable_fail_stop_coordinator(monkeypatch):
     from app.agents import execution
+    from app.tools import operation_gateway
     from app.tools.base import ToolResult
-    effects=[]
-    async def call(plan,context):
-        effects.append(plan.tool)
-        return ToolResult(success=len(effects)==1,tool_name=plan.tool,output={})
     monkeypatch.setattr(execution,'_ensure_tools',lambda:None)
-    monkeypatch.setattr(execution,'_invoke_single',call)
-    saga=AsyncMock(side_effect=AssertionError('must not compensate/retry'))
+    prepare=AsyncMock()
+    monkeypatch.setattr(operation_gateway,'prepare_calls',prepare)
+    saga=AsyncMock(return_value=ToolResult(False,'synthetic',{}))
     monkeypatch.setattr(execution,'_invoke_saga',saga)
     plans=[execution.ToolCallPlan(tool=f'synthetic-{i}',params={}) for i in range(3)]
-    with deadline.dispatch_scope(): result=await execution.execute_tool_calls(plans,{})
-    assert not result.success and effects==['synthetic-0','synthetic-1']
-    saga.assert_not_awaited()
+    result=await execution.execute_tool_calls(plans,{})
+    assert not result.success
+    prepare.assert_awaited_once(); saga.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_model_context_cannot_approve_external_mail(monkeypatch):
@@ -343,15 +358,15 @@ async def test_model_context_cannot_approve_external_mail(monkeypatch):
     effect.assert_not_awaited()
 
 @pytest.mark.asyncio
-async def test_batch_stops_after_unknown_result(setup):
+async def test_batch_decides_only_and_never_dispatches(setup):
     store=Store([record(),record(aid='approval-two')])
     setup.return_value=(False,'unknown','salesperson')
     req=approval.BatchApprovalRequest(approvals=[{'approval_id':a,'decision':'approved'}
         for a in ['approval-one','approval-two']])
     result=await approval.batch_decide_approvals(req,NS(user_id='manager',role='manager'),Session(store))
-    assert setup.await_count==1
-    assert result.results[1]['error']=='NOT_ATTEMPTED_HUMAN_REVIEW_REQUIRED'
-    assert store.rows['approval-two'].status=='pending'
+    assert setup.await_count==0
+    assert result.succeeded==2
+    assert all(r.status=='approved_pending_reauth' for r in store.rows.values())
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('identity',['owner','manager'])
@@ -360,7 +375,7 @@ async def test_disabled_current_participant_cannot_dispatch(identity,setup):
     await attempt('decide',Session(store)); assert setup.await_count==0
 
 @pytest.mark.asyncio
-async def test_direct_action_keeps_owner_lock_until_dispatch_returns(monkeypatch,setup):
+async def test_direct_action_prepares_before_gateway_without_cross_transaction_lock(monkeypatch,setup):
     from app.agents import execution
     from app.core import database
     from app.tools.base import ToolResult
@@ -373,9 +388,13 @@ async def test_direct_action_keeps_owner_lock_until_dispatch_returns(monkeypatch
     monkeypatch.setattr(execution,'_ensure_tools',lambda:None)
     monkeypatch.setattr(execution,'get_tool',lambda name:NS(category=NS(value='action')))
     async def effect(*args):
-        assert store.locks['owner'].locked()
+        assert not store.locks['owner'].locked()
+        prepared.assert_awaited_once()
         return ToolResult(success=True,tool_name='synthetic',output={})
     monkeypatch.setattr(execution,'_invoke_single',effect)
+    from app.tools import operation_gateway
+    prepared=AsyncMock()
+    monkeypatch.setattr(operation_gateway,'prepare_calls',prepared)
     await execution.execute_tool_calls([execution.ToolCallPlan(tool='synthetic',params={})],{'user_id':'owner'})
     assert not store.locks['owner'].locked()
 
@@ -403,33 +422,33 @@ def test_actual_target_binding_detects_configuration_drift(monkeypatch, change):
 @pytest.mark.parametrize('receipt', [None, '', ' ', 123, 'synthetic-message-id'])
 async def test_approved_mail_requires_positive_receipt(monkeypatch, receipt):
     from app.tools import mail
-    monkeypatch.setattr(mail, 'get_settings', lambda: NS(
-        mail_api_base='https://mail.example.invalid', mail_api_token='synthetic-only'))
-    effect = AsyncMock(return_value=(True, {'message_id': receipt}, None))
-    monkeypatch.setattr(mail, 'call_external_api', effect)
-    with deadline.dispatch_scope():
-        result = await mail.SendEmailExternalTool()._call_external(
-            {'to': ['recipient@example.invalid'], 'subject': 'test', 'body': 'test'}, {})
-    assert result.success is (receipt == 'synthetic-message-id')
-    if not result.success: assert result.error == 'APPROVAL_RESULT_UNCONFIRMED'
-    assert effect.await_count == 1
+    effect = AsyncMock()
+    monkeypatch.setattr(mail.SendEmailExternalTool, '_execute', effect)
+    # A generic message_id, even a nonempty one, cannot substitute for a durable
+    # operation receipt and server-issued committed approval capability.
+    result = await mail.SendEmailExternalTool().invoke(
+        {'to':['recipient@example.invalid'],'subject':'test','body':'test'},
+        {'role':'salesperson','receipt':{'message_id':receipt}})
+    assert not result.success and result.error == 'APPROVAL_COMMITTED_CLAIM_REQUIRED'
+    effect.assert_not_awaited()
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('field', ['requester_id', 'approver_id', 'payload', 'contract'])
 async def test_resume_rechecks_identity_and_contract_after_relocking(field, setup):
     store = Store([record('resume')]); db = Session(store)
-    rollback = db.rollback
+    execute = db.execute
     changed = False
-    async def change_during_unlock():
+    async def change_during_lock(query, params=None):
         nonlocal changed
-        await rollback()
-        if changed: return
-        changed = True
-        row = store.rows['approval-one']
-        if field == 'payload': row.prefill_payload['tool_calls'][0]['params']['body'] = 'changed'
-        elif field == 'contract': row.approval_contract = {'version':'forged'}
-        else: setattr(row, field, 'another-person')
-    db.rollback = change_during_unlock
+        result = await execute(query, params)
+        if 'FROM users' in str(query) and not changed:
+            changed = True
+            row = store.rows['approval-one']
+            if field == 'payload': row.prefill_payload['tool_calls'][0]['params']['body'] = 'changed'
+            elif field == 'contract': row.approval_contract = {'version':'forged'}
+            else: setattr(row, field, 'another-person')
+        return result
+    db.execute = change_during_lock
     await attempt('resume', db)
     setup.assert_not_awaited()
     assert store.rows['approval-one'].status == 'approved_pending_reauth'
@@ -439,12 +458,11 @@ async def test_batch_stops_after_result_persistence_503(setup):
     store = Store([record(), record(aid='approval-two')])
     request = approval.BatchApprovalRequest(approvals=[{'approval_id': aid, 'decision':'approved'}
         for aid in ['approval-one', 'approval-two']])
-    result = await approval.batch_decide_approvals(request,
-        NS(user_id='manager', role='manager'), Session(store, fail='outcome-update'))
-    assert setup.await_count == 1
-    assert result.results[1]['error'] == 'NOT_ATTEMPTED_HUMAN_REVIEW_REQUIRED'
-    assert store.rows['approval-one'].status == 'executing'
-    assert store.rows['approval-two'].status == 'pending'
+    with pytest.raises(HTTPException) as caught:
+        await approval.batch_decide_approvals(request,
+            NS(user_id='manager', role='manager'), Session(store, fail='claim-before'))
+    assert caught.value.status_code == 503 and setup.await_count == 0
+    assert all(row.status == 'pending' for row in store.rows.values())
 
 @pytest.mark.asyncio
 async def test_dispatch_scope_isolated_and_restored_on_cancellation():
@@ -458,7 +476,7 @@ async def test_dispatch_scope_isolated_and_restored_on_cancellation():
         finally:
             assert not deadline.in_approval_dispatch()
     task = asyncio.create_task(scoped())
-    await entered.wait()
+    await asyncio.wait_for(entered.wait(), timeout=2)
     assert not deadline.in_approval_dispatch()
     task.cancel()
     with pytest.raises(asyncio.CancelledError): await task
@@ -493,15 +511,12 @@ async def test_uninstalled_schema_fails_without_dispatch(setup):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('changed', ['payload', 'contract'])
 @pytest.mark.parametrize('weaken_predicate', [False, True], ids=['guard', 'negative-control'])
-async def test_outcome_cas_detects_snapshot_drift(changed, weaken_predicate, setup):
-    store = Store([record()]); db = Session(store)
+async def test_outcome_cas_detects_snapshot_drift(changed, weaken_predicate, setup, monkeypatch):
+    store = Store([record('resume')]); db = Session(store)
     execute = db.execute
     if weaken_predicate:
-        async def missing_guard(query, params=None):
-            sql = str(query).replace('AND prefill_payload = CAST(:snapshot AS JSONB) ', '')
-            sql = sql.replace('AND approval_contract = CAST(:contract AS JSONB) ', '')
-            return await execute(sql, params)
-        db.execute = missing_guard
+        monkeypatch.setattr(deadline, 'require_contract', lambda row: None)
+        monkeypatch.setattr(deadline, 'canonical', lambda value: 'weakened-control')
     async def effect(*args, **kwargs):
         row = store.rows['approval-one']
         if changed == 'payload':
@@ -512,11 +527,11 @@ async def test_outcome_cas_detects_snapshot_drift(changed, weaken_predicate, set
         return True, 'synthetic', 'salesperson'
     setup.side_effect = effect
     if weaken_predicate:
-        result = await invoke('decide', db)
+        result = await invoke('resume', db)
         assert result.status == 'executed'  # Removing both guards reproduces the bad outcome.
     else:
         with pytest.raises(HTTPException) as exc:
-            await invoke('decide', db)
+            await invoke('resume', db)
         assert exc.value.status_code == 503
         assert store.rows['approval-one'].status == 'executing'
     assert setup.await_count == 1

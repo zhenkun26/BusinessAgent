@@ -7,7 +7,7 @@
   ② 累加进当前请求的累加器(contextvar,随图执行上下文隔离);
 - 累加器由 run_graph/run_graph_stream 的 track_token_usage() 建立,
   aggregator 汇总后读总量落 AgentState.tokens_used,API 层再写审计 payload
-  并异步回写 sessions.token_count。
+  and commits sessions.token_count with the owned checkpoint publication (C10).
 """
 
 from __future__ import annotations

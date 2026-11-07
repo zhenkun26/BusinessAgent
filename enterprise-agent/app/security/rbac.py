@@ -1,11 +1,11 @@
 """RBAC 权限模型与 JWT 解析"""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from pydantic import BaseModel
@@ -99,92 +99,93 @@ class UserContext(BaseModel):
     username: str
     role: AgentRole
     department: Optional[str] = None
-    jwt_token: str
+
+
+def decode_identity_token(token: str, *, allow_expired: bool = False) -> dict[str, Any]:
+    """Verify credentials; expiry relaxation is only for the pending-reauth decision."""
+    settings = get_settings()
+    try:
+        payload = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm],
+            options={"require": ["sub", "exp"], "verify_exp": not allow_expired},
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(401, "Token 已过期") from None
+    except (jwt.PyJWTError, ValueError, TypeError, OverflowError):
+        raise HTTPException(401, "Token 无效") from None
+    subject = payload.get("sub")
+    expiry = payload.get("exp")
+    if (
+        not isinstance(subject, str) or not subject.strip() or len(subject) > 64
+        or isinstance(expiry, bool) or not isinstance(expiry, (int, float))
+        or not 0 <= expiry <= 253402300799
+    ):
+        raise HTTPException(401, "Token 无效")
+    return payload
+
+
+async def resolve_active_user(user_id: str, db: Any, *, lock: bool = False) -> User:
+    """Resolve current identity; never substitute claims or a default role."""
+    from sqlalchemy import text
+
+    if not isinstance(user_id, str) or not user_id.strip() or len(user_id) > 64:
+        raise HTTPException(401, "用户不存在或已被禁用")
+    try:
+        row = (await db.execute(
+            text("SELECT username, role, department, is_active FROM users "
+                 "WHERE user_id = :uid" + (" FOR SHARE" if lock else "")),
+            {"uid": user_id},
+        )).fetchone()
+    except Exception:
+        logger.warning("Identity store unavailable; access denied")
+        raise HTTPException(503, "身份服务暂不可用") from None
+    if row is None or not row.is_active:
+        raise HTTPException(401, "用户不存在或已被禁用")
+    try:
+        role = AgentRole(row.role)
+    except (ValueError, TypeError):
+        raise HTTPException(401, "账户权限无效") from None
+    return User(user_id=user_id, username=row.username or "", role=role.value,
+                department=row.department, is_active=True)
 
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
 ) -> User:
-    """FastAPI 依赖:从 JWT 解析当前用户
-
-    安全加固(auth_check_db):
-    - 默认每次请求回查 users 表,用户被禁用/删除后旧 token 立即失效;
-      角色/部门变更对后续请求即时生效(不再依赖 token 内的陈旧 claim)。
-    - 数据库不可用时降级为仅 JWT 校验并告警(保持可用性,但禁用即时性降级)。
-    """
+    """Authenticate with signed credentials and fail-closed current identity lookup."""
     if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="未提供认证凭据",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token = credentials.credentials
-    settings = get_settings()
-
-    try:
-        payload = jwt.decode(
-            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
-        )
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Token 已过期")
-    except jwt.PyJWTError:
-        raise HTTPException(401, "Token 无效")
-
-    payload_user = User(
-        user_id=payload["sub"],
-        username=payload.get("username", ""),
-        role=payload.get("role", "salesperson"),
-        department=payload.get("department"),
-        is_active=True,
-    )
-
+        raise HTTPException(401, "未提供认证凭据", headers={"WWW-Authenticate": "Bearer"})
+    payload = decode_identity_token(credentials.credentials)
     settings = get_settings()
     if not settings.auth_check_db:
-        return payload_user
-
+        if not settings.is_dev:
+            raise HTTPException(503, "认证配置无效")
+        try:
+            role = AgentRole(payload.get("role"))
+        except (ValueError, TypeError):
+            raise HTTPException(401, "账户权限无效") from None
+        return User(user_id=payload["sub"], username=payload.get("username", ""),
+                    role=role.value, department=payload.get("department"), is_active=True)
     try:
         from app.core.database import get_session_factory
-        from sqlalchemy import text
 
         factory = get_session_factory()
         async with factory() as session:
-            row = (
-                await session.execute(
-                    text(
-                        "SELECT username, role, department, is_active "
-                        "FROM users WHERE user_id = :uid"
-                    ),
-                    {"uid": payload_user.user_id},
-                )
-            ).fetchone()
-        if row is None:
-            # 用户已删除:旧 token 立即失效
-            raise HTTPException(401, "用户不存在或已被禁用")
-        if not row.is_active:
-            raise HTTPException(401, "用户不存在或已被禁用")
-        return User(
-            user_id=payload_user.user_id,
-            username=row.username or payload_user.username,
-            role=row.role or payload_user.role,
-            department=row.department,
-            is_active=True,
-        )
+            return await resolve_active_user(payload["sub"], session)
     except HTTPException:
         raise
-    except Exception as e:  # noqa: BLE001 数据库故障不阻断请求,降级 JWT 校验
-        logger.warning(f"get_current_user 数据库校验失败,降级 JWT: {e}")
-        return payload_user
+    except Exception:
+        logger.warning("Identity store unavailable; access denied")
+        raise HTTPException(503, "身份服务暂不可用") from None
 
 
 def get_user_context(user: User = Depends(get_current_user)) -> UserContext:
-    """获取完整用户上下文(含 jwt_token)"""
+    """Return identity-only context; credentials remain at the authentication boundary."""
     return UserContext(
         user_id=user.user_id,
         username=user.username,
         role=AgentRole(user.role),
         department=user.department,
-        jwt_token="",  # 由调用方填充
     )
 
 

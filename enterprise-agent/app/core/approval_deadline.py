@@ -18,7 +18,7 @@ WAITING = frozenset({"pending", "approved_pending_reauth"})
 ACTIVE = frozenset({"executing", "execution_unknown"})
 HOLD = "APPROVAL_HUMAN_REVIEW_REQUIRED"
 COLUMNS = ("approval_id, session_id, requester_id, operation_type, risk_level, summary, "
-           "prefill_payload, approver_roles, status, approver_id, requester_token, "
+           "prefill_payload, approver_roles, status, approver_id, "
            "created_at, expires_at, approval_contract")
 _dispatch: ContextVar[bool] = ContextVar("approval_dispatch", default=False)
 
@@ -146,6 +146,11 @@ async def lock_users(db: Any, *user_ids: str) -> dict[str, Any]:
             "WHERE user_id = :uid FOR UPDATE"), {"uid": uid})).fetchone()
         if row is None or row.is_active is not True:
             raise HTTPException(403, "APPROVAL_ACTIVE_USER_REQUIRED")
+        from app.security.rbac import AgentRole
+        try:
+            AgentRole(row.role)
+        except (ValueError, TypeError):
+            raise HTTPException(403, "APPROVAL_ACTIVE_USER_REQUIRED") from None
         users[uid] = row
     return users
 

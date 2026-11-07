@@ -1,8 +1,10 @@
 # 生产部署指南
 
-> 适用：Hello，智多星——企业知识工作流 Agent v3
-> 部署方式：Docker Compose（单机生产部署）
-> 更新日期：2026-07-26
+> 适用：智多星 v1.3.0；候选提交与镜像摘要必须另行记录。
+> 部署方式：Linux 单机 Docker Compose；工程候选配置，不代表已完成生产验收。当前版本、schema、提交与证据关系见[交付状态](../../docs/50-engineering/delivery-status.md)。
+> 更新日期：2026-10-17（C01 配置、C02/C03 离线增量已实现；真实 API/PostgreSQL/Linux 验收 BLOCKED）
+>
+> C01 已统一镜像引用和访问入口；模型 profile、数据库初始化、多进程状态分别由 C02/C03/C09 验收。当前不能仅凭本指南宣称完整系统可交付。当前 C22 已提供保留式恢复候选，真实运行及 D01–D16 验收仍 BLOCKED；历史演练不能替代当前结果。
 
 ---
 
@@ -15,7 +17,7 @@
                     └──────┬──────┘
                            │
                     ┌──────▼──────┐
-                    │  API (×4)   │  uvicorn --workers 4
+                    │  API (×1)   │  uvicorn --workers 1
                     │  FastAPI    │
                     └──┬──┬──┬────┘
                        │  │  │
@@ -51,7 +53,7 @@
 | 磁盘 | 100 GB SSD | 500 GB SSD |
 | 系统 | Linux (Ubuntu 22.04+) | Linux |
 
-> 内存主要被 Milvus(4G) + API(4G) + Redis(2G) + MinIO(2G) + bge-m3 Embedding 模型(2G) 占用。
+> 上表为历史参考，不是当前模型 profile 的实测下限。C02 外部模型候选为单 API 进程与独立 worker，各 2 GiB 预算，不再加载本地 BGE 权重；数据库等基础设施仍需独立资源。实际容量、峰值与时延尚未测量，见 [模型 profile](MODEL_PROFILE.md)。
 
 ### 2.2 软件依赖
 
@@ -66,20 +68,9 @@ git --version
 
 ### 2.3 模型文件准备
 
-将本地模型文件上传到服务器：
+生产候选为 `bailian-deepseek-v1`：百炼北京向量与重排、DeepSeek Flash 默认与 Pro 复杂任务。账号、独立密钥、接口、计费与验收边界见 [MODEL_PROFILE.md](MODEL_PROFILE.md)。无需准备本地模型快照；保留旧卷与 BGE 集合。新向量必须写入独立集合，本轮不执行索引或迁移。
 
-```bash
-# 服务器创建目录
-mkdir -p /data/models
-
-# 上传(从开发机)
-scp -r D:/models/bge-m3 user@server:/data/models/
-scp -r D:/models/bge-reranker-large user@server:/data/models/
-
-# 或用 HuggingFace 直接下载(服务器可联网时)
-huggingface-cli download BAAI/bge-m3 --local-dir /data/models/bge-m3
-huggingface-cli download BAAI/bge-reranker-large --local-dir /data/models/bge-reranker-large
-```
+生产候选不加载本地权重；凭证、模型配置或付费探针授权未就绪时拒绝启动。
 
 ---
 
@@ -87,15 +78,16 @@ huggingface-cli download BAAI/bge-reranker-large --local-dir /data/models/bge-re
 
 ### 3.1 创建 `.env.prod`
 
-```bash
-cp .env .env.prod
-```
+在 `enterprise-agent/` 下创建私有 `.env.prod`；已有文件只编辑需要的字段，不覆盖现有配置。参考 `.env.example` 补齐应用配置。`env_file: .env.prod` 只负责容器环境；Compose 的镜像、密码等 `${...}` 插值通过下文每条命令的 `--env-file .env.prod` 显式读取。不要把真实配置或 `docker compose config` 全文放入聊天、日志或 Git。
 
 编辑 `.env.prod`，**必须修改**以下字段：
 
 ```env
 APP_ENV=prod
 AUTH_REQUIRE_PASSWORD=true
+
+# 必须取自经审查的 CI 候选及镜像仓库，不使用 latest 或可变 tag
+BUSINESSAGENT_IMAGE=ghcr.io/<owner>/businessagent@sha256:<64位实际摘要>
 
 # 强密码(用 openssl rand -base64 32 生成)
 POSTGRES_PASSWORD=<生成新密码>
@@ -106,12 +98,28 @@ GRAFANA_ADMIN_PASSWORD=<生成新密码>
 # DeepSeek API Key
 OPENAI_API_KEY=<生产 Key>
 
-# 模型路径(服务器路径)
-EMBEDDING_MODEL=/data/models/bge-m3
-RERANKER_MODEL=/data/models/bge-reranker-large
+# Selected external model profile; keep probes disabled pending authorization.
+MODEL_PROFILE=bailian-deepseek-v1
+MODEL_STARTUP_PROBES_ENABLED=false
+EMBEDDING_PROVIDER=bailian
+EMBEDDING_MODEL=text-embedding-v4
+EMBEDDING_DIM=1024
+EMBEDDING_API_KEY=<private-beijing-key>
+EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+RERANKER_PROVIDER=bailian
+RERANKER_MODEL=qwen3-rerank
+RERANKER_API_KEY=<private-beijing-key>
+RERANKER_BASE_URL=https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+LITE_LLM_MODEL=deepseek-flash
+PRIMARY_LLM_MODEL=deepseek-v4-pro
+MILVUS_COLLECTION=enterprise_knowledge_bailian_v4_1024_v1
 
 # Milvus 切换为真实后端
 VECTOR_STORE_PROVIDER=milvus
+
+# 与实际 HTTPS 入口一致；生产不能使用通配来源
+CORS_ALLOW_ORIGINS=https://<实际域名>
 
 # 关闭调试
 LOG_LEVEL=INFO
@@ -152,141 +160,110 @@ mkdir -p backups
 ### 4.1 拉取代码
 
 ```bash
-git clone <repo-url> /opt/enterprise-agent
-cd /opt/enterprise-agent
-git checkout main
+git clone <repo-url> /opt/BusinessAgent
+cd /opt/BusinessAgent
+git checkout <已审查的候选提交>
+cd enterprise-agent
 ```
 
-### 4.2 新库初始化与旧版登录升级
+以下命令全部从 `enterprise-agent/` 执行。隔离验收时使用独立主机、端口和数据卷，不能覆盖已有实例。CI 使用 `Dockerfile.prod` 构建、扫描并按既有发布授权流程提供镜像；本 Compose **没有 build 路径**，API/worker 都使用 `.env.prod` 中的同一摘要。
 
-在 `enterprise-agent/` 下操作，先将 API 入口限制为仅运维可达。既有部署先备份数据库，保留数据卷。生产模式拒绝随附的演示密码哈希。现有管理员若已使用独立密码，可直接进入登录验证。
+### 4.2 验证配置与启动条件
 
-**首次创建管理员。** 仅启动 PostgreSQL。主分支生产 Compose 目前使用开发 Dockerfile，其 `COPY eval` 与 `.dockerignore` 冲突，新环境的完整应用构建仍待修复。以下步骤只依赖 PostgreSQL 容器和运维主机的 Python，通过交互式终端运行。
+C02 已实现外部模型方案与获批的 `libpq5` 配方；真实 API 与 Linux 构建/运行验收仍 BLOCKED，见 [模型 profile](MODEL_PROFILE.md)。以下命令未执行，需后续单独授权。生产默认因未授权付费探针而拒绝启动；获准后设置 `MODEL_STARTUP_PROBES_ENABLED=true`，每进程执行 5 次合成模型调用，重试与重启会增加费用。
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait postgres
-admin_venv=$(mktemp -d)
-python3 -m venv "$admin_venv"
-"$admin_venv/bin/python" -m pip install bcrypt==5.0.0
-"$admin_venv/bin/python" - <<'PY'
-from getpass import getpass
-import subprocess
-import uuid
+# bash/zsh 中保留管道上游失败；只输出安全摘要，不打印渲染后的密码
+set -o pipefail
+docker compose --env-file .env.prod -f docker-compose.prod.yml config --format json \
+  | python3 -I -B scripts/check_deployment_contract.py
 
-import bcrypt
+# 只有契约检查 PASS 且允许启动隔离实例后，才拉取候选：
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull api worker
+# 先按 DATABASE_BOOTSTRAP.md 启动 PostgreSQL、显式迁移/status/admin；逐步检查退出码。
+# 数据库验收通过且 C02 付费探针另获授权后，才启动完整服务：
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-build
 
-account = "ops_" + uuid.uuid4().hex
-password = getpass("新管理员独立密码（至少 12 字符）: ")
-if len(password) < 12 or len(password.encode()) > 72 or password != getpass("再次输入: "):
-    raise SystemExit("密码需匹配且不超过 72 字节")
-digest = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-# COPY 的五个字段来自程序生成的标识、固定值和 bcrypt 哈希。
-row = "\t".join([account, account, "admin", "shared_company", digest])
-subprocess.run(
-    ["docker", "compose", "--env-file", ".env.prod", "-f", "docker-compose.prod.yml",
-     "exec", "-T", "postgres", "sh", "-c",
-     'exec psql -Xq -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'],
-    input="COPY users (user_id,username,role,department,password_hash) FROM STDIN;\n"
-          + row + "\n\\.\n",
-    text=True, check=True,
-)
-print("管理员用户名:", account)
-PY
+# 监控可选；指标走 Compose 网络中的 api:8000/metrics
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile monitoring up -d --no-build
 ```
 
-每次执行会创建一个新的管理员。妥善保存成功输出的用户名和刚设置的密码。对于既有部署，替换 `.env.prod` 中的 `JWT_SECRET_KEY` 并重新创建使用该密钥的所有 API 和 worker 实例，使旧的 API 登录令牌失效。核查此前的管理员登录与权限变更，确认业务账号均有独立密码，禁用闲置演示账号，并复核仍待处理的审批。
+契约检查失败必须停止，不继续执行启动行；它拒绝可变 tag、API/worker 不同镜像、应用 build、源码覆盖、宿主端口和 worker 误用 API 探针，但**不验证镜像是否存在、模型是否可用或业务启动成功**。缺失 Docker/Nginx 的环境不能执行后续验收。现有镜像构建与应用路径还需按 C24 的副作用规则复审；本次没有执行含删除的构建/清理命令。
 
-**登录验收。** 在包含本次修复的实例上通过 HTTPS 打开 `/docs`。调用 `POST /api/v1/auth/login`，独立管理员的正确凭证应返回 200 和令牌。错误密码以及仍使用原演示哈希的账号均应返回 401。通过 Swagger UI 的 Authorize 输入新令牌，调用 `GET /api/v1/auth/me` 核对用户和角色。轮换前的令牌应返回 401。验证后再开放入口。
+C03 已移除两套 Compose 的自动 SQL 初始化挂载。空库必须使用同一候选镜像的显式迁移入口；旧库只能在获准的隔离副本上显式接管，不能直接运行历史 SQL 或对当前库迁移。管理员、演示种子、版本漂移及恢复步骤见 [数据库初始化手册](DATABASE_BOOTSTRAP.md)。默认没有账户或通用口令；真实 PostgreSQL 执行与登录仍 BLOCKED。
 
 ### 4.3 验证部署
 
 ```bash
-# 1. 容器状态
-docker compose -f docker-compose.prod.yml ps
+# 1. 容器状态（running 不等于可用）
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 
-# 2. 健康检查
+# 2. 核对 Nginx 实际配置可加载；只检查，不 reload/清理
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx nginx -t
+
+# 3. 以下 -k 仅用于隔离环境自签证书；真实证书应删除 -k
+curl -k -I https://localhost/
+# 期望：302，Location: /ui/
+curl -k -I https://localhost/ui/
+# 期望：200，HTML；随后必须在浏览器完成实际登录
 curl -k https://localhost/health
-# 期望: {"status":"healthy","version":"1.0.0"}
+# 期望：healthy，version 与候选应用版本一致
 
-# 3. 就绪检查
+# 4. 就绪检查：不能仅看 HTTP 200，C21 候选必需依赖失败返回 503；实际 O01–O16 验收仍 BLOCKED
 curl -k https://localhost/ready
-# 期望: db/milvus/checkpointer 全部 healthy
+# 核对 components 下 db/redis/milvus/checkpointer/tools/workers/audit；全部 healthy 才是 200，否则 503
 
-# 4. API 文档
+# 5. 文档与 schema
 curl -k https://localhost/docs
+curl -k https://localhost/openapi.json
+
+# 6. 外部指标入口关闭，内部 Prometheus 采集单独核对
+curl -k -o /dev/null -w '%{http_code}\n' https://localhost/metrics
+# 期望：404
+
+# 7. 只输出应用容器 ID 和实际 image ID，不打印环境变量
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps -q api worker \
+  | xargs docker inspect --format '{{.Id}} {{.Image}}'
 ```
 
-### 4.4 初始化知识库
+API 与 worker 的实际 image ID 必须一致，并与审查记录中的 registry digest 对应的本地镜像 ID 相同。部署记录保存候选提交、构建/扫描 run、registry digest、平台、API/worker image ID 与配置文件哈希；`docker image inspect <实际摘要引用> --format '{{.Id}}'` 可只读获得比对值。
 
-```bash
-# 入库样本文档
-docker compose -f docker-compose.prod.yml exec api \
-  python -m eval.run_eval --ingest --recreate
-```
+浏览器人工验收仍必需：从 HTTPS 根路径进入 UI，完成授权测试账户登录，发起一条已批准的无副作用知识问答；开发者工具确认 `/api/v1/chat/stream` 返回事件流，观察增量事件而非结束后一次性出现；确认文档页成功加载 schema。记录实际角色、环境、首事件时间、结束状态与来源，不在截图中显示凭证。本机缺少目标运行环境，这些步骤尚未执行。
+
+worker 使用同一应用镜像运行 `python -m app.worker`，C21 候选新增内部 8001 的 `/health`、`/ready`、`/metrics`，容器探针只调用自己的 `/ready`。API/worker 的必需依赖失败返回 503；API 会观察共享的两类消费者，worker 只观察自己的 UUID（75 秒窗口），不替代 admin 进度查询的 45 秒 fresh 指示。当前候选要求显式迁移 v8（包含 C21 v7）；迁移前排空并停止旧 API 写入进程，禁止新旧版本混跑，见 [C10 升级边界](../../docs/50-engineering/checkpoint-durability.md)，并共享 `audit_state` 保留式审计卷。真实就绪/持久化/告警验收仍 BLOCKED；双 API 独立采集与受控接收配方见 [C21 契约](../../docs/50-engineering/runtime-observability.md)，队列规则见[队列契约](../../docs/50-engineering/queue-reliability.md)。旧 Redis List 不搬迁或删除。
+
+### 4.4 知识数据与镜像内容边界
+
+生产镜像只包含应用及部署 schema/迁移，不包含宿主 `eval/`、`tests/` 或脚本；因此不能在 API 容器内运行 `python -m eval.run_eval`。知识初始化应使用明确授权的应用上传/发布流程，生命周期一致性由 C15 验收。不要用 `--recreate` 补救，避免触及既有集合。
 
 ---
 
 ## 五、备份与恢复
 
-### 5.1 自动备份脚本
+### 5.1 当前 C22 候选入口
 
-备份脚本已入库：`scripts/backup.sh`（每日 pg_dump + etcd snapshot + MinIO/milvus 数据卷
-整卷 tar，保留 7 天，产出 `backups/pg_<时间戳>.sql.gz`、`etcd_<时间戳>.db`、
-`minio_<时间戳>.tar.gz`、`milvus_<时间戳>.tar.gz`，可用 `BACKUP_DIR` / `RETAIN_DAYS` /
-`COMPOSE_FILES` / `COMPOSE_PROJECT` / `STOP_MILVUS` 环境变量覆盖默认值）：
+当前使用 [保留式备份恢复契约](../../docs/50-engineering/retained-recovery.md)及
+`scripts/recovery.py`。`backup.sh` 仅转发显式参数；不再默认执行备份或删除历史资产。
+控制器先生成审查计划，真实执行必须匹配计划摘要和隔离 project；本机没有执行 Docker、
+停服、备份或恢复。D01–D16 全部 BLOCKED，C22 整项仍 open。
 
-```bash
-scripts/backup.sh
-```
+### 5.2 备份范围与周期
 
-> 备份覆盖说明（2026-08-05 首次恢复演练发现缺口、2026-08-06 补齐并复演验证，ISSUES I-12）：
-> Milvus 可恢复 = etcd 元数据 + MinIO 对象（向量数据本体）+ milvus 本地卷（rocksmq）三件套，
-> 缺一不可。整卷 tar 是运行中系统的近一致快照，需严格一致时设 `STOP_MILVUS=1`（短暂中断检索）。
+候选采用停写后的完整物理卷快照：PG 集群、Redis、etcd/MinIO/Milvus、共享审计及启用的
+参考服务、IdP、监控持久卷。每份归档有文件级哈希/权限清单；配置、镜像、密钥版本和加密
+保管需要独立记录。拟定每 12 小时一次并监测最新完整副本年龄，但**没有安装或启用定时任务**。
+RPO ≤24h 不能由计划或文件时间证明；停服窗口、容量与安全保管须先在隔离环境验证。
 
-### 5.2 配置定时任务
+### 5.3 恢复、回退与历史边界
 
-```bash
-chmod +x scripts/backup.sh
+只向全新 `c22-restore-*` project 的新卷恢复，拒绝覆盖/清库/清卷。使用控制器生成的
+`restored-volumes.compose.json` 映射所有外部卷，并用 `deploy/docker-compose.dr-drill.yml`
+限制应用自动启动；先核对原始镜像/配置与隔离卷，再显式启动指定存储服务。
+字节恢复不会启动 API/worker，也不证明 PG 逻辑内容、Milvus 真实检索或外部副作用安全。
+核对、激活、RTO/RPO 与 image/schema 回退步骤以 C22 契约为准；不得自动重放复制出的未知任务。
 
-# 添加 crontab
-crontab -e
-
-# 每日凌晨 2 点备份
-0 2 * * * /opt/enterprise-agent/scripts/backup.sh >> /var/log/agent_backup.log 2>&1
-```
-
-### 5.3 恢复流程
-
-> 以下步骤为 2026-08-05 首次恢复演练（ISSUES I-12）实测修正版；
-> 演练用隔离环境可复用 `deploy/docker-compose.dr-drill.yml`（独立 project/端口/数据卷）。
-
-```bash
-# PostgreSQL 恢复(目标库已有 schema 时必须先清库,否则建表冲突)
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  psql -U agent enterprise_agent -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-gunzip < backups/pg_20260726_020000.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T postgres \
-  psql -U agent enterprise_agent
-
-# Milvus 恢复(停 Milvus → 停 etcd/minio → 清数据卷 → 恢复 etcd snapshot 与
-#             MinIO/milvus 卷数据 → 启 etcd/minio → 启 Milvus)
-# ⚠️ 在运行中的 etcd 上直接 snapshot restore 必失败(数据目录非空/被锁);
-#    只恢复 etcd 元数据不恢复 MinIO/milvus 卷,集合会 load 挂起(实测,ISSUES I-12)
-docker compose -f docker-compose.prod.yml stop milvus-standalone etcd minio
-docker run --rm -v <project>_etcd_data:/etcd alpine sh -c 'rm -rf /etcd/* /etcd/.[!.]*'
-docker run --rm -v <project>_etcd_data:/etcd -v "$(pwd)/backups:/b:ro" \
-  quay.io/coreos/etcd:v3.5.5 \
-  etcdctl snapshot restore /b/etcd_20260726_020000.db --data-dir /etcd
-docker run --rm -v <project>_minio_data:/data -v "$(pwd)/backups:/b:ro" alpine \
-  sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/minio_20260726_020000.tar.gz -C /data'
-docker run --rm -v <project>_milvus_data:/data -v "$(pwd)/backups:/b:ro" alpine \
-  sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /b/milvus_20260726_020000.tar.gz -C /data'
-docker compose -f docker-compose.prod.yml up -d etcd minio milvus-standalone
-```
-
-> 恢复后一致性核查：`/ready` 全 healthy；PG 关键表行数与备份时点比对；
-> Milvus 集合 `load` 后 `num_entities` 与备份时点比对（仅 `get_collection_stats`
-> 的数字一致不算数——它读的是元数据，segment 缺失时 load 会挂起）。
+历史 2026-08-06 演练及约 194 秒记录保留在过程档案中，仅适用于当时版本。旧清库、清卷、
+`--rm` 和销毁环境命令不再作为当前操作步骤；旧资产均保留交用户处理。
 
 ---
 
@@ -296,7 +273,7 @@ docker compose -f docker-compose.prod.yml up -d etcd minio milvus-standalone
 
 ```bash
 # 启动监控
-docker compose -f docker-compose.prod.yml --profile monitoring up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile monitoring up -d
 
 # 访问
 http://server-ip:3000
@@ -323,38 +300,41 @@ http://server-ip:3000
 
 ```bash
 # API 日志
-docker compose -f docker-compose.prod.yml logs -f api
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f api
 
 # 特定时间段
-docker compose -f docker-compose.prod.yml logs --since 1h api
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --since 1h api
 
 # Nginx 访问日志
-docker compose -f docker-compose.prod.yml exec nginx cat /var/log/nginx/access.log
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec nginx cat /var/log/nginx/access.log
 ```
 
 ---
 
 ## 七、运维操作
 
-### 7.1 滚动更新
+### 7.1 候选镜像更新
 
 ```bash
-# 拉取新代码
-git pull origin main
-
-# 重新构建 API 镜像
-docker compose -f docker-compose.prod.yml build api worker
-
-# 滚动重启(无停机,Nginx 会自动重试)
-docker compose -f docker-compose.prod.yml up -d --no-deps api worker
+# 将 .env.prod 中 BUSINESSAGENT_IMAGE 改为新审查摘要，保留旧摘要供回退
+set -o pipefail
+docker compose --env-file .env.prod -f docker-compose.prod.yml config --format json \
+  | python3 -I -B scripts/check_deployment_contract.py
+# 仅上一步 PASS 且已获更新授权后继续
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull api worker
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps --no-build api worker
 ```
+
+更新会替换容器，可能中断请求，不承诺零停机；Nginx 上游地址解析也需复核，必要时在授权窗口重新加载代理。按 §4.3 重新验收 API/worker 身份和入口；旧摘要可用不等于数据迁移可回退，迁移回退由 C03/C22 明确。当前非删除规则下，不自动执行容器替换或回收。
 
 ### 7.2 扩容（多实例）
 
-单机内扩容（增加 worker 数）：
+C09 已提供共享 Redis 取消租约/SSO state 与每请求数据库 Prompt 快照的离线实现；真实双进程、Redis 原子性/TTL/故障、API/SSE/SSO 验收仍 BLOCKED。当前 Compose 的 `--workers 1` 保持不变，也未确认将交付范围收窄为单进程。后续隔离验证须让两个独立 API 进程指向同一套隔离 Redis/PG，并明确将登录/取消/Prompt 更新与后续请求路由到不同进程；详细标准见[跨进程状态契约](../../docs/50-engineering/cross-process-state.md)。Redis 不可用现在会拒绝新聊天/SSO；不要依赖进程内降级。本文不会自动执行扩容或重启。
+
+以下仅为历史扩容参考，跨进程状态由 C09 验收前，不作为已支持能力或当前执行步骤：
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --scale api=2
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --scale api=2
 ```
 
 > 多机部署需要额外引入负载均衡器（HAProxy/Nginx）+ 共享存储（NFS/S3），届时再评估是否上 K8s。
@@ -371,14 +351,16 @@ limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s;
 limit_req zone=api_limit burst=60 nodelay;
 ```
 
-### 7.4 清理
+### 7.4 历史清理命令（不属于当前操作流程）
+
+以下仅保留历史命令供识别，**当前非删除规则下不得执行**。保留式恢复与回退只按 §5 和 [C22 契约](../../docs/50-engineering/retained-recovery.md)；容器/卷/镜像回收不在本轮授权中。
 
 ```bash
 # 停止全部服务(保留数据)
-docker compose -f docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker-compose.prod.yml down
 
 # 停止并删除数据卷(⚠️ 危险,会丢失全部数据)
-docker compose -f docker-compose.prod.yml down -v
+docker compose --env-file .env.prod -f docker-compose.prod.yml down -v
 
 # 清理无用镜像
 docker image prune -f
@@ -408,7 +390,7 @@ docker image prune -f
 
 ```bash
 # 查看启动日志
-docker compose -f docker-compose.prod.yml logs api | tail -50
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs api | tail -50
 
 # 常见原因:
 # - .env.prod 缺少必填字段(POSTGRES_PASSWORD 等)
@@ -420,7 +402,7 @@ docker compose -f docker-compose.prod.yml logs api | tail -50
 
 ```bash
 # 检查集合状态
-docker compose -f docker-compose.prod.yml exec api \
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec api \
   python -c "from app.core.milvus_client import get_collection; c = get_collection(); print(c.num_entities)"
 
 # 检查命名空间过滤
@@ -429,12 +411,14 @@ docker compose -f docker-compose.prod.yml exec api \
 
 ### 9.3 Redis Checkpointer 失效
 
+C10：`CHECKPOINT_BACKEND=redis` 为默认；所有 API 进程必须一致。后端故障拒绝启动/请求，不自动切到 PG 或 memory。PG 路径需在单独获批的隔离目标先运行显式 schema setup；`memory` 只允许 `APP_ENV=dev`。配置、步骤、TTL、并发与恢复验收见[checkpoint 契约](../../docs/50-engineering/checkpoint-durability.md)。本轮未执行 setup 或调整 worker 数。
+
 ```bash
 # 检查 RediSearch 模块
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD MODULE LIST
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD MODULE LIST
 
 # 应包含: search + ReJSON
-# 不包含则自动降级 PostgreSQL(三级降级链)
+# 不包含则初始化失败；修复目标服务，禁止用切后端冒充状态恢复
 ```
 
 ### 9.4 磁盘满
@@ -444,7 +428,7 @@ docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWOR
 docker system df
 
 # 清理日志(json-file 日志会占空间)
-docker compose -f docker-compose.prod.yml logs --tail 0 -f api  # 看实时
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail 0 -f api  # 看实时
 # 然后 truncate 旧日志
 find /var/lib/docker/containers -name "*.log" -mtime +7 -delete
 ```
@@ -467,3 +451,212 @@ find /var/lib/docker/containers -name "*.log" -mtime +7 -delete
 4. 服务实例 > 10 个，Compose 管理变复杂
 
 届时可参考 v3 方案附录的 K8s 清单，但**当前阶段 Compose 已足够**。
+
+## C23 capacity candidate
+
+Use the [frozen capacity contract](../../docs/50-engineering/capacity-evidence.md) before
+performance work. `eval/run_load_test.sh` now delegates to `eval/run_capacity.py` and requires
+an explicit plan; no default load or Docker fallback is performed. The draft rejects unresolved
+hardware/image/data/oracle fields. Live execution additionally requires the reviewed plan digest,
+a new retained output directory, private TLS and separately authorized isolated accounts/models.
+`deploy/Dockerfile.capacity` reuses the application image; package it only after build approval.
+L01–L16, real 30-minute load, resource/queue recovery and actual provider cost remain BLOCKED.
+Historical health-throughput/k6 reports cannot certify current capacity. No cleanup commands
+are supplied. Keep actual runtime output private and link sanitized evidence from the C23 record.
+
+
+## F2-04 build reproducibility plan — 2026-10-20
+
+Authorized after local `e3831b3`: plan, implement, offline verification, documentation and
+OpenSpec review, then local commit only. No image build, push, publication, deployment,
+spec sync or archive. Real runtime/full RAG remain BLOCKED; C10 stays OPEN.
+
+Scope is the external-model production candidate (`Dockerfile.prod`, INSTALL_ML=0,
+Linux amd64). Development, optional ML, reference IdP/service/capacity images are separate
+profiles; their existing behavior is retained without inheriting a reproducibility claim.
+The target is reviewed immutable package inputs and explainable inventories, not an
+unmeasured promise of identical OCI bytes across hosts or builder versions.
+
+1. Resolve the official Python 3.13 Debian bookworm base and Dockerfile frontend to
+   content digests, recording source, platform, Python version and lookup evidence. Use
+   the same base in both stages. Freeze Debian repositories to a dated signed snapshot;
+   retain signature verification, disable only expired snapshot metadata validity checks.
+2. Replace remaining production ranges with exact reviewed versions compatible with
+   declared Python support. Generate a separate hash-checked wheel lock from official
+   PyPI metadata for all production pins, reject source builds and hidden resolver changes,
+   and remove post-lock range upgrades. No new dependencies are authorized or required.
+   Existing security upgrades must be represented in reviewed inputs, never bypass scans.
+3. Add a standard-library verifier/inventory tool. Validate pins, hashes and recipe inputs
+   offline; compare the actual final Python distributions with the expected production set
+   (including missing, extra, duplicate and wrong-version rejection). Record Python,
+   platform, OS package versions and input hashes in a deterministic inventory, with
+   honest separate status for the optional ML experiment. Wire final non-root verification
+   into the image and export the actual image inventory/identity as CI evidence before
+   publication. Retain existing import probes, pip check, secret/dependency/Trivy gates.
+4. Record a controlled update/rebuild procedure: approve input changes, refresh reviewed
+   digests and hashes, rerun scans, retain old/new input and installed-package inventories,
+   explain changes, and rebuild twice in the same isolated target before runtime acceptance.
+   Pinning does not make an outdated dependency safe; availability and freshness are distinct.
+5. Test malformed/ranged/duplicate pins, hash/recipe drift, package inventory mismatches,
+   optional-profile labeling, deterministic output and CI/context wiring without Docker,
+   stores or models. Run relevant offline entries and the full retained test suite with no
+   skips. Compare tested bytes and preserve unrelated content and file modes before commit.
+
+Exit: implementation/offline checks may PASS; actual wheel installation on Linux,
+snapshot resolution, two clean image builds, installed inventory/import probes and security
+scans for this candidate stay BLOCKED until separately run. Strict OpenSpec CLI is also
+BLOCKED while unavailable. Wait for confirmation before another finding or remote action.
+
+
+## F2-04 input contract and update procedure — 2026-10-20
+
+Implementation/offline verification is complete; **F2-04 image/rebuild acceptance remains
+OPEN / BLOCKED**. The plan above preceded code. No image was built or published locally.
+The application source and schema are unchanged; the NumPy version selection below is
+an explicit dependency-input change whose real model/RAG effects remain unaccepted.
+
+| Input / evidence | Current contract |
+| --- | --- |
+| Production target | INSTALL_ML=0, Linux amd64, CPython 3.13.16, Debian bookworm; CI explicitly requests linux/amd64 |
+| Python base | Both stages use `python:3.13.16-slim-bookworm@sha256:f040863673aea2570c3ff6a5c3fb4c673a016cbc5375005ad145915922b6b78a` |
+| Dockerfile frontend | `docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e` |
+| Debian sources | `debian.sources`: bookworm/main and bookworm-security/main snapshots at 20261019T000000Z; inherited sources disabled by apt options; archive keyring signature checks retained |
+| Python packages | 98 exact pins in `requirements-prod.txt`; 114 compatible official wheel hashes in `requirements-prod.lock`; binary-only, hash-required, no resolver-added dependencies in production |
+| Reviewed range resolutions | msgpack 1.2.1, setuptools 83.0.0, uvloop 0.22.1; numpy 2.4.6 for current 3.11/3.13 compatibility |
+| Input manifest | `build-inputs.json`: registry/platform identities, PyPI metadata provenance and dependency markers, wheel hashes, Debian Release lookup hashes and six input-file hashes |
+| Installed evidence | Final non-root build verifier and CI collect exact Python package set, actual dpkg package versions/architecture, Python/platform and input hashes; CI also retains `docker image inspect` output |
+| Preserved gates | pip check, PostgreSQL/RS256 imports, frontend verification, secret scanning, pip-audit and Trivy HIGH/CRITICAL gate; inventory verification precedes scan/publication |
+
+The official registry index/manifest/config digest chain was checked over HTTPS for Linux
+amd64 and Python 3.13.16; no image layers were downloaded or executed. PyPI release metadata
+provided the wheel hashes and dependency markers. Debian Release metadata was readable;
+actual apt signature verification/installation is a later build gate, not a local result.
+Relevant provenance URLs and metadata SHA-256 values are retained in `build-inputs.json`.
+Hashes detect changed inputs; they are not third-party certification or proof of safe code.
+
+NumPy 2.5.1 from the preceding local test environment requires Python >=3.12. Version 2.4.6
+keeps the shared exact requirements usable with CI's latest Python 3.11 patch. Metadata
+closure tests use 3.11.3 and production 3.13.16. Redis conditionally needs async-timeout on
+3.11.0–3.11.2; those old patches are not a closed-set target of this contract. The ordinary
+resolver may add that conditional dependency there. The production wheel lock is specifically
+3.13/Linux amd64; do not install it on macOS, arm64 or Python 3.11. pyproject/dev requirements,
+CI runner, test/audit tools and action tags are not a fully frozen test/toolchain environment.
+
+Run the read-only input check from `enterprise-agent/`:
+
+```bash
+python3 -I -B scripts/verify_build.py --root .
+```
+
+Default mode only reads input files and prints JSON; it does not inspect the host package
+set or run subprocesses. `--installed` additionally reads installed Python metadata and
+executes a fixed `dpkg-query -W` command with a 15-second timeout. It requires the exact
+production Python/platform and emits JSON to stdout without modifying files, importing the
+application, connecting to services or reading .env. Missing/extra/duplicate/wrong-version
+Python packages fail verification. Optional `--profile experimental-ml` permits additional
+packages but always emits EXPERIMENTAL_NOT_ACCEPTED; base pins still must match. OS package
+versions are observations, not an already accepted expected OS package list.
+
+Controlled update and rebuild workflow (commands below are for a separately authorized
+isolated Linux environment, **not executed in this increment**):
+
+1. Freeze the Git candidate and proposed dependency/security-update scope. Review new
+   Python/platform support and all transitive markers/extras. New dependencies require
+   confirmation. Select official registry digests and release-specific PyPI wheels; retain
+   lookup metadata/hash evidence. Never reuse a mutable tag as the sole identity.
+2. Update exact requirements and the matching production wheel hashes together. Keep
+   `--require-hashes --only-binary=:all: --no-deps`; no post-lock upgrades or source builds.
+   Refresh the snapshot date and Debian Release provenance together when OS fixes are
+   required. Do not disable signature checks or add a mutable fallback if archives fail.
+   Snapshot expiration checking alone is disabled for historic metadata replay.
+3. Review each changed input, then update its SHA-256 in `build-inputs.json`. Changes to the
+   verifier itself also require review/resealing. Run input/adversarial/full tests and inspect
+   the diff. Do not blindly regenerate hashes to bless an unexplained mismatch.
+4. Record `git rev-parse HEAD`, build arguments (INSTALL_ML=0, APP_VERSION=1.3.0), host
+   architecture, Docker/BuildKit versions and scanner/database versions. Build twice with
+   separate empty builder caches, the same platform/inputs and reviewed build context:
+
+   ```bash
+   docker buildx build --platform linux/amd64 --no-cache --pull --load \
+     -f Dockerfile.prod --build-arg INSTALL_ML=0 --build-arg APP_VERSION=1.3.0 \
+     -t businessagent:rebuild-a .
+   docker buildx build --platform linux/amd64 --no-cache --pull --load \
+     -f Dockerfile.prod --build-arg INSTALL_ML=0 --build-arg APP_VERSION=1.3.0 \
+     -t businessagent:rebuild-b .
+   ```
+
+   Use a fresh builder/cache for each command as recorded by the operator. Retain both
+   build logs and each image's inventory and identity. For each image, run read-only:
+
+   ```bash
+   docker run --network none --read-only --entrypoint python businessagent:rebuild-a \
+     -I -B /build-info/scripts/verify_build.py --root /build-info --installed
+   docker image inspect businessagent:rebuild-a
+   ```
+
+   Repeat for rebuild-b. Preserve outputs under distinct candidate/run identities. Compare
+   Python and OS package maps and input identities. Explain image/config/history differences,
+   including timestamps, bytecode, builder metadata, app context and build arguments; stop
+   acceptance if differences are unexplained. Same package versions alone do not prove
+   byte-for-byte identical OCI images or reproducible source builds.
+5. Run the existing secret/dependency/Trivy/import gates against the actual candidate.
+   If a pinned input becomes vulnerable or unavailable, propose a reviewed refresh and
+   retain previous evidence; never keep it indefinitely solely to preserve a digest or
+   bypass scans. Publication remains separately authorized. C01/C24/runtime/full RAG and
+   C10 are not closed by this procedure or by the installed-set verifier.
+
+Development Dockerfile, INSTALL_ML=1, reference IdP/service and derived capacity images
+retain their own current contracts; none inherits the production reproducibility claim.
+The optional ML branch retains build tools using the same snapshot, permits its existing
+resolver experiment and records an explicitly unaccepted inventory. This is not a license
+inventory/SBOM, signature rollout, F2-09 closure, real customer usage or deployment approval.
+
+## F2-04 offline delivery evidence — 2026-10-20
+
+- **PASS:** 50 new adversarial cases; final full pytest **1098 tests + 249 subtests**, zero
+  skips, xfails or guard denials. Prior focused run: 76 tests + 34 subtests before four
+  additional CLI/metadata cases. Existing application coverage is 75.64%; that percentage
+  excludes the standalone verifier script and is not its coverage claim.
+- **PASS:** read-only production input verifier (98 packages), Dockerfile standalone four
+  checks and safe_validate execution. safe_validate exits 2 / overall BLOCKED because real
+  UAT/release evidence is still absent; its execution PASS is not formal acceptance.
+- First full run exposed a metadata-test assumption of Python 3.11.0. The Redis conditional
+  dependency boundary was documented and the actual CI/production patch baselines made
+  explicit; no test was skipped and no new dependency was added.
+- Full receipt: `enterprise-agent/eval/results/ci-pytest-9c0b64c525304088a00ccc4a72f5d8c3/receipt.json`.
+  Related receipts, registry proof, validation and local commit binding are retained next
+  to it. macOS arm64/Python 3.13.15 tests use an isolated declared-dependency view with the
+  SHA-256-checked NumPy 2.4.6 wheel. Metadata/wheel lookup is separate from network-denied
+  tests; no machine-wide installation, image build, model/store/business API call occurred.
+- Diff/source review, Python 3.11 syntax, YAML/local links/manual OpenSpec structure,
+  tested-byte binding and original modes/unrelated content are checked before commit.
+  OpenSpec CLI is unavailable; strict CLI validation stays **BLOCKED**.
+
+F2-04 is **IMPLEMENTED / OFFLINE VERIFIED; IMAGE/REBUILD ACCEPTANCE OPEN / BLOCKED**.
+Two real Linux builds, actual apt/wheel installation and image inventory, current scans,
+remote CI, all prior runtime matrices and full RAG remain BLOCKED; C10 stays OPEN.
+Local commit only, then wait for confirmation; no push/merge/release/deployment/spec sync/
+archive or next finding.
+
+
+### Integrated approval and authentication safety (local candidate)
+
+This integration has not been deployed or accepted for runtime use. Preserve the C03
+managed bootstrap path above; do not run historical initialization SQL against an existing
+database. Production authentication requires individual passwords and rejects the bundled
+demo password hash. Create administrators through the managed bootstrap command documented
+in DATABASE_BOOTSTRAP.md, not by reintroducing shared defaults. Existing deployments need
+an independently authorized credential/old-session review and JWT rotation before exposure;
+verify correct individual credentials succeed and incorrect/demo credentials fail.
+
+Approval acceptance records a decision only. The original requester must separately confirm
+execution. A failed multi-action plan stops for human review, with no automatic compensation.
+Uncertain outcomes remain held even after late receipts; receipts are evidence, not permission
+to continue. Preserve operation journals and do not reset/requeue unknown outcomes.
+
+The managed schema retains C10 version 8 and adds approval-contract guards as version 9.
+Stop all older API/executor/worker instances before any separately approved migration or
+rollout. Do not mix old executors with new contracts, backfill legacy provenance, remove guards
+to roll back, or start old automatic-compensation workers against retained queues. Reconcile
+legacy/manual holds with an authorized human and reviewed evidence. Offline checks do not
+authorize migration, deployment, live provider calls or hold clearance.

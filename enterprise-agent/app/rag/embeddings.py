@@ -1,4 +1,7 @@
-"""Embedding 服务(支持 OpenAI 与本地 HuggingFace)
+"""Embedding service: Beijing Bailian for the selected external profile.
+
+Legacy development options (empty MODEL_PROFILE):
+Embedding 服务(支持 OpenAI 与本地 HuggingFace)
 
 默认本地 bge-m3(1024 维),无需 API Key。
 切换 OpenAI 时只需改 .env:EMBEDDING_PROVIDER=openai。
@@ -18,6 +21,28 @@ from langchain_core.embeddings import Embeddings
 from loguru import logger
 
 from app.config import get_settings
+from app.rag.model_profile import uses_remote_profile, validate_model_profile
+
+
+class BailianEmbeddings(Embeddings):
+    """Beijing text-embedding-v4; explicit string batches and independent credentials."""
+
+    def __init__(self) -> None:
+        from app.rag.remote_models import BailianClient
+
+        s = get_settings()
+        self._model = s.embedding_model
+        self._dimensions = s.embedding_dim
+        self._client = BailianClient(
+            s.embedding_base_url, s.embedding_api_key, s.model_http_timeout_seconds,
+            s.model_http_max_retries, kind="embedding",
+        )
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._client.embed(texts, self._model, self._dimensions)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
 
 
 class EmbeddingService:
@@ -33,8 +58,13 @@ class EmbeddingService:
             return self._embeddings
 
         provider = self._settings.embedding_provider.lower()
+        if uses_remote_profile(self._settings) and validate_model_profile(self._settings):
+            raise RuntimeError("MODEL_PROFILE_INVALID")
 
-        if provider == "openai":
+        if provider == "bailian":
+            self._embeddings = BailianEmbeddings()
+
+        elif provider == "openai":
             # OpenAI 兼容协议(text-embedding-3-small 等)
             from langchain_openai import OpenAIEmbeddings
 
@@ -70,7 +100,11 @@ class EmbeddingService:
             self._embeddings = HuggingFaceEmbeddings(
                 model_name=model_path,
                 cache_folder=cache_folder,
-                model_kwargs={"device": _detect_device()},
+                model_kwargs={
+                    "device": _detect_device(),
+                    "local_files_only": self._settings.app_env == "prod",
+                    "trust_remote_code": False,
+                },
                 encode_kwargs={"normalize_embeddings": True},  # bge 系列建议归一化
             )
             logger.info(

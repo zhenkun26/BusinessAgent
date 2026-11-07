@@ -12,10 +12,13 @@ from app.middleware import rate_limit
 
 @pytest.fixture(autouse=True)
 def isolated_limiters(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    settings = SimpleNamespace(redis_url="redis://unused.invalid/0", rate_limit_per_minute=2)
+    settings = SimpleNamespace(redis_url="redis://unused.invalid/0", rate_limit_per_minute=2, is_dev=True)
     monkeypatch.setattr(rate_limit, "get_settings", lambda: settings)
     for name in ("_memory_limiter", "_redis_limiter", "_use_redis"):
         monkeypatch.setattr(rate_limit, name, None)
+    monkeypatch.setattr(rate_limit, "_redis_retry_at", float("inf"))
+    monkeypatch.setattr(rate_limit, "_redis_probe_in_progress", False)
+    monkeypatch.setattr(rate_limit, "_redis_failure_generation", 0)
     yield
 
 
@@ -123,6 +126,8 @@ async def test_should_preserve_route_limit_and_user_key_when_user_is_identified(
         request(path), AsyncMock(return_value=Response("ok")),
     )
 
+    # Login is a source-bound password attempt, independent of a supplied bearer.
+    key = "ip:127.0.0.1" if path.startswith("/api/v1/auth/login") else "user:user-42"
     memory.is_allowed.assert_awaited_once_with(key, limit, window_seconds=60)
     assert response.headers["X-RateLimit-Limit"] == str(limit)
 
@@ -149,7 +154,7 @@ async def test_should_propagate_factory_setup_error_without_runtime_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     error = RuntimeError("factory settings unavailable")
-    settings = SimpleNamespace(rate_limit_per_minute=2)
+    settings = SimpleNamespace(rate_limit_per_minute=2, is_dev=True)
     monkeypatch.setattr(rate_limit, "get_settings", Mock(side_effect=[settings, error]))
     next_handler = AsyncMock()
 

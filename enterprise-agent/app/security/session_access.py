@@ -47,6 +47,7 @@ async def require_session_access(
 
 async def prepare_chat_session(
     db: AsyncSession, user: User, requested_id: str | None, message: str,
+    *, fence: Any = None,
 ) -> str:
     """Create a fresh server ID or update only an existing row owned by the caller."""
     if requested_id is not None:
@@ -55,18 +56,25 @@ async def prepare_chat_session(
         query = (
             "UPDATE sessions SET status = 'running', original_query = :q, "
             "completed_at = NULL, error = NULL "
-            "WHERE session_id = :sid AND user_id = :uid RETURNING session_id"
+            "WHERE session_id = :sid AND user_id = :uid AND EXISTS "
+            "(SELECT 1 FROM session_write_fences WHERE session_id = :sid "
+            "AND owner_token = CAST(:owner AS uuid) AND lease_until > clock_timestamp()) "
+            "RETURNING session_id"
         )
     else:
         session_id = f"sess_{uuid.uuid4().hex}"
         query = (
             "INSERT INTO sessions (session_id, user_id, original_query, status, started_at) "
-            "VALUES (:sid, :uid, :q, 'running', CURRENT_TIMESTAMP) "
+            "VALUES (:sid, :uid, :q, 'pending', CURRENT_TIMESTAMP) "
             "ON CONFLICT (session_id) DO NOTHING RETURNING session_id"
         )
     try:
+        if requested_id is not None and (fence is None or fence.session_id != session_id
+                                        or not await fence.lock_owner(db)):
+            raise HTTPException(503, "SESSION_WRITE_OWNERSHIP_LOST")
         row = (await db.execute(text(query), {
             "sid": session_id, "uid": user.user_id, "q": message[:500],
+            "owner": fence.token if fence is not None else None,
         })).mappings().first()
         if row is None:
             if requested_id is not None:

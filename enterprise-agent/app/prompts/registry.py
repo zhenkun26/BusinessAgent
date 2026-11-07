@@ -2,10 +2,11 @@
 
 职责:
 - get_prompt(name, user_id):按名称取当前生效模板,支持 A/B 确定性分流
-- 进程内缓存:启动时 refresh_prompt_cache() 全量加载;管理 API 变更后立即刷新
+- 图请求从 DB 固定当前 active 快照;运行中的请求保持原版本
+- 非图调用保留进程内缓存:启动/管理 API 变更后刷新
   (同步节点 planner/aggregator 在线程池执行,不能跨事件循环访问 async DB,
    因此读取路径为纯同步缓存查询,DB 仅在 async 上下文刷新)
-- 降级:缓存未命中(如 DB 不可用/启动失败)时回落 app.prompts.defaults(版本号 0)
+- 图请求快照加载失败即终止;无 active 版本使用代码默认(版本号 0)
 
 A/B 分流:同 name 多个 active 版本时,按 md5(user_id:name) % 100 落入
 各版本 traffic_weight 的累计区间;权重未覆盖的剩余流量归最低版本(对照组)。
@@ -14,8 +15,10 @@ A/B 分流:同 name 多个 active 版本时,按 md5(user_id:name) % 100 落入
 from __future__ import annotations
 
 import hashlib
+import asyncio
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from typing import Optional
+from typing import AsyncIterator, Optional
 
 from loguru import logger
 from sqlalchemy import text
@@ -27,6 +30,45 @@ _prompt_user_id: ContextVar[Optional[str]] = ContextVar("prompt_user_id", defaul
 
 # name -> list[{"version": int, "content": str, "traffic_weight": int}](按 version 升序)
 _cache: dict[str, list[dict]] = {}
+_request_prompts: ContextVar[Optional[dict[str, list[dict]]]] = ContextVar(
+    "request_prompts", default=None,
+)
+
+
+class PromptSnapshotUnavailable(RuntimeError):
+    def __init__(self) -> None:
+        super().__init__("PROMPT_SNAPSHOT_UNAVAILABLE")
+
+
+async def _load_active_prompts() -> dict[str, list[dict]]:
+    from app.core.database import get_session_factory
+
+    async def read() -> dict[str, list[dict]]:
+        async with get_session_factory()() as session:
+            rows = (await session.execute(text(
+                "SELECT name, version, content, traffic_weight "
+                "FROM prompt_versions WHERE status = 'active' ORDER BY name, version"
+            ))).mappings().all()
+        snapshot: dict[str, list[dict]] = {}
+        for row in rows:
+            snapshot.setdefault(row["name"], []).append(dict(row))
+        return snapshot
+
+    try:
+        return await asyncio.wait_for(read(), timeout=5)
+    except Exception:
+        raise PromptSnapshotUnavailable() from None
+
+
+@asynccontextmanager
+async def request_prompt_snapshot(enabled: bool = True) -> AsyncIterator[None]:
+    """Pin committed versions per invocation; unavailable DB never uses stale cache."""
+    snapshot = await _load_active_prompts() if enabled else None
+    token = _request_prompts.set(snapshot)
+    try:
+        yield
+    finally:
+        _request_prompts.reset(token)
 
 
 def set_prompt_user(user_id: Optional[str]):
@@ -43,7 +85,8 @@ def get_prompt(name: str, user_id: Optional[str] = None) -> tuple[str, int]:
     if name not in DEFAULT_PROMPTS:
         raise KeyError(f"未知 prompt: {name}(未在 defaults 注册)")
 
-    versions = _cache.get(name) or []
+    snapshot = _request_prompts.get()
+    versions = (snapshot if snapshot is not None else _cache).get(name) or []
     if not versions:
         return DEFAULT_PROMPTS[name], 0
 
@@ -67,36 +110,14 @@ async def refresh_prompt_cache() -> int:
 
     失败时保留旧缓存(或空缓存→get_prompt 降级代码默认),不抛异常。
     """
+    global _cache
     try:
-        from app.core.database import get_session_factory
-
-        factory = get_session_factory()
-        async with factory() as session:
-            rows = (
-                await session.execute(
-                    text(
-                        "SELECT name, version, content, traffic_weight "
-                        "FROM prompt_versions WHERE status = 'active' "
-                        "ORDER BY name, version"
-                    )
-                )
-            ).mappings().all()
-
-        new_cache: dict[str, list[dict]] = {}
-        for r in rows:
-            new_cache.setdefault(r["name"], []).append(
-                {
-                    "version": r["version"],
-                    "content": r["content"],
-                    "traffic_weight": r["traffic_weight"],
-                }
-            )
-        _cache.clear()
-        _cache.update(new_cache)
+        new_cache = await _load_active_prompts()
+        _cache = new_cache
         logger.info(f"Prompt 缓存已刷新({len(new_cache)} 个名称)")
         return len(new_cache)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Prompt 缓存刷新失败(沿用旧缓存/代码默认): {e}")
+    except PromptSnapshotUnavailable:
+        logger.warning("PROMPT_CACHE_REFRESH_UNAVAILABLE")
         return 0
 
 

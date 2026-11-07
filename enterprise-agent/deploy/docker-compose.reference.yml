@@ -1,0 +1,101 @@
+# Reviewed recipe only; merge with docker-compose.prod.yml in a NEW isolated project.
+# Interpolation: --env-file .env.prod --env-file .env.reference. Never use current data volumes.
+x-reference: &reference
+  image: ${REFERENCE_IMAGE:?Set reviewed reference image digest}
+  user: "65534:65534"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  networks: [reference]
+  expose: ["8080", "8081"]
+  restart: "no"
+  profiles: [reference]
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 256M
+x-application-reference: &application-reference
+  TOOL_REFERENCE_PROFILE: business-reference-v1
+  TOOL_REFERENCE_RUN_ID: ${TOOL_REFERENCE_RUN_ID:?Set a fresh controlled run UUID}
+  TOOL_REFERENCE_PRINCIPAL: ${TOOL_REFERENCE_PRINCIPAL:?Set the bound application principal}
+  CRM_TOOL_PROVIDER: http
+  TICKET_TOOL_PROVIDER: http
+  MAIL_TOOL_PROVIDER: http
+  CRM_API_BASE: http://reference-crm:8080/api/v1
+  TICKET_API_BASE: http://reference-ticket:8080/api/v1
+  MAIL_API_BASE: http://reference-mail:8080/api/v1
+  CRM_API_TOKEN: ${REFERENCE_CRM_TOKEN:?Set distinct service credentials}
+  TICKET_API_TOKEN: ${REFERENCE_TICKET_TOKEN:?Set distinct service credentials}
+  MAIL_API_TOKEN: ${REFERENCE_MAIL_TOKEN:?Set distinct service credentials}
+  NO_PROXY: reference-crm,reference-ticket,reference-mail,localhost,127.0.0.1
+services:
+  api:
+    environment: *application-reference
+    networks: [default, reference]
+  worker:
+    environment: *application-reference
+    networks: [default, reference]
+  reference-crm:
+    <<: *reference
+    environment:
+      REFERENCE_SERVICE: crm
+      REFERENCE_DB: /data/ledger.sqlite3
+      REFERENCE_STORE_ID: ${REFERENCE_CRM_STORE_ID:?Set the unique persistent store UUID}
+      REFERENCE_PRINCIPAL: ${TOOL_REFERENCE_PRINCIPAL:?Set principal}
+      REFERENCE_TOKEN: ${REFERENCE_CRM_TOKEN:?Set CRM credential}
+      REFERENCE_READ_TOKEN: ${REFERENCE_CRM_READ_TOKEN:?Set CRM read-only credential}
+      REFERENCE_OPERATOR_TOKEN: ${REFERENCE_OPERATOR_TOKEN:?Set separate operator credential}
+    volumes: ["reference_crm:/data"]
+  reference-ticket:
+    <<: *reference
+    environment:
+      REFERENCE_SERVICE: ticket
+      REFERENCE_DB: /data/ledger.sqlite3
+      REFERENCE_STORE_ID: ${REFERENCE_TICKET_STORE_ID:?Set the unique persistent store UUID}
+      REFERENCE_PRINCIPAL: ${TOOL_REFERENCE_PRINCIPAL:?Set principal}
+      REFERENCE_TOKEN: ${REFERENCE_TICKET_TOKEN:?Set ticket credential}
+      REFERENCE_READ_TOKEN: ${REFERENCE_TICKET_READ_TOKEN:?Set ticket read-only credential}
+      REFERENCE_OPERATOR_TOKEN: ${REFERENCE_OPERATOR_TOKEN:?Set separate operator credential}
+    volumes: ["reference_ticket:/data"]
+  reference-mail:
+    <<: *reference
+    environment:
+      REFERENCE_SERVICE: mail
+      REFERENCE_DB: /data/ledger.sqlite3
+      REFERENCE_STORE_ID: ${REFERENCE_MAIL_STORE_ID:?Set the unique persistent store UUID}
+      REFERENCE_PRINCIPAL: ${TOOL_REFERENCE_PRINCIPAL:?Set principal}
+      REFERENCE_TOKEN: ${REFERENCE_MAIL_TOKEN:?Set mail credential}
+      REFERENCE_READ_TOKEN: ${REFERENCE_MAIL_READ_TOKEN:?Set mail read-only credential}
+      REFERENCE_OPERATOR_TOKEN: ${REFERENCE_OPERATOR_TOKEN:?Set separate operator credential}
+    volumes: ["reference_mail:/data"]
+  reference-evaluator:
+    <<: *reference
+    command: [python, -B, -m, reference_service.acceptance]
+    healthcheck:
+      disable: true
+    environment:
+      REFERENCE_CRM_STORE_ID: ${REFERENCE_CRM_STORE_ID:?Set expected store UUID}
+      REFERENCE_TICKET_STORE_ID: ${REFERENCE_TICKET_STORE_ID:?Set expected store UUID}
+      REFERENCE_MAIL_STORE_ID: ${REFERENCE_MAIL_STORE_ID:?Set expected store UUID}
+      REFERENCE_CANDIDATE_COMMIT: ${REFERENCE_CANDIDATE_COMMIT:?Set reviewed application commit}
+      BUSINESSAGENT_IMAGE: ${BUSINESSAGENT_IMAGE:?Set reviewed application digest}
+      REFERENCE_IMAGE: ${REFERENCE_IMAGE:?Set reviewed reference digest}
+      REFERENCE_OPERATOR_TOKEN: ${REFERENCE_OPERATOR_TOKEN:?Set operator credential}
+      TOOL_REFERENCE_RUN_ID: ${TOOL_REFERENCE_RUN_ID:?Set run UUID}
+      TOOL_REFERENCE_PRINCIPAL: ${TOOL_REFERENCE_PRINCIPAL:?Set principal}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:?Set isolated admin username}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?Set isolated admin password}
+      APP_REQUESTER_USERNAME: ${APP_REQUESTER_USERNAME:?Set isolated requester username}
+      APP_REQUESTER_PASSWORD: ${APP_REQUESTER_PASSWORD:?Set isolated requester password}
+      APP_APPROVER_USERNAME: ${APP_APPROVER_USERNAME:?Set distinct isolated approver username}
+      APP_APPROVER_PASSWORD: ${APP_APPROVER_PASSWORD:?Set isolated approver password}
+    volumes: ["reference_evidence:/data"]
+volumes:
+  reference_crm:
+  reference_ticket:
+  reference_mail:
+  reference_evidence:
+networks:
+  reference:
+    internal: true

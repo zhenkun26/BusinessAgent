@@ -16,8 +16,8 @@ def test_should_keep_release_blocked_when_gate_evidence_is_incomplete():
     assert report["overall_status"] == "blocked"
     assert report["release_allowed"] is False
     assert report["formal_release"] is False
-    assert report["ready_gate_ids"] == ["GATE-02", "GATE-05"]
-    assert report["blocked_gate_ids"] == ["GATE-01", "GATE-03", "GATE-04", "GATE-06"]
+    assert report["ready_gate_ids"] == ["GATE-01", "GATE-02", "GATE-05"]
+    assert report["blocked_gate_ids"] == ["GATE-03", "GATE-04", "GATE-06"]
     assert all(check["passed"] for check in report["checks"])
 
 

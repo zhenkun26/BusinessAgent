@@ -1,0 +1,5 @@
+# Approved C19 subset; resolution/build/security scanning remain runtime gates.
+pyjwt[crypto]==2.15.0
+cryptography==50.0.2
+cffi==2.1.1
+pycparser==3.11

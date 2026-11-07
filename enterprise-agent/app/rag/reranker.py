@@ -1,6 +1,7 @@
 """Reranker(两阶段检索的精排层)
 
 策略(按 .env RERANKER_PROVIDER 选择):
+- bailian: selected Beijing qwen3-rerank profile; failures do not select passthrough
 - local_bge: 本地 bge-reranker-large(免费,推荐,需 sentence-transformers)
 - cohere: Cohere Rerank(rerank-multilingual-v3.0,需 API Key)
 - llm: LLM 打分降级(本地 Ollama,慢但通用)
@@ -9,16 +10,37 @@
 返回结果按 score 降序,只保留 top_n 条。
 """
 
+from concurrent.futures import CancelledError
+from dataclasses import dataclass, replace
+import hashlib
+import json
 from typing import Optional
 
 from loguru import logger
 
 from app.config import get_settings
+from app.core.execution_budget import ExecutionBudgetExceeded, check_execution_budget
 from app.rag.vector_store import SearchResult
+from app.rag.model_profile import uses_remote_profile, validate_model_profile
+
+
+@dataclass(frozen=True)
+class RerankerSelection:
+    """Internal fixed selection metadata; never contains credentials or model text."""
+
+    requested_provider: str
+    effective_provider: str
+    reason: str = "none"
 
 
 class Reranker:
     """Reranker 抽象"""
+
+    performs_rerank = True
+
+    def __init__(self, provider: str = "injected") -> None:
+        self.selection = RerankerSelection(provider, provider)
+        self._configuration_binding: Optional[str] = None
 
     def rerank(
         self,
@@ -29,6 +51,26 @@ class Reranker:
         raise NotImplementedError
 
 
+class BailianReranker(Reranker):
+    """Beijing qwen3-rerank; preserve source metadata and reject invalid results."""
+
+    def __init__(self) -> None:
+        super().__init__("bailian")
+        from app.rag.remote_models import BailianClient
+
+        s = get_settings()
+        self._model = s.reranker_model
+        self._client = BailianClient(
+            s.reranker_base_url, s.reranker_api_key, s.model_http_timeout_seconds,
+            s.model_http_max_retries, kind="reranker",
+        )
+
+    def rerank(self, query: str, candidates: list[SearchResult],
+               top_n: int = 5) -> list[SearchResult]:
+        rows = self._client.rerank(query, [c.content for c in candidates], self._model, top_n)
+        return [replace(candidates[index], score=score) for index, score in rows]
+
+
 class BgeLocalReranker(Reranker):
     """本地 bge-reranker-large(免费,推荐)
 
@@ -36,7 +78,8 @@ class BgeLocalReranker(Reranker):
     模型路径由 .env RERANKER_MODEL 指定(如 D:/models/bge-reranker-large)。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        super().__init__("local_bge")
         s = get_settings()
         from sentence_transformers import CrossEncoder
 
@@ -44,8 +87,11 @@ class BgeLocalReranker(Reranker):
 
         self._model_path = s.reranker_model
         device = _detect_device()
-        self._ce = CrossEncoder(self._model_path, max_length=512, device=device)
-        logger.info(f"本地 BGE Reranker 已加载: {self._model_path}, device={device}")
+        self._ce = CrossEncoder(
+            self._model_path, max_length=512, device=device,
+            local_files_only=s.app_env == "prod", trust_remote_code=False,
+        )
+        logger.info("RERANKER_LOCAL_INITIALIZED")
 
     def rerank(
         self,
@@ -53,44 +99,34 @@ class BgeLocalReranker(Reranker):
         candidates: list[SearchResult],
         top_n: int = 5,
     ) -> list[SearchResult]:
-        if not candidates:
-            return []
+        from concurrent.futures import CancelledError
+        from app.core.execution_budget import ExecutionBudgetExceeded, check_execution_budget
+        from app.security.rerank_results import OptionalRerankError, bge_scores, candidate_texts
 
-        # 构造 (query, content) 对
-        pairs = [(query, c.content[:1000]) for c in candidates]
-        scores = self._ce.predict(pairs)
-
-        # 归一化到 [0, 1](CrossEncoder 输出 logits,用 sigmoid)
-        import math
-
-        scored: list[tuple[float, SearchResult]] = []
-        for i, s in enumerate(scores):
-            prob = 1.0 / (1.0 + math.exp(-float(s)))
-            scored.append((prob, candidates[i]))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        out: list[SearchResult] = []
-        for prob, c in scored[:top_n]:
-            out.append(
-                SearchResult(
-                    chunk_id=c.chunk_id,
-                    document_id=c.document_id,
-                    title=c.title,
-                    content=c.content,
-                    score=prob,
-                    dept_namespace=c.dept_namespace,
-                    doc_type=c.doc_type,
-                    source_url=c.source_url,
-                    updated_at=c.updated_at,
-                )
-            )
-        return out
+        try:
+            texts = candidate_texts(query, candidates, top_n)
+            if not texts:
+                return []
+            pairs = [(query, text[:1000]) for text in texts]
+            check_execution_budget()
+            values = self._ce.predict(pairs)
+            rows = bge_scores(values, len(candidates), top_n)
+            check_execution_budget()
+            return [replace(candidates[index], score=score,
+                            access_roles=list(candidates[index].access_roles))
+                    for index, score in rows]
+        except (ExecutionBudgetExceeded, CancelledError):
+            raise
+        except Exception:
+            check_execution_budget()
+            raise OptionalRerankError() from None
 
 
 class CohereReranker(Reranker):
-    """Cohere Rerank(优先)"""
+    """Optional Cohere scoring; selected explicitly or by auto with credentials."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        super().__init__("cohere")
         s = get_settings()
         if not s.cohere_api_key:
             raise ValueError("COHERE_API_KEY 未配置")
@@ -103,60 +139,40 @@ class CohereReranker(Reranker):
         candidates: list[SearchResult],
         top_n: int = 5,
     ) -> list[SearchResult]:
-        if not candidates:
-            return []
+        from concurrent.futures import CancelledError
+        from app.core.execution_budget import ExecutionBudgetExceeded, check_execution_budget
+        from app.security.rerank_results import OptionalRerankError, candidate_texts, cohere_scores
 
-        from langchain_cohere import CohereRerank
+        try:
+            docs = candidate_texts(query, candidates, top_n)
+            if not docs:
+                return []
+            from langchain_cohere import CohereRerank
 
-        reranker = CohereRerank(
-            cohere_api_key=self._api_key,
-            model=self._model,
-            top_n=top_n,
-        )
-
-        # Cohere 接收 list[str],返回 index + relevance_score
-        docs = [c.content for c in candidates]
-        compressed = reranker.rerank_documents(docs, query)
-
-        # 按 compressed 中的 score 重排
-        out: list[SearchResult] = []
-        for item in compressed:
-            # langchain_cohere 返回 dict-like,含 'relevance_score' 和 index
-            idx = item.get("index") if isinstance(item, dict) else getattr(item, "index", None)
-            score = (
-                item.get("relevance_score")
-                if isinstance(item, dict)
-                else getattr(item, "relevance_score", None)
+            reranker = CohereRerank(
+                cohere_api_key=self._api_key,
+                model=self._model,
+                top_n=top_n,
             )
-            if idx is None or idx >= len(candidates):
-                continue
-            original = candidates[idx]
-            out.append(
-                SearchResult(
-                    chunk_id=original.chunk_id,
-                    document_id=original.document_id,
-                    title=original.title,
-                    content=original.content,
-                    score=float(score) if score is not None else original.score,
-                    dept_namespace=original.dept_namespace,
-                    doc_type=original.doc_type,
-                    source_url=original.source_url,
-                    updated_at=original.updated_at,
-                )
-            )
-        # 截断 top_n
-        return out[:top_n]
+            check_execution_budget()
+            compressed = reranker.rerank_documents(docs, query)
+            rows = cohere_scores(compressed, len(candidates), top_n)
+            check_execution_budget()
+            return [replace(candidates[index], score=score,
+                            access_roles=list(candidates[index].access_roles))
+                    for index, score in rows]
+        except (ExecutionBudgetExceeded, CancelledError):
+            raise
+        except Exception:
+            check_execution_budget()
+            raise OptionalRerankError() from None
 
 
 class LLMReranker(Reranker):
-    """LLM 打分降级(无 bge-reranker/Cohere 时)
+    """Optional development scoring; any invalid score rejects the entire batch."""
 
-    让 LLM 对每个 (query, chunk) 对打 0-10 分,归一化为 0-1。
-    用本地小模型(qwen3.5:4b),免费且高频适合。
-    仅在 bge-reranker 不可用时降级使用(慢但通用)。
-    """
-
-    def __init__(self, llm=None):
+    def __init__(self, llm=None) -> None:
+        super().__init__("llm")
         if llm is None:
             from app.rag.llm import get_local_llm
 
@@ -169,54 +185,44 @@ class LLMReranker(Reranker):
         candidates: list[SearchResult],
         top_n: int = 5,
     ) -> list[SearchResult]:
-        if not candidates:
-            return []
-
-        from langchain_core.prompts import ChatPromptTemplate
-
+        from concurrent.futures import CancelledError
+        from app.core.execution_budget import ExecutionBudgetExceeded, check_execution_budget
         from app.prompts import get_prompt
+        from app.security.rerank_boundary import RerankBoundaryError, build_prompt, model_score
 
-        sys_tpl, _sv = get_prompt("reranker_llm_score_system")
-        human_tpl, _hv = get_prompt("reranker_llm_score_human")
-        prompt = ChatPromptTemplate.from_messages(
-            [("system", sys_tpl), ("human", human_tpl)]
-        )
-
-        chain = prompt | self._llm
-
-        scored: list[tuple[float, SearchResult]] = []
-        for c in candidates:
-            try:
-                resp = chain.invoke({"query": query, "text": c.content[:1000]})
-                text = resp.content if hasattr(resp, "content") else str(resp)
-                # 提取首个整数
-                num_str = "".join(ch for ch in text if ch.isdigit())[:2]
-                score_int = int(num_str) if num_str else 0
-                score_int = max(0, min(10, score_int))
-                scored.append((score_int / 10.0, c))
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"LLM 打分失败,沿用原分数: {e}")
-                scored.append((c.score, c))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [
-            SearchResult(
-                chunk_id=c.chunk_id,
-                document_id=c.document_id,
-                title=c.title,
-                content=c.content,
-                score=s,
-                dept_namespace=c.dept_namespace,
-                doc_type=c.doc_type,
-                source_url=c.source_url,
-                updated_at=c.updated_at,
-            )
-            for s, c in scored[:top_n]
-        ]
+        try:
+            check_execution_budget()
+            if type(top_n) is not int or top_n < 1:
+                raise RerankBoundaryError()
+            if not candidates:
+                return []
+            sys_tpl, sv = get_prompt("reranker_llm_score_system")
+            human_tpl, hv = get_prompt("reranker_llm_score_human")
+            scored: list[tuple[float, SearchResult]] = []
+            for candidate in candidates:
+                prompt = build_prompt(sys_tpl, sv, human_tpl, hv, query, candidate.content)
+                response = self._llm.invoke(prompt.messages(), config=prompt.config())
+                scored.append((model_score(response), candidate))
+            check_execution_budget()
+            scored.sort(key=lambda item: item[0], reverse=True)
+            return [replace(c, score=score, access_roles=list(c.access_roles))
+                    for score, c in scored[:top_n]]
+        except (ExecutionBudgetExceeded, CancelledError):
+            raise
+        except Exception:
+            check_execution_budget()
+            logger.warning("RERANKER_MODEL_SCORE_FAILED")
+            raise RerankBoundaryError() from None
 
 
 class PassthroughReranker(Reranker):
     """无 Rerank(直接用召回分数)"""
+
+    performs_rerank = False
+
+    def __init__(self) -> None:
+        super().__init__("passthrough")
+        self.selection = replace(self.selection, reason="disabled")
 
     def rerank(
         self,
@@ -233,45 +239,82 @@ class PassthroughReranker(Reranker):
 _reranker: Optional[Reranker] = None
 
 
-def get_reranker() -> Reranker:
-    """获取 Reranker 单例(按 .env RERANKER_PROVIDER 选择)
+_PROVIDERS = frozenset({"bailian", "local_bge", "cohere", "llm", "passthrough", "auto"})
 
-    优先级:
-    1. local_bge: 本地 bge-reranker-large(免费,推荐)
-    2. cohere: Cohere Rerank(需 API Key)
-    3. llm: LLM 打分(本地 Ollama)
-    4. passthrough: 不重排
+
+def _admit_configuration() -> tuple[str, bool, str]:
+    """Validate before cache access; bind relevant settings without exposing their values."""
+    settings = get_settings()
+    provider = settings.reranker_provider
+    if type(provider) is not str or provider.lower() not in _PROVIDERS:
+        raise RuntimeError("RERANKER_CONFIGURATION_INVALID")
+    provider = provider.lower()
+    remote = uses_remote_profile(settings)
+    if remote and validate_model_profile(settings):
+        raise RuntimeError("MODEL_PROFILE_INVALID")
+    fields = ["app_env", "model_profile"]
+    if provider == "bailian":
+        fields += ["reranker_model", "reranker_api_key", "reranker_base_url",
+                   "model_http_timeout_seconds", "model_http_max_retries"]
+    elif provider == "local_bge":
+        fields += ["reranker_model", "local_model_device"]
+    elif provider in {"cohere", "auto"}:
+        fields += ["cohere_api_key", "cohere_rerank_model"]
+    elif provider == "llm":
+        fields += ["local_llm_model", "local_llm_base_url"]
+    values = [provider, remote, *[getattr(settings, field, None) for field in fields]]
+    binding = hashlib.sha256(json.dumps(values, ensure_ascii=True).encode()).hexdigest()
+    return provider, remote, binding
+
+
+def get_reranker() -> Reranker:
+    """Reuse one configuration-bound backend; changes require process restart.
+
+    Auto selects Cohere with a key, otherwise passthrough. Optional initialization
+    failure selects passthrough once; no retry chain or implicit recovery is performed.
     """
     global _reranker
+    check_execution_budget()
+    provider, remote, binding = _admit_configuration()
     if _reranker is not None:
+        if _reranker._configuration_binding != binding:
+            raise RuntimeError("RERANKER_CONFIGURATION_CHANGED")
+        check_execution_budget()
         return _reranker
 
-    s = get_settings()
-    provider = s.reranker_provider.lower()
+    effective = provider
+    reason = "none"
+    if provider == "auto":
+        effective = "cohere" if get_settings().cohere_api_key else "passthrough"
+        if effective == "passthrough":
+            reason = "auto_no_credentials"
+    elif provider == "passthrough":
+        reason = "disabled"
 
-    if provider == "local_bge":
-        try:
-            _reranker = BgeLocalReranker()
-            logger.info(f"Reranker 后端: local_bge ({s.reranker_model})")
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"本地 BGE Reranker 初始化失败,降级 Passthrough: {e}")
-            _reranker = PassthroughReranker()
-    elif provider == "cohere" or (provider == "auto" and s.cohere_api_key):
-        try:
-            _reranker = CohereReranker()
-            logger.info("Reranker 后端: Cohere")
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"Cohere 初始化失败,降级 Passthrough: {e}")
-            _reranker = PassthroughReranker()
-    elif provider == "llm":
-        try:
-            _reranker = LLMReranker()
-            logger.info("Reranker 后端: LLM(本地 Ollama)")
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"LLM Reranker 初始化失败,降级 Passthrough: {e}")
-            _reranker = PassthroughReranker()
-    else:
-        _reranker = PassthroughReranker()
-        logger.info("Reranker 后端: Passthrough(不重排)")
+    constructors = {"bailian": BailianReranker, "local_bge": BgeLocalReranker,
+                    "cohere": CohereReranker, "llm": LLMReranker,
+                    "passthrough": PassthroughReranker}
+    try:
+        check_execution_budget()
+        candidate = constructors[effective]()
+    except (ExecutionBudgetExceeded, CancelledError):
+        raise
+    except Exception:
+        check_execution_budget()
+        if remote or effective == "bailian":
+            raise RuntimeError("MODEL_RERANKER_LOAD_FAILED") from None
+        if effective == "passthrough":
+            raise RuntimeError("RERANKER_INITIALIZATION_FAILED") from None
+        logger.warning("RERANKER_INITIALIZATION_FAILED")
+        candidate = PassthroughReranker()
+        effective, reason = "passthrough", "initialization_failed"
 
+    check_execution_budget()
+    if _admit_configuration() != (provider, remote, binding):
+        raise RuntimeError("RERANKER_CONFIGURATION_CHANGED")
+    candidate.selection = RerankerSelection(provider, effective, reason)
+    candidate._configuration_binding = binding
+    check_execution_budget()
+    _reranker = candidate
+    logger.info("RERANKER_SELECTED")
     return _reranker

@@ -13,6 +13,7 @@
 
 运行(完整模式,需启动 Jaeger):
     docker compose --profile monitoring up -d jaeger
+    $env:TELEMETRY_MODE="synthetic"
     $env:OTEL_ENABLED="true"
     $env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
     python -m eval.run_w9_tracing

@@ -4,13 +4,225 @@ schema: spec-driven
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 context: |
-  「智多星——企业级多智能体平台」内部落地项目：基于 LangChain + LangGraph + Milvus
-  的企业级多 Agent 系统，员工用自然语言完成知识问答、数据分析、业务执行三类工作，核心能力
-  已在内部业务场景中完成验证。
+  「智多星——企业级多智能体平台」工程实践项目：基于 LangChain + LangGraph + Milvus
+  的多 Agent 系统，以自然语言完成知识问答、数据分析、业务执行三类工作。
+  当前定位是用于后续 GitHub 开源展示与后端求职的工程项目，没有实际客户部署或商业运营计划；
+  仍按真实项目执行范围、设计、审核、验证与交付流程，不虚构企业使用或降低证据门槛。
+  自动化、模拟与参考环境证据必须与企业现场验证分开。
+  2026-10-19 C10-R1/R2 经确认后先规划再实现，25 项专项和全量本地 pytest 925 tests + 249 subtests PASS、零跳过；
+  仅本地提交；真实运行仍 BLOCKED。多专家流程见 docs/50-engineering/multi-expert-review-plan.md；
+  F2 已在 c57d473 完成十二视角单代理定向审核，见 docs/40-process/multi-expert-review-c57d473.md；
+  十一项发现已登记；F2-01 经确认后修复，新增 30 项测试，全量 955 tests + 249 subtests PASS、零跳过；
+  限流复用验签与 sub/exp 校验，登录固定 IP 配额。F2-02 随后确认并完成离线修复：非 dev 故障返回 503、
+  dev 标识内存降级、冷却/单探测恢复及唯一计数成员；18 项新增用例，全量 973 tests + 249 subtests PASS。
+  F2-03 execution budgets were subsequently confirmed and offline verified: 34 new cases,
+  full pytest 1007 tests + 249 subtests PASS, zero skips (local d52707f). SSE backpressure was
+  separately confirmed and implemented/offline verified on 2026-10-20: 41 new cases, full
+  1048 tests + 249 subtests PASS, zero skips. F2-03 runtime acceptance stays OPEN / BLOCKED.
+  SSE local commit: e3831b3. F2-04 was then confirmed and implemented/offline verified:
+  production base/frontend/snapshot/wheel inputs and installed inventory/CI evidence; 50 new
+  cases, full 1098 tests + 249 subtests PASS, zero skips. Actual Linux install/two-build/scans
+  remain BLOCKED; F2-04 acceptance OPEN. Local commit only, then wait; runtime/full RAG BLOCKED, C10 open.
+  F2-09 was subsequently authorized on 2026-10-20: plan first, record license/data-source
+  inventory and notices, offline verification and explicit pending author/upstream rights.
+  Inventory increment offline verified: 36 new cases; full 1134 tests + 249 subtests PASS,
+  zero skips. F2-09 rights acceptance remains OPEN / BLOCKED.
+  See docs/50-engineering/license-provenance.md. No publication clearance; local commit only,
+  then wait. No push, main-spec sync or archive. C10 OPEN; runtime/full RAG BLOCKED.
+  F2-11 script/evidence slice subsequently authorized: plan first, one source walkthrough
+  and a reusable bounded-review workflow; old interview/speech/deck materials unchanged.
+  Local source/link/inventory/manual OpenSpec checks PASS; no fresh full-suite or runtime claim.
+  Minimal exposure: local files/checks/commit only, no upload or push. Commercial validation
+  DEFERRED / NOT STARTED; F2-09 rights pending, runtime/full RAG BLOCKED, C10 OPEN.
+  F2-08 citation time was subsequently authorized and implemented/offline verified after
+  8773639: explicit UTC for new citations; preserve legacy naive values without migration.
+  Full 1139 tests + 288 subtests and 48 Node VM cases PASS; zero pytest skips.
+  See docs/50-engineering/citation-time.md. Real browser/runtime/full RAG BLOCKED;
+  F2-09 rights pending, C10 OPEN. Local commit only, then wait; no push/upload or new dependency.
+  F2-05 data-flow/logging/external-privacy slice subsequently authorized after 39ea39c:
+  covered diagnostics omit business text, manual traces use fixed names/typed metadata,
+  data recipients and access/retention/disposal gaps are explicit. Synthetic offline only:
+  17 new cases; full 1156 tests + 391 subtests PASS, zero skips. See docs/50-engineering/data-privacy.md.
+  Private-data/provider/automatic-telemetry and runtime/full RAG acceptance BLOCKED;
+  F2-09 source rights pending, C10 OPEN. Local commit only, no push/upload, then wait.
+  F2-06 synthetic RAG injection/negative controls authorized after 4247cdf: plan first,
+  independent eight-case controls and offline actual-source characterization only.
+  Offline verified: 19 new tests/47 subtests; full 1175 tests + 438 subtests PASS, zero skips;
+  C17 29 PASS. Source inventory 436 pending records; strict OpenSpec CLI unavailable/BLOCKED.
+  Preserve C17 bytes/denominators; no real model, service, dependency or upload.
+  Semantic/model/runtime acceptance BLOCKED; F2-05 privacy and F2-09 sources pending,
+  C10 OPEN. Review and local commit only, then wait. See docs/50-engineering/rag-safety-controls.md.
+  F2-07 keyboard/names/status slice authorized after 182c252: plan first in
+  docs/50-engineering/keyboard-accessibility.md, native controls/labels, composition guard,
+  owned focus and bounded lifecycle announcements. Offline verified: 21 new Node cases
+  (69 total), credential VM 14, seven assets; 8 new Python tests/46 subtests; full 1183
+  tests + 484 subtests PASS, zero skips. Source inventory 437 pending records. Real browser,
+  reader/layout/contrast/runtime/full RAG BLOCKED, F2-05 privacy and F2-09 sources pending,
+  C10 OPEN. Review and local commit only, no push/upload, then wait.
+  F2-10 offline-entry/CI prerequisite authorized after f3a7c2e: plan first in
+  docs/50-engineering/offline-verification.md; explicit current check/source inventory,
+  full no-skip pytest, Node and integrity/control entries; 35 new counterexamples and
+  full 1218 tests + 484 subtests PASS, zero skips/xfails/deselections/guard denials;
+  Node 69/14 and seven assets PASS; 330 current inputs and 438 pending source records.
+  Omissions/tool failures/drift
+  block success. Preserve historical C24, security gates and runtime/full RAG BLOCKED;
+  F2-05 privacy and F2-09 sources pending, C10 OPEN. Local commit only, no push/upload/dispatch.
+  F2-05 automatic telemetry admission subsequently authorized on 2026-10-21 after local
+  c5240ad: plan first in docs/50-engineering/telemetry-admission.md; default-disabled
+  process/effective Settings and package/API/worker/factory gates, explicit synthetic
+  OTEL, fixed SDK failures and retained C21 audit/metrics. 84 new cases, full 1302 tests
+  + 484 subtests PASS, zero skips/xfails/deselections/guard denials; eight checks, Node
+  69/14 and seven assets PASS; 332 inputs and 439 pending source records. Optional OTLP
+  exporter/client instrumentors absent, no dependency added; explicit SDK unavailability
+  fails closed. Privacy/provider/SDK/runtime/full RAG and strict CLI remain BLOCKED,
+  F2-09 rights pending, C10 OPEN. Review/local commit and final receipt only, then wait;
+  no push/upload, real service, new dependency, main-spec sync or archive.
+  F2-06 read-only RAG production boundary subsequently authorized on 2026-10-21 after
+  local 8e30338: plan first in docs/50-engineering/rag-trust-boundary.md; effective prompt
+  versions/data roles, call/citation rejection, raw draft suppression and deterministic
+  knowledge composition. 53 new cases; full 1355 tests + 484 subtests PASS, zero skips/
+  xfails/deselections/guard denials; eight checks, Node 69/14, seven assets PASS, 334 inputs
+  and 440 pending sources. C17, registry/defaults and tool authority unchanged. Semantic/
+  model/other-agent prompt boundaries, privacy/runtime/full RAG and strict CLI remain
+  unaccepted/BLOCKED, F2-09 pending, C10 OPEN. Review/local commit and final receipt only,
+  then wait; no push/upload, real model/service, dependency, main-spec sync or archive.
+  F2-06 Planner/tool-selection boundary subsequently authorized on 2026-10-22 after
+  local 8edaf00: plan first in docs/50-engineering/planner-tool-trust-boundary.md; effective
+  template policies/JSON roles, strict complete proposals, literal current-request action
+  excerpts, no guessed keyword defaults and hidden planning streams. 61 new cases; full
+  1416 tests + 497 subtests PASS, zero skips/xfails/deselections/guard denials; eight checks,
+  Node 69/14/seven assets PASS, 336 inputs and 441 pending sources. C17 and downstream
+  authority retained; semantic/model/tool/privacy/runtime/full RAG and strict CLI remain
+  unaccepted/BLOCKED, F2-09 pending, C10 OPEN. Local reviewed commit/final receipt only,
+  then wait; no push/upload, real model/service, dependency, main-spec sync or archive.
+  F2-06 non-knowledge result facts/publication subsequently authorized after local
+  c0ca3b5 on 2026-10-22: plan first in docs/50-engineering/nonknowledge-result-boundary.md;
+  deterministic structured-status/literal-data composition replaces summary model/drafts,
+  retaining every failed/pending/compensation/unknown result and existing single/knowledge/
+  analysis/C10/SSE contracts. 49 new cases; full 1465 tests + 495 subtests PASS, zero skips/
+  xfails/deselections/guard denials; two obsolete log-expression subtests removed with
+  their code (82 to 80), no weaker gate. Eight checks/Node 69/14/seven assets PASS, 338
+  inputs/442 pending sources, C17 29 and five parser cases/two unsafe controls PASS.
+  Chitchat/reranking deferred; actual semantic/tool/privacy/runtime/full RAG and strict
+  CLI BLOCKED, F2-09 pending, C10 OPEN. Reviewed local commit/final receipt only, then wait;
+  no push/upload, dependency, C17 change, main-spec sync, archive or next item.
+  F2-06 chitchat fallback boundary subsequently authorized after local d5e028c on
+  2026-10-22: plan first in docs/50-engineering/chitchat-trust-boundary.md; fixed read-only
+  System/message JSON without names, strict text/native-call admission, deterministic
+  failure fallback and hidden/literal candidate replies. Budget/cancellation propagate.
+  57 new cases; full 1522 tests + 494 subtests PASS, zero skips/xfails/deselections/guard
+  denials; one obsolete log-expression subtest removed with its code (80 to 79), no weaker
+  gate. Eight checks/Node 69/14/seven assets PASS, 340 inputs/443 pending sources; C17 29
+  and five parser cases/two unsafe controls PASS. Other aggregation/authority/C17 retained.
+  Optional reranking deferred; actual model/browser/API/privacy/runtime/full RAG and
+  strict CLI BLOCKED, F2-09 pending, C10 OPEN. Reviewed local commit/final receipt only,
+  then wait; no push/upload, dependency, C17 change, main-spec sync, archive or next item.
+  F2-06 optional LLM rerank score/event boundary subsequently authorized on 2026-10-22
+  after local 5bbf68b: plan first in docs/50-engineering/llm-rerank-trust-boundary.md.
+  Fixed policy over effective templates, separate query/prefix JSON, strict integer/no-call
+  admission, original source/ACL copies and stable ties. Ordinary failures reject the whole
+  batch for existing coarse/vector fallback; budget/cancel propagate and score drafts stay
+  hidden. 85 new tests/3 subtests; full 1607 tests + 497 subtests PASS, zero skips/xfails/
+  deselections/guard denials; eight checks/Node 69/14/seven assets PASS, 342 inputs/444 pending
+  sources, C17 29 PASS. Initial inventory drift failed, then complete checks passed with
+  scoped test registration; existing authority assertions/79 diagnostics remain. A valid
+  poisoned high score is a semantic gap. Default profile/factory/Cohere/BGE/C17 unchanged;
+  Cohere/BGE follow-up deferred, real model/event transport/runtime/full RAG/privacy/strict
+  CLI BLOCKED, F2-09 pending, C10 OPEN. Reviewed local commit/final receipt only, then wait;
+  no push/upload, dependency, C17 change, main-spec sync, archive or automatic next item.
+  F2-06 optional Cohere/BGE result/numerical boundary subsequently authorized on
+  2026-10-22 after local 22492ab: plan first in docs/50-engineering/optional-rerank-result-boundary.md.
+  Complete candidate-bound indices/scores, exact one-dimensional finite BGE vectors,
+  stable sigmoid/ties, original source/ACL copies and whole-batch failure; cooperative
+  budget/cancel checks. 108 new tests/10 subtests; full 1715 tests + 507 subtests PASS,
+  zero skips/xfails/deselections/guard denials, C17 29 PASS. Eight current offline checks/Node 69/14/seven assets PASS;
+  344 reviewed inputs/445 pending sources. C07 ndarray fixture retains authority assertions,
+  diagnostics remain 79. Bailian/LLM/factory/constructors/C17 unchanged; factory/stage
+  follow-up deferred. No SDK/ML install/download or real model use. Real SDK/model/semantic/
+  runtime/full RAG/privacy/strict CLI BLOCKED, F2-09 pending, C10 OPEN. Reviewed local
+  commit/final receipt only, then wait; no push/upload, dependency, main-spec sync,
+  archive or automatic next item.
+  F2-06 factory selection/status subsequently authorized on 2026-10-22 after local
+  cf43c96: plan first in docs/50-engineering/reranker-selection.md. Known provider/auto
+  mapping, profile/configuration-bound cache admission, cooperative initialization
+  interruption and fixed internal fallback reasons; truthful retrieval/log/trace stages.
+  Five scorer methods, degradation route and C17 unchanged. 68 new tests/8 subtests;
+  full 1783 tests + 510 subtests PASS, zero skips/xfails/deselections/guard denials;
+  five fewer automatic log subtests follow consolidation, no weaker gate. Eight checks/
+  Node 69/14/seven assets PASS, 345 inputs/446 pending sources; separate C17 29 PASS.
+  Initial inventory/AST-fixture failures fixed, all prior assertions retained. Actual
+  SDK/model/semantic/runtime/full RAG/privacy/strict CLI BLOCKED, F2-09 pending, C10 OPEN.
+  Reviewed local commit/final receipt only, then wait; no dependency/service, push/upload,
+  C17 change, main-spec sync, release, archive or automatic next item.
+  F2-06 score admission subsequently authorized on 2026-10-22 after local fd5511c:
+  plan first in docs/50-engineering/score-admission.md. Stdlib finite-real raw/visible/
+  confidence guards before coercion/clipping, model use and publication. Numeric errors
+  remain failures through the selector; ordinary fallback, accepted finite processing,
+  .6 weight/thresholds, scorer/factory/profile/prompts and C17 remain unchanged.
+  100 new tests/25 subtests; full 1883 tests + 535 subtests PASS, zero skips/xfails/
+  deselections/guard denials; eight checks/Node 69/14/seven assets PASS, 347 inputs/
+  447 pending sources; C17 29 PASS. All prior tests/assertions and 74 diagnostics retained.
+  Real SDK/model/semantic/runtime/full RAG/privacy/strict CLI BLOCKED, F2-09 pending,
+  C10 OPEN. Reviewed local commit/final receipt then wait; no dependency/service,
+  push/upload, C17 change, main-spec sync, release, archive or automatic next item.
+  F2-09 backend/C17 provenance preparation authorized on 2026-10-22 after local 6f5bbd9:
+  plan first in docs/50-engineering/license-provenance.md, then an eleven-item worksheet
+  for nine sample documents and two separate suites. Full path/hash bindings, objective
+  local facts, item/common questions and unanswered author form; no inferred declaration
+  or rights clearance. All 447 source records remain pending; code/corpus/inventory/rules
+  and C17 primary 122/supplemental 6 unchanged. Documentation checks/local commit only,
+  no fresh pytest/runtime receipt. Strict CLI/runtime/full RAG/privacy BLOCKED, F2-09 and
+  C10 OPEN. Then wait; no push/upload, external lookup, main-spec sync, archive or next item.
+  F2-09 unknown-source response recording authorized on 2026-10-22 after local 7fad067:
+  plan first in docs/50-engineering/license-provenance.md; all eleven item-specific replies
+  received, creation process/reference sources not presently recalled (unknown). Update
+  active worksheet/trackers, retain preparation evidence/template as historical. Supporting
+  provenance/permission/real-data evidence remains unestablished; all 447 rights stay pending.
+  Code/corpus/inventory/admission rules/rights and C17 122/6 unchanged. Documentation-only
+  checks/review/local commit, no fresh pytest/runtime receipt. Strict CLI/runtime/full RAG/
+  privacy BLOCKED, F2-09/C10 OPEN. Then wait; no push/upload, remote CI, main-spec sync,
+  merge, release, archive or automatic next item.
+  F2-11 current-candidate source claims authorized on 2026-10-22 after local ccd3065:
+  plan first in docs/50-engineering/portfolio-demonstration.md; update existing walkthrough
+  N01-N09 and evidence references, preserving the complete original fa1fa05 body. Current
+  source is separate from retained 6f5bbd9 full-suite/eight-check evidence and historical CI.
+  Only the walkthrough pending-source hash and dependent current-manifest inventory hash
+  refresh; membership/counts/rules/rights/app/tests/C17/CI/old assets unchanged. No fresh
+  suite or actual demo; 447 source rights pending, eleven replies received/unknown.
+  Strict CLI/runtime/full RAG/privacy BLOCKED, C10 OPEN; feedback unvalidated, commercial
+  validation DEFERRED / NOT STARTED. Local review/commit then wait; no push/upload, remote
+  CI, main-spec sync, merge, release, archive or automatic next item.
+  F2-10 current-candidate reverification authorized on 2026-10-22 after local 4570a08:
+  plan first in docs/50-engineering/offline-verification.md, reviewed local plan commit,
+  unchanged eight checks on that clean candidate, then receipt-bound documentation-only
+  result commit. Keep exact counts/gates/347 source inputs; no skips or hash refresh.
+  Actual clean tested plan commit cd34550: all eight checks PASS, full 1883 tests + 535
+  subtests, Node 69/14/seven assets; zero skips/xfails/deselections/guard denials. Actual
+  commit/content/source/aggregate and child hashes verified, 347 inputs/447 pending rights
+  and C17 unchanged; execution/binding PASS, overall BLOCKED/UAT-release false (exit 2).
+  Later result commit is documentation only, not tested. Receipt/immutability/tracking
+  review, 307 local links and YAML/manual scoped OpenSpec PASS; reviewed result commit
+  locally, then wait. Missing tools stay BLOCKED.
+  Unknown-source rights pending; runtime/full RAG/privacy/strict CLI BLOCKED, C10 OPEN.
+  Local commits then wait; no push/upload, remote CI, dependency, main-spec sync, merge,
+  release, archive or automatic next item.
+  F2-10 handover/history-label unit authorized on 2026-10-22 after local 2ed1d93:
+  plan first in docs/50-engineering/delivery-status.md; use its current-handover anchor
+  for current progress, with original baseline/C10/ROADMAP snapshots visibly historical.
+  Route exactly fourteen existing blocked gates by decision/tool/environment prerequisites
+  and exit evidence, without changing status/gates. Retained tests cd34550/results 2ed1d93
+  remain distinct from this documentation-only unit; no full rerun/new receipt, code,
+  manifests, C17, rights or old-asset changes. Historical/protected-source/receipt review,
+  339 local targets/47 fragments, both YAML documents and manual scoped OpenSpec/whitespace
+  PASS; 347 reviewed inputs/447 pending rights unchanged.
+  Strict CLI/runtime/full RAG/privacy BLOCKED, unknown rights PENDING, C10 OPEN; F4 and
+  commercial tracks do not start. Local review/commit then wait; no install, push/upload,
+  remote CI, main-spec sync, merge/release, archive or automatic next item.
+  公开作品集准备度、工程运行验收与商业/企业就绪度须分别判定；C10 open，真实运行/完整 RAG BLOCKED。
 
   技术栈：Python 3.11+ / FastAPI / LangGraph 1.2+ / LangChain 1.x / Milvus 2.4 / PostgreSQL 16 /
-  Redis 7(redis-stack-server) / Ollama 本地 qwen3.5:4b / bge-m3 与 bge-reranker 本地模型 /
-  DeepSeek v4-pro(primary) 与 v4-flash(lite 降级)。
+  Redis 7(redis-stack-server) / 百炼北京 text-embedding-v4 (1024 维) 与 qwen3-rerank /
+  DeepSeek Flash (默认) 与 v4-pro (复杂任务)。旧本地模型仅作开发可选项。
 
   工程约定：PEP 8、行宽 100、全量类型注解、异步代码优先、类在 __init__ 初始化全部属性；
   密钥只从环境变量读取(.env 永不提交)；SQL 一律参数化；外部 API 调用设置超时与重试；
@@ -21,14 +233,15 @@ context: |
   + 90-archive 归档)；面试与演示资产在 interview/；根目录 contents.md 为目录树索引、
   CHANGELOG.md 为版本变更、README.md 为唯一导航入口；ROADMAP/DECISIONS/ISSUES 各为单一事实源。
 
-  当前状态：两个 openspec change 已全部归档(2026-08-04)——documentation-baseline(文档基线)与
-  complete-business-processes(业务闭环补齐：知识运营/审批超时/重规划/外部系统/用户生命周期/测试闭环)；
-  主规格 10 项能力见 openspec/specs/；新需求按 propose → apply → archive 重新开启。
-  工具集成(2026-08-05)：openspec init 已完成 Kimi Code(.kimi-code/skills/)与 Codex(.codex/skills/)
-  双工具集成，各 6 个工作流 skill；当前处于 propose 阶段——按生产上线导向已创建 7 个 change：
-  production-readiness-baseline / rag-answer-quality(P0)、load-test-and-dr-drill /
-  security-hardening-plus(P1)、ticket-system-integration / crm-mail-sso-integration(P2)、
-  uat-and-ga-rollout(P3)，候选依据见 docs/40-process/优化方向分析-生产上线-2026-08-05.md。
+  当前状态(2026-10-17)：主规格 15 项、已归档 change 15 项；active change 为
+  crm-mail-sso-integration、uat-and-ga-rollout 与 engineering-delivery-closeout。
+  engineering-delivery-closeout 的 S0/C24/C01 配置增量已推送，C01 运行验收 BLOCKED；
+  C02 外部模型增量 42bfc7f 已推送，真实 API/Linux 验收 BLOCKED；C03 增量 fc8da91 已推送，真实 PostgreSQL/API/Linux 验收 BLOCKED；C04 会话归属增量 dbc8236 已推送；C05 增量 9f5397c 已推送；C06 增量 6955133 已推送；C07 增量 ceae708 已推送；C08 增量 d81c281 已推送；C09 增量 079cd62 已推送；C10 增量 a57bd4e 已推送（此前 27 项专项与 139 项相关回归 PASS），真实双进程/Redis/LangGraph/Milvus/JWT/API/SSE/PG/Linux 验收 BLOCKED，浏览器/SSO 与历史处置阻塞保留；2026-10-19 C10 已实现运行线程隔离、数据库时钟所有权及原子条件发布；28 项新离线验证与本地全量 pytest 900 tests + 232 subtests（零跳过）PASS。schema v8 未执行，真实双进程/运行/完整 RAG 仍 BLOCKED，C10 整项 open；仅本地提交，不推送/合并/发布/归档。C18 参考契约前置 `317aa7f` 已推送；C12 `21b5287` 已推送；C14 `59a5c14` 已推送；C13 `c42dcf8` 已推送；C11 `8bb6241` 已推送；C15 `0c0c5f9` 已推送；C16 `bb81833` 已推送；C17 `cd49d78` 已推送；C18 `bd04a12` 已推送并核验；C19 `4afe54b` 已推送并核验同名远端；C20 `44bfcb0` 已推送并核验同名远端；C21 `40c10d8` 已推送并核验同名远端；C22 计划先行/停写物理卷备份/新卷恢复/失败恢复源进程/回退与窗口核算离线候选完成（46 项专项 + 77 项相关回归 PASS，另 1 项 PyYAML 检查跳过）；D01–D16、O01–O16、B01–B16、S01–S16、R01–R20、真实运行与完整 RAG 验收 BLOCKED；C15/C16/C17/C18/C19/C20/C21/C22 整项 open，C10 写入竞态不关闭。C22 `d70c1b4` 已推送并核验；C23 冻结负载/混合采集/保守报告离线候选完成（42 项专项 + 186 项相关回归 PASS），L01–L16 运行验收 BLOCKED，C23 整项 open。C23 `6de94c6` 已按后续授权推送并核验；C24 最终候选离线增量完成（789 项测试 PASS、1 项 PyYAML 跳过/BLOCKED、7 个分发文件 PASS），C24 整项 open。C24 `d8a26b5` 已推送并核验；C25 离线 Git/双语文档/版本/规格/交付结论核对完成，整项 open。C25 `fe2ae78` 已推送并核验；远端 CI 收集 FAIL 保留。后续修复 `b8c4457` 已推送；远端 Python 3.11/3.13 各 871 tests + 225 subtests PASS、零跳过。Gitleaks 源码哈希误报与事件范围修复 `16c882b` 已推送，镜像上下文修复 `0d1a7ce` 已推送，远端 CI 39209313444 全部 PASS（双版本各 872 tests + 225 subtests、零跳过；密钥/依赖扫描、镜像构建/导入/Trivy PASS）；真实运行/完整 RAG BLOCKED，C10 open；不合并、发布、同步或归档。工程交付边界见 docs/50-engineering/engineering-delivery-baseline.md；
+  C01-C25 的现状/缺口/验收以 ISSUES 为准，S0-S7 顺序以 ROADMAP 为准。
+  真实企业联调、UAT、灰度与全量放行仍缺资源，不用参考服务成功替代这些任务。
+  OpenSpec CLI 本机不可用；结构检查不能替代严格校验，归档前须补齐。
+  Kimi Code(.kimi-code/skills/)与 Codex(.codex/skills/)各有 6 个工作流 skill；
+  新需求遵守 explore → propose → apply → archive，运行时契约变更先补对应 delta。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

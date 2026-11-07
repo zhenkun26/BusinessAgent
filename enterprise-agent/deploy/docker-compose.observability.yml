@@ -1,0 +1,26 @@
+# Overlay on docker-compose.prod.yml; isolated candidate only, no service started by this file.
+services:
+  observation-monitor:
+    image: ${BUSINESSAGENT_IMAGE:?Use the reviewed application digest}
+    command: python -m app.observability.monitor
+    environment:
+      OBSERVABILITY_STORE_PATH: /data/monitor/state.sqlite3
+      CONTROLLED_ALERT_TOKEN: ${CONTROLLED_ALERT_TOKEN:?Set an isolated 32+ character token}
+    volumes: ["observation_monitor:/data/monitor"]
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+  alert-receiver:
+    image: ${BUSINESSAGENT_IMAGE:?Use the reviewed application digest}
+    command: python -m app.observability.receiver
+    environment:
+      OBSERVABILITY_STORE_PATH: /data/receiver/state.sqlite3
+      CONTROLLED_ALERT_TOKEN: ${CONTROLLED_ALERT_TOKEN:?Set an isolated 32+ character token}
+    volumes: ["observation_receiver:/data/receiver"]
+    expose: ["8090"]
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+volumes:
+  observation_monitor:
+  observation_receiver:

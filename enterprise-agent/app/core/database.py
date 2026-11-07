@@ -1,5 +1,7 @@
 """PostgreSQL 异步连接池管理"""
 
+from __future__ import annotations
+
 from typing import Optional
 
 from loguru import logger
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
+from app.core.schema_contract import SchemaError, verify_async_schema
 
 _engine: Optional[AsyncEngine] = None
 _session_factory: Optional[async_sessionmaker[AsyncSession]] = None
@@ -20,24 +23,31 @@ _session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 async def init_db():
     """初始化数据库连接池"""
     global _engine, _session_factory
+    if _engine is not None:
+        raise SchemaError("DB_ALREADY_INITIALIZED")
     settings = get_settings()
 
-    _engine = create_async_engine(
+    engine = create_async_engine(
         settings.postgres_dsn,
-        echo=settings.is_dev,
+        echo=False,
+        hide_parameters=True,
         pool_size=10,
         max_overflow=20,
         pool_pre_ping=True,
         pool_recycle=3600,
+        connect_args={"timeout": 10, "command_timeout": 60},
     )
-    _session_factory = async_sessionmaker(
-        _engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    # 测试连接
-    async with _engine.begin() as conn:
-        await conn.execute(text("SELECT 1"))
-    logger.info("PostgreSQL 连接池已创建")
+    # Publish no session factory until schema history and structure have passed.
+    try:
+        async with engine.begin() as conn:
+            await verify_async_schema(conn, text)
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    except Exception:
+        await engine.dispose()
+        raise SchemaError("DB_SCHEMA_STARTUP_FAILED") from None
+    _engine = engine
+    _session_factory = factory
+    logger.info("PostgreSQL schema verified; connection pool ready")
 
 
 async def close_db():
@@ -70,7 +80,7 @@ async def check_db_health() -> dict:
         if _engine is None:
             return {"status": "unhealthy", "reason": "未初始化"}
         async with _engine.begin() as conn:
-            await conn.execute(text("SELECT 1"))
+            await verify_async_schema(conn, text)
         return {"status": "healthy"}
-    except Exception as e:
-        return {"status": "unhealthy", "reason": str(e)}
+    except Exception:
+        return {"status": "unhealthy", "reason": "DB_SCHEMA_UNAVAILABLE"}

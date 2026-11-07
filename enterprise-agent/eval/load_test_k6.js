@@ -1,3 +1,4 @@
+// HISTORICAL ONLY: not C23 mixed workload, TTFT evidence or capacity acceptance.
 // k6 阶梯压测脚本(load-test-and-dr-drill / tasks 1.2)
 //
 // 覆盖核心接口:
@@ -9,29 +10,23 @@
 // 注意:SLA 口径对话类接口以「首 token」计;本脚本对 /chat/message 量的是完整响应时长,
 // 属更严口径,报告中需注明。
 //
-// 运行(本机已装 k6):
-//   k6 run -e BASE_URL=http://localhost:8000 eval/load_test_k6.js
-// 冒烟档(缩短阶梯,验证脚本可用性):
-//   k6 run -e PROFILE=smoke eval/load_test_k6.js
-// Docker 兜底(本机无 k6):
-//   docker run --rm -v "$PWD/eval:/eval" -w /eval grafana/k6:latest run \
-//     -e BASE_URL=http://host.docker.internal:8000 load_test_k6.js
-//
-// 推荐经 eval/run_load_test.sh 执行(自动落盘 summary 到 eval/results/)。
+// Historical invocation now requires explicit credentials/users/target plus
+// LEGACY_LOADTEST_ACK=historical-only. Do not use old default invocation examples.
+// eval/run_load_test.sh routes to the C23 plan-first Python runner.
 
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Rate, Trend } from "k6/metrics";
-import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.2/index.js";
 
-const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
-const PASSWORD = __ENV.LOADTEST_PASSWORD || "ChangeMe123!";
+const BASE_URL = __ENV.BASE_URL;
+if (__ENV.LEGACY_LOADTEST_ACK !== "historical-only" || !__ENV.BASE_URL || !__ENV.LOADTEST_PASSWORD || !__ENV.LOADTEST_USERS) {
+  throw new Error("Historical runner requires explicit target, credentials, users and LEGACY_LOADTEST_ACK=historical-only; use run_capacity.py for C23");
+}
+const PASSWORD = __ENV.LOADTEST_PASSWORD;
 // 多用户池:应用层限流为 30 req/min/用户(app/middleware/rate_limit.py),
 // 单用户压测会打到限流而非容量——用种子用户池分摊(每用户独立 token)。
 // 可用 LOADTEST_USERS="用户A,用户B" 覆盖;池大小应 ≥ 预估 chat 峰值 req/min ÷ 30。
-const USER_POOL = (__ENV.LOADTEST_USERS ||
-  "销售员张三,销售员王芳,销售员李雷,销售经理赵六,客服李四,客服韩梅梅,财务王五,财务经理钱八,HR孙九,管理员钱七"
-).split(",");
+const USER_POOL = __ENV.LOADTEST_USERS.split(",");
 const PROFILE = __ENV.PROFILE || "formal";
 
 // 阶梯定义:formal 为正式压测;smoke 仅验证脚本链路可用
@@ -126,13 +121,13 @@ function loginWithRetry(username) {
       try {
         wait = (res.json("retry_after_seconds") || 60) + 2;
       } catch (e) { /* 用默认等待 */ }
-      console.log(`登录限流(${username}),${wait}s 后重试(${attempt + 1}/3)`);
+      console.log(`LEGACY_LOGIN_RATE_LIMITED: wait=${wait}, attempt=${attempt + 1}`);
       sleep(wait);
       continue;
     }
-    throw new Error(`登录失败(${username}, ${res.status}): ${res.body} —— 检查 BASE_URL / LOADTEST_USERS`);
+    throw new Error("LEGACY_LOGIN_FAILED");
   }
-  throw new Error(`登录失败(${username}): 多次限流重试后仍 429`);
+  throw new Error("LEGACY_LOGIN_RATE_LIMITED");
 }
 
 export function setup() {
@@ -194,7 +189,7 @@ export function hitChat(data) {
 }
 
 export function handleSummary(data) {
-  const out = { stdout: textSummary(data, { indent: " ", enableColors: false }) };
+  const out = { stdout: JSON.stringify({ historical_only: true, acceptance_status: "BLOCKED", metrics: data.metrics }, null, 2) };
   if (__ENV.K6_SUMMARY_JSON) {
     out[__ENV.K6_SUMMARY_JSON] = JSON.stringify(data, null, 2);
   }

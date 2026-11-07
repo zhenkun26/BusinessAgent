@@ -1,0 +1,434 @@
+{
+  "executed_at_utc": "2026-09-29T05:03:28.939395+00:00",
+  "application_commit": "2d4bfc17a34e45907404fdde38857e4cf96ad550",
+  "cwd": "repository root",
+  "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+  "commands": [
+    {
+      "command": [
+        "python",
+        "-B",
+        "enterprise-agent/eval/validate_uat_plan.py",
+        "--plan",
+        "docs/30-guides/UAT验收计划.md",
+        "--fixture",
+        "enterprise-agent/eval/uat_simulation/fixture.json"
+      ],
+      "exit_code": 0,
+      "report": {
+        "plan": "docs/30-guides/UAT验收计划.md",
+        "fixture": "enterprise-agent/eval/uat_simulation/fixture.json",
+        "overall_status": "passed",
+        "formal_uat": false,
+        "release_evidence": false,
+        "execution_ready": false,
+        "conclusion": "计划结构与 G0 fixture 一致，但真实用户、独立环境、排期和签署人未确认；不得放行正式 UAT。",
+        "checks": [
+          {
+            "name": "scenario_ids_match_fixture",
+            "passed": true,
+            "detail": "fixture=12 expected=12"
+          },
+          {
+            "name": "matrix_covers_each_scenario_once",
+            "passed": true,
+            "detail": "matrix_rows=12"
+          },
+          {
+            "name": "matrix_has_action_and_pass_standard",
+            "passed": true,
+            "detail": "每个场景均有最小验收动作和通过标准"
+          },
+          {
+            "name": "execution_template_covers_each_scenario_once",
+            "passed": true,
+            "detail": "execution_rows=12"
+          },
+          {
+            "name": "execution_is_not_marked_as_completed",
+            "passed": true,
+            "detail": "模板未把空白执行记录误标为通过"
+          },
+          {
+            "name": "g0_fixture_is_not_formal_uat",
+            "passed": true,
+            "detail": "G0 安全标记保持 official_uat=false 且 external_side_effects_allowed=false"
+          },
+          {
+            "name": "plan_declares_real_resource_blockers",
+            "passed": true,
+            "detail": "计划明确列出真实 UAT 资源待确认项"
+          }
+        ]
+      }
+    },
+    {
+      "command": [
+        "python",
+        "-B",
+        "enterprise-agent/eval/validate_uat_execution_readiness.py",
+        "--plan",
+        "docs/30-guides/UAT验收计划.md"
+      ],
+      "exit_code": 0,
+      "report": {
+        "plan": "docs/30-guides/UAT验收计划.md",
+        "overall_status": "blocked",
+        "execution_ready": false,
+        "formal_uat": false,
+        "release_evidence": false,
+        "unresolved_resources": [
+          "真实验收用户",
+          "验收环境",
+          "验收窗口",
+          "外部系统范围",
+          "结果签署人"
+        ],
+        "conclusion": "正式 UAT 仍被真实用户、独立环境或排期/签署资源阻断；G0 彩排不计入正式证据。",
+        "checks": [
+          {
+            "name": "resource_rows_complete",
+            "passed": false,
+            "detail": "待确认资源：真实验收用户, 验收环境, 验收窗口, 外部系统范围, 结果签署人"
+          },
+          {
+            "name": "independent_uat_environment",
+            "passed": false,
+            "detail": "验收环境仍未确认独立性"
+          },
+          {
+            "name": "execution_template_is_untouched",
+            "passed": true,
+            "detail": "12 个场景均保留待执行状态，未伪造正式结果"
+          },
+          {
+            "name": "formal_uat_boundary_is_declared",
+            "passed": true,
+            "detail": "计划明确 G0 彩排不能替代正式 UAT"
+          }
+        ]
+      }
+    },
+    {
+      "command": [
+        "python",
+        "-B",
+        "enterprise-agent/eval/validate_grey_release_plan.py",
+        "--plan",
+        "docs/30-guides/发布灰度与上线门槛检查单.md"
+      ],
+      "exit_code": 0,
+      "report": {
+        "plan": "docs/30-guides/发布灰度与上线门槛检查单.md",
+        "overall_status": "passed",
+        "plan_approval": false,
+        "review_conclusion": "conditional",
+        "execution_ready": false,
+        "release_evidence": false,
+        "conclusion": "方案结构、指标和回滚路径完整，观察期口径已统一；业务观察阈值仍需产品负责人确认，不能据此开始真实灰度。",
+        "owner_confirmation_pending": true,
+        "checks": [
+          {
+            "name": "stage_ids_complete",
+            "passed": true,
+            "detail": "灰度阶段 4 个，期望 G0/G1/G2/G3 且编号不重复"
+          },
+          {
+            "name": "stage_order_and_columns",
+            "passed": true,
+            "detail": "阶段按 G0 → G1 → G2 → G3 排列且包含范围、观察期、放量前提"
+          },
+          {
+            "name": "observation_window_is_declared",
+            "passed": true,
+            "detail": "方案声明总观察期边界"
+          },
+          {
+            "name": "observation_window_is_bounded",
+            "passed": true,
+            "detail": "各阶段观察期与总观察期口径一致，未出现无上限的阶段"
+          },
+          {
+            "name": "sla_metrics_are_referenced",
+            "passed": true,
+            "detail": "可用性、p95、p99、错误率、RTO、RPO 均有观察口径"
+          },
+          {
+            "name": "rollback_trigger_and_path_are_actionable",
+            "passed": true,
+            "detail": "回滚触发条件覆盖安全/SLA/数据风险，且路径包含停止、回退、健康检查步骤"
+          },
+          {
+            "name": "plan_does_not_claim_release",
+            "passed": true,
+            "detail": "灰度方案明确不等于全量放行"
+          }
+        ]
+      }
+    },
+    {
+      "command": [
+        "python",
+        "-B",
+        "enterprise-agent/eval/validate_release_gate.py",
+        "--checklist",
+        "docs/30-guides/发布灰度与上线门槛检查单.md",
+        "--project-root",
+        "."
+      ],
+      "exit_code": 0,
+      "report": {
+        "checklist": "docs/30-guides/发布灰度与上线门槛检查单.md",
+        "overall_status": "blocked",
+        "release_allowed": false,
+        "formal_release": false,
+        "release_evidence": false,
+        "ready_gate_ids": [
+          "GATE-01",
+          "GATE-02",
+          "GATE-05"
+        ],
+        "blocked_gate_ids": [
+          "GATE-03",
+          "GATE-04",
+          "GATE-06"
+        ],
+        "conclusion": "当前保持 BLOCKED；未就绪门槛：GATE-03, GATE-04, GATE-06。",
+        "gates": [
+          {
+            "gate_id": "GATE-01",
+            "gate": "核心场景自动化回归全绿",
+            "evidence": "[CI 36522224892](https://github.com/zhenkun26/BusinessAgent/actions/runs/36522224892)、`docs/40-process/交付与离线推进记录-2026-09-29.md`",
+            "current_status": "已通过：应用提交 2d4bfc1，Python 3.11/3.13 各 143 项；适用该自动化范围",
+            "ready": true,
+            "referenced_paths": [
+              "docs/40-process/交付与离线推进记录-2026-09-29.md"
+            ],
+            "missing_paths": []
+          },
+          {
+            "gate_id": "GATE-02",
+            "gate": "压测达到 SLA",
+            "evidence": "`enterprise-agent/eval/results/loadtest_report_20260806_100427.md`",
+            "current_status": "已有证据，单机前提",
+            "ready": true,
+            "referenced_paths": [
+              "enterprise-agent/eval/results/loadtest_report_20260806_100427.md"
+            ],
+            "missing_paths": []
+          },
+          {
+            "gate_id": "GATE-03",
+            "gate": "P0/P1 问题清零或有正式风险接受",
+            "evidence": "`docs/40-process/ISSUES.md`",
+            "current_status": "待发布评审复核",
+            "ready": false,
+            "referenced_paths": [
+              "docs/40-process/ISSUES.md"
+            ],
+            "missing_paths": []
+          },
+          {
+            "gate_id": "GATE-04",
+            "gate": "权限、越权和 Prompt 安全测试通过",
+            "evidence": "安全审查报告、测试、真实安全/UAT记录",
+            "current_status": "部分完成，真实攻击面待验",
+            "ready": false,
+            "referenced_paths": [],
+            "missing_paths": []
+          },
+          {
+            "gate_id": "GATE-05",
+            "gate": "备份恢复演练成功",
+            "evidence": "`ISSUES.md` I-12、运维手册、演练报告",
+            "current_status": "已有证据",
+            "ready": true,
+            "referenced_paths": [],
+            "missing_paths": []
+          },
+          {
+            "gate_id": "GATE-06",
+            "gate": "灰度稳定运行满观察期",
+            "evidence": "G1/G2/G3 指标快照和决策记录",
+            "current_status": "未执行",
+            "ready": false,
+            "referenced_paths": [],
+            "missing_paths": []
+          }
+        ],
+        "checks": [
+          {
+            "name": "gate_ids_complete",
+            "passed": true,
+            "detail": "检查单包含 6 行，期望 6 行且编号不重复"
+          },
+          {
+            "name": "gate_rows_have_required_columns",
+            "passed": true,
+            "detail": "每个门槛均包含编号、门槛、证据和当前状态四列"
+          },
+          {
+            "name": "evidence_cells_are_present",
+            "passed": true,
+            "detail": "每个门槛均填写前置证据引用"
+          },
+          {
+            "name": "referenced_paths_exist",
+            "passed": true,
+            "detail": "仓库内可解析的证据路径均存在"
+          },
+          {
+            "name": "blocked_state_is_declared",
+            "passed": true,
+            "detail": "存在未就绪门槛时，检查单明确声明 BLOCKED"
+          },
+          {
+            "name": "missing_gate_blocks_release",
+            "passed": true,
+            "detail": "未就绪门槛：GATE-03, GATE-04, GATE-06"
+          }
+        ]
+      }
+    }
+  ],
+  "g0_replay": {
+    "report_version": "1.0.0",
+    "fixture_id": "uat-sim-20260815",
+    "fixture_version": "1.0.0",
+    "execution_mode": "G0 technical rehearsal",
+    "executed_at": "2026-09-29T05:03:28.933484+00:00",
+    "official_uat": false,
+    "formal_uat": false,
+    "release_evidence": false,
+    "overall_status": "passed",
+    "failure_count": 0,
+    "checks": [
+      {
+        "check_id": "safety-markers",
+        "scenario_id": null,
+        "status": "passed",
+        "message": "G0 安全标记有效",
+        "details": []
+      },
+      {
+        "check_id": "entity-references",
+        "scenario_id": null,
+        "status": "passed",
+        "message": "实体引用完整",
+        "details": []
+      },
+      {
+        "check_id": "coverage",
+        "scenario_id": null,
+        "status": "passed",
+        "message": "角色、命名空间、场景和审批状态覆盖完整",
+        "details": []
+      },
+      {
+        "check_id": "global-safety",
+        "scenario_id": null,
+        "status": "passed",
+        "message": "测试地址、token 和外部副作用边界有效",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-K01",
+        "scenario_id": "UAT-K01",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-K02",
+        "scenario_id": "UAT-K02",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-A01",
+        "scenario_id": "UAT-A01",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-A02",
+        "scenario_id": "UAT-A02",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-E01",
+        "scenario_id": "UAT-E01",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-E02",
+        "scenario_id": "UAT-E02",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-P01",
+        "scenario_id": "UAT-P01",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-P02",
+        "scenario_id": "UAT-P02",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-C01",
+        "scenario_id": "UAT-C01",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-C02",
+        "scenario_id": "UAT-C02",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-C03",
+        "scenario_id": "UAT-C03",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      },
+      {
+        "check_id": "scenario-UAT-O01",
+        "scenario_id": "UAT-O01",
+        "status": "passed",
+        "message": "场景回放契约通过",
+        "details": []
+      }
+    ],
+    "statement": "本报告仅为 G0 技术彩排，不是正式 UAT、真实外部系统联调或上线放行证据。"
+  },
+  "release_gate_assertions": "passed",
+  "source_sha256": {
+    "enterprise-agent/eval/validate_uat_plan.py": "10aed812e152cc155439efc3b51203247e1a655c9a580d094ac457873546d267",
+    "enterprise-agent/eval/validate_uat_execution_readiness.py": "8d567acad2a3568d1414fbe24359f9badc9ff2c488def3aa410407ceaa90e916",
+    "enterprise-agent/eval/validate_grey_release_plan.py": "356e40dc9818a7a5a5e2ffa97fa718e803e35c4b522b143dcc0629801cdf9e30",
+    "enterprise-agent/eval/validate_release_gate.py": "55e779bd775adc1dcde8d977d4a2637e4c761dc9bbb8588dde20303aa566707e",
+    "enterprise-agent/eval/uat_simulation/fixture.json": "413c1821c56f5fa0fa632a4aafacd1050e356ec23d4350bfe73439f69c087042",
+    "enterprise-agent/eval/run_uat_replay.py": "64ed4eb0c9c7be314537b439306f6a6c7aa729a5636a122f93b4b6dd1afc6a76",
+    "enterprise-agent/tests/test_release_gate.py": "2bbf5e8323935fa69306c93264cf0b4d221dfdb443b5242aae6c733760e01fe7",
+    "docs/30-guides/UAT验收计划.md": "667bd4f2357e20a25ff979627ce608046b3271b9c66ca958c9b3db446cab4b38",
+    "docs/30-guides/发布灰度与上线门槛检查单.md": "3012aa05e4d9d0947964ffa0d1857577f6c6a1b34ad6216529207bc8a9f2fdf1"
+  },
+  "limits": "Read-only document/fixture validation plus existing pure release-gate test; no application, external service, formal UAT or deployment execution."
+}

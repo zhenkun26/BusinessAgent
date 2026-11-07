@@ -170,3 +170,16 @@ async def test_production_local_login(
         assert response.json() == {"detail": "用户名或密码错误"}
     else:
         assert response.json()["access_token"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("password,expected", [("wrong", 401), ("correct", 200)])
+async def test_dev_sso_user_cannot_bypass_password_flag(monkeypatch, password, expected):
+    monkeypatch.setattr(get_settings(), "app_env", "dev")
+    monkeypatch.setattr(get_settings(), "auth_require_password", False)
+    row = _make_user_row(hash_password("correct"))
+    row.sso_subject = "synthetic-subject"
+    app = _build_app(FakeSession(responses=[FakeResult([row])]), [])
+    monkeypatch.setattr("app.api.auth.get_audit_logger", lambda: AsyncMock())
+    response = TestClient(app).post("/login", json={"username": row.username, "password": password})
+    assert response.status_code == expected

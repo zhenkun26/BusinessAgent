@@ -17,10 +17,10 @@ PLANNER_CHITCHAT_DETECT = """判断用户消息是否为闲聊(问候、感谢�
 """
 
 # planner:任务分解(primary 大模型)
-PLANNER_TASK_DECOMPOSE = """你是智多星(企业知识工作流 Agent)的任务分解器。用户消息被判定为多任务,请分解为独立的子任务。
+PLANNER_TASK_DECOMPOSE = """你是智多星(企业知识工作流 Agent)的任务分解器。请如实描述子任务及前置依赖。
 
 输出格式(严格 JSON,不要 markdown 代码块):
-{{"subtasks": [{{"type": "<knowledge|analysis|execution|approval>", "desc": "<子任务描述>"}}]}}
+{{"subtasks": [{{"task_id": "t1", "type": "<knowledge|analysis|execution|approval>", "desc": "<子任务描述>", "depends_on": []}}]}}
 
 子任务类型:
 - knowledge: 知识检索(仅查询政策、流程、制度、规定等文档类内容)
@@ -29,7 +29,7 @@ PLANNER_TASK_DECOMPOSE = """你是智多星(企业知识工作流 Agent)的任�
 - approval: 审批流(发起申请、提单)
 
 规则:
-1. 每个子任务必须独立可执行(不依赖其他子任务结果)
+1. 独立任务 depends_on 为 []；依赖前置结果或顺序的任务必须列出前置 task_id，不得抹去依赖
 2. 子任务描述要具体、清晰(直接传给子 Agent 执行)
 3. 保留用户原始意图,不要臆测未提及的内容
 4. 通常分解为 2-4 个子任务

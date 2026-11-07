@@ -2,7 +2,7 @@
 
 提供:
 - GET  /admin/knowledge-candidates            待审核知识候选列表(draft)
-- POST /admin/knowledge-candidates/{id}/approve  审核通过 → 向量入库 + 置 active
+- POST /admin/knowledge-candidates/{id}/approve  审核通过 → 持久入队，202 后查询任务状态
 - POST /admin/knowledge-candidates/{id}/reject   审核拒绝 → 置 rejected + 拒绝原因
 - GET  /admin/documents                      文档台账列表(分页,支持状态过滤)
 - GET  /admin/users                          用户列表(分页,角色/状态过滤)
@@ -13,7 +13,7 @@
 """
 
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -100,70 +100,104 @@ async def list_knowledge_candidates(
     return _envelope(candidates)
 
 
-@router.post("/knowledge-candidates/{document_id}/approve")
+@router.post("/knowledge-candidates/{document_id}/approve", status_code=202)
 async def approve_knowledge_candidate(
     document_id: str,
     req: ApproveRequest,
     user: User = Depends(require_roles(AgentRole.ADMIN)),
-    db=Depends(get_db),
-):
-    """审核通过:内容进入向量库并将候选置为 active"""
-    row = (
-        await db.execute(
-            text(
-                "SELECT document_id, title, content, doc_type, dept_namespace, "
-                "access_roles, uploaded_by FROM documents "
-                "WHERE document_id = :did"
-            ),
-            {"did": document_id},
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Atomically accept a publication job; this is not publication success."""
+    from app.core.knowledge_jobs import queue_knowledge_approval
+    from app.core.task_queue import TaskRejected
+
+    try:
+        job = await queue_knowledge_approval(
+            db, document_id, user.user_id, req.doc_type, req.dept_namespace,
         )
-    ).fetchone()
+        await db.commit()
+    except TaskRejected as exc:
+        await db.rollback()
+        raise HTTPException(409, str(exc)) from None
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "TASK_STORE_UNAVAILABLE") from None
+    return _envelope({"document_id": document_id, "task_id": str(job["task_id"]),
+                      "status": job["state"]}, message="任务已记录，请查询任务状态")
+
+
+@router.get("/task-jobs")
+async def list_task_jobs(
+    state: Optional[str] = Query(default=None, pattern="^(pending|leased|running|done|dead)$"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Retained completion/failure metadata; never expose payloads or owner tokens."""
+    from app.core.task_queue import task_metadata
+    rows = (await db.execute(text("""SELECT task_id, queue_name, state, attempts,
+        error_code, created_at, updated_at FROM task_jobs
+        WHERE (CAST(:state AS VARCHAR) IS NULL OR state = :state)
+        ORDER BY created_at DESC, task_id LIMIT :limit OFFSET :offset"""),
+        {"state": state, "limit": limit, "offset": offset})).mappings().all()
+    return _envelope({"items": [task_metadata(row) for row in rows],
+                      "limit": limit, "offset": offset})
+
+
+@router.get("/task-jobs/{task_id}")
+async def get_task_job(
+    task_id: uuid.UUID,
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    from app.core.task_queue import task_metadata
+    row = (await db.execute(text("""SELECT task_id, queue_name, state, attempts,
+        error_code, created_at, updated_at FROM task_jobs WHERE task_id = :tid"""),
+        {"tid": str(task_id)})).mappings().first()
     if row is None:
-        raise HTTPException(404, f"知识候选不存在: {document_id}")
-    if row.access_roles is None:
-        raise HTTPException(409, "知识候选缺少 access_roles,无法入库")
+        raise HTTPException(404, "TASK_NOT_FOUND")
+    return _envelope(task_metadata(row))
 
-    # 向量入库(复用 ingest 服务;失败抛 502 由全局异常兜底)
-    from app.rag.ingest import MilvusIngestService
 
-    service = MilvusIngestService()
-    count = await service.ingest_text(
-        document_id=document_id,
-        title=row.title,
-        content=row.content or row.title,
-        doc_type=req.doc_type or row.doc_type or "faq",
-        dept_namespace=req.dept_namespace or row.dept_namespace or "shared_company",
-        access_roles=row.access_roles,
-        uploaded_by=row.uploaded_by or user.user_id,
-    )
+@router.get("/task-consumers")
+async def list_task_consumers(
+    limit: int = Query(default=100, ge=1, le=200),
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Per-consumer freshness is progress evidence, not complete system readiness."""
+    rows = (await db.execute(text("""SELECT worker_id, queue_name, last_seen,
+        last_seen > clock_timestamp() - interval '45 seconds' AS fresh
+        FROM task_consumers ORDER BY last_seen DESC LIMIT :limit"""),
+        {"limit": limit})).mappings().all()
+    return _envelope({"items": [dict(row) for row in rows]})
 
-    # 台账置 active + 审核信息
-    await db.execute(
-        text(
-            "UPDATE documents SET status = 'active', reviewed_by = :reviewer, "
-            "reviewed_at = CURRENT_TIMESTAMP, ingest_error = NULL, "
-            "updated_at = CURRENT_TIMESTAMP WHERE document_id = :did"
-        ),
-        {"reviewer": user.user_id, "did": document_id},
-    )
-    await db.commit()
 
-    await get_audit_logger().log(
-        event_type="knowledge_approved",
-        user_id=user.user_id,
-        input_summary=f"审核通过知识候选 {document_id}",
-        output_summary=f"已入库 {count} chunks",
-        success=True,
-        payload={"document_id": document_id, "chunks": count},
-    )
-    return _envelope(
-        {
-            "document_id": document_id,
-            "status": "active",
-            "chunks": count,
-        },
-        message="审核通过,已入库",
-    )
+@router.get("/sagas/{saga_id}")
+async def get_saga_status(
+    saga_id: uuid.UUID,
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Retained recovery evidence metadata, excluding context, payloads and receipts."""
+    row = (await db.execute(text("""SELECT s.saga_id, s.state, s.error_code,
+        s.created_at, s.updated_at, j.task_id, j.state AS recovery_state,
+        j.attempts, j.error_code AS recovery_error
+        FROM saga_runs s LEFT JOIN task_jobs j ON j.scope_key = 'saga:' || s.saga_id::text
+        WHERE s.saga_id = :sid"""), {"sid": str(saga_id)})).mappings().first()
+    if row is None:
+        raise HTTPException(404, "SAGA_NOT_FOUND")
+    steps = (await db.execute(text("""SELECT s.slot, s.operation_id, o.state AS forward_state,
+        s.compensation_id, s.compensation_state FROM saga_steps s
+        JOIN tool_operations o USING (operation_id) WHERE s.saga_id = :sid ORDER BY s.slot"""),
+        {"sid": str(saga_id)})).mappings().all()
+    result = dict(row)
+    result["saga_id"] = str(result["saga_id"])
+    result["task_id"] = str(result["task_id"]) if result["task_id"] is not None else None
+    result["steps"] = [{**dict(step), "operation_id": str(step["operation_id"]),
+                        "compensation_id": str(step["compensation_id"])} for step in steps]
+    return _envelope(result)
 
 
 @router.post("/knowledge-candidates/{document_id}/reject")
@@ -173,43 +207,41 @@ async def reject_knowledge_candidate(
     user: User = Depends(require_roles(AgentRole.ADMIN)),
     db=Depends(get_db),
 ):
-    """审核拒绝:记录拒绝原因并置为 rejected,内容不进入向量库"""
-    row = (
-        await db.execute(
-            text("SELECT document_id FROM documents WHERE document_id = :did"),
-            {"did": document_id},
-        )
-    ).fetchone()
-    if row is None:
-        raise HTTPException(404, f"知识候选不存在: {document_id}")
-
-    await db.execute(
-        text(
-            "UPDATE documents SET status = 'rejected', reject_reason = :reason, "
-            "reviewed_by = :reviewer, reviewed_at = CURRENT_TIMESTAMP, "
-            "updated_at = CURRENT_TIMESTAMP WHERE document_id = :did"
-        ),
-        {"reason": req.reject_reason, "reviewer": user.user_id, "did": document_id},
-    )
-    await db.commit()
-
-    await get_audit_logger().log(
-        event_type="knowledge_rejected",
-        user_id=user.user_id,
-        input_summary=f"拒绝知识候选 {document_id}",
-        output_summary=req.reject_reason,
-        success=True,
-        payload={"document_id": document_id, "reject_reason": req.reject_reason},
-    )
-    return _envelope(
-        {"document_id": document_id, "status": "rejected"},
-        message="已拒绝",
-    )
+    """Reject only an unqueued draft; state and audit commit together."""
+    from app.core.tool_operations import canonical
+    from app.security.redaction import redact_text
+    try:
+        row = (await db.execute(text("""SELECT document_id, status FROM documents
+            WHERE document_id = :did FOR UPDATE"""), {'did': document_id})).fetchone()
+        if row is None:
+            raise HTTPException(404, "KNOWLEDGE_NOT_FOUND")
+        if row.status != 'draft':
+            raise HTTPException(409, "KNOWLEDGE_STATE_CONFLICT")
+        reason = redact_text(req.reject_reason)
+        changed = (await db.execute(text("""UPDATE documents SET status = 'rejected',
+            reject_reason = :reason, reviewed_by = :reviewer, reviewed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP WHERE document_id = :did AND status = 'draft'
+            RETURNING document_id"""),
+            {'did': document_id, 'reason': reason, 'reviewer': user.user_id})).fetchone()
+        if changed is None:
+            raise HTTPException(409, "KNOWLEDGE_STATE_CONFLICT")
+        await db.execute(text("""INSERT INTO audit_logs (event_type, user_id, success, payload)
+            VALUES ('knowledge_rejected', :uid, true, CAST(:payload AS JSONB))"""),
+            {'uid': user.user_id, 'payload': canonical({'document_id': document_id,
+                                                       'state': 'rejected'})})
+        await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "KNOWLEDGE_REJECTION_UNCONFIRMED") from None
+    return _envelope({'document_id': document_id, 'status': 'rejected'}, message='已拒绝')
 
 
 @router.get("/documents")
 async def list_documents(
-    status: Optional[str] = Query(default=None, description="状态过滤:draft/active/rejected"),
+    status: Optional[str] = Query(default=None, description="状态过滤:draft/queued/indexing/active/inactive/rejected"),
     limit: int = Query(default=20, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User = Depends(require_roles(AgentRole.ADMIN)),
@@ -439,3 +471,95 @@ async def update_user(
         },
         message="用户更新成功",
     )
+
+
+@router.post("/task-jobs/{task_id}/retry-knowledge", status_code=202)
+async def retry_knowledge_publication(
+    task_id: uuid.UUID, user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    from app.core.knowledge_jobs import retry_knowledge_task
+    from app.core.task_queue import TaskRejected
+    try:
+        job = await retry_knowledge_task(db, str(task_id), user.user_id)
+        await db.commit()
+    except TaskRejected as exc:
+        await db.rollback()
+        raise HTTPException(409, str(exc)) from None
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "KNOWLEDGE_RETRY_UNCONFIRMED") from None
+    return _envelope({'task_id': str(job['task_id']), 'status': job['state']})
+
+
+@router.post("/documents/{document_id}/deactivate")
+async def deactivate_knowledge_document(
+    document_id: str, user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    from app.core.tool_operations import canonical
+    try:
+        row = (await db.execute(text("""SELECT status FROM documents
+            WHERE document_id = :did FOR UPDATE"""), {'did': document_id})).fetchone()
+        if row is None:
+            raise HTTPException(404, "KNOWLEDGE_NOT_FOUND")
+        if row.status not in {'active', 'queued', 'indexing', 'inactive'}:
+            raise HTTPException(409, "KNOWLEDGE_STATE_CONFLICT")
+        if row.status != 'inactive':
+            await db.execute(text("""UPDATE documents SET status = 'inactive',
+                pending_publication = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE document_id = :did"""), {'did': document_id})
+            await db.execute(text("""INSERT INTO audit_logs (event_type, user_id, success, payload)
+                VALUES ('knowledge_deactivated', :uid, true, CAST(:payload AS JSONB))"""),
+                {'uid': user.user_id, 'payload': canonical({'document_id': document_id})})
+        await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "KNOWLEDGE_DEACTIVATION_UNCONFIRMED") from None
+    return _envelope({'document_id': document_id, 'status': 'inactive'})
+
+
+@router.get("/documents/{document_id}/publications")
+async def list_knowledge_publications(
+    document_id: str, user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    rows = (await db.execute(text("""SELECT p.publication_id, p.state, p.error_code,
+        p.created_at, p.published_at, jsonb_array_length(p.chunks) AS chunk_count,
+        d.status AS document_status, p.publication_id = d.active_publication AS is_current
+        FROM knowledge_publications p JOIN documents d USING (document_id)
+        WHERE p.document_id = :did ORDER BY p.created_at DESC LIMIT 50"""),
+        {'did': document_id})).mappings().all()
+    return _envelope([{**dict(row), 'publication_id': str(row['publication_id'])} for row in rows])
+
+
+@router.get("/reference-profile")
+async def get_reference_profile(
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+) -> dict[str, Any]:
+    """Credential-free configuration preflight; never runtime acceptance evidence."""
+    from app.config import get_settings
+    from app.core.reference_evidence import configuration
+    from app.tools.base import get_tool
+
+    return _envelope(configuration(get_settings(), get_tool))
+
+
+@router.get("/reference-evidence/{session_id}")
+async def get_reference_evidence(
+    session_id: str,
+    user: User = Depends(require_roles(AgentRole.ADMIN)),
+    db: Any = Depends(get_db),
+) -> dict[str, Any]:
+    """Bounded IDs/states/hashes, without tool payloads, credentials or audit summaries."""
+    import asyncio
+    from app.core.reference_evidence import collect
+
+    try:
+        async with asyncio.timeout(10):
+            return _envelope(await collect(db, session_id))
+    except Exception:
+        raise HTTPException(503, "REFERENCE_EVIDENCE_UNAVAILABLE") from None

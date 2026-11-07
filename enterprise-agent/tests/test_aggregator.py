@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import pytest
+from datetime import datetime, timezone
 
-from app.agents.knowledge import AgentResult
+from app.agents.knowledge import AgentResult, RetrievalSource
 from app.graph.aggregator import aggregator_node
 from app.graph.state import Intent, UserInput
+
+
+def _source() -> RetrievalSource:
+    return RetrievalSource(document_id='synthetic-doc', chunk_id='synthetic-chunk',
+        title='Synthetic policy', updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        score=.9, namespace='shared_company')
 
 
 def _make_user_input(message: str = "测试") -> UserInput:
@@ -32,7 +39,7 @@ async def test_should_pass_through_single_result_without_llm(monkeypatch):
         llm_called.append(True)
         return "不应调用"
 
-    monkeypatch.setattr("app.graph.aggregator._llm_aggregate", should_not_call)
+    monkeypatch.setattr("app.rag.llm.get_primary_llm", should_not_call)
     state = {
         "user_input": _make_user_input(),
         "intent": Intent.KNOWLEDGE_QA,
@@ -42,6 +49,7 @@ async def test_should_pass_through_single_result_without_llm(monkeypatch):
                 success=True,
                 confidence=0.78,
                 output={"answer": "根据销售政策…[来源1]"},
+                sources=[_source()],
                 needs_replan=False,
             )
         ],
@@ -67,7 +75,8 @@ async def test_should_propagate_replan_flag_from_single_result():
                 agent_name="knowledge",
                 success=True,
                 confidence=0.52,
-                output={"answer": "以下内容可能不完整…", "coverage": "partial"},
+                output={"answer": "以下内容可能不完整…[来源1]", "coverage": "partial"},
+                sources=[_source()],
                 needs_replan=True,
                 replan_reason="low_confidence_partial",
                 replan_hint={"query": "补充检索", "stage": "vector"},

@@ -1,24 +1,14 @@
 """可观测性:Prometheus 指标(对应 v3 方案 12.2 节)"""
 
 import time
-from typing import Awaitable, Callable
+from typing import Any
+import uuid
+
+from app.observability.correlation import request_id
 
 from prometheus_client import Counter, Gauge, Histogram
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
 
-# ============ 业务指标 ============
-rag_hit_rate = Gauge("agent_rag_hit_rate", "RAG 检索命中率")
-approval_pass_rate = Gauge("agent_approval_pass_rate", "审批通过率")
-human_escalation_rate = Gauge("agent_human_escalation_rate", "人工兜底率")
-
-# ============ LLM 降级 ============
-llm_degradation_count = Counter(
-    "agent_llm_degradation_total",
-    "LLM 降级次数",
-    ["level"],  # primary / lite / local / faq
-)
+# Unproduced historical quality/session/node gauges are intentionally not exported.
 
 # ============ LLM token 用量(I-07,经 TokenUsageCallbackHandler 统一采集) ============
 llm_token_usage = Counter(
@@ -27,63 +17,77 @@ llm_token_usage = Counter(
     ["model", "token_type"],  # token_type: prompt / completion / total
 )
 
-# ============ 性能指标 ============
-node_latency = Histogram(
-    "agent_node_latency_seconds",
-    "LangGraph 节点耗时",
-    ["node_name"],
-    buckets=(0.1, 0.5, 1, 2, 5, 10, 30),
-)
-
-workflow_total_latency = Histogram(
-    "agent_workflow_latency_seconds",
-    "工作流总耗时",
-    buckets=(1, 5, 10, 30, 60, 120, 300),
-)
-
 http_request_latency = Histogram(
     "agent_http_request_latency_seconds",
     "HTTP 请求耗时",
     ["method", "path", "status"],
-    buckets=(0.05, 0.1, 0.5, 1, 2, 5, 10),
+    buckets=(0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300),
 )
 
-# ============ 错误指标 ============
-error_count = Counter(
-    "agent_errors_total",
-    "错误总数",
-    ["error_type", "severity"],
-)
+dependency_ready = Gauge('agent_dependency_ready', 'Required dependency observed ready', ['component'])
+audit_pending = Gauge('agent_audit_pending', 'Retained audit events pending delivery; -1 unavailable')
+audit_oldest = Gauge('agent_audit_oldest_seconds', 'Oldest pending audit age; -1 unavailable')
+http_response_start = Histogram('agent_http_response_start_seconds', 'Time to response headers',
+                                ['method', 'path'], buckets=(0.05, 0.1, 0.5, 1, 2, 5, 30))
+http_outcomes = Counter('agent_http_outcomes_total', 'HTTP transport completion; not business outcome',
+                        ['method', 'path', 'outcome'])
 
-saga_rollback_count = Counter(
-    "agent_saga_rollback_total",
-    "Saga 回滚次数",
-    ["operation_type"],
-)
 
-# ============ 会话指标 ============
-active_sessions = Gauge("agent_active_sessions", "活跃会话数")
-total_sessions = Counter("agent_total_sessions_total", "累计会话数")
+def route_label(scope: dict[str, Any]) -> str:
+    path = getattr(scope.get('route'), 'path', None)
+    if isinstance(path, str):
+        return path
+    if scope.get('path', '').startswith('/ui/') or scope.get('path') == '/ui':
+        return '/ui/{asset}'
+    return '__unmatched__'
 
 
 class MetricsMiddleware:
-    """HTTP 指标采集中间件"""
+    """ASGI timing includes streaming body completion, with server-owned request context."""
+    def __init__(self, app: Any) -> None:
+        self.app = app
 
-    async def __call__(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        start = time.time()
-        response = await call_next(request)
-        duration = time.time() - start
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope['type'] != 'http':
+            await self.app(scope, receive, send)
+            return
+        start = time.perf_counter()
+        method = scope.get('method', 'OTHER')
+        if method not in {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'}:
+            method = 'OTHER'
+        status, complete, disconnected = 500, False, False
+        ended = None
+        rid = uuid.uuid4().hex
+        scope.setdefault('state', {})['request_id'] = rid
+        token = request_id.set(rid)
 
-        http_request_latency.labels(
-            method=request.method,
-            path=request.url.path,
-            status=response.status_code,
-        ).observe(duration)
+        async def observed_receive() -> Any:
+            nonlocal disconnected
+            message = await receive()
+            if message['type'] == 'http.disconnect':
+                disconnected = True
+            return message
 
-        return response
+        async def observed_send(message: Any) -> None:
+            nonlocal status, complete, ended
+            if message['type'] == 'http.response.start':
+                status = message['status']
+                message = dict(message)
+                message['headers'] = [(k, v) for k, v in message.get('headers', [])
+                                      if k.lower() != b'x-request-id'] + [(b'x-request-id', rid.encode())]
+                http_response_start.labels(method=method, path=route_label(scope)).observe(
+                    time.perf_counter()-start)
+            await send(message)
+            if message['type'] == 'http.response.body' and not message.get('more_body', False):
+                complete = True
+                ended = time.perf_counter()
 
-
-# 全局实例(供 FastAPI 中间件使用)
-metrics_middleware = MetricsMiddleware()
+        try:
+            await self.app(scope, observed_receive, observed_send)
+        finally:
+            path = route_label(scope)
+            outcome = 'complete' if complete else 'disconnected' if disconnected else 'aborted'
+            http_request_latency.labels(method=method, path=path, status=str(status)).observe(
+                (ended if ended is not None else time.perf_counter())-start)
+            http_outcomes.labels(method=method, path=path, outcome=outcome).inc()
+            request_id.reset(token)

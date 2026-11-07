@@ -4,18 +4,20 @@
 - TokenUsageCallbackHandler 两种口径提取(llm_output.token_usage / usage_metadata)
 - 请求级累加器(contextvar)与 Prometheus counter 落地
 - aggregator 汇总后 tokens_used 取自统一累加器
-- sessions.token_count 异步回写(失败仅记日志)
+- Token totals commit with owned checkpoint publication; failures block success
 """
 
 from __future__ import annotations
 
 import pytest
-from conftest import FakeSession
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 
 from app.agents.knowledge import AgentResult
-from app.api.chat import _writeback_session_tokens
+from app.graph.checkpoint_access import publish_checkpoint
+from app.core.runtime_state import RuntimeStateUnavailable
 from app.graph.aggregator import aggregator_node
 from app.graph.state import Intent, UserInput
 from app.observability.metrics import llm_token_usage
@@ -127,7 +129,7 @@ async def test_should_set_aggregator_tokens_from_unified_accumulator():
                 agent_name="knowledge",
                 success=True,
                 confidence=0.8,
-                output={"answer": "答案"},
+                output={"answer": "现有知识库未覆盖该情形，无法根据现有片段回答。"},
                 tokens_used=0,  # 旧口径已废弃,aggregator 不再读它
             )
         ],
@@ -138,48 +140,38 @@ async def test_should_set_aggregator_tokens_from_unified_accumulator():
     assert result["tokens_used"] == 88
 
 
-@pytest.mark.asyncio
-async def test_should_writeback_session_tokens(monkeypatch, fake_session_factory):
-    """Given 会话产生 token 消耗, When 回写 sessions.token_count,
-    Then 执行累计 UPDATE 并 commit"""
-    session = FakeSession()
-    monkeypatch.setattr(
-        "app.core.database.get_session_factory", fake_session_factory(session)
-    )
-
-    await _writeback_session_tokens("sess_1", 120)
-
-    assert session.commits == 1
-    assert any("token_count" in sql for sql in session.executed_sql)
-    assert session.executed_params[0] == {"t": 120, "sid": "sess_1"}
+def publication_fixture(tokens: int):
+    user = _make_user_input()
+    state = {'request_id': user.request_id, 'user_input': vars(user),
+             'final_answer': 'synthetic answer', 'tokens_used': tokens}
+    cp = SimpleNamespace(aget_tuple=AsyncMock(return_value=SimpleNamespace(
+        checkpoint={'id': 'final-id', 'channel_values': state})))
+    fence = SimpleNamespace(config={'configurable': {'thread_id': 'physical-run'}},
+                            thread_id='physical-run', finish=AsyncMock(return_value=True))
+    return user, state, cp, fence
 
 
 @pytest.mark.asyncio
-async def test_should_not_raise_when_writeback_db_fails(monkeypatch, fake_session_factory):
-    """Given 数据库故障, When 回写 sessions.token_count,
-    Then 仅记日志不抛异常(fire-and-forget 不阻断对话)"""
-
-    class BrokenSession(FakeSession):
-        async def execute(self, sql, params=None):
-            raise RuntimeError("pg down")
-
-    monkeypatch.setattr(
-        "app.core.database.get_session_factory",
-        fake_session_factory(BrokenSession()),
-    )
-
-    await _writeback_session_tokens("sess_1", 120)  # 不抛异常即通过
+async def test_tokens_commit_with_owned_checkpoint():
+    user, state, cp, fence = publication_fixture(120)
+    assert await publish_checkpoint(cp, 'postgres', fence, user) == state
+    fence.finish.assert_awaited_once_with('completed', tokens=120, publication={
+        'backend': 'postgres', 'thread_id': 'physical-run',
+        'checkpoint_ns': '', 'checkpoint_id': 'final-id'})
 
 
 @pytest.mark.asyncio
-async def test_should_skip_writeback_when_tokens_not_positive(monkeypatch):
-    """Given tokens=0, When 回写, Then 直接跳过(不触库)"""
-    called: list[bool] = []
+async def test_token_commit_failure_blocks_final_success():
+    user, _, cp, fence = publication_fixture(120)
+    fence.finish.side_effect = RuntimeStateUnavailable()
+    with pytest.raises(RuntimeStateUnavailable):
+        await publish_checkpoint(cp, 'postgres', fence, user)
+    fence.finish.assert_awaited_once()
 
-    def should_not_call():
-        called.append(True)
-        raise AssertionError("不应触库")
 
-    monkeypatch.setattr("app.core.database.get_session_factory", should_not_call)
-    await _writeback_session_tokens("sess_1", 0)
-    assert called == []
+@pytest.mark.asyncio
+async def test_zero_tokens_still_require_checkpoint_publication():
+    user, _, cp, fence = publication_fixture(0)
+    await publish_checkpoint(cp, 'postgres', fence, user)
+    assert fence.finish.await_args.kwargs['tokens'] == 0
+    assert fence.finish.await_args.kwargs['publication']['checkpoint_id'] == 'final-id'
