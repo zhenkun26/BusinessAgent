@@ -279,3 +279,45 @@ commit and its own CI are recorded in the PR, not represented by a self-referent
   screenshots, missing cross-refresh UI history recovery and full enterprise/RAG
   acceptance limitations remain unresolved. No merge, publication or deployment follows
   from this documentation update.
+
+
+### First reversible asset cleanup — 2026-11-07
+
+Only the current high-resolution `01-login.png` encoding is changed. It remains
+3200 x 1730, 8-bit RGBA at 192 DPI. Its 22,145,730 uncompressed scanline bytes
+and decoded pixel hash are unchanged. The current PNG shrinks from 6,329,166
+to 1,601,370 bytes (4,727,796 bytes, 74.69856%); this is source-file size only,
+not a production-image or measured page-transfer reduction. The page uses WebP.
+
+The initial compression experiment incorrectly retained the private fpng fdEC
+marker with a new zlib stream. Independent review rejected that experiment:
+the [official fdEC format](https://github.com/richgel999/fpng/wiki/fdEC-PNG-chunk-definition)
+requires restrictions the rewritten stream does not meet. The accepted standard
+PNG removes only that 17-byte encoding marker and recompresses IDAT; original
+IHDR, pHYs and IEND bytes, alpha and scanlines are preserved. No author, license
+or source-permission metadata is removed. Specialized fpng fast decoding is not
+preserved or claimed; no repository dependency on it was found.
+
+Independent CRC/strict EOF/scanline and separately implemented RGBA checks passed.
+Native ImageIO properties and pixels match, and Edge InPrivate directly decoded
+both files at 3200 x 1730 with normal visible content. A separate retained
+presentation fixture, omitting only PNG during copying, passed page-15 lazy
+loading, carousel navigation, return navigation and refresh. Both variants
+requested WebP successfully, with no PNG requests or screenshot errors. These
+checks are not a same-viewport screenshot diff or every-browser certification.
+
+Original SHA256: `899fed0a7b83cca5338171657eed151166bf38238f039fd12335123264c2a78c`.
+Current SHA256: `c0c94c7a92934a818bf698490aac0225779c6aa4ea2be5553824fc93772985ff`.
+Pixel SHA256: `a905c29b1ca94dfc67165bdb6517e3e36b9d3c8dc9994489eba9971af269e634`.
+The exact original remains recoverable from commit 42644960a499cefe71c8ad21110bdd0b9cec39ce
+and a retained independently verified copy. Historical 457-item CSV, previous
+diagnostic files and Git history are unchanged. Current inventory remains 465
+pending items: compression does not establish source rights. No other screenshot
+content is changed. Aggregate verification and exact committed CI must be recorded
+separately; this change does not close stage one or authorize publication.
+
+The isolated PNG precommit aggregate (2026-11-07T14:02:21Z) passed all eight
+checks: 2137 Python tests plus 640 subtests, Node 80/14, seven frontend assets
+and 81.8543% coverage. Sources remained stable. Its dirty candidate binding is
+BLOCKED by design; exact clean-commit verification and remote CI are separate
+required evidence, not inferred from this precommit result.
