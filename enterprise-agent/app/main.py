@@ -89,8 +89,12 @@ async def lifespan(app: FastAPI):
 
         # 初始化 Milvus(集合不存在则创建;memory 后端跳过)
         try:
-            await init_milvus()
-            logger.info("Milvus 已就绪")
+            from app.rag.synthetic_demo import selected
+            if not selected(settings):
+                await init_milvus()
+                logger.info("Milvus 已就绪")
+            else:
+                logger.info("Synthetic demo: Milvus initialization skipped; RAG is not accepted")
         except Exception as e:
             logger.warning(f"Milvus 初始化失败(可能用 memory 后端): {e}")
 
@@ -233,6 +237,9 @@ def create_app() -> FastAPI:
     from app.observability.tracing import instrument_fastapi
     instrument_fastapi(app)
     app.add_middleware(MetricsMiddleware)  # Outermost user middleware covers full response sending.
+    from app.rag.synthetic_demo import selected, DemoBoundary
+    if selected(settings):
+        app.add_middleware(DemoBoundary, settings=settings)
     return app
 
 

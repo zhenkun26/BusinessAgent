@@ -1,5 +1,6 @@
 """配置管理 - 集中式环境变量加载"""
 
+import os
 from functools import lru_cache
 from typing import Any, Optional
 
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     """应用配置(从 .env 加载)"""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=None if os.environ.get("MODEL_PROFILE") == "synthetic-demo-v1" else ".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -38,6 +39,9 @@ class Settings(BaseSettings):
     app_env: str = "dev"
     # Production requires an explicit, validated model profile.
     model_profile: str = ""
+    synthetic_demo_run_id: str = ""
+    worker_observation_host: str = "0.0.0.0"
+    worker_observation_port: int = Field(default=8001, ge=1024, le=65535)
     # Opt in only after authorization for real, billable startup acceptance.
     model_startup_probes_enabled: bool = False
     model_http_timeout_seconds: float = Field(default=30.0, gt=0, le=60)

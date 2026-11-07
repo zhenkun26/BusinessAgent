@@ -303,9 +303,16 @@ class BootstrapTests(unittest.TestCase):
         before = deepcopy(self.conn.state)
         self.assertFalse(bootstrap.seed_demo(self.conn, self.manifest, self.password_hash)['demo_seeded'])
         self.assertEqual(self.conn.state, before)
-        self.conn.state['seed'] = 'wrong'
+        # Pre-placeholder demo-v1 marker: reject rather than replay or rewrite history.
+        self.conn.state['seed'] = '01f43a2f96b7d2017625cd668a6fb4dfe891cc91fd832d29d807a54ef2da030e'
+        before = deepcopy(self.conn.state)
+        calls_before = len(self.conn.calls)
         with self.assertRaisesRegex(contract.SchemaError, 'DB_SEED_CHECKSUM_MISMATCH'):
             bootstrap.seed_demo(self.conn, self.manifest, self.password_hash)
+        self.assertEqual(self.conn.state, before)
+        self.assertFalse(any(q == self.manifest['demo_seed']['sql']
+                             or q.startswith('INSERT INTO public.schema_bootstrap')
+                             for q, _, _ in self.conn.calls[calls_before:]))
 
     def test_seed_rejects_existing_data(self):
         bootstrap.apply_migrations(self.conn, self.manifest)

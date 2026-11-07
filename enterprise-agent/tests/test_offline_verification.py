@@ -260,7 +260,7 @@ def test_ci_invokes_same_entry_and_preserves_security_dependencies():
     scanner = (ROOT / '.github/scripts/scan_secrets.py').read_text()
     assert '--full-history' in scanner and '--redact=100' in scanner
     assert 'summary.json' in scanner
-    assert workflow['jobs']['docker']['needs'] == 'test'
+    assert workflow['jobs']['docker']['needs'] == ['test', 'c10-persistence', 'synthetic-demo']
     assert any(s.get('uses', '').startswith('aquasecurity/trivy-action@')
                for s in workflow['jobs']['docker']['steps'])
     coverage = next(s for s in steps if s.get('with', {}).get('name') == 'coverage-${{ matrix.python-version }}')

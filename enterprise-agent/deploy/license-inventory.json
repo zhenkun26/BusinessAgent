@@ -1885,7 +1885,7 @@
     "enterprise-agent/app/static/index.html": {
       "category": "application-ui",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "f82da39cd65b111d0d09ade3c2c3ee4091bb57c6a2b4adafb01ed62926422bc0"
+      "sha256": "d087c8e75a30a6b6732a2128c555ad7991c3e73dff41e4e59c9a441e338a4b2e"
     },
     "enterprise-agent/app/tools/__init__.py": {
       "category": "embedded-tool-fixtures",
@@ -1910,7 +1910,7 @@
     "enterprise-agent/app/tools/crm.py": {
       "category": "embedded-tool-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "026ac8bca10fa9b0fc18e5a35b5f3aa081e32c98c5d1dfd56d197a5a1306af64"
+      "sha256": "84fdd5e967d0c5d11193c26ae2c836c5094d76829aece86ef8441498dbaacccb"
     },
     "enterprise-agent/app/tools/http_adapter.py": {
       "category": "embedded-tool-fixtures",
@@ -1985,7 +1985,7 @@
     "enterprise-agent/deploy/demo_seed.sql": {
       "category": "seed-and-schema",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "01f43a2f96b7d2017625cd668a6fb4dfe891cc91fd832d29d807a54ef2da030e"
+      "sha256": "b30e69caefcdbb60a234ebeb274dc151e33538e50594a2d70f302821c3f4743a"
     },
     "enterprise-agent/deploy/init.sql": {
       "category": "seed-and-schema",
@@ -2036,6 +2036,36 @@
       "category": "evaluation",
       "status": "PENDING_SOURCE_REVIEW",
       "sha256": "6a68edf0f8957008236e7db1b882df25da936d77f207bfe48110f768c18a55c9"
+    },
+    "enterprise-agent/eval/c10_live_acceptance/README.md": {
+      "category": "evaluation",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "7fa22ccabaf65d546bfbadc80d6780af0e53b75e56cb3f95347584cf23d2cc20"
+    },
+    "enterprise-agent/eval/c10_live_acceptance/baseline.py": {
+      "category": "evaluation",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "78e5a2b2507f5ff61947f57d5128a9b31e8c884521bb5777706080e60a54a32d"
+    },
+    "enterprise-agent/eval/c10_live_acceptance/check_entry.py": {
+      "category": "evaluation",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "bb3fd194e3b00b7d6b3bb5697b671ec2c4d223f6a5406a38cd80303f4433e41c"
+    },
+    "enterprise-agent/eval/c10_live_acceptance/faults.py": {
+      "category": "evaluation",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "042cf36a8a23fa72d92e107d4d8cd16be4f1a96ce17c424097e34a2496f9b71e"
+    },
+    "enterprise-agent/eval/c10_live_acceptance/restart.py": {
+      "category": "evaluation",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "8ed09970a8b063165ee592738bcafb4222a842c9a20369d162a2616778159dfe"
+    },
+    "enterprise-agent/eval/c10_live_acceptance/run.py": {
+      "category": "evaluation",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "bd544121576497a9c4e021a506da9cbb5251312099471464cb75cb5f86f12c71"
     },
     "enterprise-agent/eval/capacity-plan.example.json": {
       "category": "evaluation",
@@ -2525,7 +2555,7 @@
     "enterprise-agent/tests/test_browser_delivery.cjs": {
       "category": "test-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "d9e2ba7016c29e226a7396d727ef3d1e2d49bab853ca8e20f75bcb9d3c32afb4"
+      "sha256": "fa8c68fa83d5ed90bab705c5f0016195ac62717b920d9fc7fa6d8db9d5e42d54"
     },
     "enterprise-agent/tests/test_build_reproducibility.py": {
       "category": "test-fixtures",
@@ -2590,7 +2620,7 @@
     "enterprise-agent/tests/test_db_bootstrap.py": {
       "category": "test-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "af5a96fb41ae6583a1cefa4a5f780cc583fb66535ff239bbc38c8b6444164d47"
+      "sha256": "50c909c7abf12a41528ebf64c1acc51eed03f451661fde491377b25bbbbba039"
     },
     "enterprise-agent/tests/test_degradation_pg_tsvector.py": {
       "category": "test-fixtures",
@@ -2616,6 +2646,11 @@
       "category": "test-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
       "sha256": "c0ccc6ca460ad7fbefc6ee468b9f71298803921db45e7d8d5b7288cfc0ff426c"
+    },
+    "enterprise-agent/tests/test_fictional_crm_examples.py": {
+      "category": "test-fixtures",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "4015228dd50b465b2feb1649062e597e9cb22f424559df5f3342f71f274986a0"
     },
     "enterprise-agent/tests/test_final_candidate.py": {
       "category": "test-fixtures",
@@ -2670,7 +2705,7 @@
     "enterprise-agent/tests/test_offline_verification.py": {
       "category": "test-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "599cc1ba4f183506b29645f3fadc7dd942d86e48fcf64914d02caaaf15b678e7"
+      "sha256": "f258fbe20a415864ac654c9a126d4f519fb7a34669987433831926582dc7f782"
     },
     "enterprise-agent/tests/test_optional_rerank_results.py": {
       "category": "test-fixtures",
@@ -2816,6 +2851,11 @@
       "category": "test-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
       "sha256": "3b5906a95b9d3abed364edbcc72a37048d99b4cd8a28a2662bbfa0e0fa6342a7"
+    },
+    "enterprise-agent/tests/test_synthetic_demo.py": {
+      "category": "test-fixtures",
+      "status": "PENDING_SOURCE_REVIEW",
+      "sha256": "23b9f45e5510bb1adb9d54ae532963a65cb36932175e161314c3bfe55736f461"
     },
     "enterprise-agent/tests/test_task_queue.py": {
       "category": "test-fixtures",
@@ -3970,7 +4010,7 @@
     "interview/产品介绍网页/index.html": {
       "category": "presentation",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "47421d9b523367cfb6ef1df281ae75bad3550cb8cb4e480e817361d8d2b800e0"
+      "sha256": "1b3152c5b4b228a9fd2e5ac8e636f44e4cd6b9bac227f3d336f3fb82a90f921f"
     },
     "interview/产品介绍网页/screenshots/01-login.png": {
       "category": "presentation",
@@ -4090,9 +4130,17 @@
         "uses: actions/upload-artifact@v4",
         "uses: aquasecurity/trivy-action@v0.36.0",
         "uses: docker/login-action@v3",
+        "uses: actions/upload-artifact@v4",
+        "- uses: actions/checkout@v4",
+        "- uses: actions/setup-python@v5",
+        "run: pip install -r enterprise-agent/deploy/requirements-prod.txt",
+        "uses: actions/upload-artifact@v4",
+        "- uses: actions/checkout@v4",
+        "- uses: actions/setup-python@v5",
+        "run: pip install -r enterprise-agent/deploy/requirements-prod.txt",
         "uses: actions/upload-artifact@v4"
       ],
-      "sha256": "d575f2ece650e0b701405ac6e0db1e67db0993cb75b43b1d36fb990c30c4619d",
+      "sha256": "932da5931320c2b5c0e703c468c02469bcf341a3533da08912e54c851c6a7c46",
       "status": "CLOSURE_AND_LICENSE_REVIEW_PENDING"
     },
     ".pre-commit-config.yaml": {
@@ -4853,6 +4901,39 @@
         "enterprise-agent/tests/test_retrieval_authorization.py"
       ],
       "rights": "PENDING_SOURCE_REVIEW; C07 NumPy shape fixture retains authority assertions"
+    },
+    {
+      "date": "2026-11-07",
+      "scope": "Stage-one synthetic demo and C10 isolated acceptance scaffolding; historical 457-source baseline retained",
+      "added": [
+        "enterprise-agent/eval/c10_live_acceptance/README.md",
+        "enterprise-agent/eval/c10_live_acceptance/baseline.py",
+        "enterprise-agent/eval/c10_live_acceptance/check_entry.py",
+        "enterprise-agent/eval/c10_live_acceptance/faults.py",
+        "enterprise-agent/eval/c10_live_acceptance/restart.py",
+        "enterprise-agent/eval/c10_live_acceptance/run.py",
+        "enterprise-agent/tests/test_synthetic_demo.py"
+      ],
+      "updated": [
+        "enterprise-agent/app/static/index.html",
+        "enterprise-agent/tests/test_browser_delivery.cjs",
+        "enterprise-agent/tests/test_offline_verification.py"
+      ],
+      "rights": "PENDING_SOURCE_REVIEW; distribution acceptance remains BLOCKED; no historical source clearance"
+    },
+    {
+      "date": "2026-11-07",
+      "scope": "User-confirmed fictional CRM examples and related references use non-contact placeholders; historical 457-source baseline retained",
+      "added": [
+        "enterprise-agent/tests/test_fictional_crm_examples.py"
+      ],
+      "updated": [
+        "enterprise-agent/app/tools/crm.py",
+        "enterprise-agent/deploy/demo_seed.sql",
+        "interview/产品介绍网页/index.html",
+        "enterprise-agent/tests/test_db_bootstrap.py"
+      ],
+      "rights": "PENDING_SOURCE_REVIEW; user confirmation is limited to fictional examples, not clearance of other sources; distribution acceptance remains BLOCKED"
     }
   ]
 }

@@ -183,6 +183,14 @@ async def _chitchat_reply(message: str, username: str = "") -> str:
     """闲聊场景的人格化回复(智多星 话术,按意图/情绪分支;未命中分支用 lite LLM 生成)"""
     from app.security.chitchat_boundary import message_data
     message_data(message)
+    from app.config import get_settings
+    from app.rag.synthetic_demo import selected, require_demo, ANSWER, GREETINGS
+    settings = get_settings()
+    if selected(settings):
+        require_demo(settings)
+        if message not in GREETINGS:
+            raise RuntimeError("DEMO_UNSUPPORTED_OPERATION")
+        return ANSWER
     # Username is retained in the call signature, never interpolated or sent to a model.
     msg = message.strip().lower()
     if any(kw in msg for kw in ["你是谁", "介绍一下", "who are you", "什么助手"]):

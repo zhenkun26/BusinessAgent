@@ -10,6 +10,16 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](enterprise-agent/pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+## 开源第一阶段：当前边界
+
+本轮目标是隔离启动、合成示例和清楚的许可证/来源说明，后续依次是**企业试点评估、
+真实环境试点、生产使用**，不宣称已有企业落地或正式 UAT。
+[开源快速开始与验证状态](docs/30-guides/open-source-quickstart.md)说明专用演示入口、
+原生 libpq 前置、私密测试凭证与保留数据的停止方法。当前 Mac 检查使用二进制驱动适配器，
+真实浏览器及最新15项HTTP检查通过，但 本地全量复验通过，但 Linux 原生驱动 CI 与干净提交绑定仍待完成，不把整个第一阶段标为已验收。
+当前会话历史可查看，刷新会回登录，重登后没有恢复旧会话的可见入口。
+来源清单为原457项加8项新工程fixture，共465项；登记不等于清权。未知素材来源仍需解决，根 MIT 声明不等于全部第三方素材权利已清除。
+
 ## 审批安全边界
 
 批准和原子批量决策都不执行动作，须由原发起人明确确认；每次派发重新校验已提交的精确审批计划、当前权限和 UTC 截止时间。混合查询与审批动作计划拒绝执行：先独立查询，再审批纯动作计划。结果不明及迟到回执不能自动解除人工暂停。
@@ -58,7 +68,7 @@ python3 -m eval.run_uat_replay
 
 Windows 安装了 Python 启动器时，可将 `python3` 换成 `py -3`。在当前目录打开 `eval/results/uat_replay_report.md`，找到 `scenario-UAT-K02`。这一项检查样例中的销售人员可以读取销售报价指南，同时无法读取财务部的退款制度。[场景数据](enterprise-agent/eval/uat_simulation/fixture.json)
 
-当前样例预期显示 `passed`，16 项检查覆盖 12 个合成场景。回放仅核对预设数据与规则。要在浏览器里输入自己的问题，请按[快速开始](#快速开始)启动完整应用。
+当前样例预期显示 `passed`，16 项检查覆盖 12 个合成场景。回放仅核对预设数据与规则。浏览器合成演示与限制见[开源快速开始](docs/30-guides/open-source-quickstart.md)，不支持任意问答或真实 RAG。
 
 ## 核心能力
 
@@ -132,6 +142,8 @@ flowchart TD
 | 部署与检查 | Docker Compose、Kubernetes 清单、GitHub Actions |
 
 ## 快速开始
+
+优先查看[隔离合成演示](docs/30-guides/open-source-quickstart.md)。以下为完整产品的高级开发配置，**不是已验收的新用户快捷启动路径**。
 
 以下以 macOS / Linux 的本地开发环境为例：
 基础设施通过 Docker Compose 启动，API 与 Worker 在本机运行。

@@ -538,6 +538,75 @@ test('Evidence close restores approval heading without stealing a newer focus', 
   }
 });
 
+
+function demoDocument(profile = 'synthetic-demo-v1') {
+  return { body: { getAttribute: name => name === 'data-businessagent-profile' ? profile : null },
+    addEventListener() {}, getElementById: () => ({ hidden: false }) };
+}
+function demoRejection(status = 403, profile = 'synthetic-demo-v1', detail = 'DEMO_UNSUPPORTED_OPERATION') {
+  return { ...reply({ detail }, status), headers: { get: name => name === 'x-businessagent-profile' ? profile : 'application/json' } };
+}
+test('Explicit server demo marker restricts greeting suggestions and business navigation', () => {
+  const { app } = setup({ document: demoDocument() }); authenticate(app, 'admin');
+  assert.equal(app.syntheticDemo, true);
+  assert.match(app.roleIntro, /固定文本/);
+  assert.match(app.roleIntro, /未启用模型、RAG、业务工具、审批/);
+  assert.deepEqual(Array.from(app.welcomeSuggestions, s => s.text), ['你好', '您好']);
+  assert.deepEqual(Array.from(app.sceneGroups, g => g.cat), ['合成问候']);
+  for (const tab of ['approval', 'prompt', 'reference', 'status']) { app.openTab(tab); assert.equal(app.tab, 'chat'); }
+  app.startSso(); assert.match(app.loginErr, /不支持 SSO/);
+  for (const tab of ['approval', 'reference', 'status'])
+    assert(html.includes('v-if="!syntheticDemo" :class="{active: tab===\'' + tab + '\'}"'));
+  assert(html.includes('v-if="!syntheticDemo && isApprover"'));
+  assert(html.includes('v-if="!syntheticDemo && !m.rejected && !m.cancelled && !m.incomplete && !pending"'));
+});
+test('URL and storage cannot activate demo profile or replace production welcome', () => {
+  const { app } = setup({ location: { protocol: 'https:', search: '?profile=synthetic-demo-v1' },
+    localStorage: storage({ profile: 'synthetic-demo-v1' }), sessionStorage: storage({ profile: 'synthetic-demo-v1' }) });
+  authenticate(app, 'admin'); assert.equal(app.syntheticDemo, false);
+  assert.match(app.roleIntro, /各业务工具也能直接操作/);
+  assert(app.welcomeSuggestions.some(s => s.text.includes('订单')));
+  assert.equal(setup({ document: demoDocument('other') }).app.syntheticDemo, false);
+});
+test('Confirmed demo predispatch rejection says unsupported and not executed', async () => {
+  const { app } = setup({ document: demoDocument(), fetch: async () => demoRejection() });
+  authenticate(app); app.draft = '帮我发邮件'; await app.sendChat();
+  const answer = app.messages[1];
+  assert.equal(answer.rejected, true); assert.equal(answer.incomplete, false);
+  assert.match(answer.text, /执行前拒绝，未执行业务操作/);
+  assert.doesNotMatch(answer.text, /未确认完成|勿直接重复/);
+  assert.match(app.chatStatus, /未执行业务操作/); assert.equal(app.pending, false);
+});
+test('Generic or mismatched demo errors and production rejection retain uncertain outcome', async () => {
+  for (const [demo, status, profile, detail] of [
+    [true, 403, '', 'DEMO_UNSUPPORTED_OPERATION'],
+    [true, 403, 'synthetic-demo-v1', 'FORBIDDEN'],
+    [true, 500, 'synthetic-demo-v1', 'DEMO_UNSUPPORTED_OPERATION'],
+    [false, 403, 'synthetic-demo-v1', 'DEMO_UNSUPPORTED_OPERATION'],
+  ]) {
+    const { app } = setup({ document: demoDocument(demo ? 'synthetic-demo-v1' : ''),
+      fetch: async () => demoRejection(status, profile, detail) });
+    authenticate(app); app.draft = '帮我发邮件'; await app.sendChat();
+    assert.equal(app.messages[1].incomplete, true);
+    assert.notEqual(app.messages[1].rejected, true);
+    assert.match(app.chatStatus, /未确认完成/);
+    assert.doesNotMatch(app.messages[1].text, /未执行业务操作/);
+  }
+});
+test('Malformed and stale demo rejection cannot falsely confirm an outcome', async () => {
+  const pending = deferred();
+  const { app, context } = setup({ document: demoDocument() });
+  authenticate(app); app.draft = '帮我发邮件';
+  context.fetch = async () => ({ ...demoRejection(), text: () => pending.promise });
+  const sending = app.sendChat(); await Promise.resolve(); await Promise.resolve();
+  app.doLogout(); pending.resolve(JSON.stringify({ detail: 'DEMO_UNSUPPORTED_OPERATION' }));
+  await sending; assert.equal(app.messages.length, 0);
+  authenticate(app); app.draft = '帮我发邮件';
+  context.fetch = async () => ({ ...demoRejection(), text: async () => 'invalid json' });
+  await app.sendChat(); assert.equal(app.messages[1].incomplete, true);
+  assert.match(app.chatStatus, /未确认完成/);
+});
+
 (async () => {
   for (const [name, fn] of tests) { await fn(); console.log('PASS ' + name); }
   console.log(`PASS: ${tests.length} C20/F2-08/F2-07 cases; VM/static/compile only, real browser/API acceptance BLOCKED`);

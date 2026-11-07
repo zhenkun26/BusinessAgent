@@ -36,10 +36,43 @@ recorded separately as declarations. Unresolved closures, OS copyright files, bu
 libraries, model weights and provider terms do not inherit the production inventory's
 coverage. The remote model profile does not distribute model weights.
 
+## Verified upstream notice additions — 2026-11-07
+
+This is a scoped evidence and notice update, not a blanket rights decision. The controlled
+457 source statuses and their verifier are unchanged.
+
+- **Twelve generated tooling files:** their instruction bodies match the official
+  OpenSpec 1.7.0 package under its actual Codex/Kimi renderer rules. The npm archive's
+  published integrity was verified without executing package code. Retain
+  [the complete upstream MIT text](third_party/licenses/openspec/OpenSpec-1.7.0-MIT.txt)
+  and its Copyright 2024 OpenSpec Contributors attribution.
+  [Exact local/package/template mappings](third_party/licenses/openspec/provenance.json)
+  distinguish this source match from project-wide authorship or distribution acceptance.
+- **89 presentation font files:** six JetBrains Mono and 83 Noto Serif SC files match
+  byte-for-byte the official Google Fonts distribution URLs recorded in the
+  [verified source map](third_party/licenses/fonts/verified-source-map.json).
+  Their [original copyright notices](third_party/licenses/fonts/NOTICE.md) and full
+  [JetBrains OFL](third_party/licenses/fonts/JetBrainsMono-OFL.txt) /
+  [Noto Serif OFL](third_party/licenses/fonts/NotoSerifSC-OFL.txt) are retained.
+  Copy those notices with the font files in any separate website/export; repository
+  retention alone does not prove an export contains them.
+- **128 other fonts:** [conditional OFL applicability, version and comparison evidence](third_party/licenses/fonts/unresolved-source-map.json)
+  remains separate. Full OFL texts and original notices are now retained for these groups.
+  OFL permits modifications/subsetting under its conditions; byte differences are not
+  a redistribution prohibition. Historical acquisition chains remain incompletely
+  reconstructed, particularly Manrope 4.504. No exact Manrope release verification or
+  blanket clearance is claimed. No source is replaced or relicensed.
+
+The OFL conditions include notice retention, restrictions on selling fonts alone and
+reserved names for modified fonts, and continued OFL licensing of font derivatives.
+The upstream full texts control. These font licenses do not relicense application code
+or documents created using the fonts.
+
 ## Unconfirmed fonts, media and sample data
 
-The presentation's font binaries, screenshots, documentation illustrations/research
-material, seed SQL, evaluation corpus and embedded fixtures have not received author or
-upstream provenance confirmation. Keep their pending records visible. Do not infer a
+The remaining font lineage questions, screenshots, documentation illustrations/research
+material, seed SQL, evaluation corpus and embedded fixtures still need scoped author or
+upstream provenance evidence. The additions above do not clear those records. Keep their
+pending records visible. Do not infer a
 license from a font family, filename, synthetic label, screenshot appearance or Git author.
 The inventory does not authorize public distribution of unresolved assets.

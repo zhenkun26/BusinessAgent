@@ -275,7 +275,7 @@
       <div class="login-hero">
         <div class="login-avatar">🤖<span class="online"></span></div>
         <div>
-          <span class="hi">你的企业知识工作流智能助手</span>
+          <span class="hi">{{ syntheticDemo ? '合成问候演示：固定回复，无模型或业务工具' : '你的企业知识工作流智能助手' }}</span>
           <h1>Hello，我是智多星 👋</h1>
         </div>
       </div>
@@ -306,8 +306,8 @@
       <button type="submit" class="btn btn-block" :disabled="logging" :aria-busy="logging">
         {{ logging ? '登录中…' : '登 录' }}
       </button>
-      <div class="sso-divider"><span>或</span></div>
-      <button type="button" class="btn btn-block btn-ghost" @click="startSso">
+      <div v-if="!syntheticDemo" class="sso-divider"><span>或</span></div>
+      <button type="button" class="btn btn-block btn-ghost" v-if="!syntheticDemo" @click="startSso">
         企业 SSO 登录
       </button>
     </form>
@@ -320,10 +320,10 @@
       <div class="logo">智多星</div>
       <nav aria-label="主导航">
         <button type="button" :class="{active: tab==='chat'}" :aria-current="tab==='chat' ? 'page' : null" @click="openTab('chat')">对话</button>
-        <button type="button" :class="{active: tab==='approval'}" :aria-current="tab==='approval' ? 'page' : null" @click="openTab('approval')">审批</button>
-        <button type="button" v-if="isApprover" :class="{active: tab==='prompt'}" :aria-current="tab==='prompt' ? 'page' : null" @click="openTab('prompt')">Prompt 管理</button>
-        <button type="button" :class="{active: tab==='reference'}" :aria-current="tab==='reference' ? 'page' : null" @click="openTab('reference')">合成示例</button>
-        <button type="button" :class="{active: tab==='status'}" :aria-current="tab==='status' ? 'page' : null" @click="openTab('status')">系统状态</button>
+        <button type="button" v-if="!syntheticDemo" :class="{active: tab==='approval'}" :aria-current="tab==='approval' ? 'page' : null" @click="openTab('approval')">审批</button>
+        <button type="button" v-if="!syntheticDemo && isApprover" :class="{active: tab==='prompt'}" :aria-current="tab==='prompt' ? 'page' : null" @click="openTab('prompt')">Prompt 管理</button>
+        <button type="button" v-if="!syntheticDemo" :class="{active: tab==='reference'}" :aria-current="tab==='reference' ? 'page' : null" @click="openTab('reference')">合成示例</button>
+        <button type="button" v-if="!syntheticDemo" :class="{active: tab==='status'}" :aria-current="tab==='status' ? 'page' : null" @click="openTab('status')">系统状态</button>
       </nav>
       <div class="who">
         <b>{{ username }}</b>
@@ -353,7 +353,7 @@
               </div>
             </div>
             <div class="w-bubble">
-              <div class="w-hello">我是智多星！你有什么想问我的吗？</div>
+              <div class="w-hello">{{ syntheticDemo ? '合成问候演示' : '我是智多星！你有什么想问我的吗？' }}</div>
               <div class="w-sub">{{ roleIntro }}</div>
             </div>
             <div class="sug-list">
@@ -373,7 +373,7 @@
                   <span class="badge" :class="m.confidence>=0.6?'green':'orange'" v-if="m.confidence!==undefined">置信度 {{ m.confidence.toFixed(2) }}</span>
                   <span class="badge gray" v-if="m.latencyMs">{{ (m.latencyMs/1000).toFixed(1) }}s</span>
                   <span class="badge orange" v-if="m.incomplete">未确认完成</span>
-                  <span class="fb" v-if="!m.cancelled && !m.incomplete && !pending">
+                  <span class="fb" v-if="!syntheticDemo && !m.rejected && !m.cancelled && !m.incomplete && !pending">
                     <button type="button" :aria-label="'赞同回答 '+(i+1)" :aria-pressed="m.fb==='like'" :class="{done: m.fb==='like'}" @click="sendFeedback(m,'like')">👍</button>
                     <button type="button" :aria-label="'不赞同回答 '+(i+1)" :aria-pressed="m.fb==='dislike'" :class="{done: m.fb==='dislike'}" @click="sendFeedback(m,'dislike')">👎</button>
                   </span>
@@ -662,6 +662,7 @@ try {
 createApp({
   data() {
     return {
+      syntheticDemo: document.body?.getAttribute?.('data-businessagent-profile') === 'synthetic-demo-v1',
       toast: '',
       // auth
       authEpoch: 0,
@@ -798,6 +799,7 @@ createApp({
       return m[this.role] || this.role;
     },
     roleIntro() {
+      if (this.syntheticDemo) return '仅支持合成问候、查看本人历史和退出登录。回复为固定文本；未启用模型、RAG、业务工具、审批或 Prompt 管理。';
       const m = {
         salesperson: '查客户、看订单、建跟进任务、发邮件都交给我～外部邮件我会先送经理审批；销售政策、折扣、佣金问题也随便问！',
         customer_service: '工单查询、创建、进度更新我全包了～售后政策和 SLA 标准也尽管问，随问随答！',
@@ -813,6 +815,7 @@ createApp({
       return (g ? g.items : []).slice(0, 4);
     },
     sceneGroups() {
+      if (this.syntheticDemo) return [{ cat: '合成问候', items: [{ label: '你好', text: '你好' }, { label: '您好', text: '您好' }] }];
       // 按角色显示不同业务场景指令;条目与《产品使用手册-前端版》实测场景一一对应
       const common = [
         { label: '你好', text: '你好' },
@@ -1037,6 +1040,7 @@ createApp({
     // ===== auth =====
     pickUser(u) { this.loginName = u.username; this.pickerOpen = false; this.showManual = false; this.loginErr = ''; this.focusRef('loginPasswordInput'); },
     startSso() {
+      if (this.syntheticDemo) { this.loginErr = '合成演示不支持 SSO，请使用本地演示账号。'; return; }
       if (location.protocol === 'file:') {
         this.loginErr = '请通过 http://localhost:8000/ui 访问本系统';
         return;
@@ -1090,6 +1094,7 @@ createApp({
       this.focusRef(this.showManual ? 'loginNameInput' : 'loginPasswordInput');
     },
     openTab(t) {
+      if (this.syntheticDemo && t !== 'chat') return;
       if (!this.authReady || (t === 'prompt' && !this.isApprover)) return;
       this.tab = t; this.sceneOpen = false; this.pickerOpen = false;
       this.focusRef(t === 'approval' && !this.isApprover ? 'mineHeading' : t + 'Heading');
@@ -1135,6 +1140,19 @@ createApp({
         });
         if (!current()) return;
         if (resp.status === 401) { this.doLogout(); this.loginErr = '登录已过期，请重新登录'; return; }
+        // Only the explicit server-rendered demo boundary can confirm pre-dispatch rejection.
+        // Ordinary HTTP errors, including production 403s, retain unknown-outcome semantics.
+        if (this.syntheticDemo && resp.status === 403 &&
+            resp.headers?.get('x-businessagent-profile') === 'synthetic-demo-v1') {
+          const rejection = JSON.parse(await resp.text());
+          if (!current()) return;
+          if (rejection?.detail === 'DEMO_UNSUPPORTED_OPERATION') {
+            show(); message.incomplete = false; message.rejected = true; message.intent = 'error';
+            message.text = '合成演示不支持此操作。请求已在执行前拒绝，未执行业务操作。请发送“你好”或“您好”，或查看本人历史。';
+            outcome = 'rejected';
+            return;
+          }
+        }
         if (!resp.ok || !resp.body || !resp.headers.get('content-type')?.startsWith('text/event-stream'))
           throw new Error('流式请求未完成');
         reader = resp.body.getReader();
@@ -1198,7 +1216,7 @@ createApp({
           const active = document.activeElement;
           const ownedFocus = active && [this.$refs?.chatProgress, this.$refs?.cancelButton].includes(active);
           this.pending = false; this.streamAbort = null; this.progressText = '';
-          this.chatStatus = { completed: '回答已完成，可在对话记录中阅读。',
+          this.chatStatus = { rejected: '合成演示不支持此操作，已在执行前拒绝，未执行业务操作。', completed: '回答已完成，可在对话记录中阅读。',
             cancelled: '服务端已确认取消本次对话。',
             incomplete: '未确认完成，请核对历史与操作记录，勿直接重复业务操作。' }[outcome];
           if (this.tab === 'chat' && ownedFocus) this.focusRef('chatDraft', active);

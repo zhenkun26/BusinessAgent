@@ -19,6 +19,11 @@ def uses_remote_profile(settings: Any) -> bool:
 
 def validate_model_profile(settings: Any) -> list[str]:
     """Configuration only: no imports of adapters, network access or filesystem writes."""
+    from app.rag.synthetic_demo import selected, configuration_errors
+    if selected(settings):
+        return configuration_errors(settings)
+    if getattr(settings, "model_profile", "") not in ("", PROFILE):
+        return ["MODEL_PROFILE_UNKNOWN"]
     if not uses_remote_profile(settings):
         return []
     errors: list[str] = []

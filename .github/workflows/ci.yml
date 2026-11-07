@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Explicitly publish the verified image from main
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -43,6 +49,9 @@ jobs:
         run: |
           pip install -r enterprise-agent/deploy/requirements-prod.txt
           pip install pytest pytest-asyncio pytest-cov fakeredis
+
+      - name: Verify explicit publication policy
+        run: python -I -B .github/tests/test_publish_policy.py
 
       - name: Verify current offline candidate (Python, Node and integrity controls)
         run: python -I -B enterprise-agent/scripts/offline_verify.py --ci --record ${{ matrix.record-id }}
@@ -107,7 +116,7 @@ jobs:
 
   docker:
     name: 构建生产镜像（多阶段）
-    needs: test
+    needs: [test, c10-persistence, synthetic-demo]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -174,8 +183,8 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
 
-      - name: 登录 GHCR（扫描通过后，仅 push 事件）
-        if: github.event_name == 'push'
+      - name: 登录 GHCR（所有验证通过后，仅显式 main 手动发布）
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish == true
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -183,7 +192,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 发布已扫描镜像（不重新构建）
-        if: github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish == true
         shell: bash
         env:
           IMAGE: ghcr.io/${{ github.repository_owner }}/businessagent
@@ -198,3 +207,92 @@ jobs:
           name: trivy-report
           path: trivy-report.txt
           if-no-files-found: ignore
+
+
+  c10-persistence:
+    name: C10 isolated persistence slice (not full acceptance)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Provision and record native libpq prerequisite
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpq5
+          dpkg-query -W -f='${Package} ${Version}\n' libpq5
+      - name: Install exact declared dependencies
+        run: pip install -r enterprise-agent/deploy/requirements-prod.txt
+      - name: Reject dotenv and inherited configuration leakage
+        run: python -I -B enterprise-agent/eval/c10_live_acceptance/check_entry.py
+      - name: Verify real isolated PG and Redis persistence slice
+        run: python -I -B enterprise-agent/eval/c10_live_acceptance/run.py --execute
+      - name: Retain sanitized phase report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c10-persistence-report
+          path: enterprise-agent/eval/results/c10-persistence-*/report.json
+          if-no-files-found: error
+
+  synthetic-demo:
+    name: Synthetic demo on native libpq (not RAG acceptance)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Provision and record native libpq prerequisite
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpq5
+          dpkg-query -W -f='${Package} ${Version}\n' libpq5
+      - name: Install existing production dependencies only
+        run: pip install -r enterprise-agent/deploy/requirements-prod.txt
+      - name: Require native libpq without binary or C wrapper packages
+        run: |
+          python -I -B -c 'import importlib.util as u; import psycopg; assert u.find_spec("psycopg_binary") is None; assert u.find_spec("psycopg_c") is None; assert psycopg.pq.__impl__ == "python"; print("native libpq", psycopg.pq.version())'
+      - name: Start fresh synthetic demo and verify actual HTTP ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python -I -B enterprise-agent/scripts/run_synthetic_demo.py start --execute \
+            --run-dir "$RUNNER_TEMP/ba-demo-native" \
+            > "$RUNNER_TEMP/ba-demo-native-private.log" 2>&1
+          python -I -B enterprise-agent/scripts/check_synthetic_demo.py --execute \
+            --require-python-driver --run-dir "$RUNNER_TEMP/ba-demo-native"
+      - name: Stop owned demo resources without deleting retained data
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f "$RUNNER_TEMP/ba-demo-native/receipt.json" ] && [ -f "$RUNNER_TEMP/ba-demo-native/private-state.json" ]; then
+            python -I -B enterprise-agent/scripts/run_synthetic_demo.py stop --execute \
+              --run-dir "$RUNNER_TEMP/ba-demo-native"
+          fi
+      - name: Retain sanitized synthetic acceptance report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-demo-native-report
+          path: ${{ runner.temp }}/ba-demo-native/acceptance-*.json
+          if-no-files-found: error

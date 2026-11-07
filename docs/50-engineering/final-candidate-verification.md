@@ -174,3 +174,83 @@ receipt and platform limits are in the C10 delivery record. The fixed inventory'
 separately executed local suite. Remote CI/image results at earlier commits are historical
 and do not validate the C10 source changes. Current C10, real runtime/full RAG, all live
 matrices, OpenSpec strict and release remain BLOCKED/open.
+
+
+## Stage-one technical candidate progress — 2026-11-07
+
+This separate dated section does not rewrite historical C24 evidence above. The current
+milestone is open-source usability; enterprise pilot evaluation, real-environment pilot
+and production use remain later stages. Stage one is not yet accepted or merged.
+
+- Mac arm64 Python 3.13.15 used a previously approved binary-driver adapter. Run-05
+  passed 15 actual HTTP checks and 14 focused demo tests after a misleading startup-log
+  correction. Two owned containers and two processes exited; data/evidence were retained.
+- Run-04 actual browser checks passed login, 你好/您好, explicit unsupported pre-execution
+  rejection, current-session history, refresh/login isolation, relogin and logout with
+  password/authenticated-content clearing. Run-05 changed logging only, not UI bytes.
+- History limitation: backend persistence and session-specific querying are established;
+  current-session history can show a snapshot with unknown status, not business success.
+  Refresh returns to login; relogin opens a new empty session with no visible recovery
+  entry for the previous session. No complete history-management claim is made.
+- Linux CI now explicitly requires system libpq5, pure psycopg, and no binary/C package,
+  then fresh startup, tracked acceptance and owned stop. Actual Linux results are pending.
+- Image publication is disabled by default: explicit manual publish=true on main only,
+  behind existing security and C10/native checks. Three publication-policy tests covering
+  27 event/ref/input combinations passed. No publication or deployment occurred.
+- First full-suite attempt: 2134 collected, 2133 passed plus 640 subtests, one failure in
+  an old hard-coded CI needs assertion. Its exact three-dependency assertion was repaired;
+  a later full rerun passed as recorded below. This first failure is retained rather than relabeled PASS.
+- Source inventory: 457 historical records plus eight new engineering fixtures = 465.
+  Registration does not clear prior unknown rights. Maintainer testimony covers only
+  three C17 documents (two departmental documents and after-sales policy) and eight CRM
+  examples as fictional from creation; it is not evidence for other works or external grants.
+- The separately authorized CRM increment now labels eight fictional customers and uses
+  NOT-A-PHONE phone placeholders and example.invalid customer email addresses in current
+  examples and product material. The internal-mail seed deliberately uses
+  fictional-demo-manager@company.internal with a synthetic-data comment, preserving
+  the existing private-domain policy. The three tests also checked the real classifier
+  AST: the internal recipient is admitted, while external customer/CC cases are rejected
+  or classified at their existing boundary; no mail rule was broadened. Three
+  focused tests passed; orders/non-contact fields were unchanged by AST comparison. One
+  new test source is included in the eight additions above. Expected final pytest count
+  is 2137 (2120 + 14 demo + 3 CRM), confirmed by the precommit rerun below. Run-05 predates
+  these CRM edits and is not live evidence of all final bytes; the narrow demo denies CRM
+  calls. Linux CI must test the final commit. Old C17 documents and unapproved UAT phone
+  changes remain outside this replacement scope.
+
+Source uncertainty, full C10/runtime/RAG and enterprise acceptance limitations remain.
+The current merge condition is stage-one readiness, not completion of later enterprise
+stages, but material distribution-rights blockers cannot be hidden or silently waived.
+
+Retained historical screenshots were not replaced and may still display historical contact details or additional unconfirmed recipients. The text/fixture update is not a claim that all visual examples or their source rights have been cleared.
+
+
+### Final precommit offline rerun — 2026-11-07T13:05:20Z
+
+The r2 aggregate receipt reports all eight checks PASS: 2137 Python tests plus 640
+subtests, Node 80/14, seven assets, 81.8543% coverage and stable sources. Candidate
+binding remains BLOCKED because this was a dirty precommit candidate, not a clean
+committed or remote-CI result. This does not establish stage-one completion.
+
+The second full-suite attempt had 24 failures caused by the edited demo-seed checksum.
+The repair changed only schema_manifest.demo_seed SHA; an old marker is still rejected
+without state mutation. All 26 focused bootstrap checks passed. That failed attempt
+is retained separately from the successful r2 result, with no skipped checks or lowered
+admission gate claimed.
+
+The 39 actual-Gitleaks regression tests passed. Local documentation-link review checked
+60 targets with zero missing. Linux native-driver and C10 CI execution remain pending,
+as do unknown-source and historical-screenshot decisions. Final committed binding and
+remote results must be checked before any conditional merge.
+
+### Staged whitespace inspection
+
+A staged check included newly added files that the earlier unstaged diff check did not
+cover. It found extra EOF blank lines in the project-authored fictional-CRM specification;
+only those redundant terminal blank lines were removed.
+
+The verified upstream license bytes are preserved: the Fraunces, Manrope and NotoSansSC
+license line-21 trailing spaces and the OpenSpec MIT license's extra EOF blank line are
+intentional upstream-byte preservation, not silently stripped formatting. Consequently,
+a blanket claim that the complete staged diff has no whitespace findings would be
+incorrect. Earlier diff-check results describe only their actual inspected scope.

@@ -57,7 +57,10 @@ async def serve_worker_observations(worker_id: str) -> None:
             # The worker supervisor owns process signals and cancels this child.
             yield
 
-    config = uvicorn.Config(WorkerObservations(worker_id), host='0.0.0.0', port=8001,
+    from app.config import get_settings
+    settings = get_settings()
+    config = uvicorn.Config(WorkerObservations(worker_id), host=settings.worker_observation_host,
+                            port=settings.worker_observation_port,
                             lifespan='off', access_log=False, log_level='warning',
                             timeout_graceful_shutdown=5)
     server = WorkerServer(config)

@@ -38,6 +38,10 @@ class LLMRouter:
 
     def __init__(self):
         self._settings = get_settings()
+        from app.rag.synthetic_demo import selected, require_demo
+        self._demo = selected(self._settings)
+        if self._demo:
+            require_demo(self._settings)
         if uses_remote_profile(self._settings) and validate_model_profile(self._settings):
             raise RuntimeError("MODEL_PROFILE_INVALID")
         self._primary: Optional[BaseChatModel] = None
@@ -52,6 +56,9 @@ class LLMRouter:
         1. DeepSeek 云端(配置了 OPENAI_API_KEY 时)
         2. 本地 Ollama(无 key 时降级,保证开发期可用)
         """
+        if self._demo:
+            from app.rag.synthetic_demo import disabled_model
+            return disabled_model()
         if self._primary is None:
             s = self._settings
             if uses_remote_profile(s) and not s.openai_api_key:
@@ -94,6 +101,9 @@ class LLMRouter:
         2. 云端 lite 模型(DeepSeek v4-flash,本地不可用时降级)
         3. primary(云端也未配置时兜底)
         """
+        if self._demo:
+            from app.rag.synthetic_demo import disabled_model
+            return disabled_model()
         if self._lite is None:
             s = self._settings
             if uses_remote_profile(s):
@@ -131,6 +141,9 @@ class LLMRouter:
         用途:① lite 链路的云端降级;② 本地小模型质量不足时的按需回退
         (如 ExecutionAgent 工具选择:本地返回空 → 云端重试一次)。
         """
+        if self._demo:
+            from app.rag.synthetic_demo import disabled_model
+            return disabled_model()
         if self._cloud_lite is None:
             s = self._settings
             if not (s.openai_api_key and s.lite_llm_model):
@@ -167,6 +180,9 @@ class LLMRouter:
 
     def get_local(self) -> Optional[BaseChatModel]:
         """本地模型(Ollama qwen3.5:4b,闲聊判断/答案自评/Reranker 评分 + 云端兜底)"""
+        if self._demo:
+            from app.rag.synthetic_demo import disabled_model
+            return disabled_model()
         if uses_remote_profile(self._settings):
             return self.get_lite()
         if self._local is None:
