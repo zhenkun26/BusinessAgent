@@ -2670,7 +2670,7 @@
     "enterprise-agent/tests/test_offline_verification.py": {
       "category": "test-fixtures",
       "status": "PENDING_SOURCE_REVIEW",
-      "sha256": "112c0a31cc19aa77962ead88abb2416e24258e03d77e8b73bdc5534ac38003d7"
+      "sha256": "599cc1ba4f183506b29645f3fadc7dd942d86e48fcf64914d02caaaf15b678e7"
     },
     "enterprise-agent/tests/test_optional_rerank_results.py": {
       "category": "test-fixtures",

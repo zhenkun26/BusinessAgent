@@ -63,6 +63,12 @@ def diagnostic_guard(root: Path, denials: Counter) -> Callable[[str, tuple], Non
     return guard
 
 
+def create_retained_directory(root: Path) -> Path:
+    retained = root / 'eval/results' / ('offline-pytest-' + uuid4().hex)
+    retained.mkdir(parents=True)
+    return retained
+
+
 def main() -> int:
     if len(sys.argv) != 1:
         print(json.dumps({'schema': 'offline-pytest-v1', 'status': 'FAIL',
@@ -95,8 +101,7 @@ def main() -> int:
     import runpy
     verifier = runpy.run_path(str(ROOT / 'scripts/offline_verify.py'))
     hashes = verifier['source_snapshot'](ROOT.parent)
-    retained = ROOT / 'eval/results' / ('offline-pytest-' + uuid4().hex)
-    retained.mkdir()
+    retained = create_retained_directory(ROOT)
     os.chdir(retained)
     counts: Counter = Counter()
     nodeids: list[str] = []

@@ -36,6 +36,36 @@ No original project or user data was deleted. Earlier diagnostics remain separat
 This repair does not change application behavior or close runtime, rights, UAT or release gates.
 
 
+### Fresh-checkout startup repair
+
+The first repair was published as 0c539ee0918aff75051e7baedfc61e6c02dd939c.
+Its clean local eight-check receipt passed (2118 tests + 640 subtests), and its
+committed full-history/exact-tree scans passed after retaining and classifying
+44/42 raw findings respectively; neither result implied remote CI success.
+
+[The next CI run](https://github.com/zhenkun26/BusinessAgent/actions/runs/42362838030)
+passed record admission but failed the Python child on both versions; the other
+seven offline checks passed. Security/audit/image steps were not reached. The run
+tested merge d48559032d80f05f3d4f63d85ea4822bece8d8d8. No child traceback was
+published, so it is not evidence that all possible Python failures are understood.
+
+Independent inspection reproduced a deterministic fresh-checkout startup defect:
+eval/results is ignored and absent in a new checkout, but the child attempted to
+create its UUID directory without creating missing parents. The aggregate creates
+its record parent only after the child finishes. Existing local evidence directories
+masked this condition.
+
+The narrow repair creates missing parents while retaining exclusive run-directory
+creation. Two new regression tests cover missing parents and collision refusal with
+original evidence preserved. Forty focused tests passed with zero guard denials;
+independent static review found no blocker. Expected full count is 2120, with the
+same 640 subtests and unchanged Node/assets/package/rights gates. No raw child log
+publication or relaxed result parsing is added. Precommit execution passed all eight checks (2120 tests + 640 subtests); dirty binding
+and source stability correctly remained blocked because documentation was edited during
+that run. Receipt: enterprise-agent/eval/results/offline/ci-fresh-parent-precommit-20261107.json.
+A fresh retained clean worktree and subsequent remote CI must verify the final commit.
+
+
 <a id="integration-verification-20261107"></a>
 ## Authorized main/local integration — 2026-11-07
 

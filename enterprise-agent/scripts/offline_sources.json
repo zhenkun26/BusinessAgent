@@ -1,6 +1,6 @@
 {
   "schema": "offline-sources-v1",
-  "reviewed_parent": "89e22359029fdff18a46e273208700b13a4a9e22",
+  "reviewed_parent": "0c539ee0918aff75051e7baedfc61e6c02dd939c",
   "checks": [
     "python",
     "node-page",
@@ -60,7 +60,7 @@
     ]
   },
   "expected": {
-    "python": 2118,
+    "python": 2120,
     "node-page": 75,
     "node-credentials": 14,
     "frontend-assets": 7,
@@ -229,7 +229,7 @@
     "enterprise-agent/deploy/k8s/pdb.yaml": "79e24a67587579a5406da9b0c3b4877cb1ca3ce3504b2fdad2547a71b60d5a47",
     "enterprise-agent/deploy/k8s/secret.yaml": "40f3491b9e4537f000268924961f81430fa3f248ae476b635ee4b8ce110e1d20",
     "enterprise-agent/deploy/k8s/service.yaml": "23a75ce7299a914e1292741084a1c198c41370753d0c5ed5f20a91b171492a44",
-    "enterprise-agent/deploy/license-inventory.json": "be0c7323cf1a380bf1493f343af08d2c2bd2956fb7ce80b2f5a50c97a4096bb0",
+    "enterprise-agent/deploy/license-inventory.json": "001c8aa644b5d5aeb0d2ec29012bd53d14e758a3f225c32f199d4202d1c0dc47",
     "enterprise-agent/deploy/migrations/001_prompt_versions.sql": "40e24bb3274db572b953fabca7347f20dbaf42716146c91f49f5e0baafd120da",
     "enterprise-agent/deploy/migrations/002_documents_ledger.sql": "b3f06ffc3f072aad49fed519121c6862430f2e8d20766af5d5c3b932c438e339",
     "enterprise-agent/deploy/migrations/003_user_password_hash.sql": "c7b5c2b4252a7f6a80fe540dfd82cccc481063b29d3191043b06455845c0be3d",
@@ -344,7 +344,7 @@
     "enterprise-agent/scripts/offline_verify.py": "b792a8909d101c715ab35517eb543852da38b22a92046ef67a6b10b4009dc9b1",
     "enterprise-agent/scripts/recovery.py": "e4fae67ba636bdc988437b00adb377fe9b330fb3fddc5b579049efd22d07f175",
     "enterprise-agent/scripts/recovery_archive.py": "072253cee61f4ddd3f96f3d0ccbead92e3929258fdefc2f475358c9c47a71ce2",
-    "enterprise-agent/scripts/run_offline_pytest.py": "fbbfe884036ec0bf4802785de67d4c6d5a1628ba49aa9a08692562202f9d3236",
+    "enterprise-agent/scripts/run_offline_pytest.py": "9660f7de6d84e8df5de084754bfbc32ec6783b8eeacece8eb685cc7e617042de",
     "enterprise-agent/scripts/safe_validate.py": "a239b3906fe4609323c0edc1a00f62e208dc96a8e9496bfede2f1e35b1423dc3",
     "enterprise-agent/scripts/verify_build.py": "1df3c4042953620ec6e63cf5df0366d1e6415321fe0670a6a1dcd4ef63c7682d",
     "enterprise-agent/scripts/verify_frontend_assets.py": "9e8f4d49750f2060940944d81f766716242a1a6419489d1e34abfa9c31c000d6",
@@ -396,7 +396,7 @@
     "enterprise-agent/tests/test_mail_recipient_policy.py": "4658965cf7573d0ec982d8ffb0562e657b00a410d2808093ea8cab4a37abf6cf",
     "enterprise-agent/tests/test_model_profile.py": "02f86b0ac4f99800da02954d69f662010070d7c30b63945326ec800e124f68ce",
     "enterprise-agent/tests/test_nonknowledge_result_boundary.py": "7ef614ffe1fc4767b337f3a32305e53e8a27a1c60ca47417c74f70548b2721a2",
-    "enterprise-agent/tests/test_offline_verification.py": "112c0a31cc19aa77962ead88abb2416e24258e03d77e8b73bdc5534ac38003d7",
+    "enterprise-agent/tests/test_offline_verification.py": "599cc1ba4f183506b29645f3fadc7dd942d86e48fcf64914d02caaaf15b678e7",
     "enterprise-agent/tests/test_optional_rerank_results.py": "2f2d3c826a1195ed26d69eb24d21d77ad895acafb16deec5d5c3456cbdab32dc",
     "enterprise-agent/tests/test_planning_trust_boundary.py": "c3dc4c5a8a2beaa85d416f0afb8d208130a395730bf08627186e069b6e75f893",
     "enterprise-agent/tests/test_privilege_escalation.py": "efb89f2fe78cbe8780643444f4c8a4de2de77fa13bb76f6457e2254f6dc6c3b8",

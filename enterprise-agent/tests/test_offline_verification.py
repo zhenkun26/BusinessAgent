@@ -327,6 +327,28 @@ def test_pytest_helper_rejects_filters_before_execution(capsys):
     assert json.loads(capsys.readouterr().out)['reason'] == 'FILTERS_NOT_ALLOWED'
 
 
+def test_pytest_retained_directory_creates_missing_checkout_parents(tmp_path):
+    assert not (tmp_path / 'eval').exists()
+    with patch.object(p, 'uuid4', return_value=NS(hex='fresh')):
+        retained = p.create_retained_directory(tmp_path)
+    assert retained == tmp_path / 'eval/results/offline-pytest-fresh'
+    assert retained.is_dir()
+    receipt = retained / 'receipt.json'
+    receipt.write_text('synthetic retained evidence')
+    assert receipt.read_text() == 'synthetic retained evidence'
+
+
+def test_pytest_retained_directory_rejects_collision_without_changing_evidence(tmp_path):
+    with patch.object(p, 'uuid4', return_value=NS(hex='collision')):
+        retained = p.create_retained_directory(tmp_path)
+        evidence = retained / 'receipt.json'
+        evidence.write_text('existing retained evidence')
+        with pytest.raises(FileExistsError):
+            p.create_retained_directory(tmp_path)
+    assert evidence.read_text() == 'existing retained evidence'
+    assert list(retained.iterdir()) == [evidence]
+
+
 def test_pytest_helper_requires_declared_installed_dependencies():
     with patch.object(p.importlib.metadata, 'version', side_effect=p.importlib.metadata.PackageNotFoundError):
         with pytest.raises(p.importlib.metadata.PackageNotFoundError):
