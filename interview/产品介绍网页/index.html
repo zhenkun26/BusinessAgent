@@ -684,12 +684,12 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
           <span class="chip c2"><i>A</i>数据分析</span>
           <span class="chip c3"><i>E</i>业务执行</span>
         </div>
-        <div class="lead-sub">带权限隔离、审批闭环与全栈降级的企业级多 Agent 系统。</div>
+        <div class="lead-sub">面向企业工作流的多 Agent 开源项目；演示范围与完整候选验收分开记录。</div>
       </div>
       <div class="meta reveal reveal-5">
-        <div><b>版本</b> v3.2 · 2026-07-28</div>
-        <div><b>技术栈</b> LangGraph + Milvus + 本地 qwen3.5</div>
-        <div><b>联调</b> 17/17 通过</div>
+        <div><b>版本</b> 开源第一阶段 · 页面更新 2026-11-07</div>
+        <div><b>演示</b> synthetic-demo-v1 · 无模型调用</div>
+        <div><b>候选</b> bailian-deepseek-v1 · 真实模型链路待验收</div>
       </div>
     </div>
     <div class="cover-bot reveal reveal-3" aria-hidden="true">
@@ -794,7 +794,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
   <div class="slide-inner">
     <div class="eyebrow reveal reveal-1">第二幕 · 全貌</div>
     <h2 class="title reveal reveal-2">一句话定位:<em>自然语言入口,工作流编排</em></h2>
-    <h3 class="sub reveal reveal-2">三大核心能力,对应三类业务场景;企业级四要素贯穿始终。</h3>
+    <h3 class="sub reveal reveal-2">完整应用候选的三类能力；非合成演示功能清单，真实链路尚待验收。</h3>
     <div class="grid-3" style="margin-top:36px">
       <div class="card reveal reveal-3">
         <div class="ic" style="background:var(--brand-light);color:var(--brand)">K</div>
@@ -809,14 +809,14 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
       <div class="card reveal reveal-5">
         <div class="ic" style="background:#D1FAE5;color:var(--success)">E</div>
         <h4>业务执行</h4>
-        <p>调用 CRM / 邮件 / 工单等 8 个工具完成动作,带 RBAC、高风险审批流与 Saga 补偿。</p>
+        <p>完整候选采用 RBAC、受控审批和逐操作回执；批准不执行，须原发起人再次确认。失败或结果不明时人工核对，不自动补偿。</p>
       </div>
     </div>
     <div class="grid-4 reveal reveal-6" style="margin-top:24px">
       <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">权限安全</h4><p style="font-size:12.5px">5 角色×8 工具 RBAC + 命名空间隔离 + 注入防护 + 审批流</p></div>
-      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">可用性</h4><p style="font-size:12.5px">LLM / 检索 / Checkpointer 三条降级链,任一故障不宕机</p></div>
+      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">可用性</h4><p style="font-size:12.5px">LLM / 检索 / Checkpointer 三条降级链,历史原型回退设计</p></div>
       <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">可观测</h4><p style="font-size:12.5px">OTel 全链路追踪 + Prometheus 指标 + 6 类审计落库</p></div>
-      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">状态可靠</h4><p style="font-size:12.5px">Redis Checkpointer 断点恢复,进程重启对话不丢</p></div>
+      <div class="card" style="padding:18px 20px"><h4 style="font-size:15px;margin-bottom:4px">状态可靠</h4><p style="font-size:12.5px">持久化与恢复需按环境验证；内存后端不提供跨进程持久性</p></div>
     </div>
   </div>
 </section>
@@ -824,7 +824,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 4. 技术栈详解 ============ -->
 <section class="slide" data-act="2" data-title="技术栈详解">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第二幕 · 全貌</div>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
     <h2 class="title reveal reveal-2">技术栈:每个组件<em>存什么、干什么</em></h2>
     <h3 class="sub reveal reveal-2">不是堆砌名词,而是各有明确职责与存储边界。</h3>
     <div class="stack-table reveal reveal-3">
@@ -930,7 +930,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
         <span class="status full">完整</span>
         <h4>工具接入层</h4>
         <div class="duty">register · auth · invoke</div>
-        <p>ToolGateway 统一网关 + 注册表 + 8 工具 + Saga 补偿;六道关卡:RBAC→参数→注入→执行→审计→兜底</p>
+        <p>完整候选：ToolGateway 权限校验、受控审批与逐操作回执；失败或结果不明停止执行，保留证据供人工核对，不自动补偿。</p>
       </div>
       <div class="hcell reveal reveal-5">
         <span class="status full">完整</span>
@@ -951,7 +951,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 7. 知识问答 ============ -->
 <section class="slide" data-act="3" data-actname="核心能力" data-title="知识问答">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第三幕 · 核心能力</div>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
     <h2 class="title reveal reveal-2">知识问答:<em>两阶段检索 + 拒答优于编造</em></h2>
     <div class="flow-row">
       <div class="flow-step reveal reveal-2">
@@ -1019,7 +1019,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
       <h4 style="font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--ink);margin-bottom:10px">实例:对比 C001 / C002 累计销售额</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:12px">
         <div style="background:var(--surface-alt);padding:14px;border-radius:8px">
-          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);margin-bottom:4px">C001 北京华信科技</div>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);margin-bottom:4px">C001 虚构示例企业 C001</div>
           <div style="font-family:var(--font-display);font-weight:700;font-size:24px;color:var(--brand)">¥2,850,000</div>
         </div>
         <div style="background:var(--surface-alt);padding:14px;border-radius:8px">
@@ -1039,7 +1039,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 9. 业务执行 ============ -->
 <section class="slide" data-act="3" data-title="业务执行">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第三幕 · 核心能力</div>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
     <h2 class="title reveal reveal-2">业务执行:<em>RBAC 三防线 + Saga 补偿 + 审批闭环</em></h2>
     <div class="grid-2" style="margin-top:32px">
       <div class="card reveal reveal-3" style="border-top:3px solid var(--brand)">
@@ -1077,8 +1077,8 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 10. 三条降级链 ============ -->
 <section class="slide" data-act="4" data-actname="工程亮点" data-title="三条降级链">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第四幕 · 工程亮点</div>
-    <h2 class="title reveal reveal-2">三条降级链:<em>任一故障不宕机</em></h2>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
+    <h2 class="title reveal reveal-2">三条降级链:<em>历史原型回退设计</em></h2>
     <h3 class="sub reveal reveal-2">但最深的教训也在这里 —— 降级必须配"我在降级"的信号。</h3>
     <div class="card reveal reveal-3" style="margin-top:32px;padding:28px 32px">
       <div class="deg-chain head">
@@ -1151,7 +1151,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 11. 安全闭环 ============ -->
 <section class="slide" data-act="4" data-title="安全闭环">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第四幕 · 工程亮点</div>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
     <h2 class="title reveal reveal-2">安全闭环:<em>审批不越权,是核心设计</em></h2>
     <h3 class="sub reveal reveal-2">经理批准销售员的外部邮件,执行时仍按销售员角色终审 —— 审批系统不会成为提权通道。</h3>
     <div class="grid-2" style="margin-top:32px">
@@ -1193,8 +1193,8 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 12. 状态可靠性 ============ -->
 <section class="slide" data-act="4" data-title="状态可靠性">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第四幕 · 工程亮点</div>
-    <h2 class="title reveal reveal-2">状态可靠性:<em>杀进程重启,会话不丢</em></h2>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
+    <h2 class="title reveal reveal-2">状态可靠性:<em>历史恢复实验，非跨环境保证</em></h2>
     <div class="grid-2" style="margin-top:32px">
       <div class="card reveal reveal-3" style="border-top:3px solid var(--brand)">
         <h4 style="font-size:18px;margin-bottom:12px">Checkpointer 断点恢复</h4>
@@ -1288,23 +1288,23 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 14. 多人协作审批闭环 ============ -->
 <section class="slide" data-act="5" data-actname="实战演示" data-title="多人协作审批闭环">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第五幕 · 实战演示</div>
+    <div class="eyebrow reveal reveal-1">历史截图 · 2026年7月 · 非当前行为</div>
     <h2 class="title reveal reveal-2">多人协作审批闭环:<em>三棒接力,全程在 /ui</em></h2>
-    <h3 class="sub reveal reveal-2">销售员发起外部邮件 → 经理审批 → 销售员跟踪进度。RBAC + 审批 + 工具执行的真实闭环。</h3>
+    <h3 class="sub reveal reveal-2">当前：批准不执行，须原发起人再次确认；混合查询与审批动作须拆开。失败或结果不明进入人工暂停，不自动补偿；新回执仅供人工核对，不自动解锁。</h3>
     <div class="approval-flow">
       <div class="leg reveal reveal-3">
         <span class="role-tag sales">第一棒 · 销售员张三</span>
         <h4>发起外部邮件</h4>
-        <p>「给客户 C001 的联系人张经理发外部邮件,邮箱 zhang@huaxin-tech.com,主题:续约报价」</p>
+        <p>「给客户 C001 的联系人虚构联系人 C001发外部邮件,邮箱 customer-c001@example.invalid,主题:续约报价」</p>
         <p style="font-size:12px;color:var(--ink-muted);font-family:var(--font-mono)">命中 send_email_external → requires_approval=True → 建审批单</p>
         <div class="outcome">已提交审批 appr_xxx,待经理审批</div>
       </div>
       <div class="leg reveal reveal-4">
         <span class="role-tag mgr">第二棒 · 经理赵六</span>
-        <h4>审批 + 自动执行</h4>
+        <h4>历史：审批后自动执行</h4>
         <p>「审批」页签 → 待我审批 → 看到该单(high 橙色)→ 点「批准」</p>
         <p style="font-size:12px;color:var(--ink-muted);font-family:var(--font-mono)">校验审批人角色 → 检查 requester_token → 执行 prefill_payload(按发起人角色终审)</p>
-        <div class="outcome">已批准,工具已执行 message_id EXT-xxx</div>
+        <div class="outcome">历史 Mock 回执 EXT-xxx，未真实发信</div>
       </div>
       <div class="leg reveal reveal-5">
         <span class="role-tag sales">第三棒 · 销售员张三</span>
@@ -1324,9 +1324,9 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 14b. 审批闭环实屏(三棒大图) ============ -->
 <section class="slide" data-act="5" data-actname="实战演示" data-title="审批闭环实屏">
   <div class="slide-inner wide-shot">
-    <div class="eyebrow reveal reveal-1">第五幕 · 实战演示 · 实屏对照</div>
+    <div class="eyebrow reveal reveal-1">历史截图 · 2026年7月 · 非当前行为</div>
     <h2 class="title reveal reveal-2">审批闭环<em>三棒实屏</em></h2>
-    <h3 class="sub reveal reveal-2">张三发起 → 赵六批准自动执行 → 张三跟踪,全程在 /ui 完成。</h3>
+    <h3 class="sub reveal reveal-2">当前：批准不执行，须原发起人再次确认；混合查询与审批动作须拆开。失败或结果不明进入人工暂停，不自动补偿；新回执仅供人工核对，不自动解锁。</h3>
     <div class="shot-carousel reveal reveal-3" data-sc>
       <button class="sc-nav prev" aria-label="上一张">‹</button>
       <button class="sc-nav next" aria-label="下一张">›</button>
@@ -1354,7 +1354,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
               <div class="frame" data-img="screenshots/05-zhaoliu-approved.webp">
                 <div class="placeholder"><div class="icon">📷</div><div>赵六批准 · 工具已执行</div></div>
               </div>
-              <div class="caption"><b>第3步</b> 赵六批准,服务端自动执行<span class="tag">EXT-xxx</span></div>
+              <div class="caption"><b>历史第3步</b> 旧自动执行；当前批准不执行<span class="tag">EXT-xxx</span></div>
             </div>
           </div>
           <div class="slide-item">
@@ -1443,7 +1443,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
               <div class="frame" data-img="screenshots/08-zhaoliu-saga-input.webp">
                 <div class="placeholder"><div class="icon">📷</div><div>赵六发起 · 一句话三动作</div></div>
               </div>
-              <div class="caption"><b>赵六发起</b> 一句话三动作:查客户 + 建工单 + 发邮件<span class="tag">multi_task</span></div>
+              <div class="caption"><b>历史截图 · 2026年7月</b> 旧混合查询/动作；当前须拆开，不代表当前行为<span class="tag">multi_task</span></div>
             </div>
           </div>
           <div class="slide-item">
@@ -1451,7 +1451,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
               <div class="frame" data-img="screenshots/09-zhaoliu-saga-result.webp">
                 <div class="placeholder"><div class="icon">📷</div><div>Saga 三步结果 · 客户+工单+邮件</div></div>
               </div>
-              <div class="caption"><b>Saga 三步</b> 客户信息 + 工单号 + 邮件编号全部返回<span class="tag">TK/INT-xxx</span></div>
+              <div class="caption"><b>历史截图 · 2026年7月</b> 旧模拟结果；当前失败或结果不明人工暂停<span class="tag">TK/INT-xxx</span></div>
             </div>
           </div>
         </div>
@@ -1467,7 +1467,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 16. 关键取舍 ============ -->
 <section class="slide" data-act="6" data-actname="取舍与教训" data-title="关键取舍">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
     <h2 class="title reveal reveal-2">关键取舍:<em>放弃了什么,什么情况下会改</em></h2>
     <h3 class="sub reveal reveal-2">每个"选"都对应一个"弃",这才是工程决策的本质。</h3>
     <div class="tradeoff reveal reveal-3">
@@ -1475,7 +1475,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
       <div class="drop">ReAct 自由循环 —— 应对开放任务的灵活性(任务域封闭,用不上)</div>
       <div class="pick">Mock-first —— 契约对齐真实 API,安全链路提前两周端到端联调</div>
       <div class="drop">等真实系统 —— 数据真实性(测不出真实脏数据与延迟分布)</div>
-      <div class="pick">本地 qwen3.5:4b 承担高频低风险任务 —— 成本降 40%+,数据不出内网,闲聊 5.9s 零云端</div>
+      <div class="pick">本地 qwen3.5:4b 承担高频低风险任务 —— 历史原型实验；不代表当前外部模型候选的成本或数据边界</div>
       <div class="drop">全部本地 —— 高风险操作准确率(小模型选错工具不触发回退,需云端优先)</div>
       <div class="pick">单结果直通不调 LLM —— 最常见场景零额外成本,忠实于 Agent 原始输出</div>
       <div class="drop">一律 LLM 汇总 —— 汇总层"润色"的可能(可能引入幻觉)</div>
@@ -1487,100 +1487,25 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
   </div>
 </section>
 
-<!-- ============ 16b. 模型路由与成本 ============ -->
+<!-- ============ 16b. 模型配置与验证边界 ============ -->
 <section class="slide" data-act="6" data-title="模型路由与成本">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
-    <h2 class="title reveal reveal-2">模型路由:<em>用对模型,省对成本</em></h2>
-    <h3 class="sub reveal reveal-2" style="max-width:none;white-space:nowrap">三链路分级 + 运行时回退 —— 大模型管推理,小模型管高频,规则管兜底,任一故障都有退路。</h3>
-
+    <div class="eyebrow reveal reveal-1">当前配置 · 页面更新 2026-11-07</div>
+    <h2 class="title reveal reveal-2">两条路径:<em>演示与完整候选分开</em></h2>
+    <h3 class="sub reveal reveal-2">合成演示不调用模型；完整应用配置已实现，真实模型、RAG 与 UAT 仍待验收。</h3>
     <div class="route-chains reveal reveal-3">
-      <div class="route-chain">
-        <span class="role-tag">primary · 复杂任务</span>
-        <h5>答案生成 / 规划 / 报告</h5>
-        <div class="chain">
-          <span class="node primary">DeepSeek v4-pro 云端</span>
-          <span class="arr">→</span>
-          <span class="node local">本地 qwen(无 key 降级)</span>
-        </div>
-        <p>需要推理/理解的关键任务:max_retries=2 内部重试,仍失败由调用点走非 LLM 兜底(规则匹配/表格直出)。</p>
-      </div>
-      <div class="route-chain">
-        <span class="role-tag">lite · 轻量任务</span>
-        <h5>意图分类 / 工具选择 / 计划解析</h5>
-        <div class="chain" style="flex-wrap:nowrap">
-          <span class="node local">本地 qwen</span>
-          <span class="arr">→</span>
-          <span class="node cloud">云端 v4-flash</span>
-          <span class="arr">→</span>
-          <span class="node fallback">primary 兜底</span>
-        </div>
-        <p>本地优先(实测 0.2-1.4s,免费且快于云端 flash 的 8.7-18.1s);本地不可用降级云端 flash,均不可用兜底 primary。</p>
-      </div>
-      <div class="route-chain">
-        <span class="role-tag">local · 高频简单</span>
-        <h5>闲聊判断 / 答案自评 / Reranker</h5>
-        <div class="chain">
-          <span class="node local">本地 qwen3.5:4b</span>
-          <span class="arr">→</span>
-          <span class="node cloud">云端兜底</span>
-        </div>
-        <p>闲聊判断 ~0.3s/条零云端成本;答案自评 ~0.2s/次;reasoning=False 关闭思考 token,实测从 44-94s 降到 0.2s。</p>
-      </div>
+      <div class="route-chain"><span class="role-tag">synthetic-demo-v1</span><h5>开源隔离演示</h5><div class="chain"><span class="node local">无模型调用</span></div><p>真实认证、PostgreSQL 与 Redis；仅固定问候与本人历史。RAG、审批与业务操作拒绝执行。</p></div>
+      <div class="route-chain"><span class="role-tag">bailian-deepseek-v1</span><h5>完整应用候选</h5><div class="chain"><span class="node cloud">deepseek-flash</span><span class="arr"> / </span><span class="node primary">deepseek-v4-pro</span></div><p>Flash 用于默认问答、分类与提取；Pro 用于任务分解和复杂汇总。分析报告采用确定性 Python 输出。</p></div>
+      <div class="route-chain"><span class="role-tag">百炼北京</span><h5>向量与重排</h5><div class="chain"><span class="node cloud">text-embedding-v4</span></div><p>1024维向量；qwen3-rerank 重排。独立集合与密钥；不宣称数据不出内网。真实 API、成本和延迟尚未验证。</p></div>
     </div>
-
-    <div class="route-matrix reveal reveal-4">
-      <div class="hd">调用点</div>
-      <div class="hd">模型选择(优先级 → 降级)</div>
-      <div class="hd">实测延迟</div>
-
-      <div class="call">闲聊判断</div>
-      <div class="model"><span class="local">qwen3.5:4b 本地</span><span class="arrow">·</span>reasoning=False</div>
-      <div class="lat"><b>~0.3s</b>/条 · 零云端</div>
-
-      <div class="call">意图分类</div>
-      <div class="model"><span class="local">本地 qwen</span><span class="arrow">→</span><span class="flash">v4-flash 运行时回退</span><span class="arrow">→</span>规则关键词</div>
-      <div class="lat"><b>~0.2s</b> 本地 / flash 1.2-1.5s</div>
-
-      <div class="call">任务分解</div>
-      <div class="model"><span class="pri">deepseek-v4-pro</span><span class="arrow">·</span>仅 multi_task 触发</div>
-      <div class="lat"><b>~6s</b></div>
-
-      <div class="call">knowledge 答案生成</div>
-      <div class="model"><span class="local">本地 qwen</span><span class="arrow">→</span><span class="flash">v4-flash 降级</span></div>
-      <div class="lat"><b>~1.4s</b> 本地优先</div>
-
-      <div class="call">答案自评</div>
-      <div class="model"><span class="local">本地 qwen</span><span class="arrow">·</span>reasoning=False</div>
-      <div class="lat"><b>~0.2s</b>/次</div>
-
-      <div class="call">analysis 计划解析</div>
-      <div class="model"><span class="local">本地 qwen</span><span class="arrow">→</span><span class="flash">v4-flash 降级</span></div>
-      <div class="lat"><b>~0.2s</b> 本地</div>
-
-      <div class="call">execution 工具选择</div>
-      <div class="model"><span class="flash">云端 flash 优先</span><span class="arrow">→</span><span class="local">本地 qwen</span><span class="arrow">→</span>关键词兜底</div>
-      <div class="lat"><b>1.2-1.5s</b> 云端优先</div>
-
-      <div class="call">analysis 报告 / 多结果汇总</div>
-      <div class="model"><span class="pri">deepseek-v4-pro</span></div>
-      <div class="lat"><b>~35s</b> 报告 / <b>~8s</b> 汇总</div>
-
-      <div class="call">aggregator 单结果</div>
-      <div class="model"><span class="none">不调 LLM(直通)</span></div>
-      <div class="lat"><b>0s</b> · 零成本</div>
-
-      <div class="call">aggregator 闲聊</div>
-      <div class="model">命中分支:<span class="none">模板零 LLM</span><span class="arrow">·</span>未命中:<span class="local">本地 qwen 即兴</span></div>
-      <div class="lat"><b>0s</b> 模板 / 本地生成零云端</div>
-    </div>
+    <div class="card reveal reveal-4" style="margin-top:24px;padding:24px"><p>候选禁止把缺少密钥或模型失败静默当作本地成功。付费启动探针默认关闭；模型别名需在未来真实验收时核对。旧 Ollama/BGE 仅保留为开发实验选项，不是当前默认方案。</p><p>依据：enterprise-agent/deploy/MODEL_PROFILE.md；docs/30-guides/open-source-quickstart.md。</p></div>
   </div>
 </section>
 
 <!-- ============ 16c. 两次路由反转 ============ -->
 <section class="slide" data-act="6" data-title="两次路由反转">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
+    <div class="eyebrow reveal reveal-1">历史原型复盘 · 2026年7月 · 非当前默认配置</div>
     <h2 class="title reveal reveal-2">两次路由反转:<em>路由策略是测出来的,不是想出来的</em></h2>
     <h3 class="sub reveal reveal-2">两次"凭印象"的模型路由设计,都被实测数据推翻。</h3>
     <div class="route-fix reveal reveal-3" style="padding:20px 24px">
@@ -1602,7 +1527,7 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 17. 深刻教训 ============ -->
 <section class="slide" data-act="6" data-title="深刻教训">
   <div class="slide-inner head-inset">
-    <div class="eyebrow reveal reveal-1">第六幕 · 取舍与教训</div>
+    <div class="eyebrow reveal reveal-1">历史原型 · 2026年7月 · 非当前候选验收</div>
     <h2 class="title reveal reveal-2">十四个深刻教训:<em>二阶思考比修复更重要</em></h2>
     <div class="lesson-carousel reveal reveal-3">
       <button class="lesson-carousel-nav prev" aria-label="上一条">‹</button>
@@ -1707,10 +1632,10 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 18. 当前状态 ============ -->
 <section class="slide" data-act="7" data-actname="现状与展望" data-title="当前状态">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第七幕 · 现状与展望</div>
-    <h2 class="title reveal reveal-2">当前状态:<em>功能验证充分,生产化在路上</em></h2>
+    <div class="eyebrow reveal reveal-1">当前开源边界 · 下方数量为历史原型概览，非演示功能清单</div>
+    <h2 class="title reveal reveal-2">当前状态:<em>开源演示已核验，完整能力待验证</em></h2>
     <div class="metric-grid">
-      <div class="metric reveal reveal-3"><div class="v">17/17</div><div class="l">联调通过</div></div>
+      <div class="metric reveal reveal-3"><div class="v">阶段一</div><div class="l">隔离合成演示</div></div>
       <div class="metric reveal reveal-3"><div class="v acc">8</div><div class="l">工具数</div></div>
       <div class="metric reveal reveal-4"><div class="v">10</div><div class="l">种子用户</div></div>
       <div class="metric reveal reveal-4"><div class="v acc">4</div><div class="l">部门隔离</div></div>
@@ -1721,12 +1646,12 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
     </div>
     <div class="grid-2 reveal reveal-6" style="margin-top:28px">
       <div class="card" style="border-left:3px solid var(--success);padding:18px 22px">
-        <h4 style="font-size:15px;margin-bottom:8px;color:var(--success)">✅ 已完成</h4>
-        <p style="font-size:12.5px;line-height:1.7">W2-W9 全阶段 · P1(分析/审批/审计/反馈)· P2(Prompt 版本管理 / 取消机制 / 命名空间隔离 / sessions 状态机)· 前端 v3 业务场景化 · SSE 流式 · 多轮上下文注入 · 多人协作闭环</p>
+        <h4 style="font-size:15px;margin-bottom:8px;color:var(--success)">✅ 限定范围已验证</h4>
+        <p style="font-size:12.5px;line-height:1.7">Mac 合成入口 HTTP 与浏览器检查；指定 Ubuntu CI 原生驱动与15项演示检查。仅覆盖各自绑定提交与环境，不等于当前候选全功能验收。</p>
       </div>
       <div class="card" style="border-left:3px solid var(--accent);padding:18px 22px">
-        <h4 style="font-size:15px;margin-bottom:8px;color:#92400E">⏳ P3 收尾</h4>
-        <p style="font-size:12.5px;line-height:1.7">压测(vegeta/k6)· UAT + 安全实测 · needs_replan 误报复查 · pymilvus 3.1 迁移(硬 deadline)· Windows uvicorn reload 修复</p>
+        <h4 style="font-size:15px;margin-bottom:8px;color:#92400E">⏳ 后续验证边界</h4>
+        <p style="font-size:12.5px;line-height:1.7">完整模型链路、RAG、正式 UAT 与真实安全验收仍待验证；素材来源权利仍有阻塞。旧原型联调记录不替代当前验收。</p>
       </div>
     </div>
   </div>
@@ -1735,36 +1660,30 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
 <!-- ============ 19. 技术债务与展望 ============ -->
 <section class="slide" data-act="7" data-title="技术债务与展望">
   <div class="slide-inner">
-    <div class="eyebrow reveal reveal-1">第七幕 · 现状与展望</div>
-    <h2 class="title reveal reveal-2">技术债务与展望:<em>诚实说明边界</em></h2>
-    <h3 class="sub reveal reveal-2">每个"没做"都能回答:为什么不做、什么时候做、怎么做。</h3>
+    <div class="eyebrow reveal reveal-1">当前路线 · 页面更新 2026-11-07</div>
+    <h2 class="title reveal reveal-2">后续路线:<em>按阶段验证，不提前宣称完成</em></h2>
+    <h3 class="sub reveal reveal-2">当前开源第一阶段仍有来源决策阻塞；后三阶段均未完成。</h3>
     <div class="grid-2" style="margin-top:32px">
       <div class="card reveal reveal-3">
-        <h4 style="font-size:17px;margin-bottom:14px">已知边界(P3)</h4>
+        <h4 style="font-size:17px;margin-bottom:14px">当前 · 开源第一阶段</h4>
         <div style="font-size:13px;line-height:1.9;color:var(--ink-soft)">
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span>对话压缩未实现(历史 5 轮封顶)</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span><code style="font-family:var(--font-mono);font-size:11.5px">depends_on</code> 未编排(子任务一律并行)</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span>checkpoint 无 TTL(快照随会话增长)</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span><code style="font-family:var(--font-mono);font-size:11.5px">ROLE_NAMESPACES</code> 未接入(manager 跨部门不可见)</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">边界</span><code style="font-family:var(--font-mono);font-size:11.5px">user_memories</code> 表已建未接(长期记忆)</div>
-          <div style="padding:6px 0"><span class="badge warn">边界</span>token usage 部分采集(未持久化)</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">阻塞</span>未知素材来源仍需逐项决策；来源登记不等于权利清除。</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">已核验</span>隔离合成演示的限定启动、HTTP 与浏览器路径。</div>
+          <div style="padding:6px 0"><span class="badge warn">边界</span>验证绑定具体提交与环境；不等于完整模型、RAG 或生产验收。</div>
         </div>
       </div>
       <div class="card reveal reveal-4">
-        <h4 style="font-size:17px;margin-bottom:14px">远期展望(v3 方案)</h4>
+        <h4 style="font-size:17px;margin-bottom:14px">后续 · 三个未完成阶段</h4>
         <div style="font-size:13px;line-height:1.9;color:var(--ink-soft)">
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>真实业务系统对接(CRM/邮件/工单契约已对齐)</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>多租户扩展(dept_namespace → tenant_id)</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>K8s 部署清单 + 密钥管理 + TLS 全量</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>对话压缩(滑动窗口 + 分段摘要)</div>
-          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge info">规划</span>子任务依赖编排(拓扑分批 fan-out)</div>
-          <div style="padding:6px 0"><span class="badge info">规划</span>checkpoint TTL + 长期记忆读写</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">未完成</span>企业试点评估：明确适用场景、数据权限、验收范围与风险。</div>
+          <div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge warn">未完成</span>真实环境试点：获准后验证实际模型、RAG、业务接口与用户流程。</div>
+          <div style="padding:6px 0"><span class="badge warn">未完成</span>生产使用：完成安全、容量、运维及正式放行评估后再决定。</div>
         </div>
       </div>
     </div>
     <div class="value-strip reveal reveal-5">
-      <div class="lbl">边界原则</div>
-      <div class="txt">每个"没做"都能回答三问 —— <b style="background:rgba(255,255,255,.22);padding:1px 6px;border-radius:4px">为什么现在不做</b> · <b style="background:rgba(255,255,255,.22);padding:1px 6px;border-radius:4px">什么信号触发就做</b> · <b style="background:rgba(255,255,255,.22);padding:1px 6px;border-radius:4px">怎么入手</b>。说不清的"没做"是疏忽,说得清的是取舍。</div>
+      <div class="lbl">历史备注</div>
+      <div class="txt">2026年7月原型的 P3 / v3 清单曾讨论对话压缩、依赖编排、namespace、TTL、长期记忆与 K8s；仅作历史计划，不代表当前缺陷清单或已承诺交付。</div>
     </div>
   </div>
 </section>
@@ -1817,13 +1736,13 @@ h3.sub{font-family:var(--font-body);font-weight:500;font-size:clamp(16px,1.4vw,2
         <span class="chip c2"><i>A</i>数据分析</span>
         <span class="chip c3"><i>E</i>业务执行</span>
       </div>
-      <div class="lead-sub">带权限隔离、审批闭环与全栈降级的企业级多 Agent 系统。</div>
+      <div class="lead-sub">面向企业工作流的多 Agent 开源项目；演示范围与完整候选验收分开记录。</div>
     </div>
     <div class="qa reveal reveal-5">Q & A · 欢迎提问</div>
     <div class="meta reveal reveal-6" style="margin-top:48px;display:flex;gap:36px;font-family:var(--font-mono);font-size:12px;color:var(--ink-muted)">
-      <div><b style="color:var(--ink)">版本</b> v3.2</div>
-      <div><b style="color:var(--ink)">日期</b> 2026-07-28</div>
-      <div><b style="color:var(--ink)">联调</b> 17/17 通过</div>
+      <div><b style="color:var(--ink)">阶段</b> 开源第一阶段</div>
+      <div><b style="color:var(--ink)">页面更新</b> 2026-11-07</div>
+      <div><b style="color:var(--ink)">验收</b> 合成演示限定验证</div>
     </div>
     <div class="reveal reveal-7" style="margin-top:22px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-muted);opacity:.75">感谢赵震坤同学的算力支持</div>
   </div>
@@ -2264,45 +2183,45 @@ document.addEventListener('touchend',e=>{
 
 /* ===================== Q&A 滚动墙 ===================== */
 const QA_DATA=[
-  {cat:"架构",q:"为什么选 LangGraph 而不是 AgentExecutor / AutoGen?",a:"AgentExecutor 是 ReAct 黑盒循环,模型自己决定下一步,<b>权限决策发生在哪一步不可审计</b>。AutoGen 路由由对话涌现,无法保证'高风险操作必过审批'这种硬约束。LangGraph 的 StateGraph 把路由变成显式代码:planner 输出 intent,条件边决定去哪,每一步<b>可审计、可断点恢复、可并行</b>。放弃的是 ReAct 应对完全未知任务的开放性 —— 我们的任务域是封闭的(知识/分析/执行三类),用不上。"},
-  {cat:"架构",q:"为什么拆三个 Agent,而不是单 Agent + 多工具?",a:"三类任务的差异在三个维度都很大:<b>上下文构造</b>(RAG 片段 vs 计算结果 JSON vs 工具列表)、<b>权限模型</b>(文档命名空间 vs 工具 RBAC vs 审批流)、<b>失败语义</b>(低置信拒答 vs 降级表格 vs Saga 补偿)。揉在一个 Agent 里 prompt 会互相污染、无法独立调优。拆开后每个 Agent 有统一 <code>AgentResult</code> 契约,可独立评测、独立换模型。代价是多结果时多一次汇总 LLM 调用 —— 用'单结果直通不调 LLM'把成本压回了最常见的场景。"},
-  {cat:"架构",q:"Send fan-out 踩过什么坑?",a:"Send 是 LangGraph 的 map-reduce 原语:条件边函数返回 <code>list[Send]</code>,每个 Send 携带独立子状态并行调度,结果通过 reducer 合并。踩过的坑:Send 必须<b>在条件边函数返回</b>,不能在节点里返回 —— 节点返回 list[Send] 直接报 Expected dict。我们把 dispatcher 节点删掉、逻辑挪进 <code>add_conditional_edges</code> 的路由函数才解决。另一个设计点:并行分支不共享可变状态,每个 Send 的子状态只含只读字段,从结构上消除并行写冲突。"},
-  {cat:"RAG",q:"两阶段检索为什么有效?参数怎么定的?",a:"向量召回快但精度有限(语义相近但答非所问的片段也会高分),所以先用 HNSW 粗排扩大候选池(<code>top_k×4</code>),再用 bge-reranker-large 对候选做交叉编码精排,取 top-5。reranker 逐对打分慢,不能直接对全库用,两阶段是<b>召回率和精确率的成本折中</b>。×4 和 top-5 是经验起点,靠 W4 评测集(命中率/覆盖率指标)校准,不是拍的。"},
-  {cat:"RAG",q:"检索不到 / 向量库挂了怎么办?",a:"三级降级链:<b>Milvus HNSW → BM25 关键词(Milvus query 全表扫描 + Python 打分)→ PG LIKE</b>。关键点:降级链每一级的<b>权限过滤口径必须和主路径一致</b> —— 联调后发现 BM25 降级路径只过滤了 is_active 和 access_roles,漏了 dept_namespace,跨部门文档会在降级时泄露。这类'降级绕过防护'的问题靠代码评审很难发现,我们补了专门的回归脚本(4 项断言,含降级路径隔离)。"},
-  {cat:"RAG",q:"企业文档权限隔离怎么做的?",a:"双条件过滤:物理上 Milvus 按部门分 partition,检索表达式 <code>dept_namespace in ['用户部门','shared_company']</code> + <code>ARRAY_CONTAINS(access_roles, '角色')</code>。两个条件正交:namespace 解决'哪个部门的文档',access_roles 解决'哪个角色能看'。教训:不能严格等于用户部门 —— 公司级共享文档(员工手册)所有人都要能看,所以是<b>本部门 + shared 双匹配</b>。入库侧也有坑:partition 名传错会静默落进 shared_company,部门文档变全员可见。"},
-  {cat:"RAG",q:"置信度怎么算?为什么不用 LLM 一句话判断?",a:"场景化置信度:<b>检索分×0.6 + 本地小模型自评分×0.4</b>,按问题场景(POLICY/FACTUAL/COMPARATIVE 等)用不同阈值决策 answer / answer_with_hint / reject。自评用本地 qwen3.5:4b 而不是云端 —— 自评是高频调用,本地免费;且只需 0-10 打分这种弱能力,小模型够。<b>拒绝回答比编造回答好</b>,这是企业知识库的底线。"},
-  {cat:"安全",q:"怎么防越权?为什么一层不够?",a:"三防线。<b>prompt 层</b>:工具选择时只注入本角色有权限的工具,模型看不到无权工具 —— 防'无意',但防不住关键词降级绕过。<b>执行层</b>:LLM 输出再经 ROLE_TOOLS 显式过滤。<b>工具层</b>:invoke() 内 can_use_tool 终审,越权尝试记 security_violation 审计。最后一层最关键的场景是审批:经理批准了销售员的外部邮件申请,执行时仍按<b>发起人</b>角色做 RBAC —— 批准不越权,审批人不能通过批准让下属获得本没有的权限。"},
-  {cat:"安全",q:"高风险操作怎么处理?token 过期怎么办?",a:"<code>requires_approval</code> 标记的工具(如外部邮件)不直接执行,自动建审批单:prefill_payload 存工具调用参数、requester_token 存发起人 JWT。审批人 decide 后三条路径:拒绝→终止;批准+token 有效→服务端直接执行;批准+token 过期→置 approved_pending_reauth,发起人重新登录后走 resume 端点恢复执行。<b>token 过期是企业审批的真实痛点</b> —— 审批可能隔天才批,发起人凭证早过期了,不能不处理也不能用审批人的 token 越权执行。"},
-  {cat:"安全",q:"多个工具调用一半失败怎么办?补偿也失败呢?",a:"多工具走 <b>Saga 协调器</b>:顺序执行,任一步失败反向顺序补偿已成功步骤(每个 ACTION 工具实现 compensate,执行时记录 compensation_data)。QUERY 类无副作用免补偿;补偿失败不阻断流程,记入 compensation_errors 返还给运维 —— 这是<b>最终一致性不是 ACID</b>,分布式场景本来就没有真正的回滚,邮件发出去了只能发撤回邮件。取舍:宁可'补偿失败 + 告警 + 人工介入',也不假装能完美回滚。"},
-  {cat:"容错",q:"LLM 挂了 / 超时 / 返回垃圾怎么办?",a:"三层。<b>重试</b>:ChatOpenAI max_retries=2。<b>降级</b>:primary 链路 DeepSeek v4-pro → 本地 qwen3.5:4b;lite 链路本地优先 → 云端 flash 降级 → primary 兜底。<b>运行时回退</b>:意图分类和工具选择在本地失败/输出无法解析时,自动上云 deepseek-v4-flash 重试一次,仍失败走规则关键词;工具选择对高风险操作(外部邮件)改为<b>云端优先</b>——本地 qwen 曾返回合法 JSON 但选错工具(漏 send_email_external),旧回退只在'返回空'时上云,选错工具不触发。<b>解析容错</b>:LLM 返回的 JSON 先剥 markdown 代码块、再整体 loads、再正则提取首个 {} 块,三级尝试。原则:<b>任何 LLM 失败都有非 LLM 的退路,用户永远拿到响应</b>。"},
-  {cat:"容错",q:"降级链会不会掩盖配置错误?",a:"会,而且真实踩过。联调前 .env 里 VECTOR_STORE_PROVIDER=memory,但检索一直'能出结果' —— 因为向量失败后 BM25 关键词降级兜底了,从外部看一切正常,实际上<b>向量检索从未生效</b>。教训:① 降级链每一级命中都要显式可观测 —— 我们把当前生效后端暴露在 /ready 和每次响应里;② 联调要专门设计'验证主路径真的在走'的用例,比如断点恢复测试里核对了 Milvus 余弦分(0.57/0.50)证明向量检索真实发生。"},
-  {cat:"容错",q:"进程重启状态丢不丢?",a:"不丢。checkpointer 三级降级:<b>AsyncRedisSaver(主,需 redis-stack-server 的 RediSearch)→ PostgresSaver → MemorySaver</b>(进程内,仅兜底)。thread_id = session_id,同一会话天然跨进程恢复。实测:杀 API 进程重启,旧 session 续聊状态完整(联调测试 12,115s 长链路)。降级只在初始化时判定一次,运行期不切,当前后端在响应里可观测。边界:checkpoint 无 TTL,快照随会话数增长,清理策略是遗留项。"},
-  {cat:"工程",q:"并发下会不会串用户身份 / 状态?",a:"三个机制保证不串:① Send 并行分支只带<b>只读子状态</b>,结果经 reducer 合并,无共享可变状态;② Agent 单例缓存 key 是 <code>(task_type, dept, role, user_id)</code> —— 含 user_id,张三的 KnowledgeAgent 不会被李四复用(既防身份串,也避免重复初始化 Retriever);③ 每轮 agent_results 显式重置(可重置 reducer),断点恢复不混入上轮结果。"},
-  {cat:"工程",q:"agent_results 的 reducer 有什么讲究?",a:"LangGraph 并行分支写同一个 state 字段靠 reducer 合并。标准 operator.add 有个坑:断点恢复后,上一轮的 agent_results 残留在 checkpoint 里,新一轮 executor 写入会<b>追加到残留上</b>,汇总时混入上一轮结果。我们写了可重置 reducer <code>_resettable_add</code>:右值为空列表(每轮初始状态)→ 重置;右值非空(executor 并行写入)→ 累加。<b>一个 reducer 同时满足'每轮重置'和'并行累加'两种语义</b>。"},
-  {cat:"工程",q:"executor 为什么必须是 async 节点?",a:"Agent 内部要访问 SQLAlchemy async 引擎(审计/审批建单),asyncpg 的连接绑定创建它的事件循环。同步节点跑在线程池里,如果在线程中 asyncio.run() 调 DB,会报 <code>Future attached to a different loop</code> —— P1 联调真实踩中,整个执行链路崩掉。改成 async 节点后,Agent.run() 直接 await,与主循环上的 DB 引擎同 loop。<b>这类问题单元测试测不出</b>(单请求单 loop 不触发),只有真实并发/真实 DB 联调才暴露。"},
-  {cat:"工具",q:"工具现在是 Mock?那这套东西有用吗?",a:"<b>Mock-first 是有意识的策略</b>:8 个工具的 pydantic schema、ToolResult、compensation_data 完全对齐真实 API 契约,切真实系统只需子类覆盖 _execute。价值在于:RBAC/Saga/审批/注入防护这些<b>安全链路</b>在真实系统缺位时就完成了端到端联调 —— 如果等有真实 CRM 才开发,安全逻辑和业务联调会挤在一起,出问题分不清是哪层。联调期间 Mock 邮件'真实发出'并返回 message_id,审批全链路可追。"},
-  {cat:"评测",q:"怎么证明你的 Agent '好'?",a:"三层证据。<b>离线</b>:W4 评测集四指标(检索命中率/答案覆盖率/置信度分布/延迟),每次改检索或 prompt 跑一遍。<b>联调</b>:17 项 E2E 全过,含负例(RBAC 拒绝、越权审批 403、无 token 401)—— 只测正例的联调不算联调。<b>在线</b>:每次请求落审计(latency/confidence),用户 like/dislike 反馈入库形成质量回流。诚实边界:离线评测集还偏小,覆盖率靠人工标注,没有自动化的回归门禁(CI 里跑 eval 是下一步)。"},
-  {cat:"展望",q:"接真实业务系统要改什么?",a:"按设计只需要:工具子类覆盖 _execute 接真实 API(<b>契约已对齐</b>)、审批的 requester_token 换真实凭证体系、CRM Mock 数据换真实数据源。<b>RBAC/Saga/审批/审计链路零改动</b> —— 这是 Mock-first 策略的回报。真正的工作量在非功能面:真实系统的 SLA 对齐(超时/重试/熔断)、数据一致性(真实系统支不支持补偿语义)、灰度方案。"},
-  {cat:"展望",q:"这个系统离'生产真上线'还差什么?",a:"三件事,按序:<b>压测</b>拿并发基线(功能已验证,承载未知)→ <b>UAT + 安全实测</b>(Prompt 注入攻击面、模糊测试)→ <b>prompt A/B 效果数据积累</b>。多轮上下文注入已落地(历史注入轻量版,含指代消解);再往后是超长会话的对话压缩(摘要机制,方案已设计好)。技术债里 pymilvus 3.1 迁移是硬 deadline(升级前必须做),其余是体验项。"},
-  {cat:"架构",q:"子任务之间有依赖怎么办?",a:"诚实答:<code>SubTask.depends_on</code> 字段在模型里定义了,但调度器目前不消费,所有子任务一律并行。这是有意识的取舍 —— 目前观测到的'依赖'几乎都是同一业务域内的(如'查客户 C001 然后给他发邮件'),这类依赖被 ExecutionAgent 内部的<b>工具编排(Saga 顺序执行)吸收</b>了,不需要图级 DAG。真出现跨 Agent 强依赖,会把 dispatcher 改成按依赖拓扑分批 fan-out,图结构不用动。"},
-  {cat:"架构",q:"如果重新设计,会改哪里?",a:"三处:① planner 改 <b>async 节点</b>(现在 sync 节点里 llm.invoke 走线程池,取消语义不够即时);② 图级支持 <code>depends_on</code> 拓扑调度;③ aggregator 输出改 SSE 流式。但主图骨架(planner→fan-out→aggregator)不会变 —— 它经受住了 17 项联调和真实降级场景的验证。"},
-  {cat:"RAG",q:"Embedding / Reranker 为什么选 bge 系列?",a:"bge-m3:中文效果第一梯队、1024 维、支持稠密+稀疏混合、可本地 CUDA 部署无 API 依赖 —— <b>企业数据不出内网</b>的硬性要求。bge-reranker-large 同理,本地免费,精排质量显著好于纯向量余弦。代价是首次加载慢(实测知识问答首请求 48s 含冷加载),用 Agent 单例缓存摊销。"},
-  {cat:"上下文",q:"多轮对话的上下文怎么管理?",a:"分两层。<b>状态层</b>:thread_id = session_id,LangGraph checkpointer 把每轮完整 AgentState 快照存 Redis,杀进程重启后同 session 续聊状态完整恢复。<b>prompt 层</b>:历史注入已落地(轻量版)—— 从 checkpoint 快照链提取最近 5 轮 (message, final_answer) 对写进 AgentState 的 history 字段;knowledge 检索前做轻量指代消解,query 含'它/这/那'时拼接上一轮用户消息做 embedding。实测'销售提成政策是什么'→'那它的折扣呢'第二轮意图正确。边界:<b>无压缩机制</b>,历史固定 5 轮封顶。"},
-  {cat:"上下文",q:"记忆系统怎么分层?",a:"<b>工作记忆</b> = AgentState,图执行期内各节点交换上下文的唯一通道;<b>短期记忆</b> = checkpointer 快照,会话粒度,Redis 持久;<b>会话元数据</b> = PG sessions 表(status/耗时/错误,供运营统计和外键);<b>长期记忆</b> = user_memories 表(memory JSONB + memory_type)—— 表已建但代码未接,是 v3 方案的预留。说'预留'比硬吹'有长期记忆'诚实,面试官一眼能看穿。"},
-  {cat:"上下文",q:"上下文爆炸 / token 预算怎么控制?",a:"现状:输入侧天然小(message ≤2000 字符、检索片段 top-5、计算结果 JSON),没出现窗口压力,所以没做压缩 —— 这是'压力未出现不过度设计'的取舍。成本控制靠另一道闸:<b>五模型分层</b>。高频简单任务(闲聊判断、答案自评)全走本地 qwen3.5:4b 免费;云端只留给真正需要推理的(任务分解、答案生成、汇总);超短消息连本地模型都不调。实测云端成本降 40%+。"},
-  {cat:"安全",q:"怎么防 prompt 注入?",a:"工具入参递归扫描(嵌套 dict/list 都扫),<b>10 种模式分四类</b>:系统提示覆盖(ignore previous/system:)、身份劫持(you are now)、越权指令(as an admin)、代码注入(eval()/__import__),命中即拒绝+记审计。邮件场景另有 HTML 注入防护(script/iframe/object/embed 四标签)。诚实边界:这是<b>规则级防护</b>,能挡已知模式,挡不住编码混淆/间接注入(如检索到的文档里藏指令)—— 间接注入的缓解靠'答案必须基于片段+来源标注'和工具层终审。"},
-  {cat:"容错",q:"如何取消一个正在跑的长任务?",a:"知识问答 40-110s,必须可取消。设计:session_id → asyncio.Task 注册表,POST /chat/cancel 触发 <code>task.cancel()</code>;难点是取消的即时性 —— 原来 Agent 内 llm.invoke 是同步调用,阻塞事件循环,取消信号要等 HTTP 返回才能生效,所以先把 LLM 调用全面 <b>ainvoke 化</b>。planner/aggregator 是 sync 节点走线程池,线程杀不掉,取消在节点边界生效,可接受。语义上<b>取消 ≠ 回滚</b>,已执行的副作用不撤销。"},
-  {cat:"容错",q:"全系统有哪些'必不死'设计?",a:"任何单点故障都有响应:LLM 全挂→规则/拼接/表格;Milvus 挂→BM25→PG;Redis 挂→PG/Memory checkpointer + 内存限流;PG 挂→审计写本地文件(连续失败 5 次告警);单 Agent 异常→包装成 error AgentResult 不炸图,aggregator 优先保留 Agent 的友好回答(这个也是踩坑改的:原来一律'处理失败:未知错误',把 RBAC 拒绝的友好提示全掩盖了)。"},
-  {cat:"评测",q:"prompt 改了怎么保证不变差?A/B 怎么做?",a:"P2 做了 prompt 版本管理:全部 11 个 prompt 从代码常量迁到 <code>prompt_versions</code> 表(draft/active/archived 状态机 + traffic_weight),启动时代码默认值作为 v1 同步入库,DB 挂了降级代码默认。A/B:同名两个 active 版本按 <code>md5(user_id+name)%100</code> 确定性分流 —— <b>同一用户永远命中同一版本</b>,避免体验跳跃;命中的版本号写进审计 payload,效果对比靠按版本号聚合 confidence/feedback。回滚 = 激活旧版本号。"},
-  {cat:"评测",q:"线上出问题怎么定位?",a:"OpenTelemetry 全链路(手动 span:tool.{name}/saga.execute,自动埋点 FastAPI/Redis/requests)接 Jaeger;Prometheus 指标(延迟/错误率/sessions 数);审计 6 类事件落 PG。一次请求可以从 audit 的 request_id 串到 tracing 的 span 树,<b>定位到具体是哪个 Agent 的哪次 LLM/工具调用慢了或挂了</b>。"},
-  {cat:"工程",q:"SQLAlchemy 2.x 有什么坑?",a:"原生 SQL 必须 <code>text()</code> 包装 —— <code>conn.execute('SELECT 1')</code> 直接报错,联调时这个 bug 让服务起不来,是<b>阻塞性</b>的。PG JSONB 列不能用 <code>= ANY(jsonb_col)</code>,数组成员判断要用 <code>jsonb_col ? 'value'</code> 或 <code>@></code> —— 待审批列表因为这个 500 过。"},
-  {cat:"工程",q:"Redis 有什么坑?",a:"checkpointer 需要 <b>RediSearch 模块</b>(FT.* 命令),redis:7-alpine 不含,换 redis-stack-server;第二个坑更隐蔽:compose 里覆盖 <code>command:</code> 会跳过镜像默认的模块加载,必须显式 <code>--loadmodule redisearch.so rejson.so</code>。排查方法是直接 <code>redis-cli FT._LIST</code> 验证,而不是猜。"},
-  {cat:"工程",q:"长请求(40-110s)对 API 架构的影响?",a:"同步等待会占住连接和 worker —— 所以 P2 先做<b>取消机制</b>(create_task + 注册表 + cancel 端点),SSE 流式放更远期;生产部署 uvicorn --workers 4 + Nginx 反代;限流按用户滑动窗口防单用户打爆。长请求的根源是 LLM 串行链路(检索→生成→自评),<b>优化方向是流式生成 + 自评与生成并行化,而不是加机器</b>。"},
-  {cat:"前端",q:"前端为什么做单文件 SPA,不用 React 工程?",a:"阶段匹配的取舍。当前是功能验证期,前端的主要用途是演示和手工测试:单文件 HTML(Vue3+marked 走 CDN)由 FastAPI StaticFiles 托管在 /ui,<b>零 Node 依赖、零构建、与 API 同源无 CORS 问题</b>,一个文件覆盖登录/对话/审批/Prompt 管理全功能。等进入性能优化期再迁 Vite + Vue3 工程化,届时接口契约不变,只换前端壳。"},
-  {cat:"展望",q:"QPS 翻 100 倍,哪里先崩?",a:"按顺序崩:① <b>云端 LLM 的 rate limit 和成本</b>(最先,且是外部约束)—— 对策:本地模型承接更多、请求级缓存、prompt 压缩;② uvicorn worker 数(长请求占满 worker)—— 对策:SSE + 水平扩 worker;③ Milvus 单机内存 —— 对策:集群或缩 embedding 维度;④ Redis checkpoint 存储 —— 对策:加 TTL + 集群。PG 和工具层(Mock)反而靠后。要点是<b>先崩的是外部依赖,不是自己的服务</b>。"},
-  {cat:"展望",q:"显式状态机 vs ReAct,未来会融合吗?",a:"会,但边界要划清:<b>主图保持显式状态机</b>(权限和审计要求),在 executor 内部对开放式子任务引入受限 ReAct 循环(限步数、限工具白名单、全程 tracing)。原则是'确定性骨架 + 局部自治' —— 自治的范围越大,护栏就要越密(步数上限、token 预算、循环检测),这些护栏我们现在只有多跳 ≤2 轮这一个,是明确的能力边界。"},
-  {cat:"工程",q:"闲聊话术机械 / Markdown 加粗不渲染怎么解决?",a:"两个细节修复,都是'细节决定体验'的典型。<b>闲聊人格化</b>:aggregator._chitchat_reply 从 4 分支固定模板重写为智多星 人格六分支 —— 问候含用户称呼(「你好,张三」)、情绪共情、自我介绍、感谢、再见、默认,告别「我是企业知识助手…」机械话术。<b>加粗渲染</b>:折扣政策回答中 <code>**5%-10%**</code> 显示字面星号 —— CommonMark 侧翼规则:闭合 <code>**</code> 前是标点(%)且后紧跟中文时不构成加粗,marked 按规范不渲染(已 node 实测复现)。修复:前端 renderMd 预处理,<code>**x**</code> 统一转 <code>&lt;strong&gt;</code> 再交 marked,绕开侧翼规则。架构再强,话术机械/格式错乱,用户感知就是'不智能'。"},
-  {cat:"架构",q:"查询订单被路由到知识问答怎么办?",a:"意图分类 prompt 的 <code>data_operation</code> 定义只写了'创建/更新/删除',没覆盖'查询业务记录',4B 小模型把'查询'动词归到 knowledge_qa —— 回答'知识库未覆盖'。<b>三层修复</b>:① <code>planner_intent_classify</code> 模板补齐 data_operation(查询或变更具体业务记录)/ knowledge_qa(仅政策制度)定义与判定规则,<code>RULE_KEYWORDS</code> 同步加'查询订单/ord-/工单/查客户';② planner 意图分类加<b>运行时回退</b>:本地失败或输出无法解析 → 云端 flash 重试一次 → 仍失败走规则关键词;③ <code>knowledge_rag_answer</code> 模板加引导:问具体业务记录时提示改用查询指令(兜底路由仍漏的场景)。实测订单查询 intent=data_operation 返回真实订单明细。"}
+  {cat:"架构",q:"为什么选 LangGraph 而不是 AgentExecutor / AutoGen?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>AgentExecutor 是 ReAct 黑盒循环,模型自己决定下一步,<b>权限决策发生在哪一步不可审计</b>。AutoGen 路由由对话涌现,无法保证'高风险操作必过审批'这种硬约束。LangGraph 的 StateGraph 把路由变成显式代码:planner 输出 intent,条件边决定去哪,每一步<b>可审计、可断点恢复、可并行</b>。放弃的是 ReAct 应对完全未知任务的开放性 —— 我们的任务域是封闭的(知识/分析/执行三类),用不上。"},
+  {cat:"架构",q:"为什么拆三个 Agent,而不是单 Agent + 多工具?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>三类任务的差异在三个维度都很大:<b>上下文构造</b>(RAG 片段 vs 计算结果 JSON vs 工具列表)、<b>权限模型</b>(文档命名空间 vs 工具 RBAC vs 审批流)、<b>失败语义</b>(低置信拒答 vs 降级表格 vs Saga 补偿)。揉在一个 Agent 里 prompt 会互相污染、无法独立调优。拆开后每个 Agent 有统一 <code>AgentResult</code> 契约,可独立评测、独立换模型。代价是多结果时多一次汇总 LLM 调用 —— 用'单结果直通不调 LLM'把成本压回了最常见的场景。"},
+  {cat:"架构",q:"Send fan-out 踩过什么坑?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>Send 是 LangGraph 的 map-reduce 原语:条件边函数返回 <code>list[Send]</code>,每个 Send 携带独立子状态并行调度,结果通过 reducer 合并。踩过的坑:Send 必须<b>在条件边函数返回</b>,不能在节点里返回 —— 节点返回 list[Send] 直接报 Expected dict。我们把 dispatcher 节点删掉、逻辑挪进 <code>add_conditional_edges</code> 的路由函数才解决。另一个设计点:并行分支不共享可变状态,每个 Send 的子状态只含只读字段,从结构上消除并行写冲突。"},
+  {cat:"RAG",q:"两阶段检索为什么有效?参数怎么定的?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>向量召回快但精度有限(语义相近但答非所问的片段也会高分),所以先用 HNSW 粗排扩大候选池(<code>top_k×4</code>),再用 bge-reranker-large 对候选做交叉编码精排,取 top-5。reranker 逐对打分慢,不能直接对全库用,两阶段是<b>召回率和精确率的成本折中</b>。×4 和 top-5 是经验起点,靠 W4 评测集(命中率/覆盖率指标)校准,不是拍的。"},
+  {cat:"RAG",q:"检索不到 / 向量库挂了怎么办?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>三级降级链:<b>Milvus HNSW → BM25 关键词(Milvus query 全表扫描 + Python 打分)→ PG LIKE</b>。关键点:降级链每一级的<b>权限过滤口径必须和主路径一致</b> —— 联调后发现 BM25 降级路径只过滤了 is_active 和 access_roles,漏了 dept_namespace,跨部门文档会在降级时泄露。这类'降级绕过防护'的问题靠代码评审很难发现,我们补了专门的回归脚本(4 项断言,含降级路径隔离)。"},
+  {cat:"RAG",q:"企业文档权限隔离怎么做的?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>双条件过滤:物理上 Milvus 按部门分 partition,检索表达式 <code>dept_namespace in ['用户部门','shared_company']</code> + <code>ARRAY_CONTAINS(access_roles, '角色')</code>。两个条件正交:namespace 解决'哪个部门的文档',access_roles 解决'哪个角色能看'。教训:不能严格等于用户部门 —— 公司级共享文档(员工手册)所有人都要能看,所以是<b>本部门 + shared 双匹配</b>。入库侧也有坑:partition 名传错会静默落进 shared_company,部门文档变全员可见。"},
+  {cat:"RAG",q:"置信度怎么算?为什么不用 LLM 一句话判断?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>场景化置信度:<b>检索分×0.6 + 本地小模型自评分×0.4</b>,按问题场景(POLICY/FACTUAL/COMPARATIVE 等)用不同阈值决策 answer / answer_with_hint / reject。自评用本地 qwen3.5:4b 而不是云端 —— 自评是高频调用,本地免费;且只需 0-10 打分这种弱能力,小模型够。<b>拒绝回答比编造回答好</b>,这是企业知识库的底线。"},
+  {cat:"安全",q:"怎么防越权?为什么一层不够?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>三防线。<b>prompt 层</b>:工具选择时只注入本角色有权限的工具,模型看不到无权工具 —— 防'无意',但防不住关键词降级绕过。<b>执行层</b>:LLM 输出再经 ROLE_TOOLS 显式过滤。<b>工具层</b>:invoke() 内 can_use_tool 终审,越权尝试记 security_violation 审计。最后一层最关键的场景是审批:经理批准了销售员的外部邮件申请,执行时仍按<b>发起人</b>角色做 RBAC —— 批准不越权,审批人不能通过批准让下属获得本没有的权限。"},
+  {cat:"安全",q:"高风险操作怎么处理?token 过期怎么办?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b><code>requires_approval</code> 标记的工具(如外部邮件)不直接执行,自动建审批单:prefill_payload 存工具调用参数、requester_token 存发起人 JWT。审批人 decide 后三条路径:拒绝→终止;批准+token 有效→服务端直接执行;批准+token 过期→置 approved_pending_reauth,发起人重新登录后走 resume 端点恢复执行。<b>token 过期是企业审批的真实痛点</b> —— 审批可能隔天才批,发起人凭证早过期了,不能不处理也不能用审批人的 token 越权执行。"},
+  {cat:"安全",q:"多个工具调用一半失败怎么办?补偿也失败呢?",a:"当前：批准不执行，须原发起人再次确认；混合查询与审批动作须拆开。失败或结果不明进入人工暂停，不自动补偿；新回执仅供人工核对，不自动解锁。"},
+  {cat:"容错",q:"LLM 挂了 / 超时 / 返回垃圾怎么办?",a:"synthetic-demo-v1 无 LLM；完整 bailian-deepseek-v1 候选有有界超时、重试与响应校验，失败关闭。旧本地 qwen 回退属于历史开发路径，不保证总能生成响应。真实 API 失败场景仍待验收。"},
+  {cat:"容错",q:"降级链会不会掩盖配置错误?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>会,而且真实踩过。联调前 .env 里 VECTOR_STORE_PROVIDER=memory,但检索一直'能出结果' —— 因为向量失败后 BM25 关键词降级兜底了,从外部看一切正常,实际上<b>向量检索从未生效</b>。教训:① 降级链每一级命中都要显式可观测 —— 我们把当前生效后端暴露在 /ready 和每次响应里;② 联调要专门设计'验证主路径真的在走'的用例,比如断点恢复测试里核对了 Milvus 余弦分(0.57/0.50)证明向量检索真实发生。"},
+  {cat:"容错",q:"进程重启状态丢不丢?",a:"历史原型在特定后端完成过一次恢复实验，不是任意重启均不丢失的保证。MemorySaver 只存进程内存，不能跨进程持久化；当前 Checkpoint 不再自动回退，真实双进程持久化与租约 fencing 仍待验收。合成演示刷新回登录，重登后无恢复旧会话的可见入口。"},
+  {cat:"工程",q:"并发下会不会串用户身份 / 状态?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>三个机制保证不串:① Send 并行分支只带<b>只读子状态</b>,结果经 reducer 合并,无共享可变状态;② Agent 单例缓存 key 是 <code>(task_type, dept, role, user_id)</code> —— 含 user_id,张三的 KnowledgeAgent 不会被李四复用(既防身份串,也避免重复初始化 Retriever);③ 每轮 agent_results 显式重置(可重置 reducer),断点恢复不混入上轮结果。"},
+  {cat:"工程",q:"agent_results 的 reducer 有什么讲究?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>LangGraph 并行分支写同一个 state 字段靠 reducer 合并。标准 operator.add 有个坑:断点恢复后,上一轮的 agent_results 残留在 checkpoint 里,新一轮 executor 写入会<b>追加到残留上</b>,汇总时混入上一轮结果。我们写了可重置 reducer <code>_resettable_add</code>:右值为空列表(每轮初始状态)→ 重置;右值非空(executor 并行写入)→ 累加。<b>一个 reducer 同时满足'每轮重置'和'并行累加'两种语义</b>。"},
+  {cat:"工程",q:"executor 为什么必须是 async 节点?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>Agent 内部要访问 SQLAlchemy async 引擎(审计/审批建单),asyncpg 的连接绑定创建它的事件循环。同步节点跑在线程池里,如果在线程中 asyncio.run() 调 DB,会报 <code>Future attached to a different loop</code> —— P1 联调真实踩中,整个执行链路崩掉。改成 async 节点后,Agent.run() 直接 await,与主循环上的 DB 引擎同 loop。<b>这类问题单元测试测不出</b>(单请求单 loop 不触发),只有真实并发/真实 DB 联调才暴露。"},
+  {cat:"工具",q:"工具现在是 Mock?那这套东西有用吗?",a:"历史原型采用 Mock-first 验证接口与流程；Mock 邮件仅返回模拟 message_id，未真实发信。模拟结果不证明真实 CRM、邮件或工单集成已验收。当前合成演示拒绝业务工具操作，完整候选的真实外部执行仍待验证。"},
+  {cat:"评测",q:"怎么证明你的 Agent '好'?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>三层证据。<b>离线</b>:W4 评测集四指标(检索命中率/答案覆盖率/置信度分布/延迟),每次改检索或 prompt 跑一遍。<b>联调</b>:17 项 E2E 全过,含负例(RBAC 拒绝、越权审批 403、无 token 401)—— 只测正例的联调不算联调。<b>在线</b>:每次请求落审计(latency/confidence),用户 like/dislike 反馈入库形成质量回流。诚实边界:离线评测集还偏小,覆盖率靠人工标注,没有自动化的回归门禁(CI 里跑 eval 是下一步)。"},
+  {cat:"展望",q:"接真实业务系统要改什么?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>按设计只需要:工具子类覆盖 _execute 接真实 API(<b>契约已对齐</b>)、审批的 requester_token 换真实凭证体系、CRM Mock 数据换真实数据源。<b>RBAC/Saga/审批/审计链路零改动</b> —— 这是 Mock-first 策略的回报。真正的工作量在非功能面:真实系统的 SLA 对齐(超时/重试/熔断)、数据一致性(真实系统支不支持补偿语义)、灰度方案。"},
+  {cat:"展望",q:"这个系统离'生产真上线'还差什么?",a:"当前目标是开源第一阶段，不是企业生产交付。隔离合成演示已有范围限定验证；完整模型/RAG、UAT、安全、容量及来源权利仍有待验证或阻塞项。详见 README 与交付状态，不能归纳为仅差三件事。"},
+  {cat:"架构",q:"子任务之间有依赖怎么办?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>诚实答:<code>SubTask.depends_on</code> 字段在模型里定义了,但调度器目前不消费,所有子任务一律并行。这是有意识的取舍 —— 目前观测到的'依赖'几乎都是同一业务域内的(如'查客户 C001 然后给他发邮件'),这类依赖被 ExecutionAgent 内部的<b>工具编排(Saga 顺序执行)吸收</b>了,不需要图级 DAG。真出现跨 Agent 强依赖,会把 dispatcher 改成按依赖拓扑分批 fan-out,图结构不用动。"},
+  {cat:"架构",q:"如果重新设计,会改哪里?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>三处:① planner 改 <b>async 节点</b>(现在 sync 节点里 llm.invoke 走线程池,取消语义不够即时);② 图级支持 <code>depends_on</code> 拓扑调度;③ aggregator 输出改 SSE 流式。但主图骨架(planner→fan-out→aggregator)不会变 —— 它经受住了 17 项联调和真实降级场景的验证。"},
+  {cat:"RAG",q:"Embedding / Reranker 为什么选 bge 系列?",a:"历史原型使用 BGE；当前完整应用候选改为百炼北京 text-embedding-v4（1024维）与 qwen3-rerank，独立集合。synthetic-demo-v1 不运行检索或模型。真实 API 与 RAG 验收待完成。"},
+  {cat:"上下文",q:"多轮对话的上下文怎么管理?",a:"历史原型做过限定会话的多轮与持久化实验，并非所有后端都能跨进程恢复。MemorySaver 不持久化；当前完整链路恢复需另行验收。synthetic-demo-v1 仅支持固定问候与本人当前历史，不运行模型上下文链路。"},
+  {cat:"上下文",q:"记忆系统怎么分层?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b><b>工作记忆</b> = AgentState,图执行期内各节点交换上下文的唯一通道;<b>短期记忆</b> = checkpointer 快照,会话粒度,Redis 持久;<b>会话元数据</b> = PG sessions 表(status/耗时/错误,供运营统计和外键);<b>长期记忆</b> = user_memories 表(memory JSONB + memory_type)—— 表已建但代码未接,是 v3 方案的预留。说'预留'比硬吹'有长期记忆'诚实,面试官一眼能看穿。"},
+  {cat:"上下文",q:"上下文爆炸 / token 预算怎么控制?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>现状:输入侧天然小(message ≤2000 字符、检索片段 top-5、计算结果 JSON),没出现窗口压力,所以没做压缩 —— 这是'压力未出现不过度设计'的取舍。成本控制靠另一道闸:<b>五模型分层</b>。高频简单任务(闲聊判断、答案自评)全走本地 qwen3.5:4b 免费;云端只留给真正需要推理的(任务分解、答案生成、汇总);超短消息连本地模型都不调。当前候选的成本与延迟尚待实测。"},
+  {cat:"安全",q:"怎么防 prompt 注入?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>工具入参递归扫描(嵌套 dict/list 都扫),<b>10 种模式分四类</b>:系统提示覆盖(ignore previous/system:)、身份劫持(you are now)、越权指令(as an admin)、代码注入(eval()/__import__),命中即拒绝+记审计。邮件场景另有 HTML 注入防护(script/iframe/object/embed 四标签)。诚实边界:这是<b>规则级防护</b>,能挡已知模式,挡不住编码混淆/间接注入(如检索到的文档里藏指令)—— 间接注入的缓解靠'答案必须基于片段+来源标注'和工具层终审。"},
+  {cat:"容错",q:"如何取消一个正在跑的长任务?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>知识问答 40-110s,必须可取消。设计:session_id → asyncio.Task 注册表,POST /chat/cancel 触发 <code>task.cancel()</code>;难点是取消的即时性 —— 原来 Agent 内 llm.invoke 是同步调用,阻塞事件循环,取消信号要等 HTTP 返回才能生效,所以先把 LLM 调用全面 <b>ainvoke 化</b>。planner/aggregator 是 sync 节点走线程池,线程杀不掉,取消在节点边界生效,可接受。语义上<b>取消 ≠ 回滚</b>,已执行的副作用不撤销。"},
+  {cat:"容错",q:"历史原型有哪些降级策略？",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>以下为历史降级策略示例，不保证任意故障均可用：LLM 全挂→规则/拼接/表格;Milvus 挂→BM25→PG;Redis 挂→PG/Memory checkpointer + 内存限流;PG 挂→审计写本地文件(连续失败 5 次告警);单 Agent 异常→包装成 error AgentResult 不炸图,aggregator 优先保留 Agent 的友好回答(这个也是踩坑改的:原来一律'处理失败:未知错误',把 RBAC 拒绝的友好提示全掩盖了)。"},
+  {cat:"评测",q:"prompt 改了怎么保证不变差?A/B 怎么做?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>P2 做了 prompt 版本管理:全部 11 个 prompt 从代码常量迁到 <code>prompt_versions</code> 表(draft/active/archived 状态机 + traffic_weight),启动时代码默认值作为 v1 同步入库,DB 挂了降级代码默认。A/B:同名两个 active 版本按 <code>md5(user_id+name)%100</code> 确定性分流 —— <b>同一用户永远命中同一版本</b>,避免体验跳跃;命中的版本号写进审计 payload,效果对比靠按版本号聚合 confidence/feedback。回滚 = 激活旧版本号。"},
+  {cat:"评测",q:"线上出问题怎么定位?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>OpenTelemetry 全链路(手动 span:tool.{name}/saga.execute,自动埋点 FastAPI/Redis/requests)接 Jaeger;Prometheus 指标(延迟/错误率/sessions 数);审计 6 类事件落 PG。一次请求可以从 audit 的 request_id 串到 tracing 的 span 树,<b>定位到具体是哪个 Agent 的哪次 LLM/工具调用慢了或挂了</b>。"},
+  {cat:"工程",q:"SQLAlchemy 2.x 有什么坑?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>原生 SQL 必须 <code>text()</code> 包装 —— <code>conn.execute('SELECT 1')</code> 直接报错,联调时这个 bug 让服务起不来,是<b>阻塞性</b>的。PG JSONB 列不能用 <code>= ANY(jsonb_col)</code>,数组成员判断要用 <code>jsonb_col ? 'value'</code> 或 <code>@></code> —— 待审批列表因为这个 500 过。"},
+  {cat:"工程",q:"Redis 有什么坑?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>checkpointer 需要 <b>RediSearch 模块</b>(FT.* 命令),redis:7-alpine 不含,换 redis-stack-server;第二个坑更隐蔽:compose 里覆盖 <code>command:</code> 会跳过镜像默认的模块加载,必须显式 <code>--loadmodule redisearch.so rejson.so</code>。排查方法是直接 <code>redis-cli FT._LIST</code> 验证,而不是猜。"},
+  {cat:"工程",q:"长请求(40-110s)对 API 架构的影响?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>同步等待会占住连接和 worker —— 所以 P2 先做<b>取消机制</b>(create_task + 注册表 + cancel 端点),SSE 流式放更远期;生产部署 uvicorn --workers 4 + Nginx 反代;限流按用户滑动窗口防单用户打爆。长请求的根源是 LLM 串行链路(检索→生成→自评),<b>优化方向是流式生成 + 自评与生成并行化,而不是加机器</b>。"},
+  {cat:"前端",q:"前端为什么做单文件 SPA,不用 React 工程?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>阶段匹配的取舍。当前是功能验证期,前端的主要用途是演示和手工测试:单文件 HTML(Vue3+marked 走 CDN)由 FastAPI StaticFiles 托管在 /ui,<b>零 Node 依赖、零构建、与 API 同源无 CORS 问题</b>,一个文件覆盖登录/对话/审批/Prompt 管理全功能。等进入性能优化期再迁 Vite + Vue3 工程化,届时接口契约不变,只换前端壳。"},
+  {cat:"展望",q:"QPS 翻 100 倍,哪里先崩?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>按顺序崩:① <b>云端 LLM 的 rate limit 和成本</b>(最先,且是外部约束)—— 对策:本地模型承接更多、请求级缓存、prompt 压缩;② uvicorn worker 数(长请求占满 worker)—— 对策:SSE + 水平扩 worker;③ Milvus 单机内存 —— 对策:集群或缩 embedding 维度;④ Redis checkpoint 存储 —— 对策:加 TTL + 集群。PG 和工具层(Mock)反而靠后。要点是<b>先崩的是外部依赖,不是自己的服务</b>。"},
+  {cat:"展望",q:"显式状态机 vs ReAct,未来会融合吗?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>会,但边界要划清:<b>主图保持显式状态机</b>(权限和审计要求),在 executor 内部对开放式子任务引入受限 ReAct 循环(限步数、限工具白名单、全程 tracing)。原则是'确定性骨架 + 局部自治' —— 自治的范围越大,护栏就要越密(步数上限、token 预算、循环检测),这些护栏我们现在只有多跳 ≤2 轮这一个,是明确的能力边界。"},
+  {cat:"工程",q:"闲聊话术机械 / Markdown 加粗不渲染怎么解决?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>两个细节修复,都是'细节决定体验'的典型。<b>闲聊人格化</b>:aggregator._chitchat_reply 从 4 分支固定模板重写为智多星 人格六分支 —— 问候含用户称呼(「你好,张三」)、情绪共情、自我介绍、感谢、再见、默认,告别「我是企业知识助手…」机械话术。<b>加粗渲染</b>:折扣政策回答中 <code>**5%-10%**</code> 显示字面星号 —— CommonMark 侧翼规则:闭合 <code>**</code> 前是标点(%)且后紧跟中文时不构成加粗,marked 按规范不渲染(已 node 实测复现)。修复:前端 renderMd 预处理,<code>**x**</code> 统一转 <code>&lt;strong&gt;</code> 再交 marked,绕开侧翼规则。架构再强,话术机械/格式错乱,用户感知就是'不智能'。"},
+  {cat:"架构",q:"查询订单被路由到知识问答怎么办?",a:"<b>历史原型说明（2026年7月，非当前候选验收）：</b>意图分类 prompt 的 <code>data_operation</code> 定义只写了'创建/更新/删除',没覆盖'查询业务记录',4B 小模型把'查询'动词归到 knowledge_qa —— 回答'知识库未覆盖'。<b>三层修复</b>:① <code>planner_intent_classify</code> 模板补齐 data_operation(查询或变更具体业务记录)/ knowledge_qa(仅政策制度)定义与判定规则,<code>RULE_KEYWORDS</code> 同步加'查询订单/ord-/工单/查客户';② planner 意图分类加<b>运行时回退</b>:本地失败或输出无法解析 → 云端 flash 重试一次 → 仍失败走规则关键词;③ <code>knowledge_rag_answer</code> 模板加引导:问具体业务记录时提示改用查询指令(兜底路由仍漏的场景)。实测订单查询 intent=data_operation 返回真实订单明细。"}
 ];
 
 /* 把问题分配到 6 行(轮转交替),每行复制一份用于无缝滚动 */

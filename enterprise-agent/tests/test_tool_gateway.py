@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import pytest
 
 from app.tools.base import ToolResult
@@ -53,6 +55,8 @@ async def test_should_reject_invalid_params_before_execution(monkeypatch):
     """Given 缺少必填参数, When 调用工具,
     Then 参数校验失败返回,不执行 Mock 逻辑"""
     tool = QueryCustomerTool()
+    execute = AsyncMock()
+    monkeypatch.setattr(tool, "_execute", execute)
 
     result = await tool.invoke(
         {},
@@ -60,7 +64,8 @@ async def test_should_reject_invalid_params_before_execution(monkeypatch):
     )
 
     assert result.success is False
-    assert "参数校验失败" in (result.error or "")
+    assert result.error == "TOOL_PARAMETERS_INVALID"
+    execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio

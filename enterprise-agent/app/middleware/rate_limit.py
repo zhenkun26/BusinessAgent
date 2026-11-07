@@ -2,7 +2,7 @@
 
 设计:
 - 基于 Redis 的滑动窗口限流(生产)
-- 降级:Redis 不可用时用进程内内存计数器
+- Redis failure: non-dev returns 503; explicit dev uses labeled memory fallback
 - 按 user_id 限流(已认证)或 IP(未认证)
 - 超限返回 429 Too Many Requests
 
@@ -14,16 +14,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
-import math
 from collections import defaultdict
 from typing import Optional
+from uuid import uuid4
 
-from fastapi import Request, Response
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.config import get_settings
+from app.security.rbac import decode_identity_token
 
 
 # ============ 进程内内存限流(降级用) ============
@@ -87,7 +89,7 @@ class RedisRateLimiter:
     """Redis 滑动窗口限流器(生产推荐)
 
     用 Redis ZSET 实现精确滑动窗口:
-    - ZADD key timestamp timestamp
+    - ZADD key timestamp unique_member
     - ZREMRANGEBYSCORE key 0 (now - window)
     - ZCARD key(当前窗口内请求数)
     """
@@ -99,9 +101,13 @@ class RedisRateLimiter:
     async def _get_redis(self):
         if self._redis is None:
             import redis.asyncio as aioredis
+            from redis.backoff import NoBackoff
+            from redis.asyncio.retry import Retry
 
             self._redis = aioredis.from_url(
-                self._redis_url, decode_responses=True, socket_timeout=2
+                self._redis_url, decode_responses=True, socket_timeout=2,
+                socket_connect_timeout=2, retry_on_timeout=False,
+                retry=Retry(NoBackoff(), 0),
             )
         return self._redis
 
@@ -114,9 +120,9 @@ class RedisRateLimiter:
             redis_key = f"rate_limit:{key}"
 
             # 管道原子操作
-            pipe = redis.pipeline()
+            pipe = redis.pipeline(transaction=True)
             pipe.zremrangebyscore(redis_key, 0, window_start)  # 清理过期
-            pipe.zadd(redis_key, {str(now): now})  # 添加当前请求
+            pipe.zadd(redis_key, {uuid4().hex: now})  # 添加当前请求
             pipe.zcard(redis_key)  # 统计当前窗口请求数
             pipe.expire(redis_key, window_seconds + 10)  # 设置 key 过期(防内存泄漏)
             results = await pipe.execute()
@@ -125,46 +131,106 @@ class RedisRateLimiter:
             if count > limit:
                 return False, 0
             return True, limit - count
-        except Exception as e:
-            logger.warning(f"Redis 限流失败,降级到内存: {e}")
+        except Exception:
+            logger.warning("RATE_LIMIT_REDIS_COMMAND_FAILED")
             raise  # 由调用方降级
 
 
 # ============ 限流器工厂 ============
 
 
+REDIS_RETRY_SECONDS = 5
+REDIS_OPERATION_TIMEOUT_SECONDS = 2
+_retry_clock = time.monotonic
+
 _memory_limiter: Optional[InMemoryRateLimiter] = None
 _redis_limiter: Optional[RedisRateLimiter] = None
-_use_redis: Optional[bool] = None  # None=未检测, True=用 Redis, False=用内存
+_use_redis: Optional[bool] = None
+_redis_retry_at = 0.0
+_redis_probe_in_progress = False
+_redis_failure_generation = 0
 
 
-async def _get_limiter():
-    """获取限流器(Redis 优先,失败降级内存)"""
-    global _memory_limiter, _redis_limiter, _use_redis
+class RateLimitUnavailable(RuntimeError):
+    """A shared quota decision is unavailable; do not admit production work."""
 
-    # 已检测过,直接返回
+
+def _mark_redis_failure() -> None:
+    global _use_redis, _redis_retry_at, _redis_failure_generation
+    if _use_redis is not False:
+        logger.warning("RATE_LIMIT_REDIS_UNAVAILABLE")
+    _use_redis = False
+    _redis_retry_at = _retry_clock() + REDIS_RETRY_SECONDS
+    _redis_failure_generation += 1
+
+
+def _fallback_limiter() -> InMemoryRateLimiter:
+    global _memory_limiter
+    if get_settings().is_dev is not True:
+        raise RateLimitUnavailable() from None
+    if _memory_limiter is None:
+        _memory_limiter = InMemoryRateLimiter()
+    return _memory_limiter
+
+
+async def _probe_redis(limiter: RedisRateLimiter) -> None:
+    connection = await limiter._get_redis()
+    await connection.ping()
+
+
+async def _get_limiter() -> RedisRateLimiter | InMemoryRateLimiter:
+    """Probe once per process/cooldown; followers never queue for recovery."""
+    global _redis_limiter, _use_redis, _redis_probe_in_progress, _redis_retry_at
     if _use_redis is True and _redis_limiter is not None:
         return _redis_limiter
-    if _use_redis is False and _memory_limiter is not None:
-        return _memory_limiter
+    if _redis_probe_in_progress or (_use_redis is False and _retry_clock() < _redis_retry_at):
+        return _fallback_limiter()
 
-    # 首次初始化
     settings = get_settings()
-
-    # 尝试 Redis
+    # No await between checking and claiming: one owner in this API event loop.
+    _redis_probe_in_progress = True
+    generation = _redis_failure_generation
     try:
-        _redis_limiter = RedisRateLimiter(settings.redis_url)
-        # 探测连接
-        redis = await _redis_limiter._get_redis()
-        await redis.ping()
+        if _redis_limiter is None:
+            _redis_limiter = RedisRateLimiter(settings.redis_url)
+        await asyncio.wait_for(_probe_redis(_redis_limiter), REDIS_OPERATION_TIMEOUT_SECONDS)
+        if generation != _redis_failure_generation:
+            return _fallback_limiter()
         _use_redis = True
-        logger.info("限流器: Redis(生产模式)")
+        _redis_retry_at = 0.0
+        logger.info("RATE_LIMIT_REDIS_READY")
         return _redis_limiter
-    except Exception as e:
-        logger.warning(f"Redis 限流器初始化失败,降级内存: {e}")
-        _use_redis = False
-        _memory_limiter = InMemoryRateLimiter()
-        return _memory_limiter
+    except asyncio.CancelledError:
+        _mark_redis_failure()
+        raise
+    except RateLimitUnavailable:
+        raise
+    except Exception:
+        _mark_redis_failure()
+        return _fallback_limiter()
+    finally:
+        _redis_probe_in_progress = False
+
+
+async def _check_limit(key: str, limit: int) -> tuple[bool, int, str]:
+    limiter = await _get_limiter()
+    backend = "redis" if limiter is _redis_limiter else "memory"
+    try:
+        allowed, remaining = await asyncio.wait_for(
+            limiter.is_allowed(key, limit, window_seconds=60), REDIS_OPERATION_TIMEOUT_SECONDS,
+        )
+    except asyncio.CancelledError:
+        if backend == "redis":
+            _mark_redis_failure()
+        raise
+    except Exception:
+        if backend != "redis":
+            raise RateLimitUnavailable() from None
+        _mark_redis_failure()
+        # An uncertain remote command is not replayed. Dev fallback is explicitly local.
+        allowed, remaining = await _fallback_limiter().is_allowed(key, limit, window_seconds=60)
+        backend = "memory"
+    return allowed, remaining, backend
 
 
 # ============ FastAPI 中间件 ============
@@ -177,6 +243,8 @@ ROUTE_LIMITS: dict[str, int] = {
     "/api/v1/chat": 30,  # 对话防滥用
     "/api/v1/approvals": 60,
 }
+
+MAX_AUTHORIZATION_LENGTH = 8192
 
 
 async def rate_limit_middleware(request: Request, call_next):
@@ -199,8 +267,8 @@ async def rate_limit_middleware(request: Request, call_next):
             limit = route_limit
             break
 
-    # 登录始终按连接来源限流，不能靠切换 bearer 身份获取新配额。
-    # 其他路径仅使用验签后的身份；认证依赖仍负责权限和撤销检查。
+    # Login attempts remain source-bound even when a bearer is supplied.
+    # A verified quota identity does not replace downstream account authorization.
     user_id = None if path.startswith("/api/v1/auth/login") else _extract_user_id(request)
     if user_id:
         key = f"user:{user_id}"
@@ -208,17 +276,15 @@ async def rate_limit_middleware(request: Request, call_next):
         client_ip = request.client.host if request.client else "unknown"
         key = f"ip:{client_ip}"
 
-    # 检查限流
-    limiter = await _get_limiter()
     try:
-        allowed, remaining = await limiter.is_allowed(key, limit, window_seconds=60)
-    except Exception:
-        # Redis 异常,降级内存
-        global _use_redis, _memory_limiter
-        _use_redis = False
-        if _memory_limiter is None:
-            _memory_limiter = InMemoryRateLimiter()
-        allowed, remaining = await _memory_limiter.is_allowed(key, limit, window_seconds=60)
+        allowed, remaining, backend = await _check_limit(key, limit)
+    except RateLimitUnavailable:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "RATE_LIMIT_UNAVAILABLE"},
+            headers={"Retry-After": str(REDIS_RETRY_SECONDS),
+                     "X-RateLimit-Backend": "unavailable"},
+        )
 
     if not allowed:
         logger.warning(f"限流触发: key={key}, limit={limit}/min, path={path}")
@@ -229,37 +295,28 @@ async def rate_limit_middleware(request: Request, call_next):
                 "retry_after_seconds": 60,
                 "limit": limit,
             },
-            headers={"Retry-After": "60"},
+            headers={"Retry-After": "60", "X-RateLimit-Backend": backend},
         )
 
     # 添加限流信息到响应头
     response = await call_next(request)
+    response.headers["X-RateLimit-Backend"] = backend
     response.headers["X-RateLimit-Limit"] = str(limit)
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     return response
 
 
 def _extract_user_id(request: Request) -> Optional[str]:
-    """验证有界的应用令牌，只提供配额身份，不授予接口访问权限。"""
+    """Select a quota identity only after shared signature and claim validation."""
     auth = request.headers.get("Authorization", "")
-    if len(auth) > 8192 + len("Bearer ") or auth[:7].lower() != "bearer ":
+    if len(auth) > MAX_AUTHORIZATION_LENGTH:
         return None
-
-    token = auth[7:]
+    scheme, separator, token = auth.partition(" ")
+    if not separator or scheme.lower() != "bearer" or not token:
+        return None
     try:
-        import jwt
-
-        settings = get_settings()
-        payload = jwt.decode(
-            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm],
-            options={"require": ["sub", "exp"]},
-        )
-        subject = payload["sub"]
-        expiry = payload["exp"]
-        if (not isinstance(subject, str) or not subject.strip() or len(subject) > 64
-                or isinstance(expiry, bool) or not isinstance(expiry, (int, float))
-                or not math.isfinite(expiry)):
-            return None
-        return subject
-    except (jwt.PyJWTError, ValueError, TypeError, OverflowError):
+        return decode_identity_token(token)["sub"]
+    except HTTPException:
+        # Invalid credentials still consume the anonymous source quota. The
+        # protected route's dependency remains responsible for its 401 response.
         return None

@@ -16,16 +16,13 @@ W7 阶段用 Mock 实现,接口契约对应真实 CRM API:
 from __future__ import annotations
 
 import asyncio
-import re
 import uuid
 from typing import Any
 
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from app.config import get_settings
 from app.tools.base import BaseTool, ToolCategory, ToolResult
-from app.tools.http_adapter import call_external_api
 
 # ============ Schemas ============
 
@@ -64,80 +61,80 @@ class CreateCrmTaskSchema(BaseModel):
 _MOCK_CUSTOMERS = {
     "C001": {
         "customer_id": "C001",
-        "name": "北京华信科技有限公司",
-        "contact": "张经理",
-        "phone": "010-88881234",
-        "email": "zhang@huaxin-tech.com",
+        "name": "虚构示例企业 C001",
+        "contact": "虚构联系人 C001",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c001@example.invalid",
         "industry": "软件开发",
         "level": "VIP",
         "total_revenue": 2850000.00,
     },
     "C002": {
         "customer_id": "C002",
-        "name": "上海瑞达贸易集团",
-        "contact": "李总",
-        "phone": "021-66668888",
-        "email": "li@ruida-trade.com",
+        "name": "虚构示例企业 C002",
+        "contact": "虚构联系人 C002",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c002@example.invalid",
         "industry": "进出口贸易",
         "level": "A",
         "total_revenue": 1520000.00,
     },
     "C003": {
         "customer_id": "C003",
-        "name": "深圳新创电子有限公司",
-        "contact": "王工",
-        "phone": "0755-22223333",
-        "email": "wang@xinchuang-elec.com",
+        "name": "虚构示例企业 C003",
+        "contact": "虚构联系人 C003",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c003@example.invalid",
         "industry": "电子制造",
         "level": "B",
         "total_revenue": 680000.00,
     },
     "C004": {
         "customer_id": "C004",
-        "name": "广州恒通物流股份",
-        "contact": "陈总",
-        "phone": "020-33334444",
-        "email": "chen@hengtu-logistics.com",
+        "name": "虚构示例企业 C004",
+        "contact": "虚构联系人 C004",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c004@example.invalid",
         "industry": "物流运输",
         "level": "B",
         "total_revenue": 420000.00,
     },
     "C005": {
         "customer_id": "C005",
-        "name": "杭州云图网络科技有限公司",
-        "contact": "刘CTO",
-        "phone": "0571-55556666",
-        "email": "liu@yuntu-net.com",
+        "name": "虚构示例企业 C005",
+        "contact": "虚构联系人 C005",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c005@example.invalid",
         "industry": "互联网",
         "level": "A",
         "total_revenue": 1180000.00,
     },
     "C006": {
         "customer_id": "C006",
-        "name": "成都天府制造有限公司",
-        "contact": "赵厂长",
-        "phone": "028-77778888",
-        "email": "zhao@tianfu-mfg.com",
+        "name": "虚构示例企业 C006",
+        "contact": "虚构联系人 C006",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c006@example.invalid",
         "industry": "机械制造",
         "level": "C",
         "total_revenue": 85000.00,
     },
     "C007": {
         "customer_id": "C007",
-        "name": "武汉中百零售集团",
-        "contact": "孙总监",
-        "phone": "027-99990000",
-        "email": "sun@zhongbai-retail.com",
+        "name": "虚构示例企业 C007",
+        "contact": "虚构联系人 C007",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c007@example.invalid",
         "industry": "零售连锁",
         "level": "B",
         "total_revenue": 350000.00,
     },
     "C008": {
         "customer_id": "C008",
-        "name": "南京博雅教育科技",
-        "contact": "周校长",
-        "phone": "025-11112222",
-        "email": "zhou@boya-edu.com",
+        "name": "虚构示例企业 C008",
+        "contact": "虚构联系人 C008",
+        "phone": "NOT-A-PHONE",
+        "email": "customer-c008@example.invalid",
         "industry": "教育培训",
         "level": "C",
         "total_revenue": 52000.00,
@@ -230,7 +227,7 @@ _mock_crm_tasks: dict[str, dict] = {
         "task_id": "CT-EXIST001",
         "customer_id": "C001",
         "title": "Q2季度复盘沟通",
-        "description": "与张经理回顾 Q2 使用情况,收集反馈",
+        "description": "与虚构联系人 C001回顾 Q2 使用情况,收集反馈",
         "assignee": "user_sales_001",
         "due_date": "2026-07-15",
         "priority": 3,
@@ -266,28 +263,8 @@ class QueryCustomerTool(BaseTool):
     provider_config_attr = "crm_tool_provider"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
-        """真实 CRM 适配:GET /api/v1/customers/{id}"""
-        settings = get_settings()
-        url = f"{settings.crm_api_base}/customers/{params['customer_id']}"
-        meta: dict[str, Any] = {}
-        ok, data, error = await call_external_api(
-            "GET", url, api_token=settings.crm_api_token, meta=meta
-        )
-        if not ok:
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error=error,
-                side_effects={"external_attempts": meta.get("attempts", 1)},
-            )
-        customer = data.get("customer", data) if isinstance(data, dict) else data
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"customer": customer},
-            side_effects={"external_attempts": meta.get("attempts", 1)},
-        )
+        from app.tools.reference import query
+        return await query(self, params, context)
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         customer_id = params["customer_id"]
@@ -326,32 +303,8 @@ class QueryOrderTool(BaseTool):
     provider_config_attr = "crm_tool_provider"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
-        """真实 CRM 适配:GET /api/v1/orders/{id}?include_items=1/0"""
-        settings = get_settings()
-        include_items = "1" if params.get("include_items") else "0"
-        url = (
-            f"{settings.crm_api_base}/orders/{params['order_id']}"
-            f"?include_items={include_items}"
-        )
-        meta: dict[str, Any] = {}
-        ok, data, error = await call_external_api(
-            "GET", url, api_token=settings.crm_api_token, meta=meta
-        )
-        if not ok:
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error=error,
-                side_effects={"external_attempts": meta.get("attempts", 1)},
-            )
-        order = data.get("order", data) if isinstance(data, dict) else data
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"order": order},
-            side_effects={"external_attempts": meta.get("attempts", 1)},
-        )
+        from app.tools.reference import query
+        return await query(self, params, context)
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         order_id = params["order_id"]
@@ -385,62 +338,10 @@ class CreateCrmTaskTool(BaseTool):
     input_schema = CreateCrmTaskSchema
     provider_config_attr = "crm_tool_provider"
 
-    @staticmethod
-    def _build_idempotency_key(context: dict[str, Any]) -> str:
-        """按 Saga 执行 ID 与工具调用序号生成可重放幂等键。"""
-        execution_id = context.get("saga_execution_id") or context.get("request_id")
-        execution_id = execution_id or uuid.uuid4().hex[:12]
-        call_index = context.get("tool_call_index") or context.get("step_id") or "0"
-
-        def _safe(value: Any) -> str:
-            return re.sub(r"[^A-Za-z0-9_.:-]", "-", str(value))[:80]
-
-        return f"crm-task-{_safe(execution_id)}-{_safe(call_index)}"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
-        """真实 CRM 适配:POST /api/v1/crm_tasks"""
-        settings = get_settings()
-        if not params.get("assignee"):
-            params["assignee"] = context.get("user_id", "system")
-        idempotency_key = self._build_idempotency_key(context)
-        meta: dict[str, Any] = {}
-        ok, data, error = await call_external_api(
-            "POST",
-            f"{settings.crm_api_base}/crm_tasks",
-            api_token=settings.crm_api_token,
-            json_body=params,
-            extra_headers={"Idempotency-Key": idempotency_key},
-            meta=meta,
-        )
-        if not ok:
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error=error,
-                side_effects={
-                    "idempotency_key": idempotency_key,
-                    "external_attempts": meta.get("attempts", 1),
-                },
-            )
-        task = data.get("task", data) if isinstance(data, dict) else data
-        task_id = task.get("task_id") if isinstance(task, dict) else None
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"task": task},
-            side_effects={
-                "created_task_id": task_id,
-                "idempotency_key": idempotency_key,
-                "external_attempts": meta.get("attempts", 1),
-            },
-            compensation_data={
-                "task_id": task_id,
-                "action": "delete",
-                "provider": "http",
-                "idempotency_key": idempotency_key,
-            },
-        )
+        from app.tools.operation_gateway import invoke_action
+        return await invoke_action(self, params, context)
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         # assignee 缺省(含 LLM 显式给 null)时回填发起人
@@ -471,28 +372,8 @@ class CreateCrmTaskTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:删除已创建的 CRM 任务"""
         task_id = compensation_data.get("task_id")
-        if compensation_data.get("provider") == "http" and task_id:
-            settings = get_settings()
-            meta: dict[str, Any] = {}
-            ok, _, error = await call_external_api(
-                "DELETE",
-                f"{settings.crm_api_base}/crm_tasks/{task_id}",
-                api_token=settings.crm_api_token,
-                meta=meta,
-            )
-            return ToolResult(
-                success=ok,
-                tool_name=self.name,
-                output={
-                    "message": (
-                        f"任务 {task_id} 已调用 CRM 删除接口"
-                        if ok
-                        else f"任务 {task_id} 删除失败"
-                    )
-                },
-                error=error,
-                side_effects={"external_attempts": meta.get("attempts", 1)},
-            )
+        if compensation_data.get("provider") == "http" or self._effective_provider() == "http":
+            return ToolResult(False, self.name, {}, error="DURABLE_COMPENSATION_REQUIRED")
         if task_id and task_id in _mock_crm_tasks:
             del _mock_crm_tasks[task_id]
             logger.info(f"CRM 任务补偿: 已删除 task_id={task_id}")

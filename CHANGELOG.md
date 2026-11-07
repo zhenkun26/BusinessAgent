@@ -10,6 +10,62 @@
 
 ## 未发布（Unreleased）
 
+### 当前工程候选（2026-10-20；未发布）
+
+- F2-10 prerequisite: add one reviewed current-candidate entry and retained full-pytest helper, align Python/Node/integrity/control coverage with CI, and preserve historical C24 source gates. 35 new counterexamples; full 1218 tests + 484 subtests PASS with zero skips/xfails/deselections/guard denials; Node 69/14 and seven assets PASS. [Contract and limits](docs/50-engineering/offline-verification.md). CI-mode success is scoped offline execution; runtime/full RAG remain BLOCKED, F2-05 privacy/F2-09 sources pending, C10 OPEN. Local commit only; no push/upload/dispatch.
+
+- F2-07: make existing UI actions native keyboard controls, label inputs/repeated actions, guard IME Enter, restore owned focus and announce bounded lifecycle outcomes without token/timer flooding. 21 new Node cases (69 total), 8 new Python tests/46 subtests; full 1183 tests + 484 subtests PASS, zero skips; credential VM 14 and seven assets PASS. [Plan and boundaries](docs/50-engineering/keyboard-accessibility.md). Browser/reader/zoom/contrast/runtime/full RAG BLOCKED; F2-05 privacy and F2-09 sources pending, C10 OPEN. Local commit only; no push/upload.
+
+- F2-06: add eight independent synthetic RAG injection/negative controls with authored safe/unsafe outputs, literal/citation diagnostics and truthful missing/failure accounting. Characterize actual generation with local doubles; preserve all C17 inputs/denominators and production prompts. 19 new tests/47 subtests; full 1175 tests + 438 subtests PASS, zero skips; C17 29 PASS. [Scope and evidence](docs/50-engineering/rag-safety-controls.md). Model/semantic/runtime/full RAG acceptance BLOCKED, F2-05 privacy and F2-09 sources pending, C10 OPEN. Local commit only; no push/upload.
+
+- F2-05: document data flows, external model payloads and access/retention/disposal gaps; replace raw content/exception diagnostics at 53 covered call sites and restrict manual trace names/metadata. 17 new synthetic tests; full 1156 tests + 391 subtests PASS, zero skips; C06/C08/C17/C21 offline entries PASS. [Scope and evidence](docs/50-engineering/data-privacy.md). No provider call, migration, dependency or business-audit change. Private-data/automatic-telemetry/provider and runtime/full RAG acceptance BLOCKED; F2-09 rights pending, C10 OPEN. Local commit only; no push/upload.
+
+- F2-08: generate citation timestamps with explicit UTC and preserve legacy naive history without guessing its timezone. Five new Python tests plus 39 subtests; full 1139 tests + 288 subtests PASS, zero skips; Node VM 48 cases PASS (three new timezone cases). [Time contract and evidence](docs/50-engineering/citation-time.md). No migration, dependency or UI change. Browser/runtime/full RAG BLOCKED, F2-09 rights pending, C10 OPEN. Local commit only; no push/upload.
+
+- F2-11 documentation slice: add one candidate-bound source walkthrough/evidence checklist and a reusable bounded-review workflow. Preserve older interview/speech/deck materials under the user's minimal-exposure refinement; no upload or live rehearsal. Add only the new walkthrough as a pending F2-09 source (430 total). [Plan and workflow](docs/50-engineering/portfolio-demonstration.md). Commercial validation DEFERRED / NOT STARTED; rights/runtime/full RAG BLOCKED, C10 OPEN. Local review and commit only.
+
+- F2-09: add versioned license/source inventory and third-party notice index covering 98 production packages, 3 browser packages, 429 scoped files and 32 declaration inputs. Read-only verification rejects drift, new unregistered assets and unsupported approval states. 36 new cases; full 1134 tests + 249 subtests PASS, zero skips. [Plan and evidence](docs/50-engineering/license-provenance.md). Unknown fonts/media/sample origins and actual wheel/OS notices remain pending; F2-09 OPEN, runtime/full RAG BLOCKED, C10 OPEN. Local commit only; no publication clearance.
+
+- F2-04: pin production Python/frontend digests, signed Debian snapshot and 98 exact package versions with 114 wheel hashes; remove post-lock range upgrades. Verify final installed package set and export image/inventory evidence in CI. NumPy 2.4.6 preserves current 3.11/3.13 compatibility; no new dependencies. 50 new cases, full 1098 tests + 249 subtests PASS, zero skips. [Plan and evidence](enterprise-agent/deploy/DEPLOY.md#f2-04-offline-delivery-evidence--2026-10-20). Actual Linux build/rebuild/scans/runtime/full RAG remain BLOCKED, C10 open. Local commit only.
+
+- F2-03 SSE slice: bound queued events/UTF-8 bytes/frame sizes, reserve an independent terminal, validate final before checkpoint publication, and add cooperative ASGI send/lifetime and cleanup limits. Fix full-buffer disconnect and pre-start cancellation races; preserve acknowledged completed state after delivery/watch failures. 41 new cases; full local 1048 tests + 249 subtests PASS, zero skips; five related eval entries PASS. [Plan and evidence](docs/50-engineering/request-context.md#f2-03-sse-delivery-evidence--2026-10-20). F2-03 runtime acceptance remains OPEN / BLOCKED, C10 open, real runtime/full RAG BLOCKED. Local commit only.
+
+- F2-03 execution slice: add request-owned task/concurrency/history/model admission budgets, output caps, cooperative deadline and fixed failure propagation through message/stream APIs. 34 new cases; full local 1007 tests + 249 subtests PASS, zero skips; eight related eval entries PASS. [Plan and evidence](docs/50-engineering/request-context.md#f2-03-delivery-evidence--2026-10-19). SSE was deferred in that slice and subsequently delivered above; F2-03 runtime acceptance/C10 remain open, real runtime/full RAG BLOCKED. Local commit only.
+
+- F2-02: Redis quota failures now return fixed 503 outside dev; dev memory fallback is labeled and retained across retries. Add a five-second cooldown, single recovery probe, two-second async budgets, no SDK retries, sanitized logs and unique transactional ZADD members. 18 new cases; full local 973 tests + 249 subtests PASS, zero skips; C09 eval 28 PASS. [Plan and evidence](docs/50-engineering/cross-process-state.md#f2-02-delivery-evidence--2026-10-19). Real Redis/two-process/runtime/full RAG remain BLOCKED; local commit only.
+
+- F2-01: quota identity now reuses signed JWT and bounded subject/expiry validation; invalid tokens retain source-IP quota, login always uses IP, and oversized Authorization is rejected before middleware decoding. Business account checks remain independent. 30 new tests; full local suite 955 tests + 249 subtests PASS, zero skips; C05 eval 29 PASS. [Contract and evidence](docs/50-engineering/runtime-authorization.md#f2-01-delivery-evidence--2026-10-19). F2-02/live acceptance deferred; local commit only.
+
+- F2 documentation audit: freeze `c57d473`, record twelve simulated expert perspectives and eleven findings, and reproduce unverified JWT rate-limit identity abuse offline. [Report](docs/40-process/multi-expert-review-c57d473.md) includes priorities, acceptance criteria and dependencies. No application changes or fresh full-suite run; F3 fixes await confirmation, C10/runtime/full RAG remain open/BLOCKED. Local commit only.
+
+- C10-R1/R2 follow-up: validate and normalize citation sources consistently for message/SSE/history, with an additive `sources` field on found history snapshots. Select valid authorized turns before counting history, under a shared 100-snapshot/five-second budget. 25 focused cases and full local pytest 925 tests + 249 subtests PASS, zero skips; real acceptance BLOCKED, C10 open, local commit only.
+
+- Historical planning update (`c0a4464`): clarify the future GitHub/backend-employment portfolio purpose with no current customer deployment/commercial operation plan; retain real-project acceptance discipline. Register C10-R1/R2 as deferred and the ten-perspective plus AI/commercial committee review as not started, without scores. Documents/OpenSpec only; no runtime fix, live acceptance, push or release. See [review plan](docs/50-engineering/multi-expert-review-plan.md).
+
+源码版本仍为 **1.3.0**；本节收尾变更不属于历史 `v1.3.0` tag，也未创建新版本/tag/镜像或生产发布。当前交付结论、提交与证据映射见[交付状态](docs/50-engineering/delivery-status.md)。下方日期阶段记录保留当时范围，不作为当前授权或验收状态。
+
+- C01–C03：不可变应用产物与入口、外部模型 profile、显式 checksum 迁移与管理员初始化；当前 schema 要求 v1–v8，应用启动不自动迁移。
+- C04–C10：会话归属、运行时授权、瞬时凭证、检索权限与表达式、请求历史隔离、共享协调和固定 checkpoint 后端。C10 新增按运行隔离的 checkpoint 线程、PostgreSQL 数据库时钟租约，以及检查点指针/终态/token 的同事务条件发布；28 项新离线测试与完整本地 pytest（900 tests + 232 subtests、零跳过）PASS。schema v8 未执行，真实写入竞态验收仍 BLOCKED，C10 整项 open；本轮仅本地提交。
+- C11–C14：审批原子领取/过期/结果状态，持久动作身份、保守重试，Saga/HTTP 补偿和 PostgreSQL 队列/worker 候选。
+- C15–C20：不可变知识发布、CRM provider 一致的分析快照、RAG 质量口径、独立参考 HTTP/受控 IdP、前端本地分发与身份/异步状态隔离。
+- C21–C23：共享保留式审计回写、就绪/指标/告警，当前版本冷备/新卷恢复/回退，以及冻结负载与容量采集候选。
+- C24：固定离线清单、源码/候选提交绑定与保留式回执。C25：双语入口、手册、版本/规格身份和交付结论的离线核对；不修改运行代码或创建发布。
+- CI 回归修复：更新共享脱敏导入及现行安全契约断言，拆分共享夹具与测试类，避免继承用例在不兼容替身下重复执行；完整本地 pytest 871 tests + 225 subtests PASS、零跳过。未修改生产代码、依赖或测试门槛；`b8c4457` 远端双版本各 871 tests + 225 subtests PASS、零跳过。Gitleaks 后续修复仅记录 16 个已复算的历史源码哈希指纹，并补齐事件 head 的完整扫描范围；镜像上下文修复 `0d1a7ce` 已推送，远端 CI 39209313444 全部 PASS（双版本各 872 tests + 225 subtests、零跳过；密钥/依赖扫描、镜像构建/导入/Trivy PASS）。
+- 兼容性：不得套用下方旧“无 API 契约变化”到本候选；认证/会话、任务 202、知识可见性、审批恢复、迁移、模型和部署均有收尾契约变化，见[支持与迁移映射](docs/50-engineering/delivery-status.md#support-and-migration-map)。
+- 验收：L01–L16、D01–D16、O01–O16、B01–B16、S01–S16、R01–R20、真实运行、完整 RAG 与历史凭证处置仍 BLOCKED；离线测试不等于企业 UAT、生产放行或当前 CI 通过。
+
+
+### 工程收尾规划（2026-10-17）
+
+- C04 离线增量：五个会话入口统一归属授权，明确管理员仅可跨用户取消；固定拒绝响应、安全新会话创建、带所有者条件的续聊更新、移除反馈占位会话。20 项离线测试通过；C03 `fc8da91` 已推送，真实 PostgreSQL/API/Linux 验收仍 BLOCKED，C04 整项 open，未推进 C05。[实施记录](docs/40-process/阶段性总结_C04会话归属校验.md)。
+
+- C03 离线增量：schema/演示种子分离、版本与校验和迁移、事务锁、显式管理员与开发种子、启动/健康 schema 检查；C02 `42bfc7f` 已推送。真实 PostgreSQL/API/Linux 验收仍 BLOCKED，C03 整项 open，未推进 C04。[实施记录](docs/40-process/阶段性总结_C03数据库迁移与初始化.md)。
+
+- C02 外部模型离线增量：百炼北京 embedding/reranker 与 DeepSeek Flash/Pro，独立密钥、超时重试、严格响应校验、失败闭合与付费启动探针授权开关；slim 构建保留获批 libpq5/import 检查。真实 API/Linux 验收 BLOCKED，C02 整项 open。[实施记录](docs/40-process/阶段性总结_C02模型依赖.md)。
+- C01 配置修复：生产 Compose 的 API/worker 使用同一必填镜像引用，部署前契约检查要求 registry digest；不再本地 build 或挂载源码。Nginx 补齐 UI/文档 schema/ready 路由、SSE 关闭缓冲、metrics 保持内部访问；修正 worker 继承 API 探针和部署命令。离线检查通过，但目标环境镜像/登录/SSE 验收 BLOCKED，C01 尚未完成。[实施记录](docs/40-process/阶段性总结_C01部署产物与入口.md)。
+- C24 前置：新增标准库离线安全入口、12 项入口回归、副作用盘点和证据模板；只运行五个已审查核验函数，验证期间阻止文件修改/网络/进程，证据只新建且不保存原始敏感细节。当前五函数执行通过，真实 UAT/发布仍 BLOCKED；不代表 C24 整项完成。[交付记录](docs/40-process/阶段性总结_C24安全验证前置.md)。
+- 完成 S0 文档增量：交付基线、ISSUES C01–C25 差距与验收、ROADMAP S0–S7 顺序及 `engineering-delivery-closeout` OpenSpec 变更。仅文档与规格，应用版本仍为 1.3.0；所有运行时收尾项尚未实施，真实企业验收与上线门槛仍阻塞。验证与限制见 [S0 阶段总结](docs/40-process/阶段性总结_S0工程交付基线.md)。
+
 ### 新增
 
 - 工单真实接入试点（ticket-system-integration 16/16 归档，2026-08-06）：`CreateTicketTool` 幂等键（`ticket-{request_id}-{uuid8}`，经 `Idempotency-Key` 头传递并写入 `side_effects` 供审计关联）；Create/Update Saga 补偿真实化（http 提供方下 PATCH 关闭工单并标注 `saga_compensation` / 恢复 `old_values`，mock 通道零变更）；审计补齐 `provider`、重试次数与幂等键字段；`http_adapter` 新增 keyword-only `meta` 输出参数（向后兼容）。

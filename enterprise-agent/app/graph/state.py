@@ -17,6 +17,7 @@ from typing_extensions import TypedDict
 
 from app.agents.knowledge import AgentResult, RetrievalSource
 from app.security.rbac import AgentRole
+from app.security.redaction import redact_text
 
 
 class Intent(str, Enum):
@@ -69,7 +70,6 @@ class UserInput(BaseModel):
     username: str
     role: AgentRole
     department: Optional[str] = None
-    jwt_token: str = ""
     conversation_id: str = Field(description="会话 ID,用于多轮")
     request_id: str = Field(description="请求 ID,用于追踪")
 
@@ -92,6 +92,7 @@ class AgentState(TypedDict, total=False):
     intent: Intent
     subtasks: list[SubTask]
     plan_reasoning: str  # Planner 的推理过程(可观测)
+    plan_error: Optional[str]
 
     # ===== 子 Agent 执行区(Send fan-out 并行写入) =====
     # reducer: 每轮初始状态传入 [] 时重置;executor 并行写入时累加
@@ -106,6 +107,7 @@ class AgentState(TypedDict, total=False):
 
     # ===== Aggregator 区 =====
     final_answer: str
+    answer_request_id: Optional[str]
     sources: list[RetrievalSource]
     confidence: float
     needs_replan: bool
@@ -128,10 +130,18 @@ class AgentState(TypedDict, total=False):
 
 def make_initial_state(user_input: UserInput) -> AgentState:
     """构造初始状态(入口节点用)"""
+    user_input = user_input.model_copy(update={"message": redact_text(user_input.message)})
     now = datetime.now()
     return AgentState(
         user_input=user_input,
         request_id=user_input.request_id,
+        final_answer="",
+        answer_request_id=None,
+        sources=[],
+        confidence=0.0,
+        error=None,
+        plan_error=None,
+        replan_reason=None,
         agent_results=[],
         approval_required=False,
         approval_status=None,

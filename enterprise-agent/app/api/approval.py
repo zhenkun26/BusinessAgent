@@ -2,19 +2,25 @@
 
 import json
 import uuid
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
+from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from app.core.database import get_db
+from app.core import approval_lifecycle as lifecycle
 from app.core import approval_deadline as deadline
+from app.core.tool_operations import OperationError
+from app.security.redaction import redact_text
+
+from app.core.database import get_db
 from app.core.approval_notify import notify_approval_result
-from app.observability.audit import get_audit_logger
-from app.security.rbac import User, get_current_user, AgentRole, security_scheme
-from app.security.jwt_manager import get_jwt_manager
+from app.security.rbac import (
+    User, get_current_user, AgentRole, security_scheme, ROLE_TOOLS,
+    decode_identity_token, resolve_active_user,
+)
 
 router = APIRouter()
 
@@ -23,7 +29,7 @@ class ApprovalDecisionRequest(BaseModel):
     """审批决策请求"""
 
     decision: Literal["approved", "rejected"]
-    comment: str = ""
+    comment: str = Field(default="", max_length=1000)
 
 
 class ApprovalResponse(BaseModel):
@@ -32,245 +38,297 @@ class ApprovalResponse(BaseModel):
     message: str
 
 
-async def _execute_approval_tools(db, row, jwt_token_override: Optional[str] = None) -> tuple[bool, str, str]:
-    """审批批准后,以发起人身份同步执行 prefill_payload 中的工具调用
-
-    Args:
-        db: 数据库会话
-        row: approval_requests 行(需含 prefill_payload/requester_id/requester_token/session_id)
-        jwt_token_override: 覆盖用 token(resume 场景用发起人重新登录后的新 token)
-
-    Returns:
-        (success, 结果摘要, 发起人角色)——角色返回供调用方审计记录"执行身份"
-    """
-    # 函数内 import,避免循环依赖(execution → tools → audit → database)
-    from app.agents.execution import ToolCallPlan, execute_tool_calls
-
-    payload = row.prefill_payload
-    if isinstance(payload, str):
-        payload = json.loads(payload)
-    tool_calls = (payload or {}).get("tool_calls", [])
-    if not tool_calls:
-        return False, "审批负载无工具调用", ""
-
-    # 查询发起人角色/部门,以其身份执行(审批不越权:执行身份=发起人,非审批人)
-    result = await db.execute(
-        text("SELECT role, department, is_active FROM users WHERE user_id = :uid"),
-        {"uid": row.requester_id},
-    )
-    u = result.fetchone()
-    if u is None or u.is_active is not True:
-        return False, "发起人已停用或不存在，需人工核对", ""
-    deadline.require_contract(row)
-    role = u.role
-    dept = (u.department if u else None) or "shared_company"
-
-    context = {
-        "user_id": row.requester_id,
-        "role": role,
-        "dept": dept,
-        "jwt_token": jwt_token_override or row.requester_token or "",
-        "session_id": row.session_id,
-        "request_id": f"appr-exec-{row.approval_id}",
-        # 审批触发标记:工具层审计/tracing 据此区分"主动调用"与"审批触发调用"
-        # 主动调用时无这两个字段;审批触发时带,可串联回审批单
-        "triggered_by": "approval",
-        "approval_id": row.approval_id,
-    }
-
-    plans = [
-        ToolCallPlan(
-            tool=tc["tool"],
-            params=tc.get("params", {}),
-            reason=tc.get("reason", ""),
-        )
-        for tc in tool_calls
-    ]
-
-    # 执行前显式 RBAC 预检(防御性):pending 期间发起人角色可能被管理员调整,
-    # 若新角色已无该工具权限,提前失败并记 security_violation 审计,
-    # 而非等到工具层防线 3 拒绝——审计语义更清晰("审批后权限被收回")
-    try:
-        from app.security.rbac import ROLE_TOOLS, AgentRole
-        allowed = ROLE_TOOLS.get(AgentRole(role), [])
-        denied = [p.tool for p in plans if p.tool not in allowed]
-        if denied:
-            await get_audit_logger().log_violation(
-                user_id=row.requester_id,
-                tool_name=",".join(denied),
-                reason=(
-                    f"审批 {row.approval_id} 触发执行时,发起人角色 {role} "
-                    f"已无权限调用 {denied}(权限可能在 pending 期间被调整)"
-                ),
-            )
-            return False, f"发起人角色 {role} 无权调用工具 {denied}", role
-    except Exception:
-        return False, "权限核验失败，需人工核对", ""
-
-    exec_result = await execute_tool_calls(plans, context)
-
-    outputs = getattr(exec_result, "output", None) or getattr(exec_result, "outputs", None) or {}
-    error = getattr(exec_result, "error", None)
-    if exec_result.success:
-        return True, f"工具执行成功: {outputs}", role
-    return False, f"工具执行失败: {error or outputs}", role
-
-
-async def _prepare(db, approval_id: str, actor: User, *, resume: bool = False):
-    """Current human identity, owner hold and row contract, under stable user locks."""
-    row = await deadline.load(db, approval_id)
-    if row is None:
-        raise HTTPException(404, "审批请求不存在")
-    owner = row.requester_id
-    if resume and owner != actor.user_id:
-        raise HTTPException(403, "仅原发起人可恢复执行")
-    users = await deadline.lock_users(db, owner, actor.user_id)
-    row = await deadline.load(db, approval_id, locked=True)
-    if row is None or row.requester_id != owner:
-        raise HTTPException(409, "APPROVAL_CHANGED")
-    deadline.require_contract(row)
-    if not resume and users[actor.user_id].role not in row.approver_roles:
+def _check_approver_role(row: Any, approver: User) -> None:
+    roles = row.approver_roles
+    if not isinstance(roles, list) or not roles or any(
+        not isinstance(role, str) or role not in {"manager", "admin"} for role in roles
+    ):
+        raise HTTPException(403, "审批权限配置无效")
+    if approver.role not in roles:
         raise HTTPException(403, "无权审批此请求")
-    expected = "approved_pending_reauth" if resume else "pending"
-    if row.status != expected:
-        raise HTTPException(409, deadline.HOLD if row.status in deadline.ACTIVE
-                            else "APPROVAL_ALREADY_DECIDED")
-    from app.security.rbac import ROLE_TOOLS
-    allowed = ROLE_TOOLS.get(AgentRole(users[owner].role), [])
-    if any(c["tool"] not in allowed for c in deadline.payload(row)["tool_calls"]):
-        raise HTTPException(403, "发起人当前无权执行审批工具")
-    await deadline.guard_owner(db, owner, exclude=approval_id)
-    await deadline.require_live(db, row)
+
+
+def _approval_tool_calls(row: Any) -> list[dict[str, Any]]:
+    try:
+        payload = row.prefill_payload
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        calls = payload.get("tool_calls")
+        if not isinstance(calls, list) or not calls:
+            raise ValueError
+        for call in calls:
+            if (not isinstance(call, dict) or not isinstance(call.get("tool"), str)
+                    or not isinstance(call.get("params", {}), dict)):
+                raise ValueError
+        return calls
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(400, "审批工具负载无效") from None
+
+
+async def _lock_approval(db: Any, approval_id: str, actor: User, *, resume=False):
+    """Lock all participant identities before the row; verify the unlocked snapshot."""
+    before = await deadline.load(db, approval_id)
+    if before is None:
+        raise HTTPException(404, "审批请求不存在")
+    deadline.require_contract(before)
+    if resume and before.requester_id != actor.user_id:
+        raise HTTPException(403, "仅原发起人可恢复执行")
+    participants = {before.requester_id, actor.user_id}
+    if resume:
+        if not before.approver_id:
+            raise HTTPException(403, "APPROVAL_APPROVER_REQUIRED")
+        participants.add(before.approver_id)
+    users = await deadline.lock_users(db, *participants)
+    row = await lifecycle.load_locked(db, approval_id)
+    if (row is None or row.requester_id != before.requester_id
+            or row.approver_id != before.approver_id
+            or deadline.canonical(deadline.payload(row)) != deadline.canonical(deadline.payload(before))
+            or deadline.canonical(deadline.contract(row)) != deadline.canonical(deadline.contract(before))):
+        raise HTTPException(409, "APPROVAL_CHANGED")
+    await _authorize_locked(db, row, users, row.approver_id if resume else actor.user_id)
     return row
 
 
-async def _notify_committed(db, row, state: str, message: str) -> None:
+async def _authorize_locked(db: Any, row: Any, users: dict, approver_id: str) -> User:
+    deadline.require_contract(row)
+    requester = users[row.requester_id]
+    _check_approver_role(row, users[approver_id])
+    allowed = ROLE_TOOLS[AgentRole(requester.role)]
+    if any(call["tool"] not in allowed for call in _approval_tool_calls(row)):
+        raise HTTPException(403, "发起人无权调用审批工具")
+    await deadline.guard_owner(db, row.requester_id, exclude=row.approval_id)
+    return requester
+
+
+def _check_requester_token(row: Any, token: str) -> None:
+    payload = decode_identity_token(token)
+    if payload["sub"] != row.requester_id:
+        raise HTTPException(401, "审批凭据与发起人不匹配")
+
+
+async def _execute_approval_tools(
+    db: Any, row: Any, *, approver_id: str, requester_token: str,
+) -> tuple[bool, str, str]:
+    """Issue the paired server capability only for a confirmed durable claim."""
+    from app.agents.execution import ToolCallPlan, execute_tool_calls
+    from app.core.tool_operations import committed_approval_dispatch
+    users = await deadline.lock_users(db, row.requester_id, approver_id)
+    current = await lifecycle.load_locked(db, row.approval_id)
+    if (current is None or current.status != "executing"
+            or not current.execution_claim or current.execution_claim != row.execution_claim
+            or current.execution_id != row.execution_id or current.approver_id != approver_id
+            or deadline.canonical(deadline.payload(current)) != deadline.canonical(deadline.payload(row))
+            or deadline.canonical(deadline.contract(current)) != deadline.canonical(deadline.contract(row))):
+        raise HTTPException(409, "APPROVAL_CLAIM_CONFLICT")
+    requester = await _authorize_locked(db, current, users, approver_id)
+    _check_requester_token(current, requester_token)
+    calls = _approval_tool_calls(current)
+    if str(current.execution_id) != await lifecycle.bind_execution(current, calls):
+        raise HTTPException(409, "APPROVAL_PLAN_CONFLICT")
+    context = {"user_id": requester.user_id, "role": requester.role,
+        "dept": requester.department, "session_id": current.session_id,
+        "request_id": f"appr-exec-{current.approval_id}", "execution_slot": "approval",
+        "triggered_by": "approval", "approval_id": current.approval_id}
+    plans = [ToolCallPlan(tool=c["tool"], params=c.get("params", {}),
+                         operation_id=c["operation_id"]) for c in calls]
+    await db.commit()  # An uncertain acknowledgment cannot mint dispatch authority.
+    with committed_approval_dispatch(current, calls):
+        result = await execute_tool_calls(plans, context)
+    return result.success, "最终状态以持久回执为准", requester.role
+
+
+STATUS_MESSAGES = {
+    "approved_pending_reauth": "审批已通过，待发起人确认执行",
+    "rejected": "审批已拒绝，操作未执行",
+    "timeout": "审批已过期，操作未领取",
+    "executing": "执行已领取，正在处理；重复确认不会重复执行",
+    "executed": "已由持久记录确认执行成功",
+    "execution_failed": "执行失败，未确认产生成功动作",
+    "compensated": "执行失败，已补偿所有确认成功的步骤",
+    "compensation_failed": "补偿未完成，需要人工核对",
+    "execution_unknown": "执行结果尚未确认，请勿重新发起相同操作",
+}
+
+
+async def _notify_committed(db: Any, row: Any, state: str) -> None:
     try:
         await notify_approval_result(db=db, approval_id=row.approval_id,
             requester_id=row.requester_id, session_id=row.session_id,
-            result_type=state, detail=message)
+            result_type=state, detail=STATUS_MESSAGES.get(state, "请查询审批状态"))
     except Exception:
-        await db.rollback()
+        logger.warning("APPROVAL_NOTIFICATION_FAILED")
+        # Notification queries must not leave a failed transaction in a reused batch session.
+        try:
+            await db.rollback()
+        except Exception:
+            logger.warning("APPROVAL_NOTIFICATION_SESSION_UNAVAILABLE")
 
 
-async def _dispatch_claimed(db, row, token: str) -> ApprovalResponse:
-    """Claim has already committed. No exception/unknown path releases it."""
-    try:
-        with deadline.dispatch_scope():
-            success, summary, role = await _execute_approval_tools(db, row, token)
-    except Exception:
-        success, summary, role = False, "结果不明，请由有权限的人核对；AI不能决定重试。", ""
-        await db.rollback()
-    # Cancellation/BaseException escapes with the committed executing state retained.
-    state = "executed" if success else "execution_unknown"
-    try:
-        changed = (await db.execute(text("UPDATE approval_requests SET status = :state "
-            "WHERE approval_id = :id AND status = 'executing' "
-            "AND prefill_payload = CAST(:snapshot AS JSONB) "
-            "AND approval_contract = CAST(:contract AS JSONB) RETURNING approval_id"),
-            {"state": state, "id": row.approval_id,
-             "snapshot": deadline.canonical(deadline.payload(row)),
-             "contract": deadline.canonical(deadline.contract(row))})).fetchone()
-        if changed is None:
-            raise RuntimeError("approval outcome state changed")
-        await db.execute(text("INSERT INTO audit_logs (event_type, session_id, user_id, "
-            "success, payload) VALUES ('approval_outcome', :sid, :uid, :success, "
-            "CAST(:payload AS JSONB))"), {"sid": row.session_id, "uid": row.requester_id,
-            "success": bool(success), "payload": deadline.canonical({
-                "approval_id": row.approval_id, "status": state})})
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        raise HTTPException(503, "APPROVAL_RESULT_UNCONFIRMED_NO_RETRY") from None
-    await _notify_committed(db, row, state,
-        "工具返回成功。" if success else "暂停执行和重提，需人工核对；AI仅建议。")
-    return ApprovalResponse(approval_id=row.approval_id, status=state,
-        message=("工具返回成功，已保存结果。" if success else
-                 "结果尚未确认，暂停执行和重提，需人工核对。AI仅提供建议。"))
+async def _decide_locked(db: Any, row: Any, approver_id: str, decision: str,
+                         comment: str, batch_id: str | None = None) -> str:
+    if row is None:
+        raise HTTPException(404, "审批请求不存在")
+    deadline.require_contract(row)
+    if row.status != "pending":
+        raise HTTPException(409, "APPROVAL_ALREADY_DECIDED")
+    if not row.live:
+        await lifecycle.expire(db, row)
+        raise HTTPException(409, "APPROVAL_EXPIRED")
+    state = "rejected" if decision == "rejected" else "approved_pending_reauth"
+    changed = (await db.execute(text("""UPDATE approval_requests SET status = :status,
+        approver_id = :approver, comment = :comment, decided_at = (clock_timestamp() AT TIME ZONE 'UTC'), batch_id = :batch_id
+        WHERE approval_id = :id AND status = 'pending'
+        AND expires_at > (clock_timestamp() AT TIME ZONE 'UTC') RETURNING approval_id"""), {
+            "id": row.approval_id, "status": state, "approver": approver_id,
+            "comment": redact_text(comment), "batch_id": batch_id})).fetchone()
+    if changed is None:
+        raise HTTPException(409, "APPROVAL_STATE_CONFLICT")
+    current = await lifecycle.load_locked(db, row.approval_id)
+    await lifecycle.event(db, current, approver_id, state)
+    return state
 
 
 @router.post("/approval/{approval_id}/decide", response_model=ApprovalResponse)
-async def decide_approval(approval_id: str, req: ApprovalDecisionRequest,
-    approver: User = Depends(get_current_user), db=Depends(get_db)):
-    """Authenticated human decision; no legacy release or model approval endpoint."""
+async def decide_approval(
+    approval_id: str, req: ApprovalDecisionRequest,
+    approver: User = Depends(get_current_user), db=Depends(get_db),
+):
+    """Conditional decision only; execution requires a separate requester confirmation."""
     try:
-        row = await _prepare(db, approval_id, approver)
-        if req.decision == "rejected":
-            await deadline.transition(db, row, approver.user_id, "rejected", req.comment)
-            await _notify_committed(db, row, "rejected", "审批已拒绝。")
-            return ApprovalResponse(approval_id=approval_id, status="rejected", message="审批已拒绝")
-        token = row.requester_token or ""
-        mgr = get_jwt_manager()
-        try:
-            identity = mgr.decode(token)
-            if identity.get("sub") != row.requester_id:
-                raise ValueError("wrong requester")
-            token = await mgr.refresh_if_needed(token, min_seconds=600)
-        except Exception:
-            await deadline.transition(db, row, approver.user_id,
-                                      "approved_pending_reauth", req.comment)
-            await _notify_committed(db, row, "approved_pending_reauth", "请原发起人确认，期限不延长。")
-            return ApprovalResponse(approval_id=approval_id, status="approved_pending_reauth",
-                                    message="待原发起人重新授权，原审批期限不延长。")
-        await deadline.transition(db, row, approver.user_id, "executing", req.comment)
-    except HTTPException:
-        await db.rollback()
+        row = await _lock_approval(db, approval_id, approver)
+        state = await _decide_locked(db, row, approver.user_id, req.decision, req.comment)
+        await db.commit()
+    except HTTPException as exc:
+        if exc.detail == "APPROVAL_EXPIRED":
+            try:
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise HTTPException(503, "APPROVAL_STORE_UNAVAILABLE") from None
+            await _notify_committed(db, row, "timeout")
+        else:
+            await db.rollback()
         raise
     except Exception:
         await db.rollback()
-        raise HTTPException(503, "APPROVAL_CLAIM_UNCONFIRMED_NO_DISPATCH") from None
-    return await _dispatch_claimed(db, row, token)
+        raise HTTPException(503, "APPROVAL_STORE_UNAVAILABLE") from None
+    await _notify_committed(db, row, state)
+    return ApprovalResponse(approval_id=approval_id, status=state, message=STATUS_MESSAGES[state])
 
 
 @router.post("/pending-executions/{approval_id}/resume", response_model=ApprovalResponse)
-async def resume_pending_execution(approval_id: str,
-    requester: User = Depends(get_current_user),
-    credentials: HTTPAuthorizationCredentials = Depends(security_scheme), db=Depends(get_db)):
+async def resume_pending_execution(
+    approval_id: str, requester: User = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme), db=Depends(get_db),
+):
+    """Commit a one-way claim before I/O. An unknown claim is never reclaimed."""
     try:
-        row = await _prepare(db, approval_id, requester, resume=True)
+        row = await _lock_approval(db, approval_id, requester, resume=True)
+        if row is None:
+            raise HTTPException(404, "审批请求不存在")
+        if row.requester_id != requester.user_id:
+            raise HTTPException(403, "仅原发起人可恢复执行")
         if credentials is None or credentials.scheme.lower() != "bearer":
             raise HTTPException(401, "未提供认证凭据")
-        token = credentials.credentials
-        try:
-            if get_jwt_manager().decode(token).get("sub") != row.requester_id:
-                raise ValueError("wrong requester")
-        except Exception:
-            raise HTTPException(401, "审批凭据与发起人不匹配") from None
-        # Recheck the actual original approver, not a caller-supplied role.
-        if not row.approver_id:
-            raise HTTPException(403, "APPROVAL_APPROVER_REQUIRED")
-        # Avoid taking another user lock out of order: finish this read transaction;
-        # reacquire all participant locks in canonical order and re-read the row.
-        owner_id, approver_id = row.requester_id, row.approver_id
-        payload_snapshot = deadline.canonical(deadline.payload(row))
-        contract_snapshot = deadline.canonical(deadline.contract(row))
-        await db.rollback()
-        users = await deadline.lock_users(db, owner_id, approver_id)
-        row = await deadline.load(db, approval_id, locked=True)
-        if (row is None or row.requester_id != owner_id or owner_id != requester.user_id
-                or row.approver_id != approver_id
-                or deadline.canonical(deadline.payload(row)) != payload_snapshot
-                or deadline.canonical(deadline.contract(row)) != contract_snapshot):
-            raise HTTPException(409, "APPROVAL_CHANGED")
-        deadline.require_contract(row)
+        _check_requester_token(row, credentials.credentials)
+        if row.status in lifecycle.ACTIVE | lifecycle.OUTCOMES:
+            await db.commit()
+            return ApprovalResponse(approval_id=approval_id, status=row.status,
+                                    message=STATUS_MESSAGES[row.status])
         if row.status != "approved_pending_reauth":
-            raise HTTPException(409, "APPROVAL_ALREADY_CLAIMED")
-        if users[row.approver_id].role not in row.approver_roles:
-            raise HTTPException(403, "原审批人当前无审批权限")
-        from app.security.rbac import ROLE_TOOLS
-        if any(c["tool"] not in ROLE_TOOLS.get(AgentRole(users[row.requester_id].role), [])
-               for c in deadline.payload(row)["tool_calls"]):
-            raise HTTPException(403, "发起人当前无权执行审批工具")
-        await deadline.guard_owner(db, row.requester_id, exclude=approval_id)
-        await deadline.require_live(db, row)
-        await deadline.transition(db, row, row.approver_id, "executing")
+            raise HTTPException(409, "APPROVAL_NOT_EXECUTABLE")
+        if not row.live:
+            await lifecycle.expire(db, row)
+            await db.commit()
+            await _notify_committed(db, row, "timeout")
+            raise HTTPException(409, "APPROVAL_EXPIRED")
+        try:
+            execution_id = await lifecycle.bind_execution(row, _approval_tool_calls(row))
+        except OperationError:
+            raise HTTPException(409, "APPROVAL_ACTION_IDENTITY_REQUIRED") from None
+        owner = await lifecycle.claim(db, row, execution_id)
+        if owner is None:
+            raise HTTPException(409, "APPROVAL_STATE_CONFLICT")
+        row = await lifecycle.load_locked(db, approval_id)
+        await db.commit()  # An uncertain acknowledgment never reaches tool invocation.
     except HTTPException:
         await db.rollback()
         raise
     except Exception:
         await db.rollback()
-        raise HTTPException(503, "APPROVAL_CLAIM_UNCONFIRMED_NO_DISPATCH") from None
-    return await _dispatch_claimed(db, row, token)
+        raise HTTPException(503, "APPROVAL_CLAIM_UNCONFIRMED") from None
+
+    execution_uncertain = False
+    try:
+        success, _, _ = await _execute_approval_tools(db, row, approver_id=row.approver_id,
+                                      requester_token=credentials.credentials)
+        execution_uncertain = not success
+    except Exception:
+        execution_uncertain = True
+        await db.rollback()
+        logger.warning("APPROVAL_EXECUTION_UNCONFIRMED")
+    # Cancellation deliberately leaves the retained executing claim for observation.
+    try:
+        current = await lifecycle.load_locked(db, approval_id)
+        deadline.require_contract(current)
+        if (deadline.canonical(deadline.payload(current)) != deadline.canonical(deadline.payload(row))
+                or deadline.canonical(deadline.contract(current)) != deadline.canonical(deadline.contract(row))):
+            raise OperationError("APPROVAL_SNAPSHOT_CHANGED")
+        if str(current.execution_claim) != owner:
+            raise OperationError("APPROVAL_CLAIM_CONFLICT")
+        try:
+            state = ("execution_unknown" if execution_uncertain else
+                     await lifecycle.observe(db, current, finished=True))
+        except OperationError:
+            state = "execution_unknown"
+        state = await lifecycle.settle(db, current, state)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "APPROVAL_RESULT_UNCONFIRMED") from None
+    await _notify_committed(db, current, state)
+    return ApprovalResponse(approval_id=approval_id, status=state, message=STATUS_MESSAGES[state])
+
+
+@router.get("/approval/{approval_id}/evidence")
+async def approval_evidence(approval_id: str, actor: User = Depends(get_current_user),
+                            db=Depends(get_db)):
+    """Read-only, payload-free durable evidence. Reading never releases a hold."""
+    row = await deadline.load(db, approval_id)
+    if row is None:
+        raise HTTPException(404, "审批请求不存在")
+    current_actor = await resolve_active_user(actor.user_id, db)
+    if actor.user_id not in {row.requester_id, row.approver_id}:
+        _check_approver_role(row, current_actor)
+    operations = (await db.execute(text("""SELECT o.operation_id, o.execution_id,
+        o.intent, o.request, o.state, o.receipt, o.updated_at FROM tool_operations o
+        JOIN approval_requests a ON a.execution_id = o.execution_id
+        WHERE a.approval_id = :id ORDER BY o.slot"""), {"id": approval_id})).mappings().all()
+    items = []
+    for operation in operations:
+        record = dict(operation)
+        verified = False
+        if record.get("receipt") is not None:
+            try:
+                record["operation_id"] = str(record["operation_id"])
+                record["execution_id"] = str(record["execution_id"])
+                if record["intent"]["target"]["provider"] == "http":
+                    from app.tools.reference import receipt
+                    receipt(record["receipt"], record)
+                    verified = True
+                else:
+                    verified = (record["intent"]["target"]["provider"] == "mock"
+                                and isinstance(record["receipt"], dict)
+                                and record["receipt"].get("success") is True)
+            except (OperationError, KeyError, TypeError, ValueError):
+                verified = False
+        observed = record.get("updated_at")
+        items.append({"operation_id": str(record["operation_id"]), "state": record["state"],
+            "receipt_present": record.get("receipt") is not None, "receipt_verified": verified,
+            "observed_at": observed.isoformat() if observed else None})
+    return {"approval_id": approval_id, "status": row.status,
+            **deadline.review_fields(row), "operations": items,
+            "automatic_release": False, "automatic_retry": False}
 
 
 @router.get("/approvals/pending")
@@ -415,13 +473,13 @@ class BatchApprovalRequest(BaseModel):
     """批量审批请求(对应 v3 方案 P0-6)
 
     场景:审批人一次性处理多个待审请求(如早上一并处理昨晚积压的审批)
-    每项独立领取并提交；可能部分完成，外部效果不随数据库回滚。
+    事务性:整批决策原子提交；不执行工具；重复 ID 在写入前拒绝
     """
 
     approvals: list[BatchApprovalItem] = Field(
         ..., min_length=1, max_length=50, description="批量决策列表(最多 50 条)"
     )
-    comment: str = Field(default="", description="统一备注")
+    comment: str = Field(default="", max_length=1000, description="统一备注")
 
 
 class BatchApprovalResponse(BaseModel):
@@ -435,31 +493,47 @@ class BatchApprovalResponse(BaseModel):
 
 
 @router.post("/approvals/batch-decide", response_model=BatchApprovalResponse)
-async def batch_decide_approvals(req: BatchApprovalRequest,
-    approver: User = Depends(get_current_user), db=Depends(get_db)):
-    """Each item commits independently. External effects cannot be rolled back as a batch."""
+async def batch_decide_approvals(
+    req: BatchApprovalRequest,
+    approver: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """All decisions commit together; a failing member rolls the whole batch back."""
+    batch_id = "batch_" + uuid.uuid4().hex
     ids = [item.approval_id for item in req.approvals]
-    if len(set(ids)) != len(ids):
-        raise HTTPException(400, "APPROVAL_DUPLICATE_BATCH_ID")
-    results = []
-    for index, item in enumerate(req.approvals):
-        uncertain = False
-        try:
-            result = await decide_approval(item.approval_id,
-                ApprovalDecisionRequest(decision=item.decision, comment=req.comment), approver, db)
-            ok = result.status != "execution_unknown"
-            uncertain = not ok
-            results.append({"approval_id": item.approval_id, "success": ok,
-                            "new_status": result.status, "message": result.message})
-        except HTTPException as exc:
-            results.append({"approval_id": item.approval_id, "success": False,
-                            "error": exc.detail})
-            uncertain = exc.status_code >= 500
-        if uncertain:
-            results.extend({"approval_id": rest.approval_id, "success": False,
-                            "error": "NOT_ATTEMPTED_HUMAN_REVIEW_REQUIRED"}
-                           for rest in req.approvals[index + 1:])
-            break
-    succeeded = sum(item["success"] for item in results)
-    return BatchApprovalResponse(batch_id="batch_" + uuid.uuid4().hex[:12], total=len(results),
-        succeeded=succeeded, failed=len(results)-succeeded, results=results)
+    if len(ids) != len(set(ids)):
+        raise HTTPException(400, "APPROVAL_DUPLICATE_ID")
+    records = []
+    try:
+        before = {aid: await deadline.load(db, aid) for aid in sorted(ids)}
+        if any(row is None for row in before.values()):
+            raise HTTPException(404, "审批请求不存在")
+        users = await deadline.lock_users(db, approver.user_id,
+                                         *(row.requester_id for row in before.values()))
+        locked = {aid: await lifecycle.load_locked(db, aid) for aid in sorted(ids)}
+        for aid, row in locked.items():
+            original = before[aid]
+            if (row is None or row.requester_id != original.requester_id
+                    or deadline.canonical(deadline.payload(row)) != deadline.canonical(deadline.payload(original))
+                    or deadline.canonical(deadline.contract(row)) != deadline.canonical(deadline.contract(original))):
+                raise HTTPException(409, "APPROVAL_CHANGED")
+            await _authorize_locked(db, row, users, approver.user_id)
+        for item in req.approvals:
+            row = locked[item.approval_id]
+            state = await _decide_locked(db, row, approver.user_id, item.decision,
+                                         req.comment, batch_id)
+            records.append((row, state))
+        await db.commit()
+    except HTTPException as exc:
+        await db.rollback()
+        return BatchApprovalResponse(batch_id=batch_id, total=len(ids), succeeded=0,
+            failed=len(ids), results=[{"approval_id": aid, "success": False,
+                "error": "APPROVAL_BATCH_ROLLED_BACK", "status_code": exc.status_code} for aid in ids])
+    except Exception:
+        await db.rollback()
+        raise HTTPException(503, "APPROVAL_BATCH_UNCONFIRMED") from None
+    for row, state in records:
+        await _notify_committed(db, row, state)
+    return BatchApprovalResponse(batch_id=batch_id, total=len(ids), succeeded=len(ids), failed=0,
+        results=[{"approval_id": row.approval_id, "success": True, "new_status": state}
+                 for row, state in records])

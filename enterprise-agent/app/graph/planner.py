@@ -19,16 +19,20 @@
 
 from __future__ import annotations
 
-import json
 import re
 import time
 from typing import Optional
 
-from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
+from app.core.execution_budget import ExecutionBudgetExceeded
 from app.graph.state import AgentState, Intent, SubTask, TaskType, UserInput
+from app.graph.plan_policy import PlanRejected, check_dependencies, check_plan
 from app.rag.llm import get_cloud_lite_llm, get_lite_llm, get_local_llm, get_primary_llm
+from app.security.planning_boundary import (
+    PlanningBoundaryError, PlanningPrompt, action_excerpt, build_prompt, json_value,
+    model_text, request_data, text,
+)
 
 
 # Prompt 统一从注册表获取(P2-1:版本管理/A/B;代码默认值见 app/prompts/defaults.py)
@@ -49,6 +53,14 @@ RULE_KEYWORDS = {
 
 
 def planner_node(state: AgentState) -> AgentState:
+    """Reject invalid proposals before the graph can dispatch any agent."""
+    try:
+        return _plan(state)
+    except PlanRejected as exc:
+        return AgentState(subtasks=[], plan_error=str(exc))
+
+
+def _plan(state: AgentState) -> AgentState:
     """Planner 节点:意图分类 + 任务分解
 
     重规划模式:当 state 携带 replan_reason(来自 aggregator 的 needs_replan)时,
@@ -66,21 +78,28 @@ def planner_node(state: AgentState) -> AgentState:
     user_input: UserInput = state["user_input"]
     message = user_input.message
     # 多轮对话历史(run_graph 入口注入;无历史为 [])
-    history = state.get("history") or []
+    history = state.get("history")
+    data = request_data(message, history)
 
-    logger.info(f"Planner 开始: user={user_input.username}, message={message[:80]!r}")
+    logger.info("PLANNER_STARTED")
 
     # ===== 重规划模式(agent-replan):跳过分类直接重建知识子任务 =====
     # 状态更新也在此完成(轮次递增/历史追加/agent_results 重置)——
     # langgraph 1.2 条件边不支持携带 updates,故集中在重规划分支落地
     replan_reason = state.get("replan_reason")
     if replan_reason:
-        replan_hint = state.get("replan_hint") or {}
-        replan_query = (
-            replan_hint.get("query")
-            if isinstance(replan_hint, dict)
-            else None
-        ) or message
+        replan_hint = state.get("replan_hint")
+        if replan_hint is None:
+            replan_hint = {}
+        if type(replan_hint) is not dict or set(replan_hint) - {'query', 'stage'}:
+            raise PlanningBoundaryError()
+        replan_query = replan_hint.get('query', message)
+        if replan_query is None or replan_query == '':
+            replan_query = message
+        text(replan_query)
+        text(replan_reason)
+        if 'stage' in replan_hint:
+            text(replan_hint['stage'])
         subtasks = [
             SubTask(
                 task_id="t1",
@@ -92,10 +111,7 @@ def planner_node(state: AgentState) -> AgentState:
         replan_count = state.get("replan_count", 0) + 1
         replan_history = list(state.get("replan_history") or [])
         replan_history.append(replan_reason)
-        logger.info(
-            f"Planner 重规划: reason={replan_reason}, "
-            f"query={replan_query[:80]!r}, round={replan_count}"
-        )
+        logger.info(f"PLANNER_REPLAN round={replan_count}")
         return AgentState(
             intent=Intent.KNOWLEDGE_QA,
             subtasks=subtasks,
@@ -120,24 +136,19 @@ def planner_node(state: AgentState) -> AgentState:
         # 2. 意图分类(lite 本地优先;失败或输出不可用 → 云端 flash 补一枪 → 规则兜底)
         tpl, pv = get_prompt("planner_intent_classify")
         logger.debug(f"prompt=planner_intent_classify v{pv}")
-        # 多轮上下文:有历史时拼进 message 槽(不改模板,兼容 prompt_versions 已激活版本)
-        # 让"那它的折扣呢"这类指代型追问能被正确分类
-        classify_message = message
-        if history:
-            from app.graph.history import format_history_block
-
-            classify_message = (
-                f"{format_history_block(history)}\n\n当前消息: {message}"
-            )
-        prompt = tpl.format(message=classify_message)
+        prompt = build_prompt(tpl, pv, data)
 
         parsed: Optional[dict] = None
         lite = None
         try:
             lite = get_lite_llm()
+        except ExecutionBudgetExceeded:
+            raise
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"轻量 LLM 初始化失败: {e}")
-            reasoning = f"意图分类 LLM 降级: {e}"
+            from app.core.execution_budget import check_execution_budget
+            check_execution_budget()
+            logger.warning("PLANNER_LITE_INIT_FAILED")
+            reasoning = "INTENT_MODEL_UNAVAILABLE"
         if lite is not None:
             parsed = _invoke_classify(lite, prompt, "lite")
 
@@ -161,7 +172,10 @@ def planner_node(state: AgentState) -> AgentState:
 
     # 3. 任务分解(多任务场景用 primary 大模型)
     if intent == Intent.MULTI_TASK:
-        subtasks = _decompose_tasks(message)
+        try:
+            subtasks = _decompose_tasks(message)
+        except PlanRejected as exc:
+            return AgentState(intent=intent, subtasks=[], plan_error=str(exc))
     elif intent == Intent.KNOWLEDGE_QA:
         subtasks = [
             SubTask(
@@ -186,10 +200,7 @@ def planner_node(state: AgentState) -> AgentState:
         ]
 
     latency_ms = int((time.time() - start) * 1000)
-    logger.info(
-        f"Planner 完成: intent={intent.value}, subtasks={len(subtasks)}, "
-        f"latency={latency_ms}ms, reasoning={reasoning[:80]}"
-    )
+    logger.info(f"PLANNER_COMPLETED tasks={len(subtasks)} latency_ms={latency_ms}")
 
     return AgentState(
         intent=intent,
@@ -207,6 +218,7 @@ def _quick_chitchat_check(message: str) -> bool:
 
     本地不可用时降级为非闲聊(继续走后续分类流程)。
     """
+    text(message)
     # 超短消息(<=4 字符)且无业务关键词,直接判为闲聊(免调 LLM)
     if len(message.strip()) <= 4 and not any(
         kw in message for kw in ["政策", "流程", "查询", "创建", "审批", "折扣", "佣金"]
@@ -214,10 +226,10 @@ def _quick_chitchat_check(message: str) -> bool:
         return True
 
     try:
-        llm = get_local_llm()
         tpl, pv = get_prompt("planner_chitchat_detect")
         logger.debug(f"prompt=planner_chitchat_detect v{pv}")
-        prompt = tpl.format(message=message)
+        prompt = build_prompt(tpl, pv, request_data(message))
+        llm = get_local_llm()
         # num_predict 硬截断:只需"是/否"一个字,防 qwen3.5 reasoning=False 后仍啰嗦
         # (ChatOllama 用 model_copy 改 num_predict;非 Ollama 模型回退 max_tokens)
         from langchain_ollama import ChatOllama
@@ -226,14 +238,19 @@ def _quick_chitchat_check(message: str) -> bool:
             llm = llm.model_copy(update={"num_predict": 5})
         else:
             llm = llm.bind(max_tokens=5)
-        resp = llm.invoke([HumanMessage(content=prompt)])
-        text = resp.content if hasattr(resp, "content") else str(resp)
-        text = text.strip()
-        logger.debug(f"本地闲聊判断响应: {text[:50]}")
+        resp = llm.invoke(prompt.messages(), config=prompt.config())
+        answer = model_text(resp).strip().lower()
+        if answer not in {'是', '否', 'yes', 'no'}:
+            raise PlanningBoundaryError()
+        logger.debug("PLANNER_CHITCHAT_RESPONSE_RECEIVED")
         # 判断是否以"是"开头
-        return text.startswith("是") or text.lower().startswith("yes")
+        return answer in {'是', 'yes'}
+    except (PlanRejected, ExecutionBudgetExceeded):
+        raise
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"本地闲聊判断失败,降级为非闲聊: {e}")
+        from app.core.execution_budget import check_execution_budget
+        check_execution_budget()
+        logger.warning("PLANNER_CHITCHAT_FAILED")
         return False
 
 
@@ -244,26 +261,32 @@ def _decompose_tasks(message: str) -> list[SubTask]:
     大模型失败时降级为单一 knowledge 兜底。
     """
     try:
-        llm = get_primary_llm()
         tpl, pv = get_prompt("planner_task_decompose")
         logger.debug(f"prompt=planner_task_decompose v{pv}")
-        prompt = tpl.format(message=message)
-        resp = llm.invoke([HumanMessage(content=prompt)])
-        raw = resp.content if hasattr(resp, "content") else str(resp)
-        logger.debug(f"任务分解 LLM 响应: {raw[:300]}")
+        prompt = build_prompt(tpl, pv, request_data(message))
+        llm = get_primary_llm()
+        resp = llm.invoke(prompt.messages(), config=prompt.config())
+        raw = model_text(resp)
+        logger.debug("PLANNER_DECOMPOSITION_RESPONSE_RECEIVED")
 
         parsed = _parse_llm_json(raw)
-        if parsed:
-            raw_subtasks = parsed.get("subtasks", [])
-            subtasks = _dedup_subtasks(_build_subtasks_from_llm(raw_subtasks))
-            if subtasks:
-                logger.info(f"任务分解成功: {len(subtasks)} 个子任务")
-                return subtasks
-            logger.warning("任务分解返回空 subtasks,降级为单一 knowledge")
-        else:
-            logger.warning("任务分解 JSON 解析失败,降级为单一 knowledge")
+        if set(parsed) != {'subtasks'}:
+            raise PlanningBoundaryError()
+        subtasks = _build_subtasks_from_llm(parsed['subtasks'])
+        for task in subtasks:
+            if task.task_type in (TaskType.EXECUTION, TaskType.APPROVAL):
+                action_excerpt(task.description, message)
+        subtasks = _dedup_subtasks(subtasks)
+        if subtasks:
+            logger.info(f"PLANNER_DECOMPOSITION_COMPLETED count={len(subtasks)}")
+            return subtasks
+        logger.info("PLANNER_DECOMPOSITION_EMPTY")
+    except (PlanRejected, ExecutionBudgetExceeded):
+        raise
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"任务分解 LLM 失败,降级为单一 knowledge: {e}")
+        from app.core.execution_budget import check_execution_budget
+        check_execution_budget()
+        logger.warning("PLANNER_DECOMPOSITION_FAILED")
 
     # 降级:作为单一 knowledge 任务
     return [
@@ -276,49 +299,41 @@ def _decompose_tasks(message: str) -> list[SubTask]:
     ]
 
 
-def _invoke_classify(llm, prompt: str, tag: str) -> Optional[dict]:
+def _invoke_classify(llm, prompt: PlanningPrompt, tag: str) -> Optional[dict]:
     """调用指定 LLM 做意图分类并解析 JSON;失败返回 None(由调用方决定降级路径)"""
     try:
-        resp = llm.invoke([HumanMessage(content=prompt)])
-        raw = resp.content if hasattr(resp, "content") else str(resp)
-        logger.debug(f"Planner 意图分类 {tag} 响应: {raw[:300]}")
-        return _parse_llm_json(raw)
+        resp = llm.invoke(prompt.messages(), config=prompt.config())
+        raw = model_text(resp)
+        logger.debug("PLANNER_CLASSIFICATION_RESPONSE_RECEIVED")
+        parsed = _parse_llm_json(raw)
+        if (set(parsed) - {'intent', 'reasoning', 'subtasks'}
+                or _safe_intent(parsed.get('intent')) is None):
+            raise PlanningBoundaryError()
+        text(parsed.get('reasoning', ''), empty=True)
+        _build_subtasks_from_llm(parsed.get('subtasks', []))
+        return parsed
+    except (PlanRejected, ExecutionBudgetExceeded):
+        raise
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"Planner 意图分类 {tag} 调用失败: {e}")
+        from app.core.execution_budget import check_execution_budget
+        check_execution_budget()
+        logger.warning("PLANNER_CLASSIFICATION_FAILED")
         return None
 
 
 def _parse_llm_json(raw: str) -> Optional[dict]:
-    """从 LLM 响应中解析 JSON(容错:剥离 markdown 代码块、提取首个 JSON 对象)"""
-    if not raw:
-        return None
-
-    # 剥离 markdown 代码块
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-
-    # 直接尝试解析
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
-
-    # 提取首个 {...} 块
-    match = re.search(r"\{[\s\S]*\}", cleaned)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-
-    return None
+    """A complete unambiguous object only; no prose/fence extraction."""
+    parsed = json_value(raw)
+    if type(parsed) is not dict:
+        raise PlanningBoundaryError()
+    return parsed
 
 
 def _safe_intent(s: str) -> Optional[Intent]:
     """字符串安全转 Intent"""
-    s = (s or "").strip().lower()
+    if type(s) is not str:
+        return None
+    s = s.strip().lower()
     for member in Intent:
         if member.value == s:
             return member
@@ -327,15 +342,28 @@ def _safe_intent(s: str) -> Optional[Intent]:
 
 def _build_subtasks_from_llm(raw_subtasks: list[dict]) -> list[SubTask]:
     """从 LLM 输出构造 SubTask 列表"""
+    if not isinstance(raw_subtasks, list):
+        raise PlanRejected("INVALID_TASK_DEPENDENCIES")
+    from app.core.execution_budget import check_task_count
+
+    check_task_count(len(raw_subtasks))
+    # Check even incomplete tasks: skipping a malformed task must not erase a dependency.
+    for item in raw_subtasks:
+        if isinstance(item, dict):
+            check_dependencies(item.get("depends_on", []))
     out: list[SubTask] = []
     for i, item in enumerate(raw_subtasks, start=1):
-        if not isinstance(item, dict):
-            continue
-        type_str = (item.get("type") or "").strip().lower()
-        desc = (item.get("desc") or item.get("description") or "").strip()
-        if not desc:
-            continue
-        task_type = _safe_task_type(type_str) or TaskType.KNOWLEDGE
+        if (type(item) is not dict or set(item) - {
+                'task_id', 'type', 'desc', 'description', 'depends_on'}
+                or ('desc' in item and 'description' in item)):
+            raise PlanningBoundaryError()
+        type_str = text(item.get('type')).strip().lower()
+        desc = text(item.get('desc', item.get('description'))).strip()
+        if 'task_id' in item:
+            text(item['task_id'])
+        task_type = _safe_task_type(type_str)
+        if task_type is None:
+            raise PlanningBoundaryError()
         out.append(
             SubTask(
                 task_id=f"t{i}",
@@ -373,6 +401,7 @@ def _dedup_subtasks(subtasks: list[SubTask]) -> list[SubTask]:
     (同实体不同动作——如「查 C005」/「为 C005 建工单」/「为 C005 发邮件」——不是重复,不合并)。
     合并时保留描述更完整(更长)的一条,合并后重排 task_id 与 priority。
     """
+    check_plan(subtasks)
     if len(subtasks) <= 1:
         return subtasks
 
@@ -396,10 +425,7 @@ def _dedup_subtasks(subtasks: list[SubTask]) -> list[SubTask]:
                     kept[i] = st
                     kept_entities[i] = entities
                     kept_actions[i] = actions
-                logger.info(
-                    f"子任务去重: 合并重叠子任务 '{st.description[:30]}' → "
-                    f"'{kept[i].description[:30]}'"
-                )
+                logger.info("PLANNER_DUPLICATE_TASK_MERGED")
                 merged = True
                 break
         if not merged:

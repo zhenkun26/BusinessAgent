@@ -1,0 +1,156 @@
+{
+  "schema": "upstream-notice-evidence-v1",
+  "reviewed_on": "2026-11-07",
+  "source_baseline": "ed3f6ce4736b26942944aa8642df40cce886633b",
+  "scope": "Only the twelve listed generated instruction files; not project-wide authorship or final-distribution clearance",
+  "evidence_state": "OFFICIAL_INSTRUCTIONS_MATCHED_NOTICE_RETAINED",
+  "distribution_acceptance": "NOT_GRANTED",
+  "package": {
+    "name": "@fission-ai/openspec",
+    "version": "1.7.0",
+    "metadata_source": "https://registry.npmjs.org/@fission-ai%2Fopenspec/1.7.0",
+    "archive_source": "https://registry.npmjs.org/@fission-ai/openspec/-/openspec-1.7.0.tgz",
+    "archive_sha256": "3e0bd044bf1fae1732f201fab7b5c1c8ceb4ef89bed9923f89a33cb4f0750afd",
+    "archive_integrity": "sha512-FGuMzBqJVB7/mbn/+kt9MsHzCvjoAVNguDWtuHBjdlF3GkUGrc5QlU6FJ70wbb4sBPsd9zbXB2wftMmxCzEJCw==",
+    "license_member": "package/LICENSE"
+  },
+  "notice": {
+    "path": "third_party/licenses/openspec/OpenSpec-1.7.0-MIT.txt",
+    "sha256": "c3c7235bea1214ab62df643473975c2e8b8848f528901a976693f7d069713e64"
+  },
+  "matching_method": "Static template extraction, STORE_SELECTION_GUIDANCE interpolation, then exact official COMMAND_TO_SKILL_NAME and Codex/Kimi prefixes. The package was not installed or executed.",
+  "files": [
+    {
+      "path": ".codex/skills/openspec-apply-change/SKILL.md",
+      "sha256": "ad613d2e091add16987991ca33b6c66eb648dc5f1be5fde66230b8c8b39dffc8",
+      "upstream_member": "package/dist/core/templates/workflows/apply-change.js",
+      "upstream_member_sha256": "f829541929b51a6e176ddbe2df4d3edfdcd14f7664a7d526a7abe8640517e904",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".codex/skills/openspec-archive-change/SKILL.md",
+      "sha256": "655ce675120860bd161b495fddc2eeba64b0d595ab1a798198dd4a4eb3d1f318",
+      "upstream_member": "package/dist/core/templates/workflows/archive-change.js",
+      "upstream_member_sha256": "d5aff5f6840491e175ed73fe1632335c7488711584c515b1afba9122deb1dc33",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".codex/skills/openspec-explore/SKILL.md",
+      "sha256": "e7b53309e97e9616e323de58e59711a97001604ea457c64b6bed6ccea6b5e48c",
+      "upstream_member": "package/dist/core/templates/workflows/explore.js",
+      "upstream_member_sha256": "b04be6d330cad494cbb6e2a3d1be748723d7e3e352465f4b708e10dacba5e806",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".codex/skills/openspec-propose/SKILL.md",
+      "sha256": "f336c80a63b4e62da1c1ef7928eb75552034dcef652dc312d09263fe67a26264",
+      "upstream_member": "package/dist/core/templates/workflows/propose.js",
+      "upstream_member_sha256": "c3a535ad946a1c27a770d46b1713cb6ac831019ffca3b19f3861799c22a2db45",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".codex/skills/openspec-sync-specs/SKILL.md",
+      "sha256": "f5031fa145f0d39db89b9f40ca0d3c9b110c4cc76a28f545c9d460468bb8134a",
+      "upstream_member": "package/dist/core/templates/workflows/sync-specs.js",
+      "upstream_member_sha256": "c69509b9b73411fe7beba538f2461bd3b238f020ee09388c091007d371a72755",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".codex/skills/openspec-update-change/SKILL.md",
+      "sha256": "3b0fcc50b163e2a9eb1a0635438bda67b75e5975fa9dd77683ee119d85e4c410",
+      "upstream_member": "package/dist/core/templates/workflows/update-change.js",
+      "upstream_member_sha256": "5cfe054ad31f68f1f35589ebb0879aa685e8adfff5627fd141746124b2c83eac",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".kimi-code/skills/openspec-apply-change/SKILL.md",
+      "sha256": "b85435b1a3437af59845276e34d4d116fcb7e1e2cbbaf7809c24bf188b7e066b",
+      "upstream_member": "package/dist/core/templates/workflows/apply-change.js",
+      "upstream_member_sha256": "f829541929b51a6e176ddbe2df4d3edfdcd14f7664a7d526a7abe8640517e904",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".kimi-code/skills/openspec-archive-change/SKILL.md",
+      "sha256": "2dc78547cd12a259a23239102791525eeacb93b02fc2356f6f170c88cdf074c8",
+      "upstream_member": "package/dist/core/templates/workflows/archive-change.js",
+      "upstream_member_sha256": "d5aff5f6840491e175ed73fe1632335c7488711584c515b1afba9122deb1dc33",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".kimi-code/skills/openspec-explore/SKILL.md",
+      "sha256": "70545e4f3775f5f4b84f82f933e67a8d6889e05b04c232233a46722fd47f548b",
+      "upstream_member": "package/dist/core/templates/workflows/explore.js",
+      "upstream_member_sha256": "b04be6d330cad494cbb6e2a3d1be748723d7e3e352465f4b708e10dacba5e806",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".kimi-code/skills/openspec-propose/SKILL.md",
+      "sha256": "973f8b9e61a3828b7bf929828402c33020b0e6be1fa23f98fcdde0ede18eadf6",
+      "upstream_member": "package/dist/core/templates/workflows/propose.js",
+      "upstream_member_sha256": "c3a535ad946a1c27a770d46b1713cb6ac831019ffca3b19f3861799c22a2db45",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".kimi-code/skills/openspec-sync-specs/SKILL.md",
+      "sha256": "a8d164ca9a7a6104dccbaddfb392ef3025adefe4d3dabe22fb4ce44c3dffb291",
+      "upstream_member": "package/dist/core/templates/workflows/sync-specs.js",
+      "upstream_member_sha256": "c69509b9b73411fe7beba538f2461bd3b238f020ee09388c091007d371a72755",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    },
+    {
+      "path": ".kimi-code/skills/openspec-update-change/SKILL.md",
+      "sha256": "4116fada92a0f17acc0c5c3395aba97bfeb84a77e6d1048dd70619b395e016b0",
+      "upstream_member": "package/dist/core/templates/workflows/update-change.js",
+      "upstream_member_sha256": "5cfe054ad31f68f1f35589ebb0879aa685e8adfff5627fd141746124b2c83eac",
+      "renderer_member": "package/dist/utils/command-references.js",
+      "renderer_sha256": "62ab192b176ab5204fc3c770e06c3b1725f828073b75a5d697db67a36f7ad153",
+      "instructions_match_exact_official_renderer_rules": true,
+      "license": "MIT",
+      "copyright": "2024 OpenSpec Contributors"
+    }
+  ]
+}

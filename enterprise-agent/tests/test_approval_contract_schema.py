@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import hashlib
+import json
 from pathlib import Path
 import re
 import unittest
@@ -23,7 +24,10 @@ STRINGS = {
 }
 ARRAYS = {"tool_calls", "approver_roles", "targets"}
 ORIGINAL = {
-    "init.sql": "c1562ac7fe3a8583e685377ffd7b9d2c0d9ef738258f2a45226e95bf242c180d",
+    # Integrated managed v1 is the candidate schema-only baseline, not old public init.
+    "init.sql": "3652c4b0fc3421b369f643566d3b89451ed82cb35d46d6050ca5d87230a26212",
+    "migrations/009_approval_contract_provenance.sql":
+        "64c29daeb31d3b9d8f0fa3ad04c8e2b9285323b7b84879606b9194e651cab769",
     "migrations/001_prompt_versions.sql":
         "40e24bb3274db572b953fabca7347f20dbaf42716146c91f49f5e0baafd120da",
     "migrations/002_documents_ledger.sql":
@@ -151,10 +155,52 @@ class MigrationSourceTests(unittest.TestCase):
                       "actual.tgqual IS NOT NULL", "actual.tgnargs <> 0"):
             self.assertIn(guard, CODE)
 
-    def test_public_baseline_init_and_existing_migrations_unchanged(self) -> None:
+    def test_integrated_baseline_and_standalone_history_unchanged(self) -> None:
         for path, expected in ORIGINAL.items():
             with self.subTest(path=path):
                 self.assertEqual(hashlib.sha256((DEPLOY / path).read_bytes()).hexdigest(), expected)
+
+
+class ManagedMigrationTests(unittest.TestCase):
+    def test_managed_v1_to_v8_are_frozen_including_c10(self):
+        expected = {
+            'init.sql':
+                '3652c4b0fc3421b369f643566d3b89451ed82cb35d46d6050ca5d87230a26212',
+            '002_tool_operations.sql':
+                'eaad50d8ab534afac91138a8e2f9e0924e5731be52c5883ef9ab96c2066bf1e7',
+            '003_task_jobs.sql':
+                '509c51e084a35a657491cae09709d4f930a6c958ff1d54fdbeb06571bcd0b8a2',
+            '004_saga_journal.sql':
+                '00b28bf3f460525713a0ec19a378cf783c43850ace1787f95b3e92fc05e12376',
+            '005_approval_execution.sql':
+                '3c4fd1fc49c4e3792c7955149684f2c677459383d2f98a94b76c48cbf5977126',
+            '006_knowledge_publication.sql':
+                '52ff47563aad423e62fdd018fccf3403bd6532dd4404e80c5caa171873ee618d',
+            '007_audit_identity.sql':
+                '37a67f266c8141c8faca6ff3282f1413845ed6948c952646c3568378266a1243',
+            '008_session_fencing.sql':
+                'bde273f31cffd92af6aa8768d98186357f3f678504010230c5b57f9d7089e59d',
+        }
+        manifest = json.loads((DEPLOY / 'schema_manifest.json').read_text())
+        self.assertEqual([m['version'] for m in manifest['migrations']], list(range(1, 10)))
+        self.assertEqual({m['file']: m['sha256'] for m in manifest['migrations'][:8]}, expected)
+        for name, checksum in expected.items():
+            with self.subTest(name=name):
+                self.assertEqual(hashlib.sha256((DEPLOY / name).read_bytes()).hexdigest(), checksum)
+        self.assertEqual(manifest['migrations'][7]['name'], 'session_fencing')
+        self.assertIn('session_write_fences', manifest['columns'])
+        self.assertIn('session_checkpoint_publications', manifest['columns'])
+
+    def test_managed_v9_is_exact_standalone_body_inside_runner_transaction(self):
+        manifest = json.loads((DEPLOY / 'schema_manifest.json').read_text())
+        entry = manifest['migrations'][8]
+        self.assertEqual(entry['name'], 'approval_contract_provenance')
+        managed = (DEPLOY / entry['file']).read_text()
+        self.assertEqual(hashlib.sha256(managed.encode()).hexdigest(), entry['sha256'])
+        body = SQL[SQL.index('SET LOCAL search_path'):].removesuffix('COMMIT;\n')
+        self.assertEqual(managed[managed.index('SET LOCAL search_path'):], body)
+        self.assertNotRegex(managed, r'(?m)^(?:BEGIN|COMMIT|ROLLBACK);$')
+        self.assertEqual(manifest['columns']['approval_requests']['approval_contract'], {'type': 'jsonb'})
 
 
 class ContractPolicyModelTests(unittest.TestCase):

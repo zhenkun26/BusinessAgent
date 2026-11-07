@@ -1,0 +1,63 @@
+{
+  "schema": "frozen-source-preimages-v1",
+  "manifest": "enterprise-agent/scripts/final_candidate_sources.json",
+  "manifest_blob": "88e475ffd9598d3251c78b5f3f9a1ef596af4842",
+  "sources": [
+    {
+      "source_path": "enterprise-agent/app/api/auth.py",
+      "sha256": "0e39ce41bdad65fbbfa2420c4a229b3114050930b5c8e5d2b6f78335a22df017",
+      "original_commit": "4afe54bda9cfd581870d84ced50fb5dd86687c75",
+      "source_blob": "3814e2c735ca7b100ef7b2f2483680956a04db47",
+      "archive": ".github/secret-scan-provenance/1-auth.py.txt",
+      "bytes": 15200
+    },
+    {
+      "source_path": "enterprise-agent/app/graph/checkpoint_access.py",
+      "sha256": "8ae484d00b4bab88093682b4ea9aad1928f76f49175ff9ab1b8df2b6e7651bcf",
+      "original_commit": "63962523b067406142d9fa1268aac8193e47047b",
+      "source_blob": "99ba37c6ee354f540ea6fc264393e26a0f27d306",
+      "archive": ".github/secret-scan-provenance/2-checkpoint_access.py.txt",
+      "bytes": 3842
+    },
+    {
+      "source_path": "enterprise-agent/app/security/password.py",
+      "sha256": "9703bc6b46533784cc6ec15909b2e783376f38dec43f6bf1181939a11679e832",
+      "original_commit": "1b923cebc222d409af8b89cf2608678a9da18198",
+      "source_blob": "0f24ec88ba96cbd9b39e95f0aa8cd6cc9495e624",
+      "archive": ".github/secret-scan-provenance/3-password.py.txt",
+      "bytes": 1519
+    },
+    {
+      "source_path": "enterprise-agent/tests/test_auth_password.py",
+      "sha256": "ff7b8910e1e03e8afd764227df4ceb8bfba5629fa01782205446b4df6a2595be",
+      "original_commit": "1b923cebc222d409af8b89cf2608678a9da18198",
+      "source_blob": "55432502aeb7486967ee3c16f72fc2191f0e5133",
+      "archive": ".github/secret-scan-provenance/4-test_auth_password.py.txt",
+      "bytes": 4419
+    },
+    {
+      "source_path": "enterprise-agent/tests/test_browser_credential_safety.cjs",
+      "sha256": "8001ac0a4593513b8ab57e84c84f1b9a05feee8565584b7a89479585a34510ca",
+      "original_commit": "44bfcb072e2f01373cd3a0d42398ed6ffe6eba5d",
+      "source_blob": "42d725dce1a3b172dea44e4ba71883525f5d91c6",
+      "archive": ".github/secret-scan-provenance/5-test_browser_credential_safety.cjs.txt",
+      "bytes": 5641
+    },
+    {
+      "source_path": "enterprise-agent/tests/test_credential_safety.py",
+      "sha256": "dee01b2d20953da2058540a8da0264256fce8358b100d079ee57990b82e79436",
+      "original_commit": "40c10d869a6f766fa81f2f5ae102352547146527",
+      "source_blob": "b5b645b37e0dfcbf8ab0f6156aa01ae02c132fbc",
+      "archive": ".github/secret-scan-provenance/6-test_credential_safety.py.txt",
+      "bytes": 19327
+    },
+    {
+      "source_path": "enterprise-agent/tests/test_token_usage.py",
+      "sha256": "87f9ab45828aea4599d04f63bb2bed53a86e8a3ab3fa352148b431ab5fbbcd19",
+      "original_commit": "63962523b067406142d9fa1268aac8193e47047b",
+      "source_blob": "53a1f210a7e02dc88e743bbbf0274b9bce85b8d8",
+      "archive": ".github/secret-scan-provenance/7-test_token_usage.py.txt",
+      "bytes": 6759
+    }
+  ]
+}

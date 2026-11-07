@@ -3,15 +3,13 @@
 输入：AgentState.agent_results(并行执行后的结果列表)
 输出：AgentState.final_answer + sources + confidence + needs_replan
 
-策略(大模型 + 小模型分层):
+策略:
 1. 单 Agent 结果：直接采用(不调 LLM)
-2. 多 Agent 结果：用 primary 大模型汇总(需要理解 + 整合能力)
+2. 多 Agent 结果：知识结果保留引用，其余结果按结构化状态确定性组合
 3. 失败结果：标记并降低综合置信度
 4. needs_replan 传播：任一子 Agent 标记重规划，则整体重规划
 
-模型分层理由：
-- 单结果无需 LLM(直接采用，节省成本)
-- 多结果汇总需要理解各 Agent 回答 + 整合，用大模型保证质量
+闲聊的模型兜底保持独立；结果汇总不调用模型。
 """
 
 from __future__ import annotations
@@ -20,21 +18,26 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from langchain_core.messages import HumanMessage
 from loguru import logger
 
 from app.agents.knowledge import AgentResult, RetrievalSource
 from app.graph.state import AgentState, Intent
 from app.observability.token_usage import snapshot_total_tokens
-from app.rag.llm import get_lite_llm, get_primary_llm
-
-
-# 多结果汇总 Prompt 从注册表获取(P2-1:版本管理/A/B;默认值见 app/prompts/defaults.py)
-from app.prompts import get_prompt
+from app.rag.llm import get_lite_llm
 
 
 async def aggregator_node(state: AgentState) -> AgentState:
-    """Aggregator 节点：汇总子 Agent 结果(async:支持汇总 LLM 的 token 流式)"""
+    """Bind the answer to its request so inherited snapshots cannot invent turns."""
+    result = await _aggregate(state)
+    result["answer_request_id"] = (
+        state["user_input"].request_id if result.get("final_answer")
+        and not result.get("needs_replan") else None
+    )
+    return result
+
+
+async def _aggregate(state: AgentState) -> AgentState:
+    """Compose results before the existing final-answer publication boundary."""
     start = time.time()
     # 断点恢复后,checkpoint 反序列化可能把 AgentResult 变成 dict,统一转回模型
     results: list[AgentResult] = [
@@ -76,6 +79,9 @@ async def aggregator_node(state: AgentState) -> AgentState:
     if len(results) == 1:
         r = results[0]
         final_answer = r.output.get("answer", "")
+        if r.success and r.agent_name == 'knowledge':
+            from app.security.rag_boundary import validate_answer
+            validate_answer(final_answer, len(r.sources))
         if not r.success and not final_answer:
             # Agent 未给出可读回答时,才用错误信息兜底(避免掩盖 RBAC 拒绝等友好提示)
             final_answer = f"处理失败： {r.error or '未知错误'}"
@@ -98,9 +104,10 @@ async def aggregator_node(state: AgentState) -> AgentState:
             total_latency_ms=latency_ms,
         )
 
-    # 4. 多 Agent:LLM 汇总
+    # 4. Multi-result composition never calls a summary model.
     success_results = [r for r in results if r.success]
-    if not success_results:
+    has_knowledge = any(r.agent_name == 'knowledge' for r in results)
+    if has_knowledge and not success_results:
         # 全部失败,返回第一个的错误
         first_err = results[0].error or "所有子 Agent 执行失败"
         latency_ms = int((time.time() - start) * 1000)
@@ -114,33 +121,39 @@ async def aggregator_node(state: AgentState) -> AgentState:
             total_latency_ms=latency_ms,
         )
 
-    # 构造汇总输入
-    agent_answers = _format_agent_answers(results)
-    final_answer = await _llm_aggregate(user_input.message, agent_answers)
+    if has_knowledge:
+        from app.security.rag_boundary import compose_knowledge
+        final_answer = compose_knowledge(results)
+    else:
+        from app.security.result_boundary import compose_nonknowledge
+        # Validate original checkpoint fields as well: model normalization must not
+        # turn malformed success/status data into authoritative completion evidence.
+        final_answer = compose_nonknowledge(state['agent_results'])
 
     # 合并 sources
     all_sources: list[RetrievalSource] = []
-    seen_chunk_ids: set[str] = set()
+    seen_chunk_ids: set[tuple[str, str]] = set()
     for r in success_results:
         for s in r.sources:
-            if s.chunk_id not in seen_chunk_ids:
+            if (s.document_id, s.chunk_id) not in seen_chunk_ids:
                 all_sources.append(s)
-                seen_chunk_ids.add(s.chunk_id)
+                seen_chunk_ids.add((s.document_id, s.chunk_id))
 
     # 综合置信度:成功 Agent 的加权平均(按 confidence 降序加权)
     sorted_succ = sorted(success_results, key=lambda x: x.confidence, reverse=True)
     weights = [1.0 / (i + 1) for i in range(len(sorted_succ))]  # 靠前权重高
     total_w = sum(weights)
-    combined_conf = sum(r.confidence * w for r, w in zip(sorted_succ, weights)) / total_w
+    combined_conf = (sum(r.confidence * w for r, w in zip(sorted_succ, weights)) / total_w
+                     if total_w else 0.0)
 
     # needs_replan:任一标记则传播
-    needs_replan = any(r.needs_replan for r in results)
+    needs_replan = bool(success_results) and any(r.needs_replan for r in results)
     replan_reason = next(
         (r.replan_reason for r in results if r.needs_replan), None
-    )
+    ) if needs_replan else None
     replan_hint = next(
         (r.replan_hint for r in results if r.needs_replan and r.replan_hint), None
-    )
+    ) if needs_replan else None
 
     # tokens 汇总(I-07):统一读请求级累加器,覆盖 planner/全部 agent/汇总 LLM 调用
     total_tokens = snapshot_total_tokens()
@@ -157,6 +170,7 @@ async def aggregator_node(state: AgentState) -> AgentState:
         sources=all_sources,
         confidence=combined_conf,
         needs_replan=needs_replan,
+        error='all_agents_failed' if not success_results else None,
         replan_reason=replan_reason,
         replan_hint=replan_hint,
         tokens_used=total_tokens,
@@ -165,44 +179,20 @@ async def aggregator_node(state: AgentState) -> AgentState:
     )
 
 
-def _format_agent_answers(results: list[AgentResult]) -> str:
-    """格式化各 Agent 回答供 LLM 汇总"""
-    parts = []
-    for i, r in enumerate(results, start=1):
-        status = "成功" if r.success else f"失败({r.error})"
-        answer = r.output.get("answer", "") if r.success else ""
-        parts.append(f"[Agent{i} - {r.agent_name} - {status}]\n{answer}")
-    return "\n\n".join(parts)
-
-
-async def _llm_aggregate(question: str, agent_answers: str) -> str:
-    """调用 primary 大模型汇总多个 Agent 回答
-
-    多 Agent 结果合并需要理解各回答 + 逻辑整合，用大模型保证质量。
-    大模型失败时降级为直接拼接(保证可用)。
-    async + final_answer 标签：支持 token 级流式输出。
-    """
-    try:
-        llm = get_primary_llm()
-        tpl, pv = get_prompt("aggregator_aggregate")
-        logger.debug(f"prompt=aggregator_aggregate v{pv}")
-        prompt = tpl.format(question=question, agent_answers=agent_answers)
-        resp = await llm.ainvoke(
-            [HumanMessage(content=prompt)],
-            config={"tags": ["final_answer"]},  # 流式输出标记
-        )
-        text = resp.content if hasattr(resp, "content") else str(resp)
-        return text.strip()
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Aggregator 大模型汇总失败，降级拼接： {e}")
-        # 降级:直接拼接各 Agent 回答
-        return agent_answers
-
-
 async def _chitchat_reply(message: str, username: str = "") -> str:
     """闲聊场景的人格化回复(智多星 话术,按意图/情绪分支;未命中分支用 lite LLM 生成)"""
+    from app.security.chitchat_boundary import message_data
+    message_data(message)
+    from app.config import get_settings
+    from app.rag.synthetic_demo import selected, require_demo, ANSWER, GREETINGS
+    settings = get_settings()
+    if selected(settings):
+        require_demo(settings)
+        if message not in GREETINGS:
+            raise RuntimeError("DEMO_UNSUPPORTED_OPERATION")
+        return ANSWER
+    # Username is retained in the call signature, never interpolated or sent to a model.
     msg = message.strip().lower()
-    name = username or "同事"
     if any(kw in msg for kw in ["你是谁", "介绍一下", "who are you", "什么助手"]):
         return (
             "我是智多星，你的企业知识工作流智能助手～查政策制度、查客户订单、"
@@ -210,7 +200,7 @@ async def _chitchat_reply(message: str, username: str = "") -> str:
         )
     if any(kw in msg for kw in ["心情", "你好吗", "你还好", "过得怎", "状态怎", "最近怎"]):
         return (
-            f"我心情很好呀，随时待命状态满格～{name}，你呢？"
+            "我心情很好呀，随时待命状态满格～你呢？"
             "要是有什么杂事，尽管丢给我。"
         )
     if any(kw in msg for kw in ["你会什么", "能做什么", "会哪些", "有什么功能", "会干嘛", "能干嘛"]):
@@ -221,7 +211,7 @@ async def _chitchat_reply(message: str, username: str = "") -> str:
     if any(kw in msg for kw in ["吃了吗", "吃饭", "周末", "放假", "加班"]):
         return (
             "我是 AI，不用吃饭充电，全天候在线～"
-            f"{name}再忙也要记得按时吃饭，工作上的事多交给我。"
+            "再忙也要记得按时吃饭，工作上的事多交给我。"
         )
     if any(kw in msg for kw in ["累", "心情", "烦", "压力", "焦虑", "难过", "emo", "不开心"]):
         return (
@@ -230,46 +220,37 @@ async def _chitchat_reply(message: str, username: str = "") -> str:
         )
     if any(kw in msg for kw in ["你好", "hi", "hello", "您好", "在吗", "在么"]):
         return (
-            f"你好，{name}！我是智多星～查公司政策、客户订单、建跟进任务、"
+            "你好！我是智多星～查公司政策、客户订单、建跟进任务、"
             "发邮件都可以找我，有什么要帮忙的？"
         )
     if any(kw in msg for kw in ["谢谢", "感谢", "thanks"]):
         return "不客气～还有其他事随时叫我。"
     if any(kw in msg for kw in ["再见", "bye", "拜拜", "下班"]):
         return "好的，回见！有需要随时找智多星。"
-    # 未命中分支:用 lite LLM(本地 qwen)按智多星 人格即兴生成
-    generated = await _chitchat_llm_generate(message, name)
+    # Unmatched messages use one read-only attempt through the configured lite model.
+    generated = await _chitchat_llm_generate(message)
     if generated:
         return generated
-    return (
-        "我在～我是智多星，可以帮你查政策、查客户订单、建任务、发邮件、做分析。"
-        "直接说要做什么就行，比如「查一下客户 C001」。"
-    )
+    from app.security.chitchat_boundary import FALLBACK
+    return FALLBACK
 
 
-async def _chitchat_llm_generate(message: str, name: str) -> str:
-    """闲聊兜底:lite LLM 按智多星 人格生成回复;失败返回空串(调用方走固定模板)"""
-    prompt = (
-        "你是智多星，企业员工的工作搭子(企业知识工作流智能助手)，性格亲切、干练。"
-        f"现在员工{name}在和你闲聊。\n"
-        "要求:\n"
-        "1. 像同事一样自然回应，口语化，1-2 句话，不超过 60 字\n"
-        "2. 自称智多星，可自然带出对方称呼\n"
-        "3. 中文标点一律用全角\n"
-        "4. 结尾可顺势引导到工作上(查政策、查客户订单、建任务、发邮件)，但不要生硬\n\n"
-        f"员工说:{message}\n"
-        "你的回复(直接输出回复内容，不要解释):"
-    )
+async def _chitchat_llm_generate(message: str) -> str:
+    """One read-only attempt; invalid/provider responses use the caller's fixed fallback."""
+    from app.core.execution_budget import ExecutionBudgetExceeded, check_execution_budget
+    from app.security.chitchat_boundary import model_config, model_messages, render_response
+
     try:
+        messages = model_messages(message)
         llm = get_lite_llm()
-        resp = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = (resp.content or "").strip()
-        # 去掉可能的引号包裹
-        text = text.strip('"“”')
-        if text and len(text) <= 120:
-            logger.info(f"闲聊 LLM 生成成功: {text[:40]}")
-            return text
-        logger.warning(f"闲聊 LLM 输出不可用(长度 {len(text)}),走固定模板")
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"闲聊 LLM 生成失败,走固定模板: {e}")
-    return ""
+        check_execution_budget()
+        response = await llm.ainvoke(messages, config=model_config())
+        answer = render_response(response)
+        logger.info("AGGREGATOR_CHITCHAT_COMPLETED")
+        return answer
+    except ExecutionBudgetExceeded:
+        raise
+    except Exception:  # No provider/response content in diagnostics or fallback.
+        check_execution_budget()
+        logger.warning("AGGREGATOR_CHITCHAT_FAILED")
+        return ""

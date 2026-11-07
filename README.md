@@ -10,6 +10,22 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](enterprise-agent/pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+## 开源第一阶段：当前边界
+
+本轮目标是隔离启动、合成示例和清楚的许可证/来源说明，后续依次是**企业试点评估、
+真实环境试点、生产使用**，不宣称已有企业落地或正式 UAT。
+[开源快速开始与验证状态](docs/30-guides/open-source-quickstart.md)说明专用演示入口、
+原生 libpq 前置、私密测试凭证与保留数据的停止方法。当前 Mac 检查使用二进制驱动适配器，
+真实浏览器检查通过；[已验证代码的CI](https://github.com/zhenkun26/BusinessAgent/actions/runs/42376168479)五项作业通过，包含 Ubuntu runner 的原生 libpq、15项演示检查及候选绑定。
+这不等于所有裸机/操作系统可复现，也不解除未知来源或完整企业/RAG验收限制。
+当前会话历史可查看，刷新会回登录，重登后没有恢复旧会话的可见入口。
+来源清单为原457项加8项新工程fixture，共465项；登记不等于清权。未知素材来源仍需解决，根 MIT 声明不等于全部第三方素材权利已清除。
+
+## 审批安全边界
+
+批准和原子批量决策都不执行动作，须由原发起人明确确认；每次派发重新校验已提交的精确审批计划、当前权限和 UTC 截止时间。混合查询与审批动作计划拒绝执行：先独立查询，再审批纯动作计划。结果不明及迟到回执不能自动解除人工暂停。
+授权证据接口只读，返回安全的逐操作摘要，不提供解除暂停接口。详见[当前审批说明](docs/50-engineering/approval-utc-human-hold.md)与[整合变更](openspec/changes/integrate-local-delivery-security/proposal.md)。托管 schema v9 保留 C10 v8；main 独立 009 仅属历史材料，不是托管安装命令。整合不解除真实运行、C10、隐私和权利验收阻塞。
+
 ## 项目介绍
 
 企业中的一次业务请求，往往同时涉及查制度、取数据和执行操作。
@@ -18,11 +34,13 @@ BusinessAgent 通过 Planner 拆解请求，由不同 Agent 处理子任务，�
 项目关注从自然语言请求到业务执行的完整过程：
 
 - 回答问题时，检索用户有权访问的知识，并提供来源信息。
-- 分析数据时，由 Python 完成统计计算，再由模型生成说明。
+- 分析数据时，按 CRM provider 读取快照，由 Python 计算并生成确定性报告。
 - 执行业务操作时，校验工具权限，并按操作规则进入人工审批。
-- 多步骤操作失败时，对支持补偿的步骤执行 Saga 补偿并记录结果。
+- 审批动作失败或结果不明时停止执行，保留证据供人工核对，不自动补偿。
 
 仓库包含后端服务、Web 交互界面、评测脚本和部署配置，适合研究多智能体编排、企业 RAG 与受控工具执行。
+
+本项目用于后续 GitHub 开源展示与后端求职，目前没有实际客户部署或商业运营计划。开发与交付仍按真实项目流程推进；已实现能力、离线验证、真实运行验收分别记录，不宣称已有企业落地。已完成针对固定候选的[十二视角审核](docs/40-process/multi-expert-review-c57d473.md)（单代理角色模拟）；发现项与验收缺口公开记录，不代表独立认证或运行放行。
 
 ## 可以做什么
 
@@ -31,13 +49,13 @@ BusinessAgent 通过 Planner 拆解请求，由不同 Agent 处理子任务，�
 | 场景 | 示例请求 | 处理方式 |
 | --- | --- | --- |
 | 企业知识问答 | “公司的差旅报销有哪些规定？” | 检索知识库，组织回答并返回来源 |
-| 业务数据分析 | “统计各客户的订单总额并进行排名。” | 解析分析计划，由 Python 聚合数据并生成报告 |
+| 业务数据分析 | “统计各客户的订单总额并进行排名。” | 按授权读取 CRM 快照，由 Python 聚合并生成确定性报告 |
 | 业务记录查询 | “查询客户 C001 的信息。” | 校验角色权限后调用业务工具 |
 | 流程操作 | “为客户 C001 创建一个售后工单。” | 提取参数，执行权限检查并调用工单工具 |
 | 审批协作 | “给外部客户发送一封跟进邮件。” | 根据操作规则创建审批请求，由有权限的人员处理 |
 | 组合任务 | “查询客户信息，同时说明公司的售后政策。” | 将请求拆分为不同 Agent 的子任务并汇总结果 |
 
-> 默认业务工具使用 Mock provider，数据分析当前使用内置样例数据。
+> 默认业务工具使用 Mock provider，分析复用同一 CRM provider；Mock 使用内置样例，HTTP 使用受控快照接口。
 > 示例用于体验工作流；连接真实业务系统需要配置适配器并完成联调。
 
 ### 先试一个离线示例
@@ -51,7 +69,7 @@ python3 -m eval.run_uat_replay
 
 Windows 安装了 Python 启动器时，可将 `python3` 换成 `py -3`。在当前目录打开 `eval/results/uat_replay_report.md`，找到 `scenario-UAT-K02`。这一项检查样例中的销售人员可以读取销售报价指南，同时无法读取财务部的退款制度。[场景数据](enterprise-agent/eval/uat_simulation/fixture.json)
 
-当前样例预期显示 `passed`，16 项检查覆盖 12 个合成场景。回放仅核对预设数据与规则。要在浏览器里输入自己的问题，请按[快速开始](#快速开始)启动完整应用。
+当前样例预期显示 `passed`，16 项检查覆盖 12 个合成场景。回放仅核对预设数据与规则。浏览器合成演示与限制见[开源快速开始](docs/30-guides/open-source-quickstart.md)，不支持任意问答或真实 RAG。
 
 ## 核心能力
 
@@ -66,7 +84,7 @@ Windows 安装了 Python 启动器时，可将 `python3` 换成 `py -3`。在当
 
 - 支持 Markdown、PDF、DOCX 和 TXT 文档加载。
 - 使用 Milvus 向量召回与 Reranker 重排。
-- 默认采用本地 BGE-M3 Embedding 和 BGE Reranker。
+- 随附 `.env.example` 选择百炼北京 `text-embedding-v4`（1024 维）与 `qwen3-rerank`；本地 BGE 仅保留为开发选项。
 - 在检索路径中应用角色与部门命名空间过滤。
 - 提供来源信息、置信度决策和检索异常降级路径。
 
@@ -75,13 +93,13 @@ Windows 安装了 Python 启动器时，可将 `python3` 换成 `py -3`。在当
 - 提供客户、订单、CRM 任务、工单、邮件与审批查询工具。
 - 通过 RBAC 限定不同角色的工具访问权限。
 - 对需要审批的操作接入人工审批流程。
-- 使用 Saga 协调多步骤执行，并处理支持补偿的失败场景。
+- 审批多步骤执行保留逐操作回执并交由人工核对；历史 Saga 恢复属于独立范围。
 - 提供外部 HTTP 适配层，以及超时、重试和审计机制。
 
 ### 状态管理与可观测性
 
 - 通过 Checkpointer 保存会话状态，支持状态恢复。
-- 提供 Redis → PostgreSQL → 内存的 Checkpointer 降级链。
+- 显式选择 Redis 或 PostgreSQL checkpoint；故障时拒绝运行，内存仅限开发显式启用。
 - 支持 SSE 输出执行进度与回答文本。
 - 提供审计日志、Token 用量采集、Prometheus 指标和 OpenTelemetry 链路追踪。
 - 提供 Prompt 版本管理、知识候选审核与用户管理接口。
@@ -101,7 +119,7 @@ flowchart TD
     P -->|Direct response| G[Aggregator]
 
     K --> R[RAG · Milvus · Reranker]
-    A --> D[Sample Data · Python Aggregation]
+    A --> D[CRM Snapshot · Python Aggregation]
     E --> T[Tool Gateway · RBAC]
     T --> H[Approval / Saga / Business Adapters]
 
@@ -117,8 +135,8 @@ flowchart TD
 | --- | --- |
 | API 与交互 | FastAPI、Web UI、SSE |
 | Agent 编排 | LangGraph、LangChain |
-| 模型接入 | OpenAI-compatible API、Ollama |
-| 检索与重排 | Milvus、BGE-M3、BGE Reranker |
+| 模型接入 | DeepSeek Flash 默认、Pro 复杂任务；Ollama 仅开发选项 |
+| 检索与重排 | Milvus、百炼北京 text-embedding-v4、qwen3-rerank |
 | 业务数据与状态 | PostgreSQL、Redis Stack |
 | 安全与流程 | JWT、RBAC、人工审批、Saga |
 | 可观测性 | OpenTelemetry、Prometheus、审计日志 |
@@ -126,18 +144,21 @@ flowchart TD
 
 ## 快速开始
 
+优先查看[隔离合成演示](docs/30-guides/open-source-quickstart.md)。以下为完整产品的高级开发配置，**不是已验收的新用户快捷启动路径**。
+
 以下以 macOS / Linux 的本地开发环境为例：
 基础设施通过 Docker Compose 启动，API 与 Worker 在本机运行。
+工程交付目标是隔离 Linux 单机 Compose；以下为待验收操作步骤，需准备独立数据、账户与 API 预算，不能直接作用于当前业务环境。
 
 ### 1. 准备环境
 
 - Python 3.11+
 - Git
 - Docker 与 Docker Compose
-- 可用的模型服务：云端 API，或已部署模型的 Ollama
-- 本地 Embedding 与 Reranker 所需的模型下载网络或模型文件
+- 百炼北京 embedding/reranker 与 DeepSeek 的独立凭证、访问权限及预算
+- 模型/数据/角色配置见[模型 profile](enterprise-agent/deploy/MODEL_PROFILE.md)；别名需在真实验收时再次核对
 
-首次使用本地 BGE 模型时需要下载模型，启动时间取决于网络与硬件。
+所选 profile 不需下载本地模型；旧 BGE/Ollama 路径不属于首轮生产候选。
 
 ### 2. 获取代码并安装依赖
 
@@ -149,13 +170,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 python -m pip install -r deploy/requirements-prod.txt
-
-# Additional dependencies for local BGE models and document loading
-python -m pip install \
-  "langchain-community>=0.4" \
-  "langchain-huggingface>=1.0" \
-  "sentence-transformers>=3.0.0" \
-  "torch>=2.2.0"
 ```
 
 ### 3. 配置环境变量
@@ -168,25 +182,17 @@ cp .env.example .env
 
 | 配置项 | 用途 |
 | --- | --- |
-| `OPENAI_API_KEY`、`OPENAI_BASE_URL` | 云端模型访问配置 |
-| `PRIMARY_LLM_MODEL`、`LITE_LLM_MODEL` | 按模型服务实际可用名称配置 |
-| `LOCAL_LLM_BASE_URL`、`LOCAL_LLM_MODEL` | 使用 Ollama 时配置 |
-| `POSTGRES_*`、`REDIS_*`、`MILVUS_*` | 与实际运行的依赖服务保持一致 |
-| `JWT_SECRET_KEY` | 设置自己的随机密钥 |
-| `HF_HOME` | 设置为本机可写的模型缓存目录 |
-| `TOOL_PROVIDER` | 初次体验保持 `mock` |
+| `MODEL_PROFILE` | 当前候选保持 `bailian-deepseek-v1` |
+| `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`PRIMARY_LLM_MODEL`、`LITE_LLM_MODEL` | DeepSeek 凭证与 profile 规定的模型名称 |
+| `EMBEDDING_API_KEY`、`RERANKER_API_KEY` | 独立百炼北京凭证；端点、维度和集合必须配套 |
+| `POSTGRES_*`、`REDIS_*`、`MILVUS_*` | 对应隔离基础设施 |
+| `JWT_SECRET_KEY`、`AUTH_REQUIRE_PASSWORD`、`AUTH_CHECK_DB` | 随机密钥，启用口令与数据库身份检查 |
+| `TOOL_PROVIDER`、`CRM_TOOL_PROVIDER` | 首次合成数据体验使用 Mock；HTTP 参考服务需另行显式配置 |
+| `MODEL_STARTUP_PROBES_ENABLED` | 初始为 false；生产启动须先明确授权付费探针 |
 
-本机运行时，可将模型缓存配置为：
-
-```dotenv
-HF_HOME=./.cache/huggingface
-```
-
-使用本地模型时，需另行启动 Ollama 并准备对应模型；
-下面的 Compose 命令只启动数据库与检索依赖。
-
-`.env` 中的凭据不应提交到仓库。开发 Compose 配置用于本地体验，
-生产环境配置见部署文档。
+不要提交 `.env` 凭证。当前 profile 使用外部模型；可选本地 ML 实验使用独立声明的
+`deploy/requirements-ml.txt`，不是当前候选必需项。不可变镜像、显式迁移与生产配置见
+[部署指南](enterprise-agent/deploy/DEPLOY.md)。
 
 ### 4. 启动依赖服务
 
@@ -195,19 +201,13 @@ docker compose up -d etcd minio milvus-standalone postgres redis
 docker compose ps
 ```
 
-等待依赖服务就绪。PostgreSQL 首次使用新的数据卷时会执行初始化脚本；
-已有数据库的升级与迁移请参阅运维文档。
+等待依赖服务就绪。C03 已取消 PostgreSQL 自动执行应用初始化 SQL；空库必须先显式迁移至 schema v8、检查版本并创建管理员，再启动应用。命令与凭证输入方式见[数据库初始化手册](enterprise-agent/deploy/DATABASE_BOOTSTRAP.md)。已有库只允许对获准的隔离副本显式接管，不直接修改当前库。
+
+可先运行 `python -B -m app.core.db_bootstrap plan` 做离线预览；真实数据库、API 与 Linux 部署验收仍 BLOCKED。当前生产候选使用[外部模型 profile](enterprise-agent/deploy/MODEL_PROFILE.md)，下文涉及真实模型/入库的步骤需另行授权。
 
 ### 5. 导入示例知识并启动服务
 
-先导入一份示例制度文档：
-
-```bash
-python -m app.rag.ingest \
-  "eval/sample_docs/财务报销制度.md" \
-  --type policy \
-  --ns shared_company
-```
+使用[知识发布契约](docs/50-engineering/knowledge-publication.md)中的获准上传、审核与发布流程，可将 `eval/sample_docs/财务报销制度.md` 作为合成输入。历史直接入库命令不能证明当前发布可见性；真实入库会调用外部模型并写存储，本候选尚未执行验收。
 
 启动 API：
 
@@ -222,7 +222,7 @@ python -m app.main
 python -m app.worker
 ```
 
-Worker 负责后台任务，包括文档入库处理、审批超时与补偿重试。
+Worker 负责后台任务，包括文档入库处理、审批超时与独立范围的历史恢复任务；审批动作不安排自动补偿。
 
 ### 6. 打开应用
 
@@ -234,7 +234,7 @@ Worker 负责后台任务，包括文档入库处理、审批超时与补偿重�
 | 依赖状态 | http://localhost:8000/ready |
 | Prometheus 指标 | http://localhost:8000/metrics |
 
-本地开发界面提供角色体验入口。可以先尝试：
+使用显式 bootstrap 的账户登录，由 `/me` 核验当前角色；没有默认口令或按角色绕过登录。可以先尝试：
 
 > 公司的差旅报销有哪些规定？
 
@@ -247,28 +247,16 @@ Worker 负责后台任务，包括文档入库处理、审批超时与补偿重�
 
 ## 验证与测试
 
-在 `enterprise-agent/` 目录下执行单元测试：
+从仓库根目录使用已审查的离线清单：
 
 ```bash
-python -m pip install pytest pytest-asyncio pytest-cov fakeredis
-PYTHONPATH=. python -m pytest tests/
+python3 -I -B enterprise-agent/scripts/final_candidate.py
+# Explicitly run reviewed entries and retain a fresh receipt:
+python3 -I -B enterprise-agent/scripts/final_candidate.py --execute --record candidate-001
 ```
 
-仓库还提供针对编排、状态恢复、工具执行、Milvus 和链路追踪的验证脚本：
-
-```bash
-python -m eval.run_w5_e2e
-python -m eval.run_w6_checkpoint
-python -m eval.run_w7_execution
-python -m eval.run_w9_milvus
-python -m eval.run_w9_tracing
-```
-
-这些脚本的依赖条件不同，运行前请检查对应脚本与环境配置。
-
-CI 包含 Python 3.11 / 3.13 单元测试、密钥扫描、依赖漏洞扫描、
-生产镜像构建与镜像扫描。最新结果见
-[GitHub Actions](https://github.com/zhenkun26/BusinessAgent/actions)。
+范围与副作用见[最终候选验证说明](docs/50-engineering/final-candidate-verification.md)。
+真实门禁未齐时，执行后的退出码为 2。全量 pytest/插件、历史 W5–W9 脚本须另行审查依赖与副作用；固定清单不代表所有测试或真实服务已通过。历史 CI 和上方 `main` 徽章不代表当前候选验收；按提交绑定的 PR/CI 记录与阻塞见[交付状态](docs/50-engineering/delivery-status.md)。
 
 ## 当前状态与边界
 
@@ -277,12 +265,14 @@ CI 包含 Python 3.11 / 3.13 单元测试、密钥扫描、依赖漏洞扫描、
 
 当前需要注意：
 
-- 数据分析使用内置客户与订单样例，真实分析数据源尚需接入。
+- 数据分析按 CRM provider 读取有界快照并生成确定性报告；真实 HTTP 数据分析验收仍 BLOCKED。
 - 业务工具默认采用 Mock；外部适配代码不等于已完成真实系统验收。
 - CRM、邮件及 SSO 的真实接入仍需接口契约、测试环境与联调证据。
 - 正式 UAT、真实安全验收、灰度运行与生产放行尚未完成。
-- 子任务依赖编排、多租户隔离和长期记忆等能力仍在后续规划中。
-- Checkpointer 降级为内存后，状态无法跨进程重启保留。
+- 仅独立子任务可并行，识别到依赖会拒绝整单；通用 DAG、多租户和长期记忆不在当前候选范围。
+- Checkpoint 不再自动回退；已提供运行线程隔离与数据库条件发布的离线实现，真实双进程持久化与租约到期写入 fencing 仍未验收。
+- 单组织、Linux 单机 Compose 为目标；Kubernetes/多机高可用、容量实测和生产就绪均未通过当前验收。
+- 源码版本保持 1.3.0，收尾变更未发布；提交、镜像与 schema 身份须分别记录，L/D/O/B/S/R 全部运行矩阵及完整 RAG 继续 BLOCKED。
 
 详细进度与待办见 [ROADMAP](docs/40-process/ROADMAP.md)。
 

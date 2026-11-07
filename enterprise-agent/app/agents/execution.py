@@ -3,7 +3,7 @@
 职责：
 - 解析用户工具调用意图(LLM 提取工具名 + 参数)
 - 单工具调用：直接走 ToolGateway
-- 多工具调用：走 Saga 协调器(保证补偿一致性)
+- 多工具调用：走 Saga 协调器(失败暂停并保留证据)
 - RBAC 权限校验(在 ToolGateway 层)
 - 返回结构化 AgentResult
 
@@ -12,19 +12,24 @@
 LLM 工具选择策略：
 - 注入可用工具列表(根据 user_role 过滤)到 prompt
 - LLM 输出 JSON: [{"tool": "...", "params": {...}}, ...]
-- 失败降级：关键词匹配(如"发邮件"→send_email_internal)
+- 无效、空提案或模型失败：不执行，不生成默认参数
 """
 
 from __future__ import annotations
 
 import json
-import re
 import time
 import uuid
 from typing import Any, Optional
 
-from langchain_core.messages import HumanMessage
 from loguru import logger
+
+from app.security.redaction import redact_text, redact_value
+from app.security.planning_boundary import (
+    PlanningBoundaryError, action_excerpt, build_prompt, json_value, model_text,
+    request_data, text,
+)
+from app.core.execution_budget import ExecutionBudgetExceeded
 from pydantic import BaseModel, Field
 
 from app.agents.knowledge import AgentResult
@@ -52,23 +57,6 @@ def _ensure_tools():
 # ============ LLM 工具选择(P2-1:prompt 从注册表获取) ============
 
 from app.prompts import get_prompt
-
-# 关键词降级映射(LLM 失败时用)
-KEYWORD_TOOL_MAP = {
-    "发邮件": "send_email_internal",
-    "发内部邮件": "send_email_internal",
-    "发外部邮件": "send_email_external",
-    "创建工单": "create_ticket",
-    "更新工单": "update_ticket",
-    "查客户": "query_customer",
-    "查订单": "query_order",
-    "创建跟进": "create_crm_task",
-    "创建crm": "create_crm_task",
-    # 宽匹配兜底(放最后,具体词优先):「发一封邮件」等变体不含「发邮件」子串,
-    # 本地小模型返回空工具列表时,靠它接住(LLM 工具选择失败的最后防线)
-    "邮件": "send_email_internal",
-}
-
 
 # ============ 工具调用计划 ============
 
@@ -99,6 +87,7 @@ class ToolCallPlan(BaseModel):
     tool: str = Field(description="工具名")
     params: dict[str, Any] = Field(default_factory=dict, description="工具参数")
     reason: str = Field(default="", description="调用原因")
+    operation_id: Optional[str] = None  # Assigned by the durable planner, never by the LLM.
 
 
 # ============ 公共执行入口(审批批准后复用)============
@@ -113,32 +102,14 @@ async def execute_tool_calls(
 
     Args:
         plans: 工具调用计划列表(应已过 RBAC 过滤)
-        context: 调用上下文(user_id/role/dept/jwt_token/request_id/session_id)
+        context: 调用上下文(user_id/role/dept/request_id/session_id)
 
     Returns:
         单工具返回 ToolResult，多工具返回 SagaResult
     """
     _ensure_tools()
-    from app.core import approval_deadline as deadline
-    if deadline.in_approval_dispatch():
-        outputs = {}
-        for plan in plans:
-            result = await _invoke_single(plan, context)
-            if not result.success:
-                return result  # Stop; never compensate or replay an uncertain action.
-            outputs[plan.tool] = result.output
-        return ToolResult(success=True, tool_name="approval", output=outputs)
-    if any(get_tool(p.tool) and get_tool(p.tool).category.value == "action" for p in plans):
-        from app.core.database import get_session_factory
-        async with get_session_factory()() as db:
-            await deadline.lock_users(db, context.get("user_id", ""))
-            await deadline.guard_owner(db, context.get("user_id", ""))
-            try:
-                if len(plans) == 1:
-                    return await _invoke_single(plans[0], context)
-                return await _invoke_saga(plans, context)
-            finally:
-                await db.rollback()  # Hold owner lock through dispatch; never unlock a hold.
+    from app.tools.operation_gateway import prepare_calls
+    await prepare_calls(plans, context)
     if len(plans) == 1:
         return await _invoke_single(plans[0], context)
     return await _invoke_saga(plans, context)
@@ -157,28 +128,27 @@ async def _invoke_single(
             error=f"工具未注册： {plan.tool}",
         )
 
-    return await tool.invoke(plan.params, context)
+    return await tool.invoke(plan.params, {**context, "operation_id": plan.operation_id})
 
 
 async def _invoke_saga(
     plans: list[ToolCallPlan], context: dict[str, Any]
 ) -> SagaResult:
-    """多工具走 Saga 协调器(顺序执行 + 失败补偿)"""
+    """多工具走 Saga 协调器(顺序执行 + 失败暂停)"""
     saga = SagaCoordinator(context=context)
 
     for i, plan in enumerate(plans, start=1):
         step_id = f"step{i}"
-        # 查询类工具失败不阻断(可继续后续步骤)
+        # All failures stop the durable sequence for human review.
         tool = get_tool(plan.tool)
         block = True
-        if tool and tool.category.value == "query":
-            block = False
 
         saga.add_step(
             step_id=step_id,
             tool_name=plan.tool,
             params=plan.params,
             block_on_failure=block,
+            operation_id=plan.operation_id,
         )
 
     return await saga.execute()
@@ -194,8 +164,8 @@ class ExecutionAgent:
     1. 确保工具已注册
     2. LLM 解析用户消息 → 工具调用计划列表
     3. 过滤 RBAC 无权限的工具
-    4. 拆分：requires_approval 的工具先建审批单(批准后自动执行)，其余直接执行
-    5. 单工具：直接调用 ToolGateway；多工具：Saga 协调器顺序执行 + 补偿
+    4. 拆分：requires_approval 的工具先建审批单(批准后由原发起人确认执行)，其余直接执行
+    5. 单工具：直接调用 ToolGateway；多工具：Saga 协调器顺序执行 + 人工核对
     6. 返回 AgentResult
     """
 
@@ -206,7 +176,9 @@ class ExecutionAgent:
         llm=None,
         user_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
-        jwt_token: str = "",
+        request_id: Optional[str] = None,
+        execution_slot: str = "direct",
+        original_request: Optional[str] = None,
     ):
         self.user_role = user_role
         self.user_dept = user_dept
@@ -214,7 +186,9 @@ class ExecutionAgent:
         # 调用身份(审批建单/审计用),由 executor 从 UserInput 注入
         self.user_id = user_id
         self.conversation_id = conversation_id
-        self.jwt_token = jwt_token
+        self.request_id = request_id or str(uuid.uuid4())
+        self.execution_slot = execution_slot
+        self.original_request = original_request
 
     def _get_llm(self):
         if self.llm is None:
@@ -231,12 +205,12 @@ class ExecutionAgent:
             "user_id": self.user_id or "system",  # 由外层注入真实 user_id
             "role": self.user_role.value if hasattr(self.user_role, "value") else str(self.user_role),
             "dept": self.user_dept or "shared_company",
-            "jwt_token": self.jwt_token,
             "session_id": self.conversation_id,
-            "request_id": f"exec-{int(start)}",
+            "request_id": self.request_id,
+            "execution_slot": self.execution_slot,
         }
 
-        logger.info(f"ExecutionAgent 开始： query={query[:80]!r}, role={context['role']}")
+        logger.info("EXECUTION_STARTED")
 
         try:
             # 1. LLM 解析工具调用计划
@@ -260,7 +234,7 @@ class ExecutionAgent:
                 )
 
             # 1.5 内外邮件地址纠偏:内部工具 + 外部地址 → 改挂外部工具
-            # LLM/关键词都可能把外部邮件错挂到内部工具;不纠偏的话,有内部权限的
+            # LLM 可能把外部邮件错挂到内部工具;不纠偏的话,有内部权限的
             # 角色会绕过 RBAC 直到工具层才报「不允许外部地址」。纠偏后:
             # 无外部权限 → RBAC 友好拒绝;有权限 → 正常走高风险审批流
             for p in plans:
@@ -275,11 +249,9 @@ class ExecutionAgent:
                 if p.tool in allowed_tools:
                     filtered.append(p)
                 else:
-                    logger.warning(
-                        f"RBAC 拒绝工具： role={context['role']}, tool={p.tool}"
-                    )
+                    logger.warning("EXECUTION_TOOL_FORBIDDEN")
 
-            if not filtered:
+            if len(filtered) != len(plans):
                 latency_ms = int((time.time() - start) * 1000)
                 return AgentResult(
                     agent_name="execution",
@@ -296,7 +268,7 @@ class ExecutionAgent:
                     needs_replan=False,
                 )
 
-            # 3. 拆分:需审批的工具先建审批单(批准后自动执行),其余照常执行
+            # 3. 拆分:需审批的工具先建审批单(批准后由原发起人确认执行),其余照常执行
             approval_plans: list[ToolCallPlan] = []
             direct_plans: list[ToolCallPlan] = []
             for p in filtered:
@@ -305,6 +277,12 @@ class ExecutionAgent:
                     approval_plans.append(p)
                 else:
                     direct_plans.append(p)
+
+            # Keep the complete dependent plan behind a single human confirmation.
+            # Do not execute a direct prefix while another step waits for approval.
+            if approval_plans:
+                approval_plans = list(filtered)
+                direct_plans = []
 
             # 3.5 审批参数预校验:关键参数缺失/非法(如外部邮件空收件人 to=[])不建单。
             # 审批负载建单即冻结,缺参批准后执行必失败(状态还落「已执行」),
@@ -319,11 +297,11 @@ class ExecutionAgent:
                             tool._validate_params(p.params)
                         still_valid.append(p)
                     except Exception as e:  # noqa: BLE001
-                        logger.warning(
-                            f"审批参数不完整，不建单： tool={p.tool}, err={e}"
-                        )
+                        from app.core.execution_budget import check_execution_budget
+                        check_execution_budget()
+                        logger.warning("EXECUTION_APPROVAL_PARAMETERS_INVALID")
                         param_issues.append(p.tool)
-                approval_plans = still_valid
+                approval_plans = [] if param_issues else still_valid
 
             # 审批建单(建单挂起,批准后服务端同步执行 prefill_payload)
             approval_ids: list[str] = []
@@ -336,12 +314,16 @@ class ExecutionAgent:
                     approval_ids.append(approval_id)
                     approval_note = (
                         f"以下操作已提交审批(审批号 {approval_id})，"
-                        f"待经理审批后自动执行： "
+                        f"待经理审批后由您确认执行： "
                         + ", ".join(p.tool for p in approval_plans)
                     )
                 except Exception as e:  # noqa: BLE001
-                    logger.exception(f"审批建单失败： {e}")
-                    approval_note = f"审批建单失败： {e}"
+                    from app.core.execution_budget import check_execution_budget
+                    check_execution_budget()
+                    logger.error("EXECUTION_APPROVAL_CREATE_FAILED")
+                    approval_note = ("请先完成查询，再单独提出操作请求；混合查询与操作计划不会执行。"
+                        if str(e) == "APPROVAL_MIXED_QUERY_ACTION_REQUIRES_SEPARATE_REQUESTS"
+                        else "APPROVAL_CREATION_FAILED")
 
             # 4. 执行无需审批的部分:单工具直接调用,多工具走 Saga
             result = None
@@ -395,8 +377,11 @@ class ExecutionAgent:
                     ],
                     "approval_ids": approval_ids,
                     "pending_approval_tools": [p.tool for p in approval_plans],
+                    "saga_id": getattr(result, "saga_id", None),
+                    "saga_state": getattr(result, "state", None),
                     "saga_compensated": getattr(result, "compensated", False),
                     "saga_errors": getattr(result, "compensation_errors", []),
+                    "manual_review": getattr(result, "manual_review", {}),
                     "outputs": getattr(result, "outputs", {}),
                 },
                 sources=[],
@@ -406,145 +391,87 @@ class ExecutionAgent:
             )
 
         except Exception as e:  # noqa: BLE001
-            logger.exception(f"ExecutionAgent 异常： {e}")
+            from app.core.execution_budget import check_execution_budget
+            check_execution_budget()
+            logger.error("EXECUTION_FAILED")
             return AgentResult(
                 agent_name="execution",
                 success=False,
                 confidence=0.0,
                 output={
-                    "answer": f"工具执行异常： {e}",
+                    "answer": "TOOL_EXECUTION_FAILED",
                     "coverage": "none",
                     "stage": "error",
                 },
                 sources=[],
-                error=str(e),
+                error="TOOL_EXECUTION_FAILED",
                 latency_ms=int((time.time() - start) * 1000),
             )
 
     # ============ LLM 工具选择 ============
 
     async def _parse_tool_calls(self, query: str, role: str) -> list[ToolCallPlan]:
-        """LLM 解析用户消息，提取工具调用计划
-
-        失败降级：关键词匹配
-        """
-        # 构造可用工具列表(按 role 过滤)
+        """Admit a complete proposal; empty/failed selection never invents an action."""
+        message = self.original_request if self.original_request is not None else query
+        action_excerpt(query, message)
         allowed_tools = ROLE_TOOLS.get(self.user_role, [])
-        all_tools = list_tools()
-        available = [t for t in all_tools if t["name"] in allowed_tools]
-
+        available = [tool for tool in list_tools() if tool['name'] in allowed_tools]
         if not available:
-            logger.warning(f"角色 {role} 无可用工具")
+            logger.warning("EXECUTION_NO_AVAILABLE_TOOLS")
             return []
-
-        tools_desc = "\n".join(
-            f"- {t['name']}: {t['description']} (类别： {t['category']}){_param_spec(t['name'])}"
-            for t in available
-        )
-
-        # LLM 解析:云端 flash 优先,本地 qwen 兜底(2026-07-28 调整)
-        # 背景:本地 4B 会返回"合法 JSON 但选错工具"(实测发外部邮件话术稳定
-        # 只选 query_customer,漏掉 send_email_external),此时旧回退(仅本地
-        # 失败/返回空才上云)不触发,审批单建不出来。工具选择是 4B 最弱环节,
-        # 直接云端优先;云端不可用或返回空再走本地,最后关键词兜底
+        catalog = [{key: text(tool[key]) for key in ('name', 'description', 'category')}
+                   | {'parameters': _param_spec(tool['name'])} for tool in available]
+        data = request_data(message)
+        data.update(task=text(query), tools=catalog)
         tpl, pv = get_prompt("execution_tool_selection")
-        logger.debug(f"prompt=execution_tool_selection v{pv}")
-        prompt = tpl.format(tools=tools_desc, message=query)
-
-        llm = self._get_llm()
-        candidates: list[tuple[str, Any]] = []
-        from langchain_ollama import ChatOllama
-
-        if isinstance(llm, ChatOllama):
-            from app.rag.llm import get_cloud_lite_llm
-
-            cloud = get_cloud_lite_llm()
-            if cloud is not None:
-                candidates.append(("云端flash", cloud))
-        candidates.append(("本地", llm))
-
-        for name, model in candidates:
-            try:
-                resp = await model.ainvoke([HumanMessage(content=prompt)])
-                text = resp.content if hasattr(resp, "content") else str(resp)
-                plans = self._parse_llm_response(text)
-                if plans:
-                    logger.info(f"LLM 工具选择成功({name}): {len(plans)} 个工具调用")
-                    return plans
-                logger.info(f"{name}返回空工具列表")
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"{name}工具选择失败： {e}")
-
-        # 降级:关键词匹配
-        return self._keyword_fallback(query)
-
-    @staticmethod
-    def _parse_llm_response(text: str) -> list[ToolCallPlan]:
-        """解析 LLM 输出的 JSON 工具调用列表"""
-        # 提取 JSON 数组(兼容 markdown 代码块包裹)
-        json_match = re.search(r"\[.*\]", text, re.DOTALL)
-        if not json_match:
-            return []
-
+        prompt = build_prompt(tpl, pv, data, tools=True)
         try:
-            data = json.loads(json_match.group())
-            if not isinstance(data, list):
-                return []
-
-            plans = []
-            for item in data:
-                if not isinstance(item, dict) or "tool" not in item:
-                    continue
-                plans.append(
-                    ToolCallPlan(
-                        tool=item["tool"],
-                        params=item.get("params", {}),
-                        reason=item.get("reason", ""),
-                    )
-                )
-            return plans
-        except json.JSONDecodeError:
+            model = self._get_llm()
+            response = await model.ainvoke(prompt.messages(), config=prompt.config())
+        except ExecutionBudgetExceeded:
+            raise
+        except Exception:  # Provider failure is not permission to manufacture a plan.
+            from app.core.execution_budget import check_execution_budget
+            check_execution_budget()
+            logger.warning("EXECUTION_TOOL_SELECTION_FAILED")
             return []
+        plans = self._parse_llm_response(model_text(response))
+        offered = {tool['name'] for tool in available}
+        for plan in plans:
+            if plan.tool == "send_email_internal" and has_external_recipient(plan.params):
+                plan.tool = "send_email_external"
+            if plan.tool not in offered:
+                raise PlanningBoundaryError()
+            tool = get_tool(plan.tool)
+            if tool is None:
+                raise PlanningBoundaryError()
+            schema = getattr(tool, 'input_schema', None)
+            if schema is not None and set(plan.params) - set(schema.model_fields):
+                raise PlanningBoundaryError()
+            try:
+                tool._validate_params(plan.params)
+            except Exception:
+                from app.core.execution_budget import check_execution_budget
+                check_execution_budget()
+                raise PlanningBoundaryError() from None
+        logger.info(f"EXECUTION_TOOL_SELECTION_COMPLETED count={len(plans)}")
+        return plans
 
     @staticmethod
-    def _keyword_fallback(query: str) -> list[ToolCallPlan]:
-        """关键词降级匹配"""
-        lowered = query.lower()
-        for keyword, tool_name in KEYWORD_TOOL_MAP.items():
-            if keyword in lowered:
-                # 内外邮件区分:宽匹配「邮件」命中内部工具,但消息明确说「外部」时
-                # 改映射外部工具——让 RBAC 能正确拦截(销售员拿到友好拒绝),
-                # 而不是内部工具在参数校验时才报「不允许外部地址」
-                if tool_name == "send_email_internal" and "外部" in query:
-                    tool_name = "send_email_external"
-                # 简单参数构造(实际场景可更精细)
-                params: dict[str, Any] = {}
-                if "email" in tool_name or "邮件" in keyword:
-                    params = {
-                        "to": ["colleague@company.internal"],
-                        "subject": "自动生成的邮件",
-                        "body": query,
-                    }
-                elif "ticket" in tool_name or "工单" in keyword:
-                    params = {
-                        "title": query[:100],
-                        "description": query,
-                        "priority": "normal",
-                    }
-                elif "customer" in tool_name:
-                    params = {"customer_id": "C001"}
-                elif "order" in tool_name:
-                    params = {"order_id": "ORD-2026-001"}
-                elif "crm" in tool_name:
-                    params = {
-                        "customer_id": "C001",
-                        "title": query[:100],
-                        "assignee": "u001",
-                    }
-
-                return [ToolCallPlan(tool=tool_name, params=params, reason=f"关键词匹配： {keyword}")]
-
-        return []
+    def _parse_llm_response(raw: str) -> list[ToolCallPlan]:
+        """Reject the entire batch, including model-supplied authority or bad members."""
+        data = json_value(raw)
+        if type(data) is not list:
+            raise PlanningBoundaryError()
+        plans = []
+        for item in data:
+            if (type(item) is not dict or set(item) - {'tool', 'params', 'reason'}
+                    or type(item.get('params')) is not dict):
+                raise PlanningBoundaryError()
+            name = text(item.get('tool'))
+            reason = text(item.get('reason', ''), empty=True)
+            plans.append(ToolCallPlan(tool=name, params=item['params'], reason=reason))
+        return plans
 
     # ============ 执行 ============
 
@@ -574,6 +501,9 @@ class ExecutionAgent:
         - prefill_payload 保存完整工具调用计划，批准后服务端据此同步执行
         - 有效期 1 天，审批角色： manager/admin
         """
+        from app.core.execution_budget import check_execution_budget
+
+        check_execution_budget()
         from sqlalchemy import text
 
         from app.core.database import get_session_factory
@@ -594,12 +524,13 @@ class ExecutionAgent:
             if risk_rank.get(tool_risk, 0) > risk_rank.get(risk_level, 0):
                 risk_level = tool_risk
 
-        prefill_payload = {
-            "tool_calls": [
-                {"tool": p.tool, "params": p.params, "reason": p.reason}
-                for p in plans
-            ]
-        }
+        # A query has no durable action receipt. Do not certify a partial mixed plan.
+        from app.core.tool_operations import OperationError
+        if any(get_tool(p.tool) is None or get_tool(p.tool).category.value != "action" for p in plans):
+            raise OperationError("APPROVAL_MIXED_QUERY_ACTION_REQUIRES_SEPARATE_REQUESTS")
+        from app.tools.operation_gateway import prepare_calls
+        await prepare_calls(plans, context, partition="approval")
+        prefill_payload = {"tool_calls": context["execution_calls"]}
 
         factory = get_session_factory()
         async with factory() as session:
@@ -607,7 +538,8 @@ class ExecutionAgent:
             from datetime import timedelta
             from app.core import approval_deadline as deadline
             await deadline.lock_users(session, user_id)
-            await deadline.guard_owner(session, user_id)
+            from app.core.tool_operations import guard_action_owner
+            await guard_action_owner(session, user_id)
             clock = (await session.execute(text(
                 "SELECT clock_timestamp() AT TIME ZONE 'UTC' AS approval_now"))).fetchone()
             created = clock.approval_now
@@ -624,18 +556,18 @@ class ExecutionAgent:
                     "VALUES (:sid, :uid, :query, 'running') "
                     "ON CONFLICT (session_id) DO NOTHING"
                 ),
-                {"sid": session_id, "uid": user_id, "query": query[:500]},
+                {"sid": session_id, "uid": user_id, "query": redact_text(query)[:500]},
             )
             await session.execute(
                 text(
                     "INSERT INTO approval_requests ("
                     "approval_id, session_id, requester_id, operation_type, "
                     "risk_level, summary, prefill_payload, approver_roles, "
-                    "status, requester_token, created_at, expires_at, approval_contract"
+                    "status, created_at, expires_at, approval_contract"
                     ") VALUES ("
                     ":aid, :sid, :uid, :op, :risk, :summary, "
                     "CAST(:payload AS JSONB), CAST(:roles AS JSONB), "
-                    "'pending', :token, :created, :expires, CAST(:contract AS JSONB)"
+                    "'pending', :created, :expires, CAST(:contract AS JSONB)"
                     ")"
                 ),
                 {
@@ -644,20 +576,16 @@ class ExecutionAgent:
                     "uid": user_id,
                     "op": plans[0].tool,
                     "risk": risk_level,
-                    "summary": self._build_approval_summary(plans, query),
-                    "payload": json.dumps(prefill_payload, ensure_ascii=False),
+                    "summary": redact_text(self._build_approval_summary(plans, query)),
+                    "payload": deadline.canonical(prefill_payload),
                     "roles": json.dumps(["manager", "admin"]),
-                    "token": context.get("jwt_token") or "",
                     "created": created, "expires": expires,
                     "contract": deadline.canonical(approval_contract),
                 },
             )
             await session.commit()
 
-        logger.info(
-            f"审批建单完成： approval_id={approval_id}, "
-            f"tools={[p.tool for p in plans]}, risk={risk_level}"
-        )
+        logger.info(f"EXECUTION_APPROVAL_CREATED tools={len(plans)}")
 
         # 审计:审批单创建
         await get_audit_logger().log(
@@ -682,11 +610,11 @@ class ExecutionAgent:
             if isinstance(to_list, str):
                 to_list = [to_list]  # LLM 可能输出单字符串,统一为列表避免逐字符 join
             if "email" in p.tool and to_list:
-                recipients = ", ".join(str(t) for t in to_list[:3])
-                subject = p.params.get("subject", "")
+                recipients = ", ".join(redact_text(str(t)) for t in to_list[:3])
+                subject = redact_text(p.params.get("subject", ""))
                 parts.append(f"向 {recipients} 发送邮件「{subject[:50]}」")
             else:
-                parts.append(f"{p.tool}: {p.reason or query[:50]}")
+                parts.append(f"{p.tool}: {redact_text(p.reason or query)[:50]}")
         return ";".join(parts)[:500]
 
     # ============ 结果格式化 ============
@@ -751,6 +679,8 @@ class ExecutionAgent:
             mid = output.get("message_id", "")
             n = output.get("recipients", "")
             kind = "内部邮件" if tool_name == "send_email_internal" else "外部邮件"
+            if output.get("receipt_state") == "captured":
+                return f"参考邮件已捕获(编号 `{mid}`，收件人 {n} 人)，未向真实邮箱投递。"
             return f"{kind}已发送(编号 `{mid}`，收件人 {n} 人)。"
 
         if tool_name == "create_ticket":
@@ -809,13 +739,10 @@ class ExecutionAgent:
             return "\n\n".join(parts)
 
         # 失败
+        errors = getattr(result, "compensation_errors", [])
+        if errors:
+            return f"工具执行失败，补偿未完成；有 {len(errors)} 项需人工核对：{errors}"
         if getattr(result, "compensated", False):
-            errors = getattr(result, "compensation_errors", [])
-            if errors:
-                return (
-                    f"工具执行失败，已自动补偿回滚。"
-                    f"但有 {len(errors)} 个补偿失败需运维介入： {errors}"
-                )
-            return "工具执行失败，已自动补偿回滚所有已执行步骤。"
+            return "工具执行失败，已补偿所有确认执行成功的步骤。"
 
         return f"工具执行失败： {getattr(result, 'error', '未知错误')}"

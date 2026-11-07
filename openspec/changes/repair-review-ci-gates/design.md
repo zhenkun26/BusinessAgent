@@ -1,0 +1,5 @@
+# Design and verification boundaries
+
+Matrix record identifiers must satisfy the existing safe alphabet without weakening input validation. CI should test the exact reviewed source inventory. Secret scanner coverage must include event history and the exact final tracked tree; a verified digest exemption cannot accept an arbitrary 64-hex value, change rule coverage, suppress whole paths, or execute candidate-controlled code. Any candidate provenance must be verified against trusted Git bytes and fail closed on drift or ambiguity. Synthetic secrets in manifest values and neighboring source must still fail.
+
+Retain every test artifact and earlier failure. Use local declared tools and retained temporary fixtures without filesystem deletion. Keep original worktree and old branch unchanged. Reconcile source hashes only after review; historical final-candidate receipts stay frozen. Commit only after tests/review, push only the review branch, read exact remote results. Passing scoped checks never grants UAT/release or source-rights clearance.

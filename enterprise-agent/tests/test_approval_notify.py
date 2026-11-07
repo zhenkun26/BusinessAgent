@@ -55,7 +55,8 @@ async def test_should_send_internal_mail_and_audit_when_notifying_requester(
     assert payload["approval_id"] == "appr_001"
     assert payload["result_type"] == "executed"
     assert payload["message_id"] == "msg_notify_001"
-    assert payload["channel"] == "internal_mail"
+    assert payload["channel"] == "mock_internal_mail"
+    assert payload["delivery"] == "mock_recorded"
 
 
 @pytest.mark.asyncio
@@ -96,3 +97,6 @@ async def test_should_still_audit_when_requester_email_missing(monkeypatch):
     assert send_called == []
     assert audit_events[0]["event_type"] == "approval_notification"
     assert audit_events[0]["payload"]["message_id"] is None
+
+    assert audit_events[0]["success"] is False
+    assert audit_events[0]["payload"]["delivery"] == "unavailable"

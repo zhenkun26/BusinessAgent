@@ -44,21 +44,41 @@ async def test_internal_tool_preserves_valid_to_and_cc(monkeypatch, provider):
     tool = mail.SendEmailInternalTool()
     tool.provider_override = provider
     payload = _message(to="Team+1@COMPANY.INTERNAL", cc=["office@company.internal"])
-    send_http = AsyncMock(return_value=(True, {"message_id": "from-provider"}, None))
-    monkeypatch.setattr(mail, "call_external_api", send_http)
+    captured = {}
+
+    async def dispatch(tool, params, context):
+        captured.update(params)
+        return mail.ToolResult(True, tool.name, {"message_id": "synthetic-receipt"})
+
+    gateway = AsyncMock(side_effect=dispatch)
+    monkeypatch.setattr("app.tools.operation_gateway.invoke_action", gateway)
     monkeypatch.setattr("app.tools.base.get_audit_logger", lambda: AsyncMock())
-    monkeypatch.setattr(mail, "_mock_sent_emails", {})
     result = await tool.invoke(payload, {"role": "customer_service"})
 
     assert result.success
-    if provider == "http":
-        record = send_http.await_args.kwargs["json_body"]
-        assert record["scope"] == "internal"
-    else:
-        send_http.assert_not_awaited()
-        record = mail._mock_sent_emails[result.output["message_id"]]
-    assert record["to"] == [payload["to"]]
-    assert record["cc"] == payload["cc"]
+    gateway.assert_awaited_once()
+    assert captured["to"] == [payload["to"]]
+    assert captured["cc"] == payload["cc"]
+
+
+@pytest.mark.parametrize("provider,profile,address,external", [
+    ("mock", "business-reference-v1", "employee@reference.invalid", True),
+    ("http", "", "employee@reference.invalid", True),
+    ("http", "business-reference-v1", "employee@reference.invalid", False),
+    ("http", "business-reference-v1", "manager@reference.invalid", False),
+    ("http", "business-reference-v1", "customer@reference.invalid", True),
+    ("http", "business-reference-v1", "other@reference.invalid", True),
+    ("http", "business-reference-v1", "person@company.internal", True),
+    ("mock", "", "person@COMPANY.INTERNAL", False),
+    ("http", "", "person@other.internal", True),
+])
+@pytest.mark.parametrize("field", ["to", "cc"])
+def test_reference_capture_policy_is_explicit_and_isolated(
+    monkeypatch, provider, profile, address, external, field
+):
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), "tool_reference_profile", profile)
+    assert mail.has_external_recipient({field: [address]}, provider=provider) is external
 
 
 async def test_notification_rejects_external_stored_mailbox(monkeypatch):
@@ -76,7 +96,8 @@ async def test_notification_rejects_external_stored_mailbox(monkeypatch):
 ])
 async def test_external_cc_requires_external_role_and_approval(monkeypatch, role, expected_stage):
     plan = execution.ToolCallPlan(tool="send_email_internal", params=_message(cc="customer@example.org"))
-    agent = execution.ExecutionAgent(role)
+    agent = execution.ExecutionAgent(role, user_id="synthetic-owner",
+        conversation_id="synthetic-session", original_request="Send follow-up")
     monkeypatch.setattr(agent, "_parse_tool_calls", AsyncMock(return_value=[plan]))
     create_approval = AsyncMock(return_value="approval-1")
     monkeypatch.setattr(agent, "_create_approval_request", create_approval)
@@ -95,3 +116,28 @@ async def test_external_cc_requires_external_role_and_approval(monkeypatch, role
         ]
     else:
         create_approval.assert_not_awaited()
+
+@pytest.mark.parametrize('role,approved', [(AgentRole.SALESPERSON, True),
+                                          (AgentRole.CUSTOMER_SERVICE, False)])
+async def test_real_parser_normalizes_external_cc_before_schema_and_rechecks_role(monkeypatch, role, approved):
+    import json
+    from types import SimpleNamespace
+    payload = _message(cc=['customer@example.org'])
+    model = SimpleNamespace(ainvoke=AsyncMock(return_value=SimpleNamespace(content=json.dumps(
+        [{'tool':'send_email_internal','params':payload}]))))
+    query = 'Send follow-up to team and copy customer@example.org'
+    agent = execution.ExecutionAgent(role, llm=model, user_id='synthetic-owner',
+        conversation_id='synthetic-session', original_request=query)
+    create = AsyncMock(return_value='synthetic-approval')
+    direct = AsyncMock()
+    monkeypatch.setattr(agent, '_create_approval_request', create)
+    monkeypatch.setattr(execution, 'execute_tool_calls', direct)
+    result = await agent.run(query)
+    direct.assert_not_awaited()
+    if approved:
+        assert result.output['stage'] == 'approval_pending'
+        create.assert_awaited_once()
+        assert create.await_args.args[0][0].tool == 'send_email_external'
+    else:
+        assert not result.success
+        create.assert_not_awaited()

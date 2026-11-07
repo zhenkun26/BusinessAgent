@@ -1,25 +1,51 @@
 """配置管理 - 集中式环境变量加载"""
 
+import os
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 from loguru import logger
-from pydantic import Field
+from pydantic import Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.observability.telemetry_policy import (
+    process_telemetry_signature, validate_effective_telemetry,
+)
 
 
 class Settings(BaseSettings):
     """应用配置(从 .env 加载)"""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=None if os.environ.get("MODEL_PROFILE") == "synthetic-demo-v1" else ".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
     )
 
+    telemetry_mode: str = 'disabled'
+    otel_enabled: str | bool = 'false'
+    otel_exporter_otlp_endpoint: str = ''
+    _telemetry_process_signature: str = PrivateAttr(default_factory=process_telemetry_signature)
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_telemetry_input(cls, values: dict[str, Any]) -> dict[str, Any]:
+        # RuntimeError avoids Pydantic rendering rejected diagnostic inputs.
+        validate_effective_telemetry(values)
+        return values
+
     # ---- 应用 ----
     app_env: str = "dev"
+    # Production requires an explicit, validated model profile.
+    model_profile: str = ""
+    synthetic_demo_run_id: str = ""
+    worker_observation_host: str = "0.0.0.0"
+    worker_observation_port: int = Field(default=8001, ge=1024, le=65535)
+    # Opt in only after authorization for real, billable startup acceptance.
+    model_startup_probes_enabled: bool = False
+    model_http_timeout_seconds: float = Field(default=30.0, gt=0, le=60)
+    model_http_max_retries: int = Field(default=2, ge=0, le=2)
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     log_level: str = "INFO"
@@ -30,7 +56,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.deepseek.com/v1"  # DeepSeek 默认
     primary_llm_model: str = "deepseek-v4-pro"  # 复杂任务:规划/策略/报告
-    lite_llm_model: str = "deepseek-v4-flash"  # 轻量任务:意图分类/简单问答
+    lite_llm_model: str = "deepseek-flash"  # Default remote model; Pro is for complex tasks.
     primary_llm_temperature: float = 0.2
     primary_llm_max_tokens: int = 2048  # 推理模型大部分 token 消耗在隐藏推理上,调低会截断答案,勿轻易改小
 
@@ -41,9 +67,12 @@ class Settings(BaseSettings):
 
     # ---- Embedding(默认本地 bge-m3,1024 维) ----
     # EMBEDDING_MODEL 支持 HuggingFace repo id(自动下载)或本地路径(如 D:/models/bge-m3)
-    embedding_provider: str = "local"  # openai | local
+    embedding_provider: str = "local"  # bailian | openai | local | mock
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024
+    # Independent credentials: never fall back to the LLM key for Bailian.
+    embedding_api_key: str = ""
+    embedding_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     # 本地 embedding/reranker 运行设备:auto(自动) | cuda | cpu
     # 模拟生产/显存紧张时设 cpu,把 GPU 让给 Ollama LLM(实测:12G 卡上
     # bge 两模型占 ~5G,会把 qwen 挤到 CPU 计算,单次 3s→50s 波动)
@@ -90,15 +119,17 @@ class Settings(BaseSettings):
     # CORS 白名单(逗号分隔);dev 默认本机来源;生产禁止通配+credentials
     cors_allow_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
 
-    # ---- Cohere Reranker(可选,留空时用 LLM 距离排序降级) ----
+    # ---- Optional Cohere reranker (auto without a key selects passthrough) ----
     cohere_api_key: str = ""
     cohere_rerank_model: str = "rerank-multilingual-v3.0"
 
     # ---- Reranker 后端选择 ----
-    # local_bge: 本地 bge-reranker-large(免费,推荐);cohere;llm;passthrough
+    # bailian: selected remote profile; local_bge/cohere/llm/passthrough/auto: legacy dev
     # RERANKER_MODEL 支持 HuggingFace repo id(自动下载)或本地路径(如 D:/models/bge-reranker-large)
     reranker_provider: str = "local_bge"
     reranker_model: str = "BAAI/bge-reranker-large"
+    reranker_api_key: str = ""
+    reranker_base_url: str = "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank"
 
     # ---- 业务系统 ----
     crm_api_base: str = "https://crm.internal/api/v1"
@@ -117,6 +148,10 @@ class Settings(BaseSettings):
     # 外部 HTTP 调用超时与重试(mock 提供方不生效)
     external_timeout_seconds: float = 10.0
     external_max_retries: int = 2
+    # Explicit reference contract opt-in; never infer support from an endpoint.
+    tool_reference_profile: str = ""
+    tool_reference_run_id: str = ""
+    tool_reference_principal: str = ""
 
     # ---- 企业 IdP/OIDC(仅配置占位,默认关闭) ----
     # SSO_ENABLED=true 前必须完成 IdP 契约确认并填入以下环境变量
@@ -128,6 +163,7 @@ class Settings(BaseSettings):
     sso_token_url: str = ""
     sso_jwks_url: str = ""
     sso_redirect_uri: str = ""
+    sso_ca_bundle: str = ""  # Controlled CA bundle; TLS verification stays enabled.
     sso_scopes: str = "openid profile email"
     sso_department_claim: str = "department"
     sso_default_role: str = "salesperson"
@@ -136,9 +172,12 @@ class Settings(BaseSettings):
     # ---- 限流 ----
     rate_limit_per_minute: int = 60
 
+    # ---- Explicit checkpoint persistence ----
+    checkpoint_backend: str = "redis"  # redis / postgres / memory (dev only)
+
     # ---- Checkpoint 滑动过期(I-06) ----
     # Redis checkpointer 的 thread 键 TTL(天);每次会话活跃(写入/读取)滑动刷新。
-    # <=0 表示不设 TTL(恢复旧行为);仅 Redis 主路径生效,PG/Memory 降级后端不设。
+    # <=0 表示不设 TTL(恢复旧行为);仅 Redis 生效,PG/Memory 不设。
     checkpoint_ttl_days: int = 7
 
     # ---- 知识库反馈循环 ----
@@ -193,7 +232,9 @@ def validate_production_settings(settings: Optional[Settings] = None) -> list[st
 
     violations: list[str] = []
     if not settings.auth_require_password:
-        violations.append("非开发环境必须启用 AUTH_REQUIRE_PASSWORD=true")
+        violations.append("AUTH_REQUIRE_PASSWORD must be true outside development")
+    if not settings.auth_check_db:
+        violations.append("AUTH_CHECK_DB must be true outside development")
     for field_name, default_value in _DEFAULT_SECRETS.items():
         actual = getattr(settings, field_name)
         if actual == default_value:
@@ -222,9 +263,20 @@ def validate_production_settings(settings: Optional[Settings] = None) -> list[st
         for field_name in required_sso_fields:
             if not getattr(settings, field_name).strip():
                 violations.append(f"SSO_ENABLED=true 时必须配置 {field_name}")
+        from app.security.oidc import OIDCError, configuration
+        try:
+            configuration(settings)
+        except OIDCError:
+            violations.append(
+                "SSO_CONFIGURATION_INVALID: HTTPS, RS256 profile and least privilege required"
+            )
     return violations
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    from app.security.redaction import register_configured_secrets
+
+    settings = Settings()
+    register_configured_secrets(settings.model_dump())
+    return settings

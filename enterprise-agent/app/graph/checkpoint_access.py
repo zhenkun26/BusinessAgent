@@ -1,0 +1,133 @@
+"""Bounded checkpoint reads and safe final-state validation."""
+
+from __future__ import annotations
+
+import asyncio
+from collections.abc import AsyncIterator, Callable
+from contextlib import aclosing
+import math
+from typing import Any
+
+READ_TIMEOUT_SECONDS = 5
+
+
+class CheckpointUnavailable(RuntimeError):
+    def __init__(self) -> None:
+        super().__init__("CHECKPOINT_UNAVAILABLE")
+
+
+async def read_checkpoint(checkpointer: Any, config: dict) -> Any:
+    try:
+        return await asyncio.wait_for(checkpointer.aget_tuple(config), READ_TIMEOUT_SECONDS)
+    except Exception:
+        raise CheckpointUnavailable() from None
+
+
+async def published_checkpoints(checkpointer: Any, session_id: str, backend: str,
+                                limit: int = 100) -> list[Any]:
+    async with aclosing(iter_published_checkpoints(
+            checkpointer, session_id, backend, limit=limit)) as items:
+        return [item async for item in items]
+
+
+async def iter_published_checkpoints(
+    checkpointer: Any, session_id: str, backend: str, limit: int = 100,
+) -> AsyncIterator[Any]:
+    """Read only accepted immutable IDs; never discover orphan run threads."""
+    from app.core.session_fencing import publications
+
+    try:
+        async with asyncio.timeout(READ_TIMEOUT_SECONDS):
+            rows = await publications(session_id, limit)
+            for row in rows:
+                if row["backend"] != backend:
+                    raise CheckpointUnavailable()
+                config = {"configurable": {key: row[key] for key in
+                          ("thread_id", "checkpoint_ns", "checkpoint_id")}}
+                item = await read_checkpoint(checkpointer, config)
+                if item is None or item.checkpoint.get("id") != row["checkpoint_id"]:
+                    raise CheckpointUnavailable()
+                yield item
+    except Exception:
+        raise CheckpointUnavailable() from None
+
+
+async def read_session_checkpoint(checkpointer: Any, session_id: str, backend: str) -> Any:
+    rows = await published_checkpoints(checkpointer, session_id, backend, limit=1)
+    if rows:
+        return rows[0]
+    # Pre-v8 checkpoints remain read-only; no new run writes this legacy thread.
+    return await read_checkpoint(checkpointer, {"configurable": {"thread_id": session_id}})
+
+
+async def publish_checkpoint(checkpointer: Any, backend: str, fence: Any,
+                             user_input: Any, *,
+                             before_publish: Callable[[dict], None] | None = None) -> dict:
+    from app.core.runtime_state import RuntimeStateUnavailable
+
+    item = await read_checkpoint(checkpointer, fence.config)
+    state = completed_state(item, user_input)
+    # Reject malformed citations before committing the public pointer/status/tokens.
+    normalize_sources(state.get("sources", []))
+    checkpoint_id = item.checkpoint.get("id")
+    if not isinstance(checkpoint_id, str) or not checkpoint_id:
+        raise CheckpointUnavailable()
+    if before_publish is not None:
+        before_publish(state)
+    if not await fence.finish("completed", tokens=int(state.get("tokens_used", 0) or 0),
+                              publication={"backend": backend, "thread_id": fence.thread_id,
+                                           "checkpoint_ns": "", "checkpoint_id": checkpoint_id}):
+        raise RuntimeStateUnavailable()
+    return state
+
+
+def normalize_sources(sources: Any) -> list[dict[str, Any]]:
+    """Project the known source contract; never execute stored constructor metadata."""
+    try:
+        if not isinstance(sources, list):
+            raise ValueError()
+        if not sources:
+            return []
+        from app.agents.knowledge import RetrievalSource
+
+        result = []
+        for source in sources:
+            if isinstance(source, RetrievalSource):
+                source = source.model_dump()
+            if not isinstance(source, dict):
+                raise ValueError()
+            if any(key in source for key in ("lc", "type", "id", "kwargs")):
+                if (source.get("lc") not in (1, 2)
+                        or source.get("type") != "constructor"
+                        or source.get("id") != ["app", "agents", "knowledge", "RetrievalSource"]
+                        or not isinstance(source.get("kwargs"), dict)):
+                    raise ValueError()
+                source = source["kwargs"]
+            validated = RetrievalSource.model_validate(source)
+            if not math.isfinite(validated.score):
+                raise ValueError()
+            result.append(validated.model_dump(mode="json"))
+        return result
+    except Exception:
+        raise CheckpointUnavailable() from None
+
+
+def completed_state(checkpoint_tuple: Any, user_input: Any) -> dict:
+    """Reject absent, intermediate or foreign snapshots; never invent a final answer."""
+    checkpoint = getattr(checkpoint_tuple, "checkpoint", None)
+    state = checkpoint.get("channel_values") if isinstance(checkpoint, dict) else None
+    if not isinstance(state, dict):
+        raise CheckpointUnavailable()
+    saved = state.get("user_input")
+    if isinstance(saved, dict):
+        if saved.get("type") == "constructor" and isinstance(saved.get("kwargs"), dict):
+            saved = saved["kwargs"]
+    else:
+        saved = vars(saved) if hasattr(saved, "__dict__") else {}
+    if (state.get("request_id") != user_input.request_id
+            or state.get("answer_request_id") not in (None, user_input.request_id)
+            or not isinstance(state.get("final_answer"), str) or not state["final_answer"]
+            or any(saved.get(key) != getattr(user_input, key) for key in
+                   ("request_id", "user_id", "conversation_id", "role", "department"))):
+        raise CheckpointUnavailable()
+    return state

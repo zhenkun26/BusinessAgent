@@ -1,94 +1,63 @@
-"""审批超时自动流转(审批生命周期规格 2.1-2.4)"""
-
-from __future__ import annotations
-
+"""Trusted expiry and retained-evidence scanning; no real database is claimed."""
+from unittest.mock import AsyncMock
 import pytest
-
-from app.core.approval_timeout import scan_expired_approvals
-
+from app.core import approval_timeout as scanner
 from conftest import FakeResult, FakeRow, FakeSession
 
-
 @pytest.mark.asyncio
-async def test_should_timeout_only_pending_expired_approvals_when_scanning(
-    monkeypatch,
-    fake_session_factory,
-):
-    """Given 存在超过 expires_at 的 pending 审批单,
-    When 执行超时扫描,
-    Then 仅将 pending+过期 的单流转为 timeout,记系统审计并通知发起人"""
-    timed_out = FakeRow(
-        approval_id="appr_expired_001",
-        session_id="sess_x",
-        requester_id="user_sales_001",
-    )
-    session = FakeSession(responses=[FakeResult([timed_out]), FakeResult([timed_out])])
-    monkeypatch.setattr("app.core.approval_timeout.deadline.verified", lambda row: True)
-    monkeypatch.setattr(
-        "app.core.database.get_session_factory",
-        fake_session_factory(session),
-    )
-
-    audit_events: list[dict] = []
-
-    class FakeAuditLogger:
-        async def log(self, **kwargs):
-            audit_events.append(kwargs)
-
-    monkeypatch.setattr(
-        "app.core.approval_timeout.get_audit_logger",
-        lambda: FakeAuditLogger(),
-    )
-    notified: list[dict] = []
-
-    async def fake_notify(**kwargs):
+@pytest.mark.parametrize('status', ['pending', 'approved_pending_reauth'])
+async def test_verified_expiry_commits_audit_before_notification(monkeypatch, fake_session_factory, status):
+    row = FakeRow(approval_id='a1', session_id='s', requester_id='u', status=status)
+    session = FakeSession(responses=[FakeResult([row]), FakeResult([row])])
+    monkeypatch.setattr('app.core.database.get_session_factory', fake_session_factory(session))
+    monkeypatch.setattr(scanner.deadline, 'verified', lambda row: True)
+    monkeypatch.setattr(scanner, 'record_held_evidence', AsyncMock())
+    notified = []
+    async def notify(**kwargs):
+        assert session.commits >= 1
         notified.append(kwargs)
+    monkeypatch.setattr(scanner, 'notify_approval_result', notify)
+    assert await scanner.scan_expired_approvals() == 1
+    assert "status IN ('pending', 'approved_pending_reauth')" in session.executed_sql[1]
+    assert 'expires_at IS NULL OR' not in session.executed_sql[1]
+    assert 'approval_timeout' in session.executed_sql[2]
+    assert notified[0]['result_type'] == 'timeout'
 
-    monkeypatch.setattr(
-        "app.core.approval_timeout.notify_approval_result",
-        fake_notify,
-    )
-
-    count = await scan_expired_approvals()
-
-    assert count == 1
-    update_sql = session.executed_sql[1]
-    assert "status = 'timeout'" in update_sql
-    assert "status IN ('pending', 'approved_pending_reauth')" in update_sql  # 幂等护栏:仅处理 pending
-    assert "expires_at <= (clock_timestamp() AT TIME ZONE 'UTC')" in update_sql
-    assert "RETURNING" in update_sql
-    # 系统审计 + 发起人通知
-    assert "approval_timeout" in session.executed_sql[2]
-    assert "'system'" in session.executed_sql[2]
-    assert notified[0]["approval_id"] == "appr_expired_001"
-    assert notified[0]["result_type"] == "timeout"
-    assert notified[0]["requester_id"] == "user_sales_001"
+@pytest.mark.asyncio
+async def test_legacy_is_skipped_and_cursor_advances(monkeypatch, fake_session_factory):
+    row = FakeRow(approval_id='a1', session_id='s', requester_id='u')
+    session = FakeSession(responses=[FakeResult([row]), FakeResult([])])
+    monkeypatch.setattr('app.core.database.get_session_factory', fake_session_factory(session))
+    monkeypatch.setattr(scanner.deadline, 'verified', lambda row: False)
+    monkeypatch.setattr(scanner, 'record_held_evidence', AsyncMock())
+    notify = AsyncMock()
+    monkeypatch.setattr(scanner, 'notify_approval_result', notify)
+    assert await scanner.scan_expired_approvals() == 0
+    assert session.executed_params[1]['cursor'] == 'a1'
+    assert not any(sql.lstrip().startswith('UPDATE ') for sql in session.executed_sql)
+    notify.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_should_return_zero_when_no_expired_approvals(
-    monkeypatch,
-    fake_session_factory,
-):
-    """Given 没有过期审批单, When 执行超时扫描,
-    Then 返回 0 且不产生审计与通知"""
-    session = FakeSession(responses=[FakeResult([])])
-    monkeypatch.setattr(
-        "app.core.database.get_session_factory",
-        fake_session_factory(session),
-    )
-    audit_events: list[dict] = []
-
-    class FakeAuditLogger:
-        async def log(self, **kwargs):
-            audit_events.append(kwargs)
-
-    monkeypatch.setattr(
-        "app.core.approval_timeout.get_audit_logger",
-        lambda: FakeAuditLogger(),
-    )
-
-    count = await scan_expired_approvals()
-
-    assert count == 0
-    assert audit_events == []
+@pytest.mark.parametrize('status', ['executing', 'execution_unknown'])
+async def test_late_success_is_evidence_not_release(monkeypatch, fake_session_factory, status):
+    from app.core import approval_lifecycle as lifecycle
+    row = FakeRow(approval_id='a1', session_id='s', status=status)
+    session = FakeSession(responses=[FakeResult([row])])
+    load = AsyncMock(return_value=row)
+    observe = AsyncMock(return_value='executed')
+    settle = AsyncMock(return_value='execution_unknown')
+    monkeypatch.setattr(lifecycle, 'load_locked', load)
+    monkeypatch.setattr(lifecycle, 'observe', observe)
+    monkeypatch.setattr(lifecycle, 'settle', settle)
+    await scanner.record_held_evidence(fake_session_factory(session)())
+    if status == 'executing':
+        settle.assert_awaited_once_with(session, row, 'execution_unknown')
+    else:
+        settle.assert_not_awaited()
+    import json
+    evidence = json.loads(session.executed_params[1]['payload'])
+    assert evidence['observed_outcome'] == 'executed'
+    assert evidence['human_review_required'] is True
+    assert evidence['automatic_release'] is False
+    assert session.commits == 1

@@ -1,0 +1,86 @@
+{
+  "schema": "capacity-plan-v1",
+  "candidate": {
+    "commit": null,
+    "application_image": null,
+    "reference_image": null,
+    "capacity_image": null,
+    "schema_sha256": null
+  },
+  "environment": {
+    "os": null,
+    "cpu": null,
+    "cores": null,
+    "memory_gib": null,
+    "storage": null,
+    "api_processes": 1,
+    "worker_processes": 1,
+    "evidence_sha256": null
+  },
+  "models": {
+    "embedding": "text-embedding-v4",
+    "reranker": "qwen3-rerank",
+    "llm": "deepseek-flash",
+    "primary_llm": "deepseek-v4-pro",
+    "region": "bailian-beijing",
+    "quota_cost_review_sha256": null
+  },
+  "dataset": {
+    "manifest_sha256": null,
+    "documents": null,
+    "chunks": null,
+    "orders": null,
+    "reference_run_id": null,
+    "mail_store_id": null,
+    "mail_fixture_sha256": null,
+    "principal": "application"
+  },
+  "workload": {
+    "duration_seconds": 1800,
+    "interval_seconds": 5,
+    "concurrency": 3,
+    "cycle": [
+      "qa",
+      "qa",
+      "analysis",
+      "qa",
+      "approval"
+    ],
+    "min_samples_per_kind": 60,
+    "request_timeout_seconds": 120,
+    "drain_seconds": 720,
+    "max_start_lag_ms": 250
+  },
+  "actors": {
+    "requester_role": "manager",
+    "approver_role": "manager",
+    "rate_limit_per_minute": 30,
+    "login_limit_per_minute": 10,
+    "isolation_review_sha256": null
+  },
+  "oracles": {
+    "qa": {
+      "prompt": "销售政策里退货怎么处理？",
+      "required_text": [
+        "REPLACE_WITH_REVIEWED_CORPUS_ORACLE"
+      ],
+      "source_ids": [
+        "REPLACE_WITH_PUBLISHED_DOCUMENT_ID"
+      ]
+    },
+    "analysis": {
+      "prompt": "分析全部可用订单，按客户统计订单数和订单金额。",
+      "required_text": [
+        "HTTP 参考 CRM",
+        "合计 CNY：1,300.49",
+        "订单数 2"
+      ],
+      "source_ids": []
+    }
+  },
+  "baseline": {
+    "p95_ms": 2000,
+    "p99_ms": 5000,
+    "error_rate_lt": 0.005
+  }
+}

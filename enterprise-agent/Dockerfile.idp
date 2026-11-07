@@ -1,0 +1,13 @@
+# Independent synthetic IdP. Build only in an explicitly authorized isolated environment.
+FROM python:3.13-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+WORKDIR /app
+COPY deploy/requirements-idp.txt ./requirements-idp.txt
+RUN python -m pip install --only-binary=:all: -r requirements-idp.txt \
+    && python -m pip check
+RUN mkdir -p /data && chown 65534:65534 /data
+COPY reference_idp ./reference_idp
+USER 65534:65534
+RUN python -B -c "import ssl, sqlite3, cryptography; from jwt.algorithms import RSAAlgorithm"
+EXPOSE 8443 8444
+CMD ["python", "-B", "-m", "reference_idp.server"]

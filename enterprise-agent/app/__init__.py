@@ -1,5 +1,10 @@
 """Hello，智多星——企业知识工作流 Agent - 主应用入口"""
 
+# Standard-library gate precedes SDK imports in normal app.* entry points.
+from app.observability.telemetry_policy import check_process_telemetry
+
+check_process_telemetry()
+
 # ============================================
 # 项目版本单一事实源(v1.3.0 生产就绪与更名,2026-08-06)
 # 升级规则:主.次.补丁(语义化版本)

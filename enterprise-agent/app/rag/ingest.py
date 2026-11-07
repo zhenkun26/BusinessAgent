@@ -7,19 +7,16 @@ W3 重构:依赖 VectorStore 抽象(支持 Milvus / InMemory 双后端)。
 入库流程:
 1. 加载文件(md/txt/pdf/docx)
 2. RecursiveCharacterTextSplitter 切分
-3. EmbeddingService 向量化
-4. VectorStore.add_documents(带 dept_namespace / access_roles / doc_type)
+3. Persist an immutable generation before embedding or index I/O.
+4. Embed and upsert its chunks, then atomically activate the ledger.
 """
 
+import asyncio
 import hashlib
-import json
-import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from loguru import logger
-from sqlalchemy import text
 
 from app.rag.document_loader import DocumentLoader
 from app.rag.embeddings import get_embeddings
@@ -45,158 +42,68 @@ class MilvusIngestService:
         source_url: Optional[str] = None,
         uploaded_by: Optional[str] = None,
     ) -> int:
-        """入库单个文件,返回入库 chunk 数"""
+        """Trusted CLI import. Stage a version before indexing; propagate any failure."""
         path = Path(file_path)
-        document_id = document_id or f"doc_{uuid.uuid4().hex[:12]}"
-        title = title or path.stem
-        access_roles = access_roles or [
-            "salesperson", "customer_service", "finance", "manager", "admin"
-        ]
-
-        logger.info(f"开始入库: {path.name} → document_id={document_id}")
-
-        # 1. 加载并切分
         docs = self.loader.load_file(path)
-        chunks = self.loader.split_documents(docs)
-
-        if not chunks:
-            logger.warning(f"文件 {path.name} 切分后无 chunks,跳过")
-            return 0
-
-        # 2. 向量化
-        texts = [chunk.page_content for chunk in chunks]
-        embeddings = self.embeddings.embed_documents(texts)
-        logger.info(f"生成 {len(embeddings)} 个向量, dim={len(embeddings[0])}")
-
-        # 3. 构造 ChunkData 列表
-        now_ts = int(datetime.now().timestamp())
-        chunk_data_list = [
-            ChunkData(
-                chunk_id=f"{document_id}_chunk_{i:04d}",
-                document_id=document_id,
-                title=title[:512],
-                content=chunk.page_content[:8192],
-                embedding=embeddings[i],
-                dept_namespace=dept_namespace,
-                doc_type=doc_type,
-                source_url=(source_url or "")[:1024],
-                updated_at=now_ts,
-                access_roles=access_roles,
-                is_active=True,
-            )
-            for i, chunk in enumerate(chunks)
-        ]
-
-        # 4. 写入 VectorStore
-        count = self.vector_store.add_documents(chunk_data_list, partition=dept_namespace)
-
-        # 5. 同步写入 PostgreSQL documents 台账(知识库运营闭环的事实源)
-        #    向量写入成功 → status=active;失败 → status=failed + ingest_error(可重试)
-        ledger = {
-            "document_id": document_id,
-            "title": title[:512],
-            "source_url": (source_url or "")[:1024],
-            "doc_type": doc_type,
-            "dept_namespace": dept_namespace,
-            "status": "active",
-            "access_roles": json.dumps(access_roles, ensure_ascii=False),
-            "content_hash": self._compute_content_hash([c.page_content for c in chunks]),
-            "content": "\n\n".join(c.page_content for c in chunks)[:200000],
-            "uploaded_by": uploaded_by,
-            "ingest_error": None,
-        }
-        try:
-            await self._upsert_ledger(ledger)
-            logger.info(
-                f"入库完成: {path.name} → {count} chunks, "
-                f"partition={dept_namespace}, document_id={document_id}"
-            )
-        except Exception as e:  # noqa: BLE001 台账失败不阻断向量结果,但要留下可观测错误
-            logger.error(f"文档台账写入失败(document_id={document_id}): {e}")
-            await self._mark_ledger_failed(document_id, str(e))
-
-        return count
+        content = "\n\n".join(doc.page_content for doc in docs)
+        return await self.ingest_text(
+            document_id=document_id or "doc_" + hashlib.sha256(
+                str(path.resolve()).encode()).hexdigest()[:48],
+            title=title or path.stem, content=content, doc_type=doc_type,
+            dept_namespace=dept_namespace, access_roles=access_roles,
+            uploaded_by=uploaded_by, source_url=source_url,
+        )
 
     async def ingest_text(
-        self,
-        document_id: str,
-        title: str,
-        content: str,
-        doc_type: str = "faq",
-        dept_namespace: str = "shared_company",
-        access_roles: Optional[list[str]] = None,
-        uploaded_by: Optional[str] = None,
-        source_url: Optional[str] = None,
+        self, document_id: str, title: str, content: str, doc_type: str = "faq",
+        dept_namespace: str = "shared_company", access_roles: Optional[list[str]] = None,
+        uploaded_by: Optional[str] = None, source_url: Optional[str] = None,
+        publication_approval: Optional[dict] = None,
     ) -> int:
-        """将纯文本内容直接向量化入库(知识候选审核通过时使用)
-
-        Args:
-            document_id: 文档唯一 ID
-            title: 文档标题
-            content: 文档正文(候选的评论/知识点内容)
-            doc_type: 文档类型,默认 faq
-            dept_namespace: 部门命名空间
-            access_roles: 可访问角色列表
-            uploaded_by: 上传者 user_id
-            source_url: 来源链接(可选)
-
-        Returns:
-            入库 chunk 数;切分为空或向量化失败时抛异常由调用方处理
-        """
+        """Persist a frozen generation, upsert exact IDs, then conditionally activate it."""
         from langchain_core.documents import Document
+        from app.config import get_settings
+        from app.core.knowledge_publication import PublicationStore
+        from app.core.task_queue import TaskRejected
 
-        access_roles = access_roles or [
-            "salesperson", "customer_service", "finance", "manager", "admin"
-        ]
-        chunks = self.loader.split_documents([Document(page_content=content)])
-        if not chunks:
-            logger.warning(f"知识候选内容切分后无 chunks: {document_id}")
-            return 0
-
-        texts = [chunk.page_content for chunk in chunks]
-        embeddings = self.embeddings.embed_documents(texts)
-
-        now_ts = int(datetime.now().timestamp())
-        chunk_data_list = [
-            ChunkData(
-                chunk_id=f"{document_id}_chunk_{i:04d}",
-                document_id=document_id,
-                title=title[:512],
-                content=chunk.page_content[:8192],
-                embedding=embeddings[i],
-                dept_namespace=dept_namespace,
-                doc_type=doc_type,
-                source_url=(source_url or "")[:1024],
-                updated_at=now_ts,
-                access_roles=access_roles,
-                is_active=True,
-            )
-            for i, chunk in enumerate(chunks)
-        ]
-
-        count = self.vector_store.add_documents(
-            chunk_data_list, partition=dept_namespace
-        )
-        await self._upsert_ledger(
-            {
-                "document_id": document_id,
-                "title": title[:512],
-                "source_url": (source_url or "")[:1024],
-                "doc_type": doc_type,
-                "dept_namespace": dept_namespace,
-                "status": "active",
-                "access_roles": json.dumps(access_roles, ensure_ascii=False),
-                "content_hash": self._compute_content_hash(texts),
-                "content": "\n\n".join(texts)[:200000],
-                "uploaded_by": uploaded_by,
-                "ingest_error": None,
-            }
-        )
-        logger.info(
-            f"文本入库完成: {document_id} → {count} chunks, "
-            f"partition={dept_namespace}"
-        )
-        return count
+        # Missing/empty ACL is never expanded to all roles.
+        data = dict(document_id=document_id, title=title, content=content,
+                    doc_type=doc_type, dept_namespace=dept_namespace,
+                    access_roles=access_roles, uploaded_by=uploaded_by,
+                    source_url=source_url or "")
+        texts = [c.page_content for c in self.loader.split_documents([Document(page_content=content)])]
+        settings = get_settings()
+        recipe = dict(provider=settings.embedding_provider, model=settings.embedding_model,
+                      dim=settings.embedding_dim, splitter="recursive-500-50-v1")
+        store = PublicationStore()
+        try:
+            record = await store.prepare(data, texts, recipe, publication_approval)
+        except TaskRejected:
+            raise
+        except Exception:
+            raise TaskRejected("KNOWLEDGE_STORE_UNAVAILABLE") from None
+        if record['state'] == 'published':
+            return len(record['chunks'])
+        try:
+            # Frozen content and IDs survive retries; never truncate after hashing.
+            embeddings = self.embeddings.embed_documents([c['content'] for c in record['chunks']])
+            if len(embeddings) != len(record['chunks']):
+                raise TaskRejected('KNOWLEDGE_EMBEDDING_INCOMPLETE')
+            chunks = [ChunkData(**chunk, embedding=vector)
+                      for chunk, vector in zip(record['chunks'], embeddings, strict=True)]
+            count = self.vector_store.add_documents(chunks, partition=dept_namespace)
+            if type(count) is not int or count != len(chunks):
+                raise TaskRejected('KNOWLEDGE_INDEX_INCOMPLETE')
+            await store.activate(record)
+            return count
+        except BaseException as exc:
+            try:
+                await store.failed(record)
+            except Exception:
+                logger.warning('KNOWLEDGE_FAILURE_RECORD_UNAVAILABLE')
+            if isinstance(exc, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
+                raise
+            raise TaskRejected('KNOWLEDGE_PUBLICATION_UNCONFIRMED') from None
 
     async def ingest_directory(
         self,
@@ -221,8 +128,8 @@ class MilvusIngestService:
                     )
                     stats["success_files"] += 1
                     stats["total_chunks"] += chunks
-                except Exception as e:
-                    logger.error(f"入库失败 {file}: {e}")
+                except Exception:
+                    logger.error("KNOWLEDGE_IMPORT_FAILED")
                     stats["failed_files"] += 1
 
         logger.info(f"目录入库完成: {stats}")
@@ -236,60 +143,6 @@ class MilvusIngestService:
         """获取知识库统计"""
         return self.vector_store.get_stats()
 
-    # ============ 台账辅助(内部) ============
-
-    @staticmethod
-    def _compute_content_hash(chunk_texts: list[str]) -> str:
-        """按全部 chunk 正文计算内容哈希,用于重复导入去重"""
-        digest = hashlib.sha256()
-        for chunk_text in chunk_texts:
-            digest.update(chunk_text.encode("utf-8"))
-        return digest.hexdigest()
-
-    @staticmethod
-    async def _upsert_ledger(ledger: dict) -> None:
-        """幂等 upsert documents 台账(同一 document_id 重复入库更新为最新内容)"""
-        from app.core.database import get_session_factory
-
-        factory = get_session_factory()
-        async with factory() as session:
-            await session.execute(
-                text(
-                    "INSERT INTO documents (document_id, title, source_url, doc_type, "
-                    "dept_namespace, status, access_roles, content_hash, content, "
-                    "uploaded_by, ingest_error) "
-                    "VALUES (:document_id, :title, :source_url, :doc_type, "
-                    ":dept_namespace, :status, CAST(:access_roles AS JSONB), "
-                    ":content_hash, :content, :uploaded_by, :ingest_error) "
-                    "ON CONFLICT (document_id) DO UPDATE SET "
-                    "title = EXCLUDED.title, source_url = EXCLUDED.source_url, "
-                    "doc_type = EXCLUDED.doc_type, dept_namespace = EXCLUDED.dept_namespace, "
-                    "status = EXCLUDED.status, access_roles = EXCLUDED.access_roles, "
-                    "content_hash = EXCLUDED.content_hash, content = EXCLUDED.content, "
-                    "uploaded_by = EXCLUDED.uploaded_by, ingest_error = EXCLUDED.ingest_error, "
-                    "updated_at = CURRENT_TIMESTAMP"
-                ),
-                ledger,
-            )
-            await session.commit()
-
-    @staticmethod
-    async def _mark_ledger_failed(document_id: str, error_message: str) -> None:
-        """向量写入或台账写入失败时,在台账保留失败标记供 worker 重试"""
-        from app.core.database import get_session_factory
-
-        factory = get_session_factory()
-        async with factory() as session:
-            await session.execute(
-                text(
-                    "UPDATE documents SET status = 'failed', ingest_error = :error, "
-                    "updated_at = CURRENT_TIMESTAMP WHERE document_id = :did"
-                ),
-                {"error": error_message[:500], "did": document_id},
-            )
-            await session.commit()
-
-
 # ============ CLI 入口 ============
 
 
@@ -301,7 +154,7 @@ def main():
     parser.add_argument("path", help="文件或目录路径")
     parser.add_argument("--type", default="policy", help="文档类型: policy/product/faq/manual")
     parser.add_argument("--ns", default="shared_company", help="部门命名空间")
-    parser.add_argument("--roles", nargs="*", default=None, help="可访问角色列表")
+    parser.add_argument("--roles", nargs="*", required=True, help="Explicit access roles (required)")
     parser.add_argument("--title", default=None, help="文档标题(单文件时使用)")
     parser.add_argument(
         "--recreate",

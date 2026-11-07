@@ -64,8 +64,22 @@ def _threshold_rows(summary: dict) -> list[tuple[str, bool]]:
     rows = []
     for name, item in (summary.get("metrics") or {}).items():
         for thr, res in (item.get("thresholds") or {}).items():
-            rows.append((f"{name} :: {thr}", bool(res.get("ok"))))
+            rows.append((f"{name} :: {thr}", res.get("ok") is True))
     return rows
+
+
+def legacy_threshold_status(summary: dict, exit_code: int) -> bool:
+    """Legacy script checks only; missing/non-boolean threshold evidence is never passing."""
+    if exit_code != 0:
+        return False
+    metrics = summary.get("metrics") or {}
+    for endpoint in ("health", "chat"):
+        for metric, required in (("duration", ("p(95)<2000", "p(99)<5000")),
+                                 ("failed", ("rate<0.005",))):
+            thresholds = metrics.get(f"http_req_{metric}{{endpoint:{endpoint}}}", {}).get("thresholds", {})
+            if any(thresholds.get(key, {}).get("ok") is not True for key in required):
+                return False
+    return all(ok for _, ok in _threshold_rows(summary))
 
 
 def main() -> None:
@@ -81,7 +95,7 @@ def main() -> None:
     env = _env_info()
     overall = _endpoint_metrics(summary)["_overall"]
     thresholds = _threshold_rows(summary)
-    all_ok = args.k6_exit == 0 and all(ok for _, ok in thresholds)
+    all_ok = legacy_threshold_status(summary, args.k6_exit)
 
     def fmt_ms(v: float | None) -> str:
         return f"{v:.0f} ms" if isinstance(v, (int, float)) else "N/A"
@@ -92,12 +106,14 @@ def main() -> None:
     breaches = [name for name, ok in thresholds if not ok]
 
     lines = [
-        "# 阶梯压测报告",
+        "# Historical k6 report (not C23 acceptance)",
+        "",
+        "- C23 acceptance: **BLOCKED**. No mixed 30-minute business, TTFT or resource evidence.",
         "",
         f"- 执行时间:{env['time_utc']}",
         f"- 档位:`{args.profile}`(formal=正式阶梯;smoke=脚本链路冒烟)",
         f"- 目标:`{args.base_url}`",
-        f"- 总体判定:**{'达标' if all_ok else '未达标'}**(k6 退出码 {args.k6_exit})",
+        f"- 历史脚本阈值判定:**{'达标' if all_ok else '未达标'}**(k6 退出码 {args.k6_exit})",
         "",
         "## 1. 环境配置",
         "",
@@ -148,7 +164,7 @@ def main() -> None:
         ]
     else:
         lines += [
-            "全部阈值达标。待执行人补充:瓶颈最接近的资源项与下一档并发预估。",
+            "阈值失败或缺失时不得声称达标；完整容量验收仍 BLOCKED。",
         ]
     lines += [
         "",
@@ -161,7 +177,8 @@ def main() -> None:
         "",
     ]
 
-    Path(args.out).write_text("\n".join(lines), encoding="utf-8")
+    with Path(args.out).open("x", encoding="utf-8") as stream:
+        stream.write("\n".join(lines))
 
 
 if __name__ == "__main__":

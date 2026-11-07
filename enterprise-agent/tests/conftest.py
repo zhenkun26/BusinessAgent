@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, Optional
 
 import pytest
@@ -30,6 +31,11 @@ class FakeResult:
 
     def __init__(self, rows: Optional[list[FakeRow]] = None) -> None:
         self._rows = rows or []
+
+    def mappings(self) -> SimpleNamespace:
+        """Expose mapping rows for publication ledger queries."""
+        rows = [vars(row) for row in self._rows]
+        return SimpleNamespace(all=lambda: rows, first=lambda: rows[0] if rows else None)
 
     def fetchall(self) -> list[FakeRow]:
         return self._rows

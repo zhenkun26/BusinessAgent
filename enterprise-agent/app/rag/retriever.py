@@ -12,10 +12,14 @@
 """
 
 import time
-from dataclasses import dataclass
+from contextlib import nullcontext
+from dataclasses import dataclass, replace
 from typing import Optional
 
 from loguru import logger
+from app.config import get_settings
+from app.security.retrieval_policy import resolve_scope
+from app.rag.model_profile import uses_remote_profile
 
 from app.observability.tracing import (
     record_span_attributes,
@@ -24,7 +28,7 @@ from app.observability.tracing import (
 )
 from app.rag.confidence import ConfidenceDecider
 from app.rag.embeddings import get_embeddings
-from app.rag.reranker import Reranker, get_reranker
+from app.rag.reranker import Reranker, RerankerSelection, get_reranker
 from app.rag.vector_store import (
     EnterpriseVectorStore,
     SearchFilter,
@@ -41,7 +45,8 @@ class RetrievalResult:
     top_score: float  # Top-1 分数
     scene: str  # 识别出的场景
     latency_ms: int
-    stage: str  # "vector" | "rerank" | "bm25" | "like"  命中的检索阶段(降级链用)
+    stage: str  # "vector" | "rerank"; fallback algorithms belong to DegradationResult
+    rerank_status: Optional[RerankerSelection] = None  # Internal only; not an API receipt.
 
 
 # 政策场景共享优先的平局噪声带(见 retrieve 中的说明)
@@ -100,15 +105,16 @@ class EnterpriseRAGRetriever:
             doc_types: 文档类型白名单
             scene: 场景(None 时自动识别)
         """
+        scope = resolve_scope(user_role, dept_namespace, doc_types)
+        from app.rag.publication_visibility import visible_results
+        from app.rag.score_admission import check_result_scores
+        visible_results([])  # Require a current ledger snapshot before embedding/model calls.
         start = time.time()
 
         # tracing: 整个 retrieve 作为一个 span(含子 span:粗排/精排)
         with traced_span(
             "rag.retrieve",
             attributes={
-                "rag.query": query[:200],
-                "rag.user_role": user_role or "",
-                "rag.dept_namespace": dept_namespace or "",
                 "rag.top_k": self.top_k,
                 "rag.rerank_top_n": self.rerank_top_n,
             },
@@ -138,6 +144,8 @@ class EnterpriseRAGRetriever:
                     top_k=coarse_k,
                     filter=search_filter,
                 )
+                coarse_results = visible_results([r for r in coarse_results if scope.allows_result(r)])
+                check_result_scores(coarse_results)
                 record_span_attributes({
                     "rag.coarse.count": len(coarse_results),
                     "rag.coarse.k": coarse_k,
@@ -161,20 +169,41 @@ class EnterpriseRAGRetriever:
                 )
 
             # 5. 精排:Reranker
+            from concurrent.futures import CancelledError
+            from app.core.execution_budget import ExecutionBudgetExceeded
+
+            selection = getattr(self.reranker, "selection", None)
+            if not isinstance(selection, RerankerSelection):
+                selection = RerankerSelection("injected", "injected")
+            performs_rerank = getattr(self.reranker, "performs_rerank", True) is not False
             try:
-                with traced_span("rag.rerank") as rerank_ctx:
+                with traced_span("rag.rerank") if performs_rerank else nullcontext():
                     ranked = self.reranker.rerank(query, coarse_results, top_n=self.rerank_top_n)
-                    stage = "rerank"
-                    record_span_attributes({
-                        "rag.rerank.count": len(ranked),
-                        "rag.rerank.top_score": ranked[0].score if ranked else 0.0,
-                    })
+                    ranked = visible_results([r for r in ranked if scope.allows_result(r)])
+                    check_result_scores(ranked)
+                    stage = "rerank" if performs_rerank else "vector"
+                    if performs_rerank:
+                        record_span_attributes({
+                            "rag.rerank.count": len(ranked),
+                            "rag.rerank.top_score": ranked[0].score if ranked else 0.0,
+                        })
+            except (ExecutionBudgetExceeded, CancelledError):
+                raise
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"Rerank 失败,降级使用粗排结果: {e}")
+                from app.core.execution_budget import check_execution_budget
+                check_execution_budget()
+                if uses_remote_profile(get_settings()):
+                    from app.rag.remote_models import RemoteModelError
+
+                    raise RemoteModelError("MODEL_RERANK_FAILED") from None
+                logger.warning("RETRIEVAL_RERANK_FAILED")
                 ranked = coarse_results[: self.rerank_top_n]
                 stage = "vector"
-                record_span_event("rag.rerank_failed", {"error": str(e)})
+                selection = replace(selection, effective_provider="passthrough",
+                                    reason="invocation_failed")
+                record_span_event("rag.rerank_failed")
 
+            check_result_scores(ranked)
             total_ms = int((time.time() - start) * 1000)
 
             # 政策场景共享优先平局裁决:
@@ -189,7 +218,7 @@ class EnterpriseRAGRetriever:
             top_score = ranked[0].score if ranked else 0.0
 
             logger.info(
-                f"RAG 精排: 返回 {len(ranked)} 条, top_score={top_score:.3f}, "
+                f"RAG 检索结果: 返回 {len(ranked)} 条, top_score={top_score:.3f}, "
                 f"stage={stage}, total_cost={total_ms}ms"
             )
 
@@ -205,6 +234,7 @@ class EnterpriseRAGRetriever:
                 scene=scene,
                 latency_ms=total_ms,
                 stage=stage,
+                rerank_status=selection,
             )
 
     def retrieve_with_text(

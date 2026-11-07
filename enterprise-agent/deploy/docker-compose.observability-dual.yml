@@ -1,0 +1,12 @@
+# Add after prod + observability overlays for the two-API acceptance profile.
+services:
+  api2:
+    extends:
+      file: docker-compose.prod.yml
+      service: api
+  observation-monitor:
+    environment:
+      OBSERVABILITY_DUAL_API: "true"
+  prometheus:
+    volumes:
+      - ./deploy/prometheus-dual-api.yml:/etc/prometheus/prometheus.yml:ro

@@ -23,9 +23,7 @@ from typing import Any, Optional
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
 
-from app.config import get_settings
 from app.tools.base import BaseTool, ToolCategory, ToolResult
-from app.tools.http_adapter import call_external_api
 
 
 # ============ Schemas ============
@@ -36,15 +34,27 @@ _DOMAIN_LABEL = r"[^\W_]+(?:-+[^\W_]+)*"
 _MAILBOX = re.compile(rf"{_LOCAL_ATOM}(?:\.{_LOCAL_ATOM})*@{_DOMAIN_LABEL}(?:\.{_DOMAIN_LABEL})*")
 
 
-def has_external_recipient(params: dict[str, Any]) -> bool:
+def has_external_recipient(params: dict[str, Any], *, provider: str | None = None) -> bool:
     """Classify a plan before RBAC. The schema separately rejects malformed inputs."""
+    from app.config import get_settings
+    settings = get_settings()
+    effective_provider = provider or settings.mail_tool_provider or settings.tool_provider
+    reference_profile = (effective_provider == "http"
+                         and settings.tool_reference_profile == "business-reference-v1")
+
+    def is_internal(address: str) -> bool:
+        # Synthetic capture recipients are never a production domain allowlist.
+        if reference_profile:
+            return address in {"employee@reference.invalid", "manager@reference.invalid"}
+        return address.rpartition("@")[2].lower() == "company.internal"
+
     for field in ("to", "cc"):
         addresses = params.get(field)
         if isinstance(addresses, str):
             addresses = [addresses]
         if isinstance(addresses, (list, tuple)) and any(
             isinstance(address, str) and "@" in address
-            and address.rpartition("@")[2].lower() != "company.internal"
+            and not is_internal(address)
             for address in addresses
         ):
             return True
@@ -118,40 +128,13 @@ class SendEmailInternalTool(BaseTool):
 
     def _validate_params(self, params: dict[str, Any]) -> dict[str, Any]:
         validated = super()._validate_params(params)
-        if has_external_recipient(validated):
+        if has_external_recipient(validated, provider=self._effective_provider()):
             raise ValueError("内部邮件工具不允许外部地址（含抄送）")
         return validated
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
-        """真实邮件系统适配:POST /send(scope=internal)"""
-        settings = get_settings()
-        meta: dict[str, Any] = {}
-        ok, data, error = await call_external_api(
-            "POST",
-            f"{settings.mail_api_base}/send",
-            api_token=settings.mail_api_token,
-            json_body={**params, "scope": "internal"},
-            meta=meta,
-        )
-        if not ok:
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error=error,
-                side_effects={"external_attempts": meta.get("attempts", 1)},
-            )
-        message_id = data.get("message_id") if isinstance(data, dict) else None
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"message_id": message_id, "recipients": len(params["to"])},
-            side_effects={
-                "sent_message_id": message_id,
-                "external_attempts": meta.get("attempts", 1),
-            },
-            compensation_data={"message_id": message_id, "action": "recall", "provider": "http"},
-        )
+        from app.tools.operation_gateway import invoke_action
+        return await invoke_action(self, params, context)
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         to_list = params["to"]
@@ -183,13 +166,8 @@ class SendEmailInternalTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:撤回邮件(Mock:标记为 recalled)"""
         message_id = compensation_data.get("message_id")
-        if compensation_data.get("provider") == "http":
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={"message": f"邮件 {message_id} 未执行真实撤回"},
-                error="真实邮件撤回接口尚未完成契约确认，不能伪造已撤回结果",
-            )
+        if compensation_data.get("provider") == "http" or self._effective_provider() == "http":
+            return ToolResult(False, self.name, {}, error="DURABLE_COMPENSATION_REQUIRED")
         if message_id and message_id in _mock_sent_emails:
             _mock_sent_emails[message_id]["status"] = "recalled"
             logger.info(f"邮件补偿: 已撤回 message_id={message_id}")
@@ -213,49 +191,13 @@ class SendEmailExternalTool(BaseTool):
     description = "发送外部邮件给客户或合作伙伴（需审批）"
     input_schema = SendEmailSchema
     provider_config_attr = "mail_tool_provider"
-    # 高风险操作:执行前需经理审批(审批通过后服务端自动执行)
+    # Approval and subsequent requester confirmation are both required.
     requires_approval = True
     risk_level = "high"
 
     async def _call_external(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
-        """真实邮件系统适配:POST /send(scope=external)"""
-        settings = get_settings()
-        meta: dict[str, Any] = {}
-        ok, data, error = await call_external_api(
-            "POST",
-            f"{settings.mail_api_base}/send",
-            api_token=settings.mail_api_token,
-            json_body={**params, "scope": "external"},
-            meta=meta,
-        )
-        if not ok:
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error=error,
-                side_effects={"external_attempts": meta.get("attempts", 1)},
-            )
-        message_id = data.get("message_id") if isinstance(data, dict) else None
-        from app.core.approval_deadline import in_approval_dispatch
-        if in_approval_dispatch() and (not isinstance(message_id, str) or not message_id.strip()):
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={},
-                error="APPROVAL_RESULT_UNCONFIRMED",
-                side_effects={"external_attempts": meta.get("attempts", 1)},
-            )
-        return ToolResult(
-            success=True,
-            tool_name=self.name,
-            output={"message_id": message_id, "recipients": len(params["to"])},
-            side_effects={
-                "sent_message_id": message_id,
-                "external_attempts": meta.get("attempts", 1),
-            },
-            compensation_data={"message_id": message_id, "action": "recall", "provider": "http"},
-        )
+        from app.tools.operation_gateway import invoke_action
+        return await invoke_action(self, params, context)
 
     async def _execute(self, params: dict[str, Any], context: dict[str, Any]) -> ToolResult:
         to_list = params["to"]
@@ -288,13 +230,8 @@ class SendEmailExternalTool(BaseTool):
     async def compensate(self, compensation_data: dict[str, Any]) -> ToolResult:
         """补偿:撤回外部邮件(实际场景可能无法撤回,标记为审计事件)"""
         message_id = compensation_data.get("message_id")
-        if compensation_data.get("provider") == "http":
-            return ToolResult(
-                success=False,
-                tool_name=self.name,
-                output={"message": f"外部邮件 {message_id} 未执行撤回请求"},
-                error="真实邮件撤回语义尚未完成契约确认，不能伪造撤回请求已提交",
-            )
+        if compensation_data.get("provider") == "http" or self._effective_provider() == "http":
+            return ToolResult(False, self.name, {}, error="DURABLE_COMPENSATION_REQUIRED")
         if message_id and message_id in _mock_sent_emails:
             _mock_sent_emails[message_id]["status"] = "recall_requested"
             logger.warning(

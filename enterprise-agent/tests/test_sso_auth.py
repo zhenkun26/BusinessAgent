@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import secrets
 
 import pytest
 from fastapi import FastAPI
@@ -12,6 +13,23 @@ import app.api.auth as auth_api
 from app.config import get_settings
 from app.core.database import get_db
 from app.security.rbac import User
+
+
+@pytest.fixture(autouse=True)
+def shared_state_double(monkeypatch):
+    """HTTP fixtures stay offline; C09 covers actual shared-state adapter contracts."""
+    states = {}
+
+    async def register(*, verifier=None):
+        state, nonce = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+        states[state] = {"nonce": nonce, "verifier": verifier}
+        return state, nonce
+
+    async def consume(state, *, with_verifier=False):
+        return states.pop(state, None)
+
+    monkeypatch.setattr(auth_api, '_register_sso_state', register)
+    monkeypatch.setattr(auth_api, '_consume_sso_state', consume)
 
 
 class _FakeAuditLogger:
@@ -43,11 +61,11 @@ def _enable_sso(monkeypatch: pytest.MonkeyPatch) -> None:
         "sso_enabled": True,
         "sso_issuer": "https://idp.example.test",
         "sso_client_id": "zhiduoxing",
-        "sso_client_secret": "test-secret",
+        "sso_client_secret": "synthetic-client-secret-000000000000",
         "sso_authorize_url": "https://idp.example.test/authorize",
         "sso_token_url": "https://idp.example.test/token",
         "sso_jwks_url": "https://idp.example.test/jwks",
-        "sso_redirect_uri": "http://testserver/sso/callback",
+        "sso_redirect_uri": "https://testserver/sso/callback",
         "sso_scopes": "openid profile email",
         "sso_department_claim": "department",
         "sso_default_role": "salesperson",
@@ -60,9 +78,8 @@ def test_should_redirect_to_idp_with_state_and_nonce_when_sso_enabled(monkeypatc
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
 
-    response = TestClient(_build_app(audit)).get("/sso/login", follow_redirects=False)
+    response = TestClient(_build_app(audit), base_url="https://testserver").get("/sso/login", follow_redirects=False)
 
     assert response.status_code == 307
     location = response.headers["location"]
@@ -70,7 +87,10 @@ def test_should_redirect_to_idp_with_state_and_nonce_when_sso_enabled(monkeypatc
     assert "client_id=zhiduoxing" in location
     assert "state=" in location
     assert "nonce=" in location
+    assert "code_challenge_method=S256" in location
+    assert "code_challenge=" in location
     assert "sso_state=" in response.headers["set-cookie"]
+    assert "Secure" in response.headers["set-cookie"]
 
 
 def test_should_return_explicit_unavailable_message_when_sso_is_disabled(monkeypatch):
@@ -87,10 +107,9 @@ async def test_should_reject_callback_when_state_cookie_does_not_match(monkeypat
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
-    state, _ = auth_api._register_sso_state()
+    state, _ = await auth_api._register_sso_state(verifier="v" * 43)
 
-    response = TestClient(_build_app(audit)).get(
+    response = TestClient(_build_app(audit), base_url="https://testserver").get(
         f"/sso/callback?code=one-time-code&state={state}",
         cookies={"sso_state": "different-state"},
     )
@@ -104,8 +123,7 @@ async def test_should_map_existing_sso_user_and_issue_local_jwt(monkeypatch):
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
-    state, nonce = auth_api._register_sso_state()
+    state, nonce = await auth_api._register_sso_state(verifier="v" * 43)
     user = User(
         user_id="user_sales_001",
         username="销售员张三",
@@ -115,7 +133,7 @@ async def test_should_map_existing_sso_user_and_issue_local_jwt(monkeypatch):
         sso_issuer="https://idp.example.test",
         sso_subject="sub-001",
     )
-    async def fake_exchange(code):
+    async def fake_exchange(code, verifier):
         return {"id_token": "opaque-test-token"}
 
     async def fake_verify(token, expected_nonce):
@@ -128,7 +146,7 @@ async def test_should_map_existing_sso_user_and_issue_local_jwt(monkeypatch):
     monkeypatch.setattr(auth_api, "_verify_id_token", fake_verify)
     monkeypatch.setattr(auth_api, "_find_or_provision_sso_user", fake_find)
 
-    response = TestClient(_build_app(audit)).get(
+    response = TestClient(_build_app(audit), base_url="https://testserver").get(
         f"/sso/callback?code=one-time-code&state={state}",
         cookies={"sso_state": state},
     )
@@ -145,8 +163,7 @@ async def test_should_audit_first_sso_provisioning_without_logging_idp_token(mon
     _enable_sso(monkeypatch)
     audit = _FakeAuditLogger()
     monkeypatch.setattr(auth_api, "get_audit_logger", lambda: audit)
-    auth_api._sso_states.clear()
-    state, nonce = auth_api._register_sso_state()
+    state, nonce = await auth_api._register_sso_state(verifier="v" * 43)
     user = SimpleNamespace(
         user_id="sso_123",
         username="new-user",
@@ -156,7 +173,7 @@ async def test_should_audit_first_sso_provisioning_without_logging_idp_token(mon
         sso_subject="sub-new",
     )
     id_token = "do-not-log-this-token"
-    async def fake_exchange(code):
+    async def fake_exchange(code, verifier):
         return {"id_token": id_token}
 
     async def fake_verify(token, expected_nonce):
@@ -169,7 +186,7 @@ async def test_should_audit_first_sso_provisioning_without_logging_idp_token(mon
     monkeypatch.setattr(auth_api, "_verify_id_token", fake_verify)
     monkeypatch.setattr(auth_api, "_find_or_provision_sso_user", fake_find)
 
-    response = TestClient(_build_app(audit)).get(
+    response = TestClient(_build_app(audit), base_url="https://testserver").get(
         f"/sso/callback?code=one-time-code&state={state}",
         cookies={"sso_state": state},
     )
