@@ -254,3 +254,28 @@ license line-21 trailing spaces and the OpenSpec MIT license's extra EOF blank l
 intentional upstream-byte preservation, not silently stripped formatting. Consequently,
 a blanket claim that the complete staged diff has no whitespace findings would be
 incorrect. Earlier diff-check results describe only their actual inspected scope.
+
+
+### Verified code candidate CI — documentation follow-up
+
+[Run 42376168479](https://github.com/zhenkun26/BusinessAgent/actions/runs/42376168479)
+passed all five jobs for code head 42644960a499cefe71c8ad21110bdd0b9cec39ce;
+actual merge checkout was 96fb4ed665f20e13d461829320bba913f6041b22.
+This section follows that verified code in documentation only. The later documentation
+commit and its own CI are recorded in the PR, not represented by a self-referential hash.
+
+- Python 3.11 and 3.13 each passed 2137 tests plus 640 subtests.
+- Native synthetic-demo artifact 13576140776 records 15/15 checks, driver implementation
+  python and libpq 180006. Ubuntu CI explicitly installed libpq5
+  18.6-1.pgdg24.04+2 and preflight established no binary/C wrapper. Owned stop succeeded
+  in public logs. This proves the specified CI runner environment, including preinstalled
+  tools/configured repositories, not all bare machines or operating systems.
+- C10 artifact 13576330125 records 17 + 17 + 24 + 5 checks PASS, clean before/after,
+  source binding PASS and containers_stopped=true. Its full_c10=false and full RAG
+  BLOCKED declarations remain authoritative; scoped checks do not close full acceptance.
+- Production image and security checks passed, with Trivy limited to the existing
+  HIGH/CRITICAL, ignore-unfixed=true gate. GHCR login and push were skipped.
+- Historical failed attempts remain above. Unknown-source decisions, retained historical
+  screenshots, missing cross-refresh UI history recovery and full enterprise/RAG
+  acceptance limitations remain unresolved. No merge, publication or deployment follows
+  from this documentation update.

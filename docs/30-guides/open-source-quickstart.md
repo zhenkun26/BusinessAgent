@@ -9,7 +9,9 @@ Stage one targets reproducible isolated startup with synthetic examples and hone
 ## Starter verification / 启动入口核验
 
 Scoped macOS arm64 checks passed with Python 3.13.15 and a previously approved binary-driver
-test adapter. Run-05 passed 15 real HTTP checks and 14 focused demo tests after a startup-log correction; owned services were stopped with data retained. Run-04 browser checks passed login, both greeting shortcuts, unsupported-operation rejection, current-session history, refresh/login isolation, relogin and logout. The log-only follow-up did not change UI bytes. This is not native libpq proof: the final precommit offline checks passed, while Linux CI and clean committed binding remain pending; stage one is not complete.
+test adapter. Run-05 passed 15 real HTTP checks and 14 focused demo tests after a startup-log correction; owned services were stopped with data retained. Run-04 browser checks passed login, both greeting shortcuts, unsupported-operation rejection, current-session history, refresh/login isolation, relogin and logout. The log-only follow-up did not change UI bytes. The Mac adapter is not native libpq proof. Separately, [CI run 42376168479](https://github.com/zhenkun26/BusinessAgent/actions/runs/42376168479) passed all five jobs for code head 42644960a499cefe71c8ad21110bdd0b9cec39ce (actual merge checkout 96fb4ed665f20e13d461829320bba913f6041b22), including native-driver startup and 15/15 checks on its Ubuntu runner. Source-rights blockers remain; this is not unconditional stage-one acceptance.
+
+The verified Linux path assumes an Ubuntu CI-style environment with Python 3.13 already installed, a running accessible Docker daemon, and configured Ubuntu/PGDG APT sources. It is not a verified native-libpq setup for macOS or every bare Linux host. Complete the isolated setup and import preflight below before startup.
 
 From the repository root, with prerequisites satisfied in an isolated Python environment:
 
@@ -29,7 +31,7 @@ Optional tracked acceptance (creates synthetic users/sessions and a redacted rep
     python -I -B enterprise-agent/scripts/check_synthetic_demo.py --execute --require-python-driver --run-dir enterprise-agent/eval/results/my-synthetic-demo-01
 
 The pure-driver option deliberately rejects binary/C implementations, including the
-historical Mac test adapter. Final native-driver execution remains pending.
+historical Mac test adapter. The Ubuntu CI run passed this native-driver check; the historical Mac adapter remains a separate result.
 
 Stop after use, or after partial startup with a retained receipt:
 
@@ -40,26 +42,26 @@ Use another fresh directory for another start. Keep private-state.json, logs and
 out of commits/public uploads. Share only inspected redacted acceptance reports.
 Loopback bindings and Python guards are not OS/container-wide network isolation.
 
-## Prerequisites under verification / 正在核验的前置条件
+## Verified Linux prerequisites / 已验证Linux前置
 
 The planned starter uses Python 3.11 or later, the existing production Python dependencies,
 Docker for isolated PostgreSQL/Redis, and native **libpq** on the host. The project's pure
 psycopg package needs libpq available to the operating system's dynamic loader; pip
 installation alone is insufficient. No new psycopg binary dependency is added for the
-demo. For Debian/Ubuntu, the system runtime package is libpq5. In an isolated environment with package-install permission, install it before the Python requirements. The dedicated Linux CI now specifies this prerequisite, but its actual result is still pending.
+demo. For Debian/Ubuntu, the system runtime package is libpq5. In an isolated environment with package-install permission, install it before the Python requirements. The successful Ubuntu CI explicitly installed libpq5 18.6-1.pgdg24.04+2, observed libpq version 180006 and pure Python driver implementation, and verified binary/C wrappers absent. This result depends on that runner's existing base tools and configured APT sources, not a universal bare-machine proof.
 
 计划入口需要 Python 3.11+、现有生产依赖、运行隔离 PostgreSQL/Redis 的 Docker，以及
 宿主机原生 libpq。仅安装 Python requirements 不代表环境已经完整可用；本演示不会另加
-psycopg 二进制依赖。Debian/Ubuntu 对应系统包为 libpq5；Linux CI 已明确安装此前置，但尚待真实运行结果。
+psycopg 二进制依赖。Debian/Ubuntu 对应系统包为 libpq5；已通过的 Ubuntu CI 明确安装此前置并核验原生驱动；其预装工具和 APT 源仍属于环境条件，不代表任意裸机或所有系统都已验证。
 
 The approved narrow profile uses the real application core but synthetic greeting responses.
 It is not a generic replacement API and does not demonstrate real RAG or business actions.
-Production mode must refuse the profile. A minimal Debian/Ubuntu setup sequence (requires system package-install permission; Linux execution evidence pending) is:
+Production mode must refuse the profile. A minimal Debian/Ubuntu setup sequence (requires system package-install permission; validated CI uses an Ubuntu runner with Python/Docker and its configured APT sources, not every bare Debian/Ubuntu host) is:
 
     sudo apt-get update
     sudo apt-get install -y --no-install-recommends libpq5
-    python3 -m venv .venv-demo
-    . .venv-demo/bin/activate
+    python3.13 -m venv .venv_demo
+    . .venv_demo/bin/activate
     python -m pip install -r enterprise-agent/deploy/requirements-prod.txt
     python -I -B -c "import importlib.util as u; import psycopg; assert u.find_spec('psycopg_binary') is None; assert u.find_spec('psycopg_c') is None; assert psycopg.pq.__impl__ == 'python'; print(psycopg.pq.version())"
 
@@ -78,9 +80,9 @@ Use a new environment directory; Docker must already be running and accessible. 
 
 A full page refresh returns to login. After relogin there is no visible entry to recover the old session. Current-session history may show a persisted snapshot with unknown status; that is not a successful business execution receipt. Do not claim automatic cross-refresh recovery.
 
-The source inventory now contains 465 records: the historical 457 baseline plus eight new engineering fixtures. Registration does not clear unknown rights. The maintainer stated that three C17 documents (two departmental documents and after-sales policy) and eight CRM examples were fictional from creation; this is scoped author testimony, not external permission or clearance of other C17 material. The completed separate CRM increment labels eight fictional customers and uses NOT-A-PHONE telephone placeholders and example.invalid customer email addresses. The internal-mail seed deliberately retains fictional-demo-manager@company.internal with a synthetic-data comment: this private demo domain is required by the unchanged internal-mail safety classifier. It is not a customer address or a relaxed mail policy. Three focused tests passed; order and non-contact fields were unchanged. The expected full Python count is 2137 (2120 baseline + 14 demo + 3 CRM). Final precommit offline tests passed; clean committed binding and Linux CI remain pending.
+The source inventory now contains 465 records: the historical 457 baseline plus eight new engineering fixtures. Registration does not clear unknown rights. The maintainer stated that three C17 documents (two departmental documents and after-sales policy) and eight CRM examples were fictional from creation; this is scoped author testimony, not external permission or clearance of other C17 material. The completed separate CRM increment labels eight fictional customers and uses NOT-A-PHONE telephone placeholders and example.invalid customer email addresses. The internal-mail seed deliberately retains fictional-demo-manager@company.internal with a synthetic-data comment: this private demo domain is required by the unchanged internal-mail safety classifier. It is not a customer address or a relaxed mail policy. Three focused tests passed; order and non-contact fields were unchanged. The expected full Python count is 2137 (2120 baseline + 14 demo + 3 CRM). Both supported Python CI jobs passed 2137 tests plus 640 subtests; the recorded CI also verified candidate binding and the native starter.
 
-The final candidate identity and Linux result must be added after verification. Existing successful CI evidence does not by itself prove a new starter works. See [source provenance](../50-engineering/license-provenance.md) and [third-party notices](../../THIRD_PARTY_NOTICES.md); unknown rights are not permission to redistribute.
+This document is a documentation-only follow-up to the verified code head named above. Any later documentation commit and its own CI result are recorded separately in the PR; no self-referential commit hash is invented here. Existing successful CI evidence does not by itself prove a new starter works. See [source provenance](../50-engineering/license-provenance.md) and [third-party notices](../../THIRD_PARTY_NOTICES.md); unknown rights are not permission to redistribute.
 
 ## Later stages / 后续三个阶段
 
